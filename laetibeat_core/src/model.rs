@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use std::path::PathBuf;
 
 // 总结构体
 // Serialize, Deserialize对接前端时将结构体转换成json或字节流，传入后再解开
@@ -36,6 +37,7 @@ pub struct Track {
     pub artist: String,
     pub album: String,
     pub duration: u64,
+    pub source_type: SourceType,
 }
 
 // 专辑结构体
@@ -60,4 +62,17 @@ pub enum PlayState {
     Stopped,
     Playing,
     Paused,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SourceType {
+    LocalFile(PathBuf),
+    Opensubsonic { id: String},
+}
+
+// 统一音源抽象接口
+pub trait AudioSource: Send + Sync {
+    fn id(&self) -> String;
+    fn get_stream_uri(&self) -> Result<String, String>;
+    fn get_track_info(&self) -> Track;
 }

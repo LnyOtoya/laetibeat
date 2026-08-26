@@ -1,4 +1,4 @@
-use crate::model::{MusicLibrary, Track};
+use crate::model::{MusicLibrary, SourceType, Track};
 use std::fs;
 use std::path::Path;
 
@@ -41,6 +41,7 @@ pub fn scan_directory<P: AsRef<Path>>(library: &mut MusicLibrary, dir_path: P) -
                         artist: "未知艺术家".to_string(),
                         album: "本地音乐".to_string(),
                         duration: 0,
+                        source_type: SourceType::LocalFile(file_path.clone()),
                     };
 
                     library.add_track(track);
