@@ -1,5 +1,4 @@
 use std::io::{self, Write};
-use laetibeat_core::Track;
 use laetibeat_core::scanner::scan_directory;
 use laetibeat_core::model::MusicLibrary;
 
