@@ -1,14 +1,5 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub mod model;
+pub mod scanner;
+pub use model::{MusicLibrary, Track, Album, Artist,PlayState};
+pub use scanner::scan_directory;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
