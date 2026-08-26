@@ -14,7 +14,11 @@ pub fn scan_directory<P: AsRef<Path>>(library: &mut MusicLibrary, dir_path: P) -
         let entry = entry.map_err(|e| format!("读取文件条目失败: {}", e))?;
         let file_path = entry.path();
 
-        if file_path.is_file() {
+        // 递归扫描
+        if file_path.is_dir() {
+            // 如果子文件报错，忽略打印，防止整体崩溃
+            let _ = scan_directory(library, &file_path);
+        } else if file_path.is_file() {
             // 不确定是否有后缀
             if let Some(ext) = file_path.extension().and_then(|e| e.to_str()) {
                 let ext_lower = ext.to_lowercase();
@@ -43,6 +47,7 @@ pub fn scan_directory<P: AsRef<Path>>(library: &mut MusicLibrary, dir_path: P) -
 
                 }
             }
+            
         }
     }
     Ok(())

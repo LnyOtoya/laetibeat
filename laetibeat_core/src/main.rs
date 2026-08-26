@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use laetibeat_core::Track;
 use laetibeat_core::scanner::scan_directory;
 use laetibeat_core::model::MusicLibrary;
 
@@ -30,6 +31,10 @@ fn main() {
         match scan_directory(&mut library, path) {
             Ok(()) => {
                 println!("扫描成功");
+
+                for track in &library.tracks {
+                    println!(" 歌名: {} | 艺术家: {} | 专辑: {}", track.title, track.artist, track.album);
+                }
             }
             Err(e) => {
                 println!("扫描出错：{}", e);
