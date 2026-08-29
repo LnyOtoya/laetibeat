@@ -32,7 +32,10 @@ fn main() {
                 println!("扫描成功");
 
                 for track in &library.tracks {
-                    println!(" 歌名: {} | 艺术家: {} | 专辑: {}", track.title, track.artist, track.album);
+                    let time_str = format_duration(track.duration);
+                    println!(
+                        " 歌名: {} | 艺术家: {} | 专辑: {} | 时长: {}", 
+                        track.title, track.artist, track.album, time_str);
                 }
             }
             Err(e) => {
@@ -44,4 +47,11 @@ fn main() {
 
 
     }
+}
+
+// 歌曲时长格式化 mm:ss
+fn format_duration(seconds: u64) -> String {
+    let mins = seconds / 60;
+    let secs = seconds % 60;
+    format!("{:02}:{:02}", mins,secs)
 }
