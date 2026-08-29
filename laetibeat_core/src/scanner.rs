@@ -1,5 +1,6 @@
 use crate::model::{MusicLibrary, SourceType, Track};
-use std::fs;
+// use std::fs;
+use walkdir::WalkDir;
 use std::path::Path;
 
 pub fn scan_directory<P: AsRef<Path>>(library: &mut MusicLibrary, dir_path: P) -> Result<(), String> {
@@ -7,18 +8,12 @@ pub fn scan_directory<P: AsRef<Path>>(library: &mut MusicLibrary, dir_path: P) -
     if !path.is_dir() {
         return Err(format!("路径不存在或不是文件夹: {:?}", path));
     }
-    // 此处也许是双重保险，玩意没权限，或者刚好被删除，没网了之类的
-    let entries = fs::read_dir(path).map_err(|e| format!("读取文件夹失败: {}", e))?;
 
-    for entry in entries {
-        let entry = entry.map_err(|e| format!("读取文件条目失败: {}", e))?;
+    // walkdir替代
+    for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
         let file_path = entry.path();
-
-        // 递归扫描
-        if file_path.is_dir() {
-            // 如果子文件报错，忽略打印，防止整体崩溃
-            let _ = scan_directory(library, &file_path);
-        } else if file_path.is_file() {
+        // 判断文件再查后缀
+        if file_path.is_file() {
             // 不确定是否有后缀
             if let Some(ext) = file_path.extension().and_then(|e| e.to_str()) {
                 let ext_lower = ext.to_lowercase();
@@ -41,7 +36,7 @@ pub fn scan_directory<P: AsRef<Path>>(library: &mut MusicLibrary, dir_path: P) -
                         artist: "未知艺术家".to_string(),
                         album: "本地音乐".to_string(),
                         duration: 0,
-                        source_type: SourceType::LocalFile(file_path.clone()),
+                        source_type: SourceType::LocalFile(file_path.to_path_buf()),
                     };
 
                     library.add_track(track);
