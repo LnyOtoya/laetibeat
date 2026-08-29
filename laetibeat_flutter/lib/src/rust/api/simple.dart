@@ -6,5 +6,42 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-List<String> scanTestMusic() =>
-    RustLib.instance.api.crateApiSimpleScanTestMusic();
+// These functions are ignored because they are not marked as `pub`: `format_duration`
+
+List<UiTrack> scanLocalMusicFolder({required String dirPath}) =>
+    RustLib.instance.api.crateApiSimpleScanLocalMusicFolder(dirPath: dirPath);
+
+class UiTrack {
+  final String id;
+  final String title;
+  final String artist;
+  final String album;
+  final String duration;
+
+  const UiTrack({
+    required this.id,
+    required this.title,
+    required this.artist,
+    required this.album,
+    required this.duration,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      title.hashCode ^
+      artist.hashCode ^
+      album.hashCode ^
+      duration.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiTrack &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          artist == other.artist &&
+          album == other.album &&
+          duration == other.duration;
+}

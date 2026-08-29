@@ -11,7 +11,7 @@
 
 - [x] 2.1 初始化flutter前端项目(laetibeat_flutter)
 - [x] 2.2 配置flutter_rust_bridge,建立rust与dart代码绑定
-- [ ] 2.3 实现flutter调用rust基础数据传输与测试
+- [x] 2.3 实现flutter调用rust基础数据传输与测试
 - [ ] 2.4 搭建UI基础骨架，一个选择本地文件夹的按钮，点击后触发rust扫描，并在屏幕上打印出歌曲名字
 
 ## 阶段3: 高级UI交互与媒体会话初步完善

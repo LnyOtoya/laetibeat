@@ -199,53 +199,92 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: MusicTestPage(),
+    return const MaterialApp(
+      home: LocalMusicPage(),
     );
   }
 }
 
-class MusicTestPage extends StatefulWidget {
-  const MusicTestPage({super.key});
+class LocalMusicPage extends StatefulWidget {
+  const LocalMusicPage({super.key});
 
   @override
-  State<MusicTestPage> createState() => _MusicTestPageState();
+  State<LocalMusicPage> createState() => _LocalMusicPageState();
 }
 
-class _MusicTestPageState extends State<MusicTestPage> {
-  List<String> _songs = [];
+class _LocalMusicPageState extends State<LocalMusicPage> {
+  final TextEditingController _pathController = TextEditingController();
+  List<UiTrack> _tracks = [];
+  bool _isLoading = false;
+  String? _errorMessage;
 
   void _handleScan() {
-    final result = scanTestMusic();
+    final path = _pathController.text.trim();
+    if (path.isEmpty) return;
+
     setState(() {
-      _songs = result;
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    try {
+      // 调用真正的本地扫描 Rust 函数
+      final result = scanLocalMusicFolder(dirPath: path);
+      setState(() {
+        _tracks = result;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Laetibeat 桥接测试"),),
-      body: Column(
-        children: [
-          const SizedBox(height: 20,),
-          ElevatedButton(
-            onPressed: _handleScan,
-            child: const Text("点击获取 Rust 音乐列表"),
-          ),
-          const SizedBox(height: 20,),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _songs.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  leading: const Icon(Icons.music_note),
-                  title: Text(_songs[index]),
-                );
-              }
+      appBar: AppBar(title: const Text('Laetibeat 本地音乐库')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _pathController,
+              decoration: const InputDecoration(
+                labelText: '音乐文件夹绝对路径',
+                hintText: '例如: D:/Music 或 /home/user/Music',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _handleScan,
+              child: const Text('开始扫描本地音乐'),
+            ),
+            const SizedBox(height: 12),
+            if (_errorMessage != null)
+              Text('错误: $_errorMessage', style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 12),
+            Expanded(
+              child: _tracks.isEmpty
+                  ? const Center(child: Text('请输入路径并点击扫描查看音乐'))
+                  : ListView.builder(
+                      itemCount: _tracks.length,
+                      itemBuilder: (context, index) {
+                        final track = _tracks[index];
+                        return ListTile(
+                          leading: const Icon(Icons.music_note),
+                          title: Text(track.title),
+                          subtitle: Text('${track.artist} - ${track.album}'),
+                          trailing: Text(track.duration),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
