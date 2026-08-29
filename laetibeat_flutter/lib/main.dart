@@ -189,6 +189,7 @@ import 'package:laetibeat/src/rust/api/simple.dart';
 import 'package:laetibeat/src/rust/frb_generated.dart';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await RustLib.init();
   runApp(const MyApp());
 }
@@ -199,13 +200,52 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text('flutter_rust_bridge quickstart')),
-        body: Center(
-          child: Text(
-            'Action: Call Rust `greet("Tom")`\nResult: `${greet(name: "Tom")}`',
+      home: MusicTestPage(),
+    );
+  }
+}
+
+class MusicTestPage extends StatefulWidget {
+  const MusicTestPage({super.key});
+
+  @override
+  State<MusicTestPage> createState() => _MusicTestPageState();
+}
+
+class _MusicTestPageState extends State<MusicTestPage> {
+  List<String> _songs = [];
+
+  void _handleScan() {
+    final result = scanTestMusic();
+    setState(() {
+      _songs = result;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Laetibeat 桥接测试"),),
+      body: Column(
+        children: [
+          const SizedBox(height: 20,),
+          ElevatedButton(
+            onPressed: _handleScan,
+            child: const Text("点击获取 Rust 音乐列表"),
           ),
-        ),
+          const SizedBox(height: 20,),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _songs.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  leading: const Icon(Icons.music_note),
+                  title: Text(_songs[index]),
+                );
+              }
+            ),
+          ),
+        ],
       ),
     );
   }
