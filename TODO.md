@@ -4,7 +4,7 @@
 
 - [x] 1.1 初始化rust workspace
 - [x] 1.2 定义核心数据结构(歌曲track，专辑album，艺术家artist，播放状态playstate)以及统一音源抽象接口(AudioSource)
-- [ ] 1.3 实现本地文件夹扫描与元数据解析(引入walkdir遍历，lofty读取歌曲标签。对wav标签进行特殊处理)
+- [x] 1.3 实现本地文件夹扫描与元数据解析(引入walkdir遍历，lofty读取歌曲标签。对wav标签进行特殊处理)
 - [ ] 1.4 搭建解码模块(使用symphonia将音频文件解包为标准PCM数据流，与音频输出解耦)
 
 ## 阶段2: 前端搭建与FFI桥接
