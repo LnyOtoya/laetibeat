@@ -10,6 +10,9 @@ class NavShell extends StatefulWidget {
 }
 
 class _NavShellState extends State<NavShell> {
+  static const _animDuration = Duration(milliseconds: 280);
+  static const _animCurve = Curves.easeOutCubic;
+
   int _selectedIndex = 0;
   final List<Widget> _pages = [
     const Center(child: Text('Home')),
@@ -23,8 +26,11 @@ class _NavShellState extends State<NavShell> {
     final theme = M3ETheme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
-      body: Row(
+      body: AnimatedContainer(
+        duration: _animDuration,
+        curve: _animCurve,
+        color: theme.colorScheme.surfaceContainer,
+        child: Row(
         children: [
           M3ENavigationRail(
             background: theme.colorScheme.surfaceContainer,
@@ -61,7 +67,9 @@ class _NavShellState extends State<NavShell> {
               children: [
                 _buildTitleBar(),
                 Expanded(
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: _animDuration,
+                    curve: _animCurve,
                     margin: EdgeInsets.fromLTRB(
                       theme.spacing.md, 
                       0, 
@@ -80,7 +88,8 @@ class _NavShellState extends State<NavShell> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   // 自定义顶栏
@@ -88,7 +97,9 @@ class _NavShellState extends State<NavShell> {
     final theme = M3ETheme.of(context);
 
     return DragToMoveArea(
-      child: Container(
+      child: AnimatedContainer(
+        duration: _animDuration,
+        curve: _animCurve,
         color:  theme.colorScheme.surfaceContainer,
         // height: theme.spacing.xxl,
         padding: EdgeInsets.symmetric(
