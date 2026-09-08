@@ -12,14 +12,86 @@ class NavShell extends StatefulWidget {
 class _NavShellState extends State<NavShell> {
   static const _animDuration = Duration(milliseconds: 280);
   static const _animCurve = Curves.easeOutCubic;
+  static const _navDestCount = 4;
 
   int _selectedIndex = 0;
-  final List<Widget> _pages = [
-    const Center(child: Text('Home')),
-    const Center(child: Text('Search')),
-    const Center(child: Text('Library')),
-    const Center(child: Text('Settings')),
+  int _pageIndex = 0;
+  bool _navRailExpanded = false;
+  _PlaylistItem? _selectedPlaylist;
+
+  final List<Widget> _pages = const [
+    Center(child: Text('Home')),
+    Center(child: Text('Search')),
+    Center(child: Text('Library')),
+    Center(child: Text('Settings')),
   ];
+
+
+  final List<_PlaylistItem> _playlists = const [
+    _PlaylistItem(icon: M3EIcons.favorite, label: 'Favorite'),
+    _PlaylistItem(icon: M3EIcons.history, label: 'History'),
+    _PlaylistItem(icon: M3EIcons.auto_awesome, label: 'Daily Recommend'),
+  ];
+
+  void _onDestinationSelected(int index) {
+    setState(() {
+      _selectedIndex = index;
+      if (index < _navDestCount) {
+        _pageIndex = index;
+        _selectedPlaylist = null;
+      } else {
+        _selectedPlaylist = _playlists[index - _navDestCount];
+      }
+    });
+  }
+
+  List<M3ENavigationRailSection> _buildSections() {
+    final navSection = M3ENavigationRailSection(
+      destinations: const [
+        M3ENavigationRailDestination(
+          icon: Icon(M3EIcons.home),
+          label: 'Home',
+        ),
+        M3ENavigationRailDestination(
+          icon: Icon(M3EIcons.search),
+          label: 'Search',
+        ),
+        M3ENavigationRailDestination(
+          icon: Icon(M3EIcons.music_note),
+          label: 'Library',
+        ),
+        M3ENavigationRailDestination(
+          icon: Icon(M3EIcons.settings),
+          label: 'Settings',
+        ),
+      ],
+    );
+
+    if (!_navRailExpanded) {
+      return [navSection];
+    }
+
+    // 展开时额外显示歌单 Section
+    return [
+      navSection,
+      M3ENavigationRailSection(
+        header: Padding(
+          padding: const EdgeInsets.only(left: 16, top: 12, bottom: 4),
+          child: Text(
+            'Playlists',
+            style: M3ETheme.of(context).typeScale.labelMedium?.copyWith(
+              color: M3ETheme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        destinations: _playlists.map((p) => M3ENavigationRailDestination(
+          icon: Icon(p.icon),
+          label: p.label,
+          short: true,
+        )).toList(),
+      ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,33 +106,15 @@ class _NavShellState extends State<NavShell> {
         children: [
           M3ENavigationRail(
             background: theme.colorScheme.surfaceContainer,
-            sections: const <M3ENavigationRailSection>[
-              M3ENavigationRailSection(
-                destinations: <M3ENavigationRailDestination>[
-                  M3ENavigationRailDestination(
-                    icon: Icon(M3EIcons.home),
-                    label: 'Home',
-                  ),
-                  M3ENavigationRailDestination(
-                    icon: Icon(M3EIcons.search),
-                    label: 'Search',
-                  ),
-                  M3ENavigationRailDestination(
-                    icon: Icon(M3EIcons.music_note),
-                    label: 'Library',
-                  ),
-                  M3ENavigationRailDestination(
-                    icon: Icon(M3EIcons.settings),
-                    label: 'Settings',
-                  ),
-                ],
-              ),
-            ],
-            selectedIndex: _selectedIndex, 
-            onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+            sections: _buildSections(),
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: _onDestinationSelected,
             type: M3ENavigationRailType.collapsed,
             modality: M3ENavigationRailModality.standard,
             labelBehavior: M3ENavigationRailLabelBehavior.alwaysShow,
+            onTypeChanged: (type) {
+              setState(() => _navRailExpanded = type == M3ENavigationRailType.expanded);
+            },
           ),
           Expanded(
             child: Column(
@@ -80,7 +134,9 @@ class _NavShellState extends State<NavShell> {
                       color: M3ETheme.of(context).colorScheme.surface,
                       borderRadius: M3EDimensions.borderRadiusMedium,
                     ),
-                    child: _pages[_selectedIndex],
+                    child: _selectedPlaylist != null
+                        ? Center(child: Text('Playlist: ${_selectedPlaylist!.label}'))
+                        : _pages[_pageIndex],
                   ),
                 ),
               ],
@@ -138,4 +194,11 @@ class _NavShellState extends State<NavShell> {
     );
   }
 
+}
+
+// 歌单项结构辅助类
+class _PlaylistItem {
+  final IconData icon;
+  final String label;
+  const _PlaylistItem({required this.icon, required this.label});
 }
