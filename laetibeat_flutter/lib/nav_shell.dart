@@ -58,7 +58,7 @@ class _NavShellState extends State<NavShell> {
             ],
             selectedIndex: _selectedIndex, 
             onDestinationSelected: (index) => setState(() => _selectedIndex = index),
-            type: M3ENavigationRailType.alwaysCollapse,
+            type: M3ENavigationRailType.collapsed,
             modality: M3ENavigationRailModality.standard,
             labelBehavior: M3ENavigationRailLabelBehavior.alwaysShow,
           ),

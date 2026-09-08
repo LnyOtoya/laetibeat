@@ -34,7 +34,9 @@ class MyApp extends StatelessWidget {
       title: 'Laetibeat',
       data: M3EThemeData.light(
         seedColor: const Color(0xFF6750A4),
-      ),
+      ).copyWith(navigationRailTheme: M3ENavigationRailTheme(
+        collapsedWidth: 104,
+      )),
       dynamicColoring: true,
       autoTheming: true,
       home: const NavShell(),
