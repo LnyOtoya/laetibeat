@@ -35,6 +35,8 @@ class MyApp extends StatelessWidget {
       data: M3EThemeData.light(
         seedColor: const Color(0xFF6750A4),
       ),
+      dynamicColoring: true,
+      autoTheming: true,
       home: const NavShell(),
     );
   }
