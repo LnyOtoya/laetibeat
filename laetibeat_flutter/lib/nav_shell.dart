@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:window_manager/window_manager.dart';
+import 'pages/home_page.dart';
 
 class NavShell extends StatefulWidget {
   const NavShell({super.key});
@@ -20,7 +21,7 @@ class _NavShellState extends State<NavShell> {
   _PlaylistItem? _selectedPlaylist;
 
   final List<Widget> _pages = const [
-    Center(child: Text('Home')),
+    HomePage(),
     Center(child: Text('Search')),
     Center(child: Text('Library')),
     Center(child: Text('Settings')),
