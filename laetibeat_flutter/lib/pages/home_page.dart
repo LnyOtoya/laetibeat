@@ -10,6 +10,23 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final M3ESearchController searchController = M3ESearchController();
+  static const List<String> _filterLabels = [
+    'ALL',
+    'Happy Mix',
+    'Chill Mix',
+    'Energetic Mix',
+    'Melancholy Mix',
+    'Party Mix',
+    'Aggressive Mix',
+    'Study Mix',
+    'Workout Mix',
+    'Sleep Mix',
+    'Road Trip Mix',
+    'Cooking Mix',
+    'Dining Mix',
+    'Background Mix',
+
+  ];
    int _selectedFilter = 0; 
 
   @override
@@ -21,7 +38,7 @@ class _HomePageState extends State<HomePage> {
         children: [
           _buildSearchBar(),
           const SizedBox(height: 16.0),
-          _buildFilterChip()
+          _buildFilterButtonGroup(),
         ],
       ),
     );
@@ -37,51 +54,27 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // chips
-  Widget _buildChip(int index, String label) {
-    return M3EChip(
-      label: label,
-      type: M3EChipType.filter,
-      selected: _selectedFilter == index,
-      onPressed: () => setState(() => _selectedFilter = index),
-    );
-  }
 
-  // chips筛选
-  Widget _buildFilterChip() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          _buildChip(0, 'All'),
-          const SizedBox(width: 8.0),
-          _buildChip(1, 'Happy Mix'),
-          const SizedBox(width: 8.0),
-          _buildChip(2, 'Chill Mix'),
-          const SizedBox(width: 8.0),
-          _buildChip(3, 'Energetic Mix'),
-          const SizedBox(width: 8.0),
-          _buildChip(4, 'ALL'),
-          const SizedBox(width: 8.0),
-          _buildChip(5, 'Happy Mix'),
-          const SizedBox(width: 8.0),
-          _buildChip(6, 'Chill Mix'),
-          const SizedBox(width: 8.0),
-          _buildChip(7, 'Energetic Mix'),
-          const SizedBox(width: 8.0),
-          _buildChip(8, 'ALL'),
-          const SizedBox(width: 8.0),
-          _buildChip(9, 'Happy Mix'),
-          const SizedBox(width: 8.0),
-          _buildChip(10, 'Chill Mix'),
-          const SizedBox(width: 8.0),
-          _buildChip(11, 'Energetic Mix'),
-          const SizedBox(width: 8.0),
-          _buildChip(12, 'ALL'),
-          const SizedBox(width: 8.0),
-          _buildChip(13, 'Happy Mix'),
-          const SizedBox(width: 8.0),
-        ],
+  // 过滤按钮组
+  Widget _buildFilterButtonGroup() {
+    return M3EButtonGroup(
+      type: M3EButtonGroupType.standard,
+      shape: M3EButtonShape.round,
+      size: M3EButtonSize.sm,
+      style: M3EButtonStyle.filled,
+      neighborSquish: true,
+      selectedIndex: _selectedFilter,
+      onSelectedIndexChanged: (int? index) {
+        if (index != null) {
+          setState(() => _selectedFilter = index);
+        }
+      },
+      overflow: M3EButtonGroupOverflow.scroll,
+      actions: List.generate(
+        _filterLabels.length, 
+        (index) => M3EButtonGroupAction(
+          label: Text(_filterLabels[index]),
+        ),
       ),
     );
   }
