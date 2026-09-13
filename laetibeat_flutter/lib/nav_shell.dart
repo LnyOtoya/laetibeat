@@ -2,6 +2,10 @@ import 'package:material_ui/material_ui.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:window_manager/window_manager.dart';
 import 'pages/home_page.dart';
+import 'widgets/welcome_section.dart';
+import 'widgets/recent_section.dart';
+import 'widgets/history_section.dart';
+import 'widgets/daily_section.dart';
 
 class NavShell extends StatefulWidget {
   const NavShell({super.key});
@@ -137,45 +141,13 @@ class _NavShellState extends State<NavShell> {
                             child: SingleChildScrollView(
                             child: Column(
                               children: [
-                                AnimatedContainer(
-                                  height: 180,
-                                  duration: _animDuration,
-                                  curve: _animCurve,
-                                  decoration: BoxDecoration(
-                                    color: M3ETheme.of(context).colorScheme.surface,
-                                    borderRadius: M3EDimensions.borderRadiusMedium,
-                                  ),
-                                ),
+                                WelcomeSection(),
                                 SizedBox(height: theme.spacing.md),
-                                AnimatedContainer(
-                                  height: 180,
-                                  duration: _animDuration,
-                                  curve: _animCurve,
-                                  decoration: BoxDecoration(
-                                    color: M3ETheme.of(context).colorScheme.surface,
-                                    borderRadius: M3EDimensions.borderRadiusMedium,
-                                  ),
-                                ),
+                                RecentSection(),
                                 SizedBox(height: theme.spacing.md),
-                                AnimatedContainer(
-                                  height: 180,
-                                  duration: _animDuration,
-                                  curve: _animCurve,
-                                  decoration: BoxDecoration(
-                                    color: M3ETheme.of(context).colorScheme.surface,
-                                    borderRadius: M3EDimensions.borderRadiusMedium,
-                                  ),
-                                ),
+                                DailySection(),
                                 SizedBox(height: theme.spacing.md),
-                                AnimatedContainer(
-                                  height: 180,
-                                  duration: _animDuration,
-                                  curve: _animCurve,
-                                  decoration: BoxDecoration(
-                                    color: M3ETheme.of(context).colorScheme.surface,
-                                    borderRadius: M3EDimensions.borderRadiusMedium,
-                                  ),
-                                ),
+                                HistorySection(),
                               ],
                             ),
                           ),
