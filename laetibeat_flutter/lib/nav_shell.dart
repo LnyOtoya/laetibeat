@@ -2,10 +2,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:window_manager/window_manager.dart';
 import 'pages/home_page.dart';
-import 'widgets/welcome_section.dart';
-import 'widgets/recent_section.dart';
-import 'widgets/history_section.dart';
-import 'widgets/daily_section.dart';
+import 'pages/search_page.dart';
+import 'pages/library_page.dart';
+import 'pages/settings_page.dart';
 
 class NavShell extends StatefulWidget {
   const NavShell({super.key});
@@ -26,9 +25,9 @@ class _NavShellState extends State<NavShell> {
 
   final List<Widget> _pages = const [
     HomePage(),
-    Center(child: Text('Search')),
-    Center(child: Text('Library')),
-    Center(child: Text('Settings')),
+    SearchPage(),
+    LibraryPage(),
+    SettingsPage(),
   ];
 
 
@@ -126,52 +125,7 @@ class _NavShellState extends State<NavShell> {
               children: [
                 _buildTitleBar(),
                 Expanded(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            theme.spacing.md,
-                            0,
-                            theme.spacing.sm,
-                            theme.spacing.md,
-                          ),
-                          child: ScrollConfiguration(
-                            behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-                            child: SingleChildScrollView(
-                            child: Column(
-                              children: [
-                                WelcomeSection(),
-                                SizedBox(height: theme.spacing.md),
-                                RecentSection(),
-                                SizedBox(height: theme.spacing.md),
-                                DailySection(),
-                                SizedBox(height: theme.spacing.md),
-                                HistorySection(),
-                              ],
-                            ),
-                          ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: AnimatedContainer(
-                          duration: _animDuration,
-                          curve: _animCurve,
-                          margin: EdgeInsets.fromLTRB(
-                            theme.spacing.sm,
-                            0,
-                            theme.spacing.md,
-                            theme.spacing.md,
-                          ),
-                          decoration: BoxDecoration(
-                            color: M3ETheme.of(context).colorScheme.surface,
-                            borderRadius: M3EDimensions.borderRadiusMedium,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  child: _pages[_pageIndex],
                 ),
               ],
             ),

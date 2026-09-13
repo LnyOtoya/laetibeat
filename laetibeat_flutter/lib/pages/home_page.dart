@@ -1,5 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
+import '../animations.dart';
+import '../widgets/two_pane_layout.dart';
+import '../widgets/welcome_section.dart';
+import '../widgets/recent_section.dart';
+import '../widgets/daily_section.dart';
+import '../widgets/history_section.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,13 +19,32 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSearchBar(),
-        ],
+    final theme = M3ETheme.of(context);
+
+    return TwoPaneLayout(
+      left: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              WelcomeSection(),
+              SizedBox(height: theme.spacing.md),
+              RecentSection(),
+              SizedBox(height: theme.spacing.md),
+              DailySection(),
+              SizedBox(height: theme.spacing.md),
+              HistorySection(),
+            ],
+          ),
+        ),
+      ),
+      right: AnimatedContainer(
+        duration: kSectionAnimDuration,
+        curve: kSectionAnimCurve,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: M3EDimensions.borderRadiusMedium,
+        ),
       ),
     );
   }
