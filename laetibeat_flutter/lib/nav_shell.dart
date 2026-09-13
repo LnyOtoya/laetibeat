@@ -122,22 +122,44 @@ class _NavShellState extends State<NavShell> {
               children: [
                 _buildTitleBar(),
                 Expanded(
-                  child: AnimatedContainer(
-                    duration: _animDuration,
-                    curve: _animCurve,
-                    margin: EdgeInsets.fromLTRB(
-                      theme.spacing.md, 
-                      0, 
-                      theme.spacing.md, 
-                      theme.spacing.md,
-                    ),
-                    decoration: BoxDecoration(
-                      color: M3ETheme.of(context).colorScheme.surface,
-                      borderRadius: M3EDimensions.borderRadiusMedium,
-                    ),
-                    child: _selectedPlaylist != null
-                        ? Center(child: Text('Playlist: ${_selectedPlaylist!.label}'))
-                        : _pages[_pageIndex],
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: AnimatedContainer(
+                          duration: _animDuration,
+                          curve: _animCurve,
+                          margin: EdgeInsets.fromLTRB(
+                            theme.spacing.md,
+                            0,
+                            theme.spacing.sm,
+                            theme.spacing.md,
+                          ),
+                          decoration: BoxDecoration(
+                            color: M3ETheme.of(context).colorScheme.surface,
+                            borderRadius: M3EDimensions.borderRadiusMedium,
+                          ),
+                          child: _selectedPlaylist != null
+                              ? Center(child: Text('Playlist: ${_selectedPlaylist!.label}'))
+                              : _pages[_pageIndex],
+                        ),
+                      ),
+                      Expanded(
+                        child: AnimatedContainer(
+                          duration: _animDuration,
+                          curve: _animCurve,
+                          margin: EdgeInsets.fromLTRB(
+                            theme.spacing.sm,
+                            0,
+                            theme.spacing.md,
+                            theme.spacing.md,
+                          ),
+                          decoration: BoxDecoration(
+                            color: M3ETheme.of(context).colorScheme.surface,
+                            borderRadius: M3EDimensions.borderRadiusMedium,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
