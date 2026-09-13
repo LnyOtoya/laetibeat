@@ -13,7 +13,7 @@ class _DailySectionState extends State<DailySection> {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      height: 180,
+      height: 600,
       duration: kSectionAnimDuration,
       curve: kSectionAnimCurve,
       decoration: BoxDecoration(

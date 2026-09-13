@@ -13,7 +13,7 @@ class _RecentSectionState extends State<RecentSection> {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      height: 180,
+      height: 300,
       duration: kSectionAnimDuration,
       curve: kSectionAnimCurve,
       decoration: BoxDecoration(

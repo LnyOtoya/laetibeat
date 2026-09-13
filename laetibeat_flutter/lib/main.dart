@@ -34,11 +34,25 @@ class MyApp extends StatelessWidget {
       title: 'Laetibeat',
       data: M3EThemeData.light(
         seedColor: const Color(0xFF6750A4),
-      ).copyWith(navigationRailTheme: M3ENavigationRailTheme(
-        collapsedWidth: 104,
-      )),
+      ).copyWith(
+        navigationRailTheme: M3ENavigationRailTheme(
+          collapsedWidth: 104,
+        ),
+        fontFamilyFallback: const <String>[
+          'Noto Sans SC',
+          'Noto Sans TC',
+          'Noto Sans JP',
+          'Noto Sans KR',
+        ],
+      ),
       dynamicColoring: true,
       autoTheming: true,
+      fontFamily: 'Google Sans Flex',
+      variableFont: const M3EVariableFontConfig(
+        enableOpsz: true,
+        syncWghtToWeight: true,
+        emphasizedGrad: 50,
+      ),
       home: const NavShell(),
     );
   }
