@@ -22,6 +22,8 @@ class _HomePageState extends State<HomePage> {
     final theme = M3ETheme.of(context);
 
     return TwoPaneLayout(
+      leftFlex: 3,
+      rightFlex: 2,
       left: ScrollConfiguration(
         behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
         child: SingleChildScrollView(

@@ -2,10 +2,19 @@ import 'package:flutter/widgets.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 
 class TwoPaneLayout extends StatelessWidget {
-  const TwoPaneLayout({super.key, required this.left, required this.right});
+  // leftFlex/rightFlex控制左右占比,默认1:1等分
+  const TwoPaneLayout({
+    super.key,
+    required this.left,
+    required this.right,
+    this.leftFlex = 1,
+    this.rightFlex = 1,
+  });
 
   final Widget left;
   final Widget right;
+  final int leftFlex;
+  final int rightFlex;
 
   @override
   Widget build(BuildContext context) {
@@ -14,6 +23,7 @@ class TwoPaneLayout extends StatelessWidget {
     return Row(
       children: [
         Expanded(
+          flex: leftFlex,
           child: Padding(
             padding: EdgeInsets.fromLTRB(
               theme.spacing.md,
@@ -25,6 +35,7 @@ class TwoPaneLayout extends StatelessWidget {
           ),
         ),
         Expanded(
+          flex: rightFlex,
           child: Padding(
             padding: EdgeInsets.fromLTRB(
               theme.spacing.sm,
