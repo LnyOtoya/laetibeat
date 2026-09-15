@@ -14,6 +14,8 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   Widget build(BuildContext context) {
     return TwoPaneLayout(
+      leftFlex: 3,
+      rightFlex: 2,
       left: _pane(context),
       right: _pane(context),
     );
