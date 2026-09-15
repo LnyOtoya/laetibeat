@@ -104,35 +104,79 @@ class _WelcomeSectionState extends State<WelcomeSection> {
       case _PlaybackPhase.greeting:
         content = Text(
           '${_MockPlayback.greetingFor(DateTime.now())}，${_MockPlayback.userName}',
-          style: type.headlineSmall,
+          style: type.headlineMedium,
         );
       case _PlaybackPhase.playing:
-        content = _buildThreeLines(
-          type: type,
-          overline: '正在播放',
-          headline: _MockPlayback.currentTitle,
-          supporting: _MockPlayback.currentArtist,
-          overlineStyle: type.labelMedium.copyWith(
-            color: scheme.onSurfaceVariant,
-          ),
-          headlineStyle: emphasized.headlineMedium,
-          supportingStyle: type.bodyLarge.copyWith(
-            color: scheme.onSurfaceVariant,
-          ),
+        content = Row(
+          children: [
+            // 左侧三行文本,占满剩余宽度
+            Expanded(
+              child: _buildThreeLines(
+                type: type,
+                overline: '正在播放',
+                headline: _MockPlayback.currentTitle,
+                supporting: _MockPlayback.currentArtist,
+                overlineStyle: type.labelMedium.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+                headlineStyle: emphasized.headlineMedium,
+                supportingStyle: type.bodyLarge.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            SizedBox(width: theme.spacing.lg),
+            // 右侧cookie12Sided形状封面,尺寸用spacing.xxl三倍=96
+            M3EShapeContainer.cookie12Sided(
+              width: theme.spacing.xxl * 3,
+              height: theme.spacing.xxl * 3,
+              gradient: _coverGradient(theme),
+              clipBehavior: Clip.antiAlias,
+              child: Center(
+                child: Icon(
+                  M3EIcons.music_note,
+                  size: theme.spacing.xxl,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
         );
       case _PlaybackPhase.ending:
-        content = _buildThreeLines(
-          type: type,
-          overline: '下一首即将播放',
-          headline: _MockPlayback.nextTitle,
-          supporting: _MockPlayback.nextArtist,
-          overlineStyle: type.labelMedium.copyWith(
-            color: scheme.onSurfaceVariant,
-          ),
-          headlineStyle: type.headlineMedium,
-          supportingStyle: type.bodyLarge.copyWith(
-            color: scheme.onSurfaceVariant,
-          ),
+        content = Row(
+          children: [
+            // 左侧三行文本,占满剩余宽度
+            Expanded(
+              child: _buildThreeLines(
+                type: type,
+                overline: '下一首即将播放',
+                headline: _MockPlayback.nextTitle,
+                supporting: _MockPlayback.nextArtist,
+                overlineStyle: type.labelMedium.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+                headlineStyle: type.headlineMedium,
+                supportingStyle: type.bodyLarge.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            SizedBox(width: theme.spacing.lg),
+            // 右侧cookie4Sided形状封面
+            M3EShapeContainer.cookie4Sided(
+              width: theme.spacing.xxl * 3,
+              height: theme.spacing.xxl * 3,
+              gradient: _coverGradient(theme),
+              clipBehavior: Clip.antiAlias,
+              child: Center(
+                child: Icon(
+                  M3EIcons.music_note,
+                  size: theme.spacing.xxl,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
         );
     }
 
@@ -145,6 +189,19 @@ class _WelcomeSectionState extends State<WelcomeSection> {
         ),
         child: content,
       ),
+    );
+  }
+
+  //封面渐变占位
+  LinearGradient _coverGradient(M3EThemeData theme) {
+    final scheme = theme.colorScheme;
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        scheme.primaryContainer,
+        scheme.tertiaryContainer,
+      ],
     );
   }
 
