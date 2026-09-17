@@ -47,7 +47,8 @@ class _SettingsDetail extends ConsumerWidget {
       layoutBuilder: (currentChild, previousChildren) {
         //保持切换前后内容同尺寸,避免跳动
         return Stack(
-          alignment: Alignment.center,
+          fit: StackFit.expand,
+          alignment: Alignment.topLeft,
           children: [
             ...previousChildren,
             ?currentChild,

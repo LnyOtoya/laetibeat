@@ -26,17 +26,20 @@ class SettingsPane extends StatelessWidget {
         borderRadius: M3EDimensions.borderRadiusMedium,
       ),
       padding: EdgeInsets.all(theme.spacing.xl),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.typeScale.titleLarge,
-            ),
-            SizedBox(height: theme.spacing.lg),
-            ...children,
-          ],
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.typeScale.titleLarge,
+              ),
+              SizedBox(height: theme.spacing.lg),
+              ...children,
+            ],
+          ),
         ),
       ),
     );

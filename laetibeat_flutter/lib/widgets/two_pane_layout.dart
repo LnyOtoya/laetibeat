@@ -21,6 +21,7 @@ class TwoPaneLayout extends StatelessWidget {
     final theme = M3ETheme.of(context);
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
           flex: leftFlex,
