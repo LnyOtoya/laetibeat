@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/simple.dart';
 import 'package:laetibeat/src/rust/frb_generated.dart';
 import 'nav_shell.dart';
+import 'widgets/settings/settings_provider.dart';
 import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
@@ -31,6 +32,13 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    //按设置的主题模式驱动亮暗/跟随系统
+    final AppThemeMode themeMode = ref.watch(appThemeModeProvider);
+    final bool followSystem = themeMode == AppThemeMode.system;
+    final Brightness? initialTheme = followSystem
+        ? null
+        : (themeMode == AppThemeMode.dark ? Brightness.dark : Brightness.light);
+
     return M3EMaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Laetibeat',
@@ -48,7 +56,8 @@ class MyApp extends ConsumerWidget {
         ],
       ),
       dynamicColoring: true,
-      autoTheming: true,
+      autoTheming: followSystem,
+      initialTheme: initialTheme,
       fontFamily: 'Google Sans Flex',
       variableFont: const M3EVariableFontConfig(
         enableOpsz: true,

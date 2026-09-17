@@ -25,3 +25,26 @@ class SettingsCategoryNotifier extends Notifier<SettingsCategory> {
 final settingsCategoryProvider = NotifierProvider<SettingsCategoryNotifier, SettingsCategory>(
   SettingsCategoryNotifier.new,
 );
+
+//应用主题模式
+enum AppThemeMode {
+  light('亮色主题'),
+  dark('暗色主题'),
+  system('跟随系统');
+
+  final String label;
+  const AppThemeMode(this.label);
+}
+
+class AppThemeModeNotifier extends Notifier<AppThemeMode> {
+  @override
+  AppThemeMode build() => AppThemeMode.light;
+
+  void select(AppThemeMode mode) {
+    state = mode;
+  }
+}
+
+//当前应用主题模式
+final appThemeModeProvider =
+    NotifierProvider<AppThemeModeNotifier, AppThemeMode>(AppThemeModeNotifier.new);
