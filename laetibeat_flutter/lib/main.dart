@@ -1,5 +1,7 @@
+import 'package:flutter/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/simple.dart';
 import 'package:laetibeat/src/rust/frb_generated.dart';
 import 'nav_shell.dart';
@@ -21,14 +23,14 @@ Future<void> main() async {
     await windowManager.focus();
   });
   await RustLib.init();
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return M3EMaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Laetibeat',
