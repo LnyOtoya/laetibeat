@@ -2,6 +2,12 @@ use flutter_rust_bridge::frb;
 use laetibeat_core::model::MusicLibrary;
 use laetibeat_core::scan_directory;
 
+// 弹出系统原生文件夹选择框,选中返回其路径,取消返回None
+pub fn pick_directory() -> Option<String> {
+    let picked = rfd::FileDialog::new().pick_folder()?;
+    Some(picked.to_string_lossy().to_string())
+}
+
 // 简化版单曲结构体
 #[frb(non_opaque)]
 pub struct  UiTrack {
@@ -12,7 +18,7 @@ pub struct  UiTrack {
     pub duration: String,
 }
 
-#[frb(sync)]
+// 扫描本地音乐文件夹,异步执行不阻塞UI
 pub fn scan_local_music_folder(dir_path: String) -> Result<Vec<UiTrack>, String> {
     let mut library = MusicLibrary::new();
 

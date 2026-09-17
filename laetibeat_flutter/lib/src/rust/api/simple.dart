@@ -8,7 +8,10 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `format_duration`
 
-List<UiTrack> scanLocalMusicFolder({required String dirPath}) =>
+Future<String?> pickDirectory() =>
+    RustLib.instance.api.crateApiSimplePickDirectory();
+
+Future<List<UiTrack>> scanLocalMusicFolder({required String dirPath}) =>
     RustLib.instance.api.crateApiSimpleScanLocalMusicFolder(dirPath: dirPath);
 
 class UiTrack {
