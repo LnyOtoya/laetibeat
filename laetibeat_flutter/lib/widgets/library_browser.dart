@@ -4,6 +4,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import '../animations.dart';
 import 'settings/music_library_provider.dart';
+import 'player/player_provider.dart';
 
 //音乐库浏览筛选
 enum LibraryFilter { track, artist, album }
@@ -145,12 +146,25 @@ class _LibraryBrowserState extends ConsumerState<LibraryBrowser> {
       selectionState: const M3EListSelectionState(
         selectedIcon: Icon(M3EIcons.check),
       ),
-      onTap: widget.onSelect == null
-          ? null
-          : (i) => widget.onSelect!(rows[i].headline, rows[i].supporting),
+      onTap: (i) => _onRowTap(rows[i], i),
       onLongPress: (i) => _selectionController.toggle(i),
       itemBuilder: (context, i) => _libItem(theme, scheme, rows[i]),
     );
+  }
+
+  //点某行:曲目视图接入真实播放(整库为队列,从该曲开始),停在播放面板;
+  //艺术家/专辑视图暂仅展示右侧详情
+  void _onRowTap(_LibRow row, int index) {
+    if (_filter == LibraryFilter.track) {
+      final tracks =
+          ref.read(musicLibraryProvider).value?.tracks ??
+          const <rust.UiTrack>[];
+      if (index < tracks.length) {
+        ref.read(playerProvider.notifier).load(tracks, index, source: '曲目');
+      }
+      return; //曲目播放时展示播放面板,不切详情
+    }
+    widget.onSelect?.call(row.headline, row.supporting);
   }
 
   //列表项:图标占位leading(后期换封面)+三点菜单trailing
