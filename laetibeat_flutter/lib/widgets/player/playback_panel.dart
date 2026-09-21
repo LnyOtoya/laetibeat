@@ -20,18 +20,35 @@ class PlaybackPanel extends ConsumerWidget {
     final player = ref.watch(playerProvider);
     final track = player.current;
 
-    //三段撑满右区:上来源(居中)/中封面+歌名/底控制条
+    //整体等比缩放:高度方向随窗口自适应,宽度抵消scale后始终占满窗口
+    //所有控件(文字/按钮/间距/封面)都随窗口高度一起变大变小
+    const baseH = 720.0;
     return LayoutBuilder(
-      builder: (context, c) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _sourceRegion(theme, scheme, player),
-          SizedBox(height: theme.spacing.lg),
-          Expanded(child: _displayRegion(context, theme, track, c.maxHeight)),
-          SizedBox(height: theme.spacing.lg),
-          _controlRegion(theme, scheme, player, ref),
-        ],
-      ),
+      builder: (context, c) {
+        final scale = c.maxHeight / baseH;
+        return ClipRect(
+          child: Align(
+            alignment: Alignment.center,
+            child: Transform.scale(
+              scale: scale,
+              child: SizedBox(
+                width: c.maxWidth / scale,
+                height: baseH,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _sourceRegion(theme, scheme, player),
+                    SizedBox(height: theme.spacing.lg),
+                    Expanded(child: _displayRegion(context, theme, track)),
+                    SizedBox(height: theme.spacing.lg),
+                    _controlRegion(theme, scheme, player, ref),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -62,19 +79,31 @@ class PlaybackPanel extends ConsumerWidget {
     );
   }
 
-  //区域2:播放显示区 - 居中大封面 + 左(歌名/歌手)右(全屏/歌词)
+  //区域2:播放显示区 - 封面铺满宽度 + 左(歌名/歌手)右(全屏/歌词)
   Widget _displayRegion(
     BuildContext context,
     M3EThemeData theme,
     rust.UiTrack? track,
-    double maxHeight,
   ) {
-    final side = (fullscreen ? maxHeight * 0.55 : maxHeight * 0.42).clamp(120.0, 360.0);
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Center(child: _cover(theme, side)),
+        //封面按内容区宽度铺满(正方形,高度不足时整体缩放),贴住下方信息行
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, c) => Align(
+              alignment: Alignment.bottomCenter,
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: SizedBox(
+                  width: c.maxWidth,
+                  height: c.maxWidth,
+                  child: _cover(theme),
+                ),
+              ),
+            ),
+          ),
+        ),
         SizedBox(height: theme.spacing.lg),
         Row(
           children: [
@@ -118,13 +147,19 @@ class PlaybackPanel extends ConsumerWidget {
     );
   }
 
-  //封面
-  Widget _cover(M3EThemeData theme, double side) {
-    return M3EShapeContainer.square(
-      width: side,
-      height: side,
-      color: theme.colorScheme.secondaryContainer,
-      child: Icon(M3EIcons.music_note, size: side * 0.4),
+  //封面:自控圆角(比M3EShapeContainer.square默认radius更小),图标按边长比例
+  Widget _cover(M3EThemeData theme) {
+    final scheme = theme.colorScheme;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(theme.spacing.md),
+      child: ColoredBox(
+        color: scheme.secondaryContainer,
+        child: LayoutBuilder(
+          builder: (context, c) => Center(
+            child: Icon(M3EIcons.music_note, size: c.maxWidth * 0.4),
+          ),
+        ),
+      ),
     );
   }
 
@@ -168,8 +203,10 @@ class PlaybackPanel extends ConsumerWidget {
           ],
         ),
         SizedBox(height: theme.spacing.md),
-        //上一首 / 播放暂停 / 下一首 - 按钮组按整行宽度三等分占满
-        LayoutBuilder(
+        //上一首 / 播放暂停 / 下一首 - 按钮组左右留白,整体缩窄居中
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: theme.spacing.xl),
+          child: LayoutBuilder(
           builder: (context, c) {
             final spacing = theme.spacing.xs;
             final btnW = (c.maxWidth - spacing * 2) / 3;
@@ -222,6 +259,7 @@ class PlaybackPanel extends ConsumerWidget {
               ],
             );
           },
+          ),
         ),
         SizedBox(height: theme.spacing.md),
         //底部:左侧按钮组(播放列表/随机/顺序) + 右侧三点菜单
