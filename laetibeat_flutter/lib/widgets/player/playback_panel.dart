@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import '../../animations.dart';
+import '../settings/music_library_provider.dart';
 import 'player_provider.dart';
 
 //共享播放面板:三个区域(来源区/播放显示区/控制区)
@@ -19,6 +20,9 @@ class PlaybackPanel extends ConsumerWidget {
     final scheme = theme.colorScheme;
     final player = ref.watch(playerProvider);
     final track = player.current;
+
+    //空态:未播放任何曲目时,按音乐库是否有曲目分两种占位提示
+    if (track == null) return _emptyState(ref, theme, scheme);
 
     //整体等比缩放:高度方向随窗口自适应,宽度抵消scale后始终占满窗口
     //所有控件(文字/按钮/间距/封面)都随窗口高度一起变大变小
@@ -49,6 +53,39 @@ class PlaybackPanel extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+
+  //空态占位:音乐库为空 => 引导扫描;有曲目未播放 => '未在播放'提示
+  Widget _emptyState(
+    WidgetRef ref,
+    M3EThemeData theme,
+    M3EColorScheme scheme,
+  ) {
+    final lib = ref.watch(musicLibraryProvider).value;
+    final empty = lib == null || lib.tracks.isEmpty;
+    final icon = empty ? Icons.music_off : Icons.play_circle_outline;
+    final title = empty ? '音乐库为空' : '未在播放';
+    final subtitle =
+        empty ? '前往设置选择音乐文件夹,开始扫描' : '从音乐库选择一首歌曲开始播放';
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 96, color: scheme.onSurfaceVariant.withValues(alpha: 0.4)),
+          SizedBox(height: theme.spacing.lg),
+          Text(title, style: theme.typeScale.titleMedium),
+          SizedBox(height: theme.spacing.xs),
+          Text(
+            subtitle,
+            style: theme.typeScale.bodyMedium.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 

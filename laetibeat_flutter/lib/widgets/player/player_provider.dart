@@ -48,16 +48,10 @@ class PlayerNotifier extends Notifier<PlayerState> {
 
   @override
   PlayerState build() {
-    //假数据占位,后期接真实解码/播放链路
-    final queue = _fakeTracks();
-    final state = PlayerState(
-      queue: queue,
-      currentIndex: 0,
-      duration: const Duration(seconds: 204),
-    );
+    //默认空态:未选择任何曲目播放,待用户从音乐库点播后接管
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
-    return state;
+    return const PlayerState(queue: [], isPlaying: false);
   }
 
   void _tick() {
@@ -129,31 +123,6 @@ class PlayerNotifier extends Notifier<PlayerState> {
 
   //上一首
   void prev() => play(state.currentIndex - 1);
-
-  //假数据
-  static List<rust.UiTrack> _fakeTracks() => [
-        rust.UiTrack(
-          id: 'C:/fake/resonance.mp3',
-          title: 'Resonance',
-          artist: 'Home',
-          album: 'Odyssey',
-          duration: '03:24',
-        ),
-        rust.UiTrack(
-          id: 'C:/fake/neon.mp3',
-          title: 'Neon Lights',
-          artist: 'Home',
-          album: 'Odyssey',
-          duration: '04:02',
-        ),
-        rust.UiTrack(
-          id: 'C:/fake/echo.mp3',
-          title: 'Echo',
-          artist: 'Pixel',
-          album: 'Skyline',
-          duration: '02:51',
-        ),
-      ];
 }
 
 //全局播放状态
