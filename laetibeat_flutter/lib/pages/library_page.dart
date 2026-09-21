@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
-import '../animations.dart';
 import '../widgets/library_browser.dart';
 import '../widgets/two_pane_layout.dart';
+import '../widgets/player/player_right_pane.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -12,24 +12,54 @@ class LibraryPage extends StatefulWidget {
 }
 
 class _LibraryPageState extends State<LibraryPage> {
+  //右区播放/详情状态由此控制,左侧点击曲目时切换
+  final GlobalKey<PlayerRightPaneState> _rightPaneKey =
+      GlobalKey<PlayerRightPaneState>();
+
   @override
   Widget build(BuildContext context) {
     return TwoPaneLayout(
       leftFlex: 3,
       rightFlex: 2,
-      left: const LibraryBrowser(),
-      right: _pane(context),
+      left: LibraryBrowser(onSelect: _openDetail),
+      right: PlayerRightPane(key: _rightPaneKey),
     );
   }
 
-  Widget _pane(BuildContext context) {
+  //左侧点某行 -> 右侧切到详情视图
+  void _openDetail(String headline, String supporting) {
+    _rightPaneKey.currentState?.openDetail(
+      _LibraryDetail(title: headline, subtitle: supporting),
+    );
+  }
+}
+
+//音乐库详情视图(占位,后续可按曲目/艺术家/专辑定制更多内容)
+class _LibraryDetail extends StatelessWidget {
+  const _LibraryDetail({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
-    return AnimatedContainer(
-      duration: kSectionAnimDuration,
-      curve: kSectionAnimCurve,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: M3EDimensions.borderRadiusMedium,
+    final scheme = theme.colorScheme;
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(title, style: theme.typeScale.headlineSmall),
+          SizedBox(height: theme.spacing.xs),
+          Text(
+            subtitle,
+            style: theme.typeScale.bodyMedium.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
-import '../animations.dart';
 import '../widgets/two_pane_layout.dart';
+import '../widgets/player/player_right_pane.dart';
 import '../widgets/welcome_section.dart';
 import '../widgets/recent_section.dart';
 import '../widgets/daily_section.dart';
@@ -16,6 +16,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final M3ESearchController searchController = M3ESearchController();
+  //右区播放/详情状态由此控制,左侧点击时切换
+  final GlobalKey<PlayerRightPaneState> _rightPaneKey =
+      GlobalKey<PlayerRightPaneState>();
 
   @override
   Widget build(BuildContext context) {
@@ -40,14 +43,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      right: AnimatedContainer(
-        duration: kSectionAnimDuration,
-        curve: kSectionAnimCurve,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: M3EDimensions.borderRadiusMedium,
-        ),
-      ),
+      right: PlayerRightPane(key: _rightPaneKey),
     );
   }
 

@@ -10,7 +10,13 @@ enum LibraryFilter { track, artist, album }
 
 //音乐库左侧浏览面板:标题+筛选按钮+列表
 class LibraryBrowser extends ConsumerStatefulWidget {
-  const LibraryBrowser({super.key});
+  const LibraryBrowser({
+    super.key,
+    //点击某行时的回调,由页面打开右侧详情
+    this.onSelect,
+  });
+
+  final void Function(String headline, String supporting)? onSelect;
 
   @override
   ConsumerState<LibraryBrowser> createState() => _LibraryBrowserState();
@@ -139,7 +145,9 @@ class _LibraryBrowserState extends ConsumerState<LibraryBrowser> {
       selectionState: const M3EListSelectionState(
         selectedIcon: Icon(M3EIcons.check),
       ),
-      onTap: null,
+      onTap: widget.onSelect == null
+          ? null
+          : (i) => widget.onSelect!(rows[i].headline, rows[i].supporting),
       onLongPress: (i) => _selectionController.toggle(i),
       itemBuilder: (context, i) => _libItem(theme, scheme, rows[i]),
     );

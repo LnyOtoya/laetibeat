@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import '../animations.dart';
 import '../widgets/two_pane_layout.dart';
+import '../widgets/player/player_right_pane.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -11,13 +12,17 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
+  //右区播放/详情状态由此控制,搜索时切换为搜索结果
+  final GlobalKey<PlayerRightPaneState> _rightPaneKey =
+      GlobalKey<PlayerRightPaneState>();
+
   @override
   Widget build(BuildContext context) {
     return TwoPaneLayout(
       leftFlex: 3,
       rightFlex: 2,
       left: _pane(context),
-      right: _pane(context),
+      right: PlayerRightPane(key: _rightPaneKey),
     );
   }
 
