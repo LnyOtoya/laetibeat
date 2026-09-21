@@ -168,34 +168,60 @@ class PlaybackPanel extends ConsumerWidget {
           ],
         ),
         SizedBox(height: theme.spacing.md),
-        //上一首 / 播放暂停 / 下一首
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            M3EIconButton(
-              size: M3EIconButtonSize.md,
-              icon: const Icon(Icons.skip_previous),
-              tooltip: '上一首',
-              onPressed:
-                  player.queue.isEmpty ? null : () => notifier.prev(),
-            ),
-            SizedBox(width: theme.spacing.md),
-            M3EIconButton(
-              size: M3EIconButtonSize.lg,
-              icon: Icon(player.isPlaying ? Icons.pause : Icons.play_arrow),
-              tooltip: player.isPlaying ? '暂停' : '播放',
-              onPressed:
-                  player.current == null ? null : () => notifier.toggle(),
-            ),
-            SizedBox(width: theme.spacing.md),
-            M3EIconButton(
-              size: M3EIconButtonSize.md,
-              icon: const Icon(Icons.skip_next),
-              tooltip: '下一首',
-              onPressed:
-                  player.queue.isEmpty ? null : () => notifier.next(),
-            ),
-          ],
+        //上一首 / 播放暂停 / 下一首 - 按钮组按整行宽度三等分占满
+        LayoutBuilder(
+          builder: (context, c) {
+            final spacing = theme.spacing.xs;
+            final btnW = (c.maxWidth - spacing * 2) / 3;
+            return M3EButtonGroup(
+              type: M3EButtonGroupType.standard,
+              shape: M3EButtonShape.round,
+              size: M3EButtonSize.md,
+              style: M3EButtonStyle.filled,
+              neighborSquish: true,
+              spacing: spacing,
+              selectedIndex: player.isPlaying ? 1 : null,
+              onSelectedIndexChanged: (i) {
+                //按钮组点已选项是取消选中,回调null;播放中只有中间选中,视为点暂停
+                if (i == null) {
+                  notifier.toggle();
+                  return;
+                }
+                switch (i) {
+                  case 0:
+                    notifier.prev();
+                    break;
+                  case 1:
+                    notifier.toggle();
+                    break;
+                  case 2:
+                    notifier.next();
+                    break;
+                }
+              },
+              actions: [
+                M3EButtonGroupAction(
+                  icon: const Icon(Icons.skip_previous),
+                  tooltip: '上一首',
+                  enabled: player.queue.isNotEmpty,
+                  width: btnW,
+                ),
+                M3EButtonGroupAction(
+                  icon: const Icon(Icons.play_arrow),
+                  checkedIcon: const Icon(Icons.pause),
+                  tooltip: player.isPlaying ? '暂停' : '播放',
+                  enabled: player.current != null,
+                  width: btnW,
+                ),
+                M3EButtonGroupAction(
+                  icon: const Icon(Icons.skip_next),
+                  tooltip: '下一首',
+                  enabled: player.queue.isNotEmpty,
+                  width: btnW,
+                ),
+              ],
+            );
+          },
         ),
         SizedBox(height: theme.spacing.md),
         //底部:左侧按钮组(播放列表/随机/顺序) + 右侧三点菜单
