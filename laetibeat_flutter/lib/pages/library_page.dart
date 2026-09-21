@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import '../animations.dart';
+import '../widgets/library_browser.dart';
 import '../widgets/two_pane_layout.dart';
 
 class LibraryPage extends StatefulWidget {
@@ -16,7 +17,7 @@ class _LibraryPageState extends State<LibraryPage> {
     return TwoPaneLayout(
       leftFlex: 3,
       rightFlex: 2,
-      left: _pane(context),
+      left: const LibraryBrowser(),
       right: _pane(context),
     );
   }
