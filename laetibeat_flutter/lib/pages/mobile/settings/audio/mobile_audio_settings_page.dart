@@ -4,6 +4,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../widgets/settings/equalizer_settings.dart';
+import '../../../../widgets/settings/fade_settings.dart';
 import '../../widgets/mobile_large_subpage_app_bar.dart';
 
 /// 移动端“播放器与音频”设置页。
@@ -17,6 +18,7 @@ class MobileAudioSettingsPage extends ConsumerWidget {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
     final settings = ref.watch(equalizerSettingsProvider);
+    final fade = ref.watch(fadeSettingsProvider);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surfaceContainer,
@@ -91,6 +93,55 @@ class MobileAudioSettingsPage extends ConsumerWidget {
               ),
             ),
           ),
+          const SizedBox(height: 24),
+          _AudioGroupTitle(l10n.fadeInOut),
+          const SizedBox(height: 8),
+          M3EList(
+            color: theme.colorScheme.surface,
+            variant: M3ECardVariant.filled,
+            itemCount: 1,
+            itemBuilder: (BuildContext context, int index) {
+              return M3EListItem(
+                headline: l10n.fadeInOut,
+                supportingText: l10n.fadeInOutSupporting,
+                trailing: M3ESwitch(
+                  value: fade.enabled,
+                  onChanged: (value) =>
+                      ref.read(fadeSettingsProvider.notifier).setEnabled(value),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Column(
+                children: [
+                  _FadeSlider(
+                    label: l10n.fadeIn,
+                    seconds: fade.fadeInSeconds,
+                    enabled: fade.enabled,
+                    onChanged: (value) => ref
+                        .read(fadeSettingsProvider.notifier)
+                        .setFadeInSeconds(value),
+                  ),
+                  _FadeSlider(
+                    label: l10n.fadeOut,
+                    seconds: fade.fadeOutSeconds,
+                    enabled: fade.enabled,
+                    onChanged: (value) => ref
+                        .read(fadeSettingsProvider.notifier)
+                        .setFadeOutSeconds(value),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -159,6 +210,64 @@ class _EqualizerBandSlider extends StatelessWidget {
       return '${k.toStringAsFixed(k == k.roundToDouble() ? 0 : 1)}k';
     }
     return '${value.round()}';
+  }
+}
+
+class _FadeSlider extends StatelessWidget {
+  const _FadeSlider({
+    required this.label,
+    required this.seconds,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String label;
+  final double seconds;
+  final bool enabled;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.typeScale.titleSmall.copyWith(
+                    color: scheme.onSurface,
+                  ),
+                ),
+              ),
+              Text(
+                '${seconds.toStringAsFixed(1)} s',
+                style: theme.typeScale.labelMedium.copyWith(
+                  color: enabled ? scheme.primary : scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          M3ESlider(
+            value: seconds,
+            min: 0,
+            max: kFadeMaxSeconds,
+            divisions: 20,
+            size: M3ESliderSize.s,
+            enabled: enabled,
+            onChanged: enabled ? onChanged : null,
+            semanticLabel: label,
+            semanticFormatterCallback: (value) =>
+                '${value.toStringAsFixed(1)} s',
+          ),
+        ],
+      ),
+    );
   }
 }
 

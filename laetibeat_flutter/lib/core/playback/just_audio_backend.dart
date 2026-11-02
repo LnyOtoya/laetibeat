@@ -26,6 +26,8 @@ class JustAudioBackend implements PlaybackBackend, AudioEffectsController {
   StreamSubscription<AudioInterruptionEvent>? _interruptionSubscription;
   StreamSubscription<void>? _noisySubscription;
   bool _resumeAfterInterruption = false;
+  double _userVolume = 1.0;
+  double _duckFactor = 1.0;
 
   List<ja.AndroidEqualizerBand>? _equalizerBands;
   bool _equalizerEnabled = false;
@@ -81,16 +83,17 @@ class JustAudioBackend implements PlaybackBackend, AudioEffectsController {
     ) {
       if (event.begin) {
         if (event.type == AudioInterruptionType.duck) {
-          unawaited(_player.setVolume(0.2));
+          _duckFactor = 0.2;
+          unawaited(_applyVolume());
           return;
         }
         _resumeAfterInterruption = _player.playing;
         unawaited(_player.pause());
-        unawaited(_player.setVolume(1.0));
         return;
       }
 
-      unawaited(_player.setVolume(1.0));
+      _duckFactor = 1.0;
+      unawaited(_applyVolume());
       if (_resumeAfterInterruption &&
           event.type == AudioInterruptionType.pause) {
         unawaited(_player.play());
@@ -159,6 +162,16 @@ class JustAudioBackend implements PlaybackBackend, AudioEffectsController {
 
   @override
   Future<void> seek(Duration position) => _player.seek(position);
+
+  @override
+  Future<void> setVolume(double volume) async {
+    _userVolume = volume.clamp(0.0, 1.0);
+    await _applyVolume();
+  }
+
+  Future<void> _applyVolume() {
+    return _player.setVolume((_userVolume * _duckFactor).clamp(0.0, 1.0));
+  }
 
   @override
   Future<void> stop() => _player.stop();

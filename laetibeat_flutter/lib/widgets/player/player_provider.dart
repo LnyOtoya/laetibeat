@@ -7,6 +7,7 @@ import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 import '../../core/providers/playback_backend_provider.dart';
 import '../settings/persistence.dart';
 import '../settings/subsonic_provider.dart';
+import '../settings/fade_settings.dart';
 import 'playback_backend.dart';
 import 'playback_session_tracker.dart';
 import 'playback_stats.dart';
@@ -132,6 +133,10 @@ class PlayerNotifier extends Notifier<PlayerState> {
   bool _queueSavePending = false;
   bool _savingState = false;
   bool _stateSavePending = false;
+
+  Timer? _fadeTimer;
+  int _fadeGeneration = 0;
+  double _currentVolume = 1.0;
 
   /// 最近一次落盘的队列指纹,避免同一队列(如整库)每次点歌都重写大文件
   int? _lastSavedQueueSignature;
@@ -279,7 +284,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
   Future<void> toggle() async {
     if (state.queue.isEmpty) return;
     if (state.isPlaying) {
-      await _backend.pause();
+      await _fadeOutAndPause();
       return;
     }
     // 启动恢复的队列尚未装载:先懒加载到上次进度再播放
@@ -292,21 +297,24 @@ class PlayerNotifier extends Notifier<PlayerState> {
       await _backend.seek(Duration.zero);
       _pendingPosition = Duration.zero;
     }
-    await _backend.play();
+    await _playWithFadeIn();
   }
 
   //供外部(如 MPRIS)强制暂停
   Future<void> pause() async {
     if (state.queue.isEmpty || !_mediaLoaded) return;
-    await _backend.pause();
+    await _fadeOutAndPause();
   }
 
   /// 供系统媒体服务停止播放；队列保留，下次播放重新装载。
   Future<void> stop() async {
     if (state.queue.isEmpty) return;
+    _cancelFade();
     await _backend.stop();
     _mediaLoaded = false;
     _pendingPosition = Duration.zero;
+    _currentVolume = 1;
+    unawaited(_backend.setVolume(1));
     state = state.copyWith(isPlaying: false, position: Duration.zero);
   }
 
@@ -320,7 +328,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
       await _loadPendingAndPlay();
       return;
     }
-    await _backend.play();
+    await _playWithFadeIn();
   }
 
   /// 恢复后首次播放:先把当前曲目以暂停状态装载,seek 到首次播放位置后再播放。
@@ -359,7 +367,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
       // 真正开始播放时才开启统计会话(懒加载恢复不算播放)
       _sessionTracker.onTrackChanged(track);
       _sessionTracker.onSeek(resumeAt);
-      await _backend.play();
+      await _playWithFadeIn();
       _reportNowPlaying(track);
       _pendingPosition = Duration.zero;
     } catch (e) {
@@ -483,8 +491,10 @@ class PlayerNotifier extends Notifier<PlayerState> {
 
       final playbackTrack = await _resolveTrack(track);
       if (generation != _openGeneration) return;
+      await _prepareVolumeForOpen();
       await _backend.open(playbackTrack);
       _reportNowPlaying(track);
+      await _fadeAfterOpen();
     } catch (e) {
       if (generation != _openGeneration) return;
       debugPrint('打开曲目失败: $e');
@@ -494,6 +504,94 @@ class PlayerNotifier extends Notifier<PlayerState> {
         await _backend.stop();
       } catch (_) {}
     }
+  }
+
+  FadeSettings get _fadeSettings => ref.read(fadeSettingsProvider);
+
+  void _cancelFade() {
+    _fadeGeneration++;
+    _fadeTimer?.cancel();
+    _fadeTimer = null;
+  }
+
+  /// 播放前先把音量降到 0，避免引擎起播瞬间先以满音量响一下。
+  Future<void> _prepareVolumeForOpen() async {
+    _cancelFade();
+    final fade = _fadeSettings;
+    _currentVolume = fade.enabled && fade.fadeInSeconds > 0 ? 0 : 1;
+    await _backend.setVolume(_currentVolume);
+  }
+
+  Future<void> _fadeAfterOpen() async {
+    final fade = _fadeSettings;
+    if (!fade.enabled || fade.fadeInSeconds <= 0) {
+      _currentVolume = 1;
+      await _backend.setVolume(1);
+      return;
+    }
+    await _fadeTo(1, fade.fadeInSeconds);
+  }
+
+  Future<void> _playWithFadeIn() async {
+    final fade = _fadeSettings;
+    if (!fade.enabled || fade.fadeInSeconds <= 0) {
+      _cancelFade();
+      _currentVolume = 1;
+      await _backend.setVolume(1);
+      await _backend.play();
+      return;
+    }
+
+    _cancelFade();
+    _currentVolume = 0;
+    await _backend.setVolume(0);
+    await _backend.play();
+    await _fadeTo(1, fade.fadeInSeconds);
+  }
+
+  Future<void> _fadeOutAndPause() async {
+    final fade = _fadeSettings;
+    if (!fade.enabled || fade.fadeOutSeconds <= 0) {
+      _cancelFade();
+      await _backend.pause();
+      return;
+    }
+    await _fadeTo(0, fade.fadeOutSeconds);
+    await _backend.pause();
+  }
+
+  Future<void> _fadeTo(double target, double seconds) async {
+    _cancelFade();
+    final generation = _fadeGeneration;
+    final start = _currentVolume;
+    final steps = (seconds * 1000 / 40).round().clamp(1, 250);
+    if (steps <= 1 || (start - target).abs() < 0.001) {
+      _currentVolume = target;
+      await _backend.setVolume(target);
+      return;
+    }
+
+    final completer = Completer<void>();
+    var step = 0;
+    _fadeTimer = Timer.periodic(const Duration(milliseconds: 40), (timer) {
+      if (generation != _fadeGeneration) {
+        timer.cancel();
+        if (!completer.isCompleted) completer.complete();
+        return;
+      }
+      step++;
+      final t = (step / steps).clamp(0.0, 1.0);
+      final volume = start + (target - start) * t;
+      _currentVolume = volume;
+      unawaited(_backend.setVolume(volume));
+      if (step >= steps) {
+        timer.cancel();
+        _fadeTimer = null;
+        _currentVolume = target;
+        if (!completer.isCompleted) completer.complete();
+      }
+    });
+    await completer.future;
   }
 
   /// 本地曲目走 file://,远端曲目走 OpenSubsonic stream URL。
@@ -642,7 +740,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
     _sessionTracker.onTrackChanged(state.current);
     state = state.copyWith(position: Duration.zero, isPlaying: true);
     _backend.seek(Duration.zero);
-    _backend.play();
+    unawaited(_playWithFadeIn());
     _reportNowPlaying(state.current);
   }
 

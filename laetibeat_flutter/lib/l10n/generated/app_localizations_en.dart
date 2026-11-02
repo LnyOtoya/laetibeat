@@ -207,6 +207,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get equalizerReset => 'Reset equalizer';
 
   @override
+  String get fadeInOut => 'Fade in/out';
+
+  @override
+  String get fadeInOutSupporting =>
+      'Smoothly adjust volume when playing, pausing, and changing tracks';
+
+  @override
+  String get fadeIn => 'Fade in';
+
+  @override
+  String get fadeOut => 'Fade out';
+
+  @override
   String get lyricsGroup => 'Lyrics';
 
   @override

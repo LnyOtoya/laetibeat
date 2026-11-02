@@ -19,7 +19,10 @@ class PlaybackTrack {
   /// 从元数据粗读出的时长,用于引擎给出真实时长前的兜底展示
   final Duration fallbackDuration;
 
-  const PlaybackTrack({required this.uri, this.fallbackDuration = Duration.zero});
+  const PlaybackTrack({
+    required this.uri,
+    this.fallbackDuration = Duration.zero,
+  });
 }
 
 /// 音频输出设备。id 为设备的唯一标识(name),name 为可读名称。
@@ -76,6 +79,9 @@ abstract class PlaybackBackend {
 
   Future<void> seek(Duration position);
 
+  /// 设置播放器输出音量，范围 0..1。淡入淡出由上层调用。
+  Future<void> setVolume(double volume);
+
   Future<void> stop();
 
   Future<void> dispose();
@@ -116,9 +122,11 @@ class MediaKitBackend implements PlaybackBackend {
       .map((d) => AudioDeviceInfo(d.name, d.description));
 
   @override
-  Stream<List<AudioDeviceInfo>> get audioDevicesStream => _player.stream
-      .audioDevices
-      .map((list) => list.map((d) => AudioDeviceInfo(d.name, d.description)).toList());
+  Stream<List<AudioDeviceInfo>> get audioDevicesStream =>
+      _player.stream.audioDevices.map(
+        (list) =>
+            list.map((d) => AudioDeviceInfo(d.name, d.description)).toList(),
+      );
 
   @override
   Stream<AudioParamsInfo> get audioParamsStream =>
@@ -150,6 +158,10 @@ class MediaKitBackend implements PlaybackBackend {
 
   @override
   Future<void> seek(Duration position) => _player.seek(position);
+
+  @override
+  Future<void> setVolume(double volume) =>
+      _player.setVolume(volume.clamp(0.0, 1.0));
 
   @override
   Future<void> stop() => _player.stop();

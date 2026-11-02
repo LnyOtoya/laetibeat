@@ -488,6 +488,30 @@ abstract class AppLocalizations {
   /// **'Reset equalizer'**
   String get equalizerReset;
 
+  /// No description provided for @fadeInOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade in/out'**
+  String get fadeInOut;
+
+  /// No description provided for @fadeInOutSupporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Smoothly adjust volume when playing, pausing, and changing tracks'**
+  String get fadeInOutSupporting;
+
+  /// No description provided for @fadeIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade in'**
+  String get fadeIn;
+
+  /// No description provided for @fadeOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade out'**
+  String get fadeOut;
+
   /// No description provided for @lyricsGroup.
   ///
   /// In en, this message translates to:

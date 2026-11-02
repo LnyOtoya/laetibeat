@@ -204,6 +204,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get equalizerReset => '重置均衡器';
 
   @override
+  String get fadeInOut => '淡入淡出';
+
+  @override
+  String get fadeInOutSupporting => '播放、暂停和切歌时平滑调整音量';
+
+  @override
+  String get fadeIn => '淡入';
+
+  @override
+  String get fadeOut => '淡出';
+
+  @override
   String get lyricsGroup => '歌词';
 
   @override
