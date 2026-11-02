@@ -1,21 +1,76 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart' as ja;
 import 'package:laetibeat/widgets/player/playback_backend.dart';
 
+import 'audio_effects.dart';
+
 /// Android/iOS 播放后端。
 ///
 /// 桌面端继续使用 media_kit；移动端使用 just_audio + audio_service。
-class JustAudioBackend implements PlaybackBackend {
+class JustAudioBackend implements PlaybackBackend, AudioEffectsController {
   JustAudioBackend() {
     unawaited(_configureAudioSession());
+    unawaited(_prepareEqualizer());
   }
 
-  final ja.AudioPlayer _player = ja.AudioPlayer();
+  final ja.AndroidEqualizer _equalizer = ja.AndroidEqualizer();
+  late final ja.AudioPlayer _player = ja.AudioPlayer(
+    audioPipeline: ja.AudioPipeline(
+      androidAudioEffects: <ja.AndroidAudioEffect>[_equalizer],
+    ),
+  );
   StreamSubscription<AudioInterruptionEvent>? _interruptionSubscription;
   StreamSubscription<void>? _noisySubscription;
   bool _resumeAfterInterruption = false;
+
+  List<ja.AndroidEqualizerBand>? _equalizerBands;
+  bool _equalizerEnabled = false;
+  final List<double> _equalizerGains = List<double>.filled(5, 0);
+
+  Future<void> _prepareEqualizer() async {
+    try {
+      final parameters = await _equalizer.parameters;
+      _equalizerBands = parameters.bands;
+      await _equalizer.setEnabled(_equalizerEnabled);
+      for (
+        var i = 0;
+        i < _equalizerBands!.length && i < _equalizerGains.length;
+        i++
+      ) {
+        await _equalizerBands![i].setGain(_equalizerGains[i]);
+      }
+    } catch (e) {
+      // 部分设备或非 Android 平台没有系统均衡器。
+      debugPrint('初始化均衡器失败: $e');
+    }
+  }
+
+  @override
+  Future<void> setEqualizerEnabled(bool enabled) async {
+    _equalizerEnabled = enabled;
+    try {
+      await _equalizer.setEnabled(enabled);
+    } catch (e) {
+      debugPrint('切换均衡器失败: $e');
+    }
+  }
+
+  @override
+  Future<void> setEqualizerBandGain(int index, double gain) async {
+    if (index < 0 || index >= _equalizerGains.length) return;
+    _equalizerGains[index] = gain;
+    final bands = _equalizerBands;
+    if (bands == null || index >= bands.length) return;
+    try {
+      await bands[index].setGain(gain);
+    } catch (e) {
+      debugPrint('设置均衡器频段失败: $e');
+    }
+  }
 
   Future<void> _configureAudioSession() async {
     final session = await AudioSession.instance;

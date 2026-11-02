@@ -464,6 +464,30 @@ abstract class AppLocalizations {
   /// **'Shuffle playing'**
   String get shufflePlaying;
 
+  /// No description provided for @equalizer.
+  ///
+  /// In en, this message translates to:
+  /// **'Equalizer'**
+  String get equalizer;
+
+  /// No description provided for @equalizerEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable equalizer'**
+  String get equalizerEnabled;
+
+  /// No description provided for @equalizerSupporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust the gain of each frequency band'**
+  String get equalizerSupporting;
+
+  /// No description provided for @equalizerReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset equalizer'**
+  String get equalizerReset;
+
   /// No description provided for @lyricsGroup.
   ///
   /// In en, this message translates to:

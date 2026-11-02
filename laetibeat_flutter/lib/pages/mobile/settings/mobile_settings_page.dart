@@ -6,6 +6,7 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
 import 'appearance/mobile_appearance_settings_page.dart';
+import 'audio/mobile_audio_settings_page.dart';
 import 'content/mobile_content_settings_page.dart';
 import '../widgets/mobile_search_bar.dart';
 
@@ -59,7 +60,13 @@ class MobileSettingsPage extends StatelessWidget {
                   SizedBox(height: 12),
                   _SettingsGroup(
                     onTap: (int index) {
-                      if (index == 1) {
+                      if (index == 0) {
+                        pushMobileRootPage(
+                          context,
+                          const MobileAudioSettingsPage(),
+                          name: MobileRoutes.audioSettings,
+                        );
+                      } else if (index == 1) {
                         pushMobileRootPage(
                           context,
                           const MobileContentSettingsPage(),

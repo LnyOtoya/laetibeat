@@ -192,6 +192,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shufflePlaying => '随机播放中';
 
   @override
+  String get equalizer => '均衡器';
+
+  @override
+  String get equalizerEnabled => '启用均衡器';
+
+  @override
+  String get equalizerSupporting => '调整不同频段的增益';
+
+  @override
+  String get equalizerReset => '重置均衡器';
+
+  @override
   String get lyricsGroup => '歌词';
 
   @override

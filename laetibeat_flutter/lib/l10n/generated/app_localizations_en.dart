@@ -195,6 +195,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shufflePlaying => 'Shuffle playing';
 
   @override
+  String get equalizer => 'Equalizer';
+
+  @override
+  String get equalizerEnabled => 'Enable equalizer';
+
+  @override
+  String get equalizerSupporting => 'Adjust the gain of each frequency band';
+
+  @override
+  String get equalizerReset => 'Reset equalizer';
+
+  @override
   String get lyricsGroup => 'Lyrics';
 
   @override
