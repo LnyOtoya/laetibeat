@@ -577,7 +577,8 @@ class PlayerNotifier extends Notifier<PlayerState> {
       if (idx != null) {
         play(idx);
       } else {
-        state = state.copyWith(position: state.duration);
+        // 本轮随机已经播完，引擎已停止，状态也必须是暂停。
+        state = state.copyWith(position: state.duration, isPlaying: false);
       }
       return;
     }
@@ -593,7 +594,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
       play(0);
       return;
     }
-    state = state.copyWith(position: state.duration);
+    state = state.copyWith(position: state.duration, isPlaying: false);
   }
 
   /// 随机播放选曲:优先选本轮未播放过的曲目,保证 off 模式下每首只播一次。

@@ -849,7 +849,16 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
             ),
             SizedBox(height: theme.spacing.sm),
             Expanded(
-              child: queue.isEmpty
+              child: player.shuffle
+                  ? Center(
+                      child: Text(
+                        l10n.shufflePlaying,
+                        style: theme.typeScale.titleMedium.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  : queue.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,

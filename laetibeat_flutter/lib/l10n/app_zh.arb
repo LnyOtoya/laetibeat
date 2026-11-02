@@ -60,6 +60,7 @@
   "lyricsSyncWord": "逐字",
   "lyricsSyncLine": "逐行",
   "lyricsSyncStatic": "静态",
+  "shufflePlaying": "随机播放中",
   "lyricsGroup": "歌词",
   "lyricsSource": "歌词来源",
   "lyricsSourceSupporting": "选择要启用的歌词来源",

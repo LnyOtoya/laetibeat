@@ -458,6 +458,12 @@ abstract class AppLocalizations {
   /// **'Static'**
   String get lyricsSyncStatic;
 
+  /// No description provided for @shufflePlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle playing'**
+  String get shufflePlaying;
+
   /// No description provided for @lyricsGroup.
   ///
   /// In en, this message translates to:

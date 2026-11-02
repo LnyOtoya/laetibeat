@@ -60,6 +60,7 @@
   "lyricsSyncWord": "Word",
   "lyricsSyncLine": "Line",
   "lyricsSyncStatic": "Static",
+  "shufflePlaying": "Shuffle playing",
   "lyricsGroup": "Lyrics",
   "lyricsSource": "Lyrics source",
   "lyricsSourceSupporting": "Choose which lyrics sources are enabled",

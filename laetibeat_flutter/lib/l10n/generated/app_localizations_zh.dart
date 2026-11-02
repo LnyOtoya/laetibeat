@@ -189,6 +189,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lyricsSyncStatic => '静态';
 
   @override
+  String get shufflePlaying => '随机播放中';
+
+  @override
   String get lyricsGroup => '歌词';
 
   @override

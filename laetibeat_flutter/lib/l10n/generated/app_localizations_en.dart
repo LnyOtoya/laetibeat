@@ -192,6 +192,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lyricsSyncStatic => 'Static';
 
   @override
+  String get shufflePlaying => 'Shuffle playing';
+
+  @override
   String get lyricsGroup => 'Lyrics';
 
   @override
