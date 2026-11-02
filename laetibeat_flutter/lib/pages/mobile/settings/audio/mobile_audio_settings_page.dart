@@ -183,6 +183,7 @@ class _EqualizerBandSlider extends StatelessWidget {
             divisions: 24,
             size: M3ESliderSize.s,
             enabled: enabled,
+            haptic: M3EHapticFeedback.light,
             onChanged: enabled ? onChanged : null,
             semanticLabel: '$frequency Hz',
             semanticFormatterCallback: (value) => '${_formatGain(value)} dB',
@@ -260,6 +261,7 @@ class _FadeSlider extends StatelessWidget {
             divisions: 20,
             size: M3ESliderSize.s,
             enabled: enabled,
+            haptic: M3EHapticFeedback.light,
             onChanged: enabled ? onChanged : null,
             semanticLabel: label,
             semanticFormatterCallback: (value) =>

@@ -1,7 +1,7 @@
 # Laetibeat 项目蓝图
 
-> 最后更新：2026-11-01
-> 当前阶段：Android audio_service + just_audio 核心真机验证通过，继续补边界场景
+> 最后更新：2026-11-02
+> 当前阶段：Android 播放/后台/通知已验证，开始补播放音效与 DSP
 
 ## 当前状态速览
 
@@ -10,9 +10,11 @@
 - 缓存：本地封面按需读取；远端封面内存 + 磁盘 LRU；歌词 SQLite 正负缓存
 - 移动端：首页/音乐库/搜索/设置/播放页/迷你播放器已完成；音乐库按歌曲、歌单、艺术家、专辑分组
 - 移动端 OpenSubsonic：连接、测试、扫描、歌单、艺术家简介、专辑/曲目浏览已接入真实数据
-- 跨平台：Linux 桌面可用；Android UI 已解耦，audio_service 已接入待真机验证；Windows/macOS 打包未开始
-- 主要缺口：收藏/歌单编辑/队列编辑/下载、播放设置、Android 音频服务真机验证、移动端 SAF、MPRIS 迁移
-- 音频后端：桌面 media_kit；Android 已切换 just_audio + audio_service，等待真机验证
+- 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
+- 歌词：已接入 LRCLIB、LiriQo 搜索，支持逐字/逐行/静态标记、翻译与临时应用
+- 跨平台：Linux 桌面可用；Android UI 已解耦，audio_service 后台/锁屏/通知已验证；Windows/macOS 打包未开始
+- 主要缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
+- 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 
 ## 阶段1：数据模型与基础扫描
 
@@ -48,7 +50,9 @@
 - [ ] 3.12 歌单（本地 CRUD、加入歌单、远端 playlist 详情）
 - [ ] 3.13 队列编辑（加入队列、下一首播放、删除、拖动排序、清空）
 - [ ] 3.14 下载（当前按钮为占位）
-- [ ] 3.15 播放设置：倍速、均衡器、淡入淡出、跳过静音、ReplayGain
+- [x] 3.15 播放设置第一版：Android 系统均衡器、淡入淡出
+- [ ] 3.15.1 倍速、跳过静音、ReplayGain / 响度归一
+- [ ] 3.15.2 压缩器/限幅器、Bass Boost、Virtualizer、Stereo Width、Crossfeed
 - [ ] 3.16 底部三点菜单/列表行的“加入播放队列”“查看详情”等占位动作
 
 ## 阶段4：OpenSubsonic / Navidrome
@@ -86,7 +90,8 @@
 - [x] 6.3 本地歌词：内嵌 → sidecar，按音频/sidecar 指纹缓存
 - [x] 6.4 远端歌词：OpenSubsonic 返回，正缓存长期、负缓存 1 天
 - [x] 6.5 歌词缓存 20MB 上限与过期负缓存清理
-- [ ] 6.6 手动搜索歌词（见项目记忆；本地优先写 .lrc，后续可选写入标签）
+- [x] 6.6 搜索歌词：LRCLIB + LiriQo、逐字/逐行/静态、翻译、应用覆盖
+- [ ] 6.7 搜索歌词持久化：写入本地 .lrc / 标签，或保存覆盖记录
 
 ## 阶段7：跨平台与系统集成
 
@@ -95,7 +100,7 @@
 - [x] 7.3 页面响应式：桌面 TwoPaneLayout 窄屏折叠，移动端使用独立单栏页面
 - [x] 7.4 移动端播放页：迷你播放器 + 全屏播放页，隐藏 DevicePanel
 - [ ] 7.5 MPRIS 迁移到 audio_service + audio_service_mpris（当前自研 MPRIS 已停用）
-- [ ] 7.6 Android 后台播放、媒体会话、常驻通知
+- [x] 7.6 Android 后台播放、媒体会话、常驻通知（真机验证通过）
 - [ ] 7.7 Windows / macOS / Android 打包与适配测试
 - [x] 7.8 window_manager 平台门控与移动端启动配置
 - [x] 7.9 移动端页面体系：首页/音乐库/搜索/设置/外观/内容/音源配置
@@ -125,9 +130,11 @@
 - [x] AudioHandler 与 UI 同 isolate，统计/scrobble/队列持久化保持原路径
 - [x] 用 `MediaItem` 同步标题、艺术家、专辑、时长、封面 `artUri`
 - [x] 同步队列、随机模式、重复模式
-- [ ] 通知栏、锁屏、耳机键、媒体按钮真机验证
+- [x] 通知栏、锁屏、媒体按钮真机验证
+- [ ] 蓝牙耳机按键真机验证
 - [ ] 通知点击回到播放页/当前页面验证
 - [ ] 替换/收缩 `MediaSessionService.sync()` 拉取式桥接
+- [x] 播放完成/队列结束时按钮状态与媒体通知同步
 
 ### 8.3 Android 配置
 
@@ -163,6 +170,22 @@
 - [ ] 通知权限拒绝时的降级行为
 - [ ] Android 13/14/15 和不同厂商 ROM
 
+### 8.6 播放音效第一版
+
+- [x] JustAudioBackend 接入 `AudioPipeline + AndroidEqualizer`
+- [x] 移动端“播放器与音频”设置页：5 段竖向均衡器
+- [x] EQ 开关、频段增益持久化
+- [x] 淡入淡出开关、淡入/淡出 0–10 秒设置
+- [x] `PlaybackBackend.setVolume` + `PlayerNotifier` 音量渐变
+- [x] 淡入淡出兼容 Android 音频焦点 duck
+- [ ] ReplayGain / LUFS 响度归一
+- [ ] Compressor / Limiter
+- [ ] Bass Boost / Virtualizer
+- [ ] Stereo Width / Crossfeed
+- [ ] Crossfade / Gapless
+- [ ] 按输出设备保存不同音效 profile（外放/蓝牙/有线/USB DAC）
+- [ ] 音效与 USB DAC bit-perfect 互斥/旁路策略
+
 ## 阶段9：Rust 音频引擎 / 发烧音频（未来）
 
 目标：参考 Flick 等项目的 Rust UAC 实现，逐步建立独立的高解析音频后端；不阻塞阶段 8 的普通移动端播放。
@@ -181,7 +204,10 @@
 - [ ] 解码：Symphonia / FFmpeg，覆盖 FLAC/WAV/MP3/M4A/OGG
 - [ ] 重采样、dither、预放大、限幅
 - [ ] 10 段/31 段参量均衡器
+- [ ] ReplayGain / LUFS 响度归一、动态压缩
 - [ ] 淡入淡出、crossfade、gapless
+- [ ] Bass Boost、Virtualizer、Stereo Width、Crossfeed
+- [ ] 按输出设备切换 DSP profile
 - [ ] 播放位置、缓冲、完成、错误事件
 - [ ] 与 Flutter 的播放队列/统计状态同步
 
@@ -216,7 +242,7 @@
 
 ### 9.6 参考项目与许可证
 
-- [ ] 研究 Flick 的 Rust UAC2 / Oboe / DSP 架构
+- [ ] 研究 Flick 的 Rust UAC2 / Oboe / DSP 架构（MIT；仅作本地参考，不整包复制）
 - [ ] 研究 TrueSample Player 的 `usbaudio` UAC1/UAC2 库
 - [ ] 研究 sylvakru 的 USB 独占实现
 - [ ] 确认代码许可证、libusb/FFmpeg 等依赖分发方式
@@ -244,10 +270,16 @@
 - Scrobble 为 best-effort，服务器离线时不会补报
 - 推荐聚合会把全部远端曲目缓存到内存，超大曲库需要改为聚合查询
 - 本地音乐库仍使用 JSON 快照；播放统计与远端库使用两个独立 SQLite
-- 多个设置分类仍是占位：播放器与音频、储存、备份与还原、更新日志
+- 多个设置分类仍是占位：储存、备份与还原、更新日志
+- AndroidEqualizer 的频段数量/频率由设备决定，当前 UI 固定展示 5 个典型频段
+- 淡入淡出通过音量渐变实现，不是双 deck 的 crossfade；切歌仍有短暂换曲间隔
+- 当前只接入 AndroidEqualizer 和 LoudnessEnhancer 能力；压缩/限幅/Bass Boost/Virtualizer/Crossfeed 尚无实现
+- 歌词搜索结果的应用是当前会话内存覆盖，尚未持久化到本地 .lrc 或数据库
+- Flick 试听与 just_audio 差异不明显，音质问题更可能来自解码/系统音效/耳机调音；后续以 ReplayGain、EQ、DSP 为主线
 - 导航 Favorite/History/Daily Recommend 目前只改变选中态，不切换页面
 - 移动端目录选择已抽象为 DirectoryPicker，但 MobileDirectoryPicker 仍返回 null，需接 SAF / READ_MEDIA_AUDIO
 - 移动端收藏、歌单编辑、下载、队列编辑仍为占位
 - 远端推荐依赖先执行一次「同步音乐」
 - 远端歌词正缓存没有 TTL，服务器更新歌词后需要手动清理
-- 高级均衡器、USB 独占、DSD 尚未实现；当前没有现成 Flutter 包可直接满足
+- 高级 DSP、USB 独占、DSD 尚未实现；当前没有现成 Flutter 包可直接满足
+- 蓝牙/外放仍经过 Android 混音与蓝牙编码，DSP 可改善听感但无法 bit-perfect
