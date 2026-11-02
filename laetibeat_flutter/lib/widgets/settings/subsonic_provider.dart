@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 
 import '../cache/cover_cache.dart';
 import 'persistence.dart';
+import 'song_source_settings.dart';
 
 const String _serversKey = 'subsonic.servers'; // 旧版多服务器列表
 const String _serverKey = 'subsonic.server'; // 新版单服务器配置
@@ -183,6 +184,17 @@ class SubsonicServersNotifier
     await store.migrateLegacyIfNeeded();
     final configs = store.loadConfigs();
 
+    // 已有配置但从未保存过默认来源时，默认使用已配置的 Subsonic。
+    // 用户手动保存过默认来源时不覆盖。
+    if (configs.isNotEmpty &&
+        !ref
+            .read(sharedPreferencesProvider)
+            .containsKey(kDefaultSongSourceKey)) {
+      ref
+          .read(defaultSongSourceProvider.notifier)
+          .setSource(SongSources.subsonic);
+    }
+
     // 旧配置在保存时可能用 host/IP 作为显示名。后台 ping 一次，
     // 成功则把 name 迁移为服务端 type（navidrome/airsonic 等）。
     if (configs.isNotEmpty && _needsServerType(configs.first)) {
@@ -289,6 +301,11 @@ class SubsonicServersNotifier
       await clearRemoteCoverCache(old.id);
     }
     state = AsyncData(current);
+
+    // 最新成功保存的音源自动成为歌曲列表默认来源。
+    ref
+        .read(defaultSongSourceProvider.notifier)
+        .setSource(SongSources.subsonic);
   }
 
   /// 删除服务器及其密钥
@@ -315,6 +332,11 @@ class SubsonicServersNotifier
     const current = <SubsonicServerConfig>[];
     await store.saveConfigs(current);
     state = const AsyncData(current);
+
+    // 删除最后一个 Subsonic 配置时，避免默认来源停留在已不可用的源。
+    if (ref.read(defaultSongSourceProvider) == SongSources.subsonic) {
+      ref.read(defaultSongSourceProvider.notifier).setSource(SongSources.local);
+    }
   }
 
   Future<String?> readSecret(String id) =>
