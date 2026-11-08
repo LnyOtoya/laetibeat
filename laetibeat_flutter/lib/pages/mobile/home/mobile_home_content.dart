@@ -1,41 +1,220 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 
-import '../../../shared/layout/app_bottom_inset.dart';
-import 'widgets/mobile_daily_section.dart';
-import 'widgets/mobile_welcome_section.dart';
+import '../../../l10n/generated/app_localizations.dart';
+import '../../../widgets/player/cover_provider.dart';
+import '../../../widgets/player/player_provider.dart';
+import '../../../widgets/player/squish_button_pair.dart';
 
-/// 移动端首页内容。
-class MobileHomeContent extends StatelessWidget {
+/// 移动端首页：随机 Shape + 当前歌曲 + 播放控制。
+class MobileHomeContent extends ConsumerStatefulWidget {
   const MobileHomeContent({super.key});
+
+  @override
+  ConsumerState<MobileHomeContent> createState() => _MobileHomeContentState();
+}
+
+class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
+  double? _dragValue;
 
   @override
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
-    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
+    final l10n = AppLocalizations.of(context);
+    final player = ref.watch(playerProvider);
+    final cover = ref.watch(playbackCoverProvider).value;
+    final track = player.current;
+    final isPlaying = player.isPlaying;
+    final total = player.duration.inMilliseconds;
+    final progress = total > 0
+        ? (player.position.inMilliseconds / total).clamp(0.0, 1.0)
+        : 0.0;
+    final sliderValue = _dragValue ?? progress;
+    final displayPosition = _dragValue == null
+        ? player.position
+        : Duration(milliseconds: (_dragValue! * total).round());
+    final notifier = ref.read(playerProvider.notifier);
 
-    return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.only(bottom: bottomInset),
-          child: Column(
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  theme.spacing.xl,
-                  theme.spacing.md,
-                  theme.spacing.xl,
-                  0,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final shapeSize = math.min(
+          constraints.maxWidth * 0.78,
+          math.min(320.0, constraints.maxHeight * 0.42),
+        );
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          child: SizedBox(
+            height: math.max(constraints.maxHeight - 56, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: _HomeHeroShape(size: shapeSize, cover: cover),
                 ),
-                child: const MobileWelcomeSection(),
-              ),
-              SizedBox(height: theme.spacing.md),
-              const MobileDailySection(),
-            ],
+                const SizedBox(height: 28),
+                Text(
+                  track?.title ?? l10n.nothingPlaying,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.typeScale.headlineLarge.copyWith(
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const Spacer(),
+                const SizedBox(height: 32),
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 360),
+                    child: SquishButtonPair(
+                      isPlaying: isPlaying,
+                      toggleEnabled: track != null,
+                      nextEnabled: player.queue.isNotEmpty,
+                      onToggle: notifier.toggle,
+                      onNext: notifier.next,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox.square(
+                      dimension: 84,
+                      child: M3EIconButton(
+                        icon: const Icon(M3EIcons.skip_previous),
+                        variant: M3EIconButtonVariant.filled,
+                        size: M3EIconButtonSize.lg,
+                        shape: M3EIconButtonShapeVariant.round,
+                        matchParentConstraints: true,
+                        tooltip: l10n.previousTrack,
+                        onPressed: player.queue.isEmpty ? null : notifier.prev,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          M3ESlider(
+                            value: sliderValue,
+                            trackThickness: 10,
+                            onChanged: total > 0
+                                ? (value) => setState(() => _dragValue = value)
+                                : null,
+                            onChangeEnd: total > 0
+                                ? (value) {
+                                    setState(() => _dragValue = null);
+                                    notifier.seek(
+                                      Duration(
+                                        milliseconds: (value * total).round(),
+                                      ),
+                                    );
+                                  }
+                                : null,
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _formatDuration(displayPosition),
+                                style: theme.typeScale.labelMedium.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              Text(
+                                _formatDuration(player.duration),
+                                style: theme.typeScale.labelMedium.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
+    );
+  }
+
+  static String _formatDuration(Duration duration) {
+    final totalSeconds = duration.inSeconds;
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+    final two = seconds.toString().padLeft(2, '0');
+    if (hours > 0) {
+      return '$hours:${minutes.toString().padLeft(2, '0')}:$two';
+    }
+    return '$minutes:$two';
+  }
+}
+
+class _HomeHeroShape extends StatefulWidget {
+  const _HomeHeroShape({required this.size, required this.cover});
+
+  final double size;
+  final PlaybackCover? cover;
+
+  @override
+  State<_HomeHeroShape> createState() => _HomeHeroShapeState();
+}
+
+class _HomeHeroShapeState extends State<_HomeHeroShape> {
+  static const List<M3EShapeKind> _kinds = <M3EShapeKind>[
+    M3EShapeKind.bun,
+    M3EShapeKind.puffy,
+    M3EShapeKind.clamShell,
+  ];
+
+  late final M3EShapeKind _kind = _kinds[math.Random().nextInt(_kinds.length)];
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    final bytes = widget.cover?.bytes;
+    final hasCover = bytes != null && bytes.isNotEmpty;
+
+    return M3EShapeContainer(
+      kind: _kind,
+      width: widget.size,
+      height: widget.size,
+      gradient: hasCover
+          ? null
+          : LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: <Color>[
+                scheme.primaryContainer,
+                scheme.tertiaryContainer,
+              ],
+            ),
+      color: scheme.primaryContainer,
+      child: hasCover
+          ? Image.memory(
+              bytes,
+              width: widget.size,
+              height: widget.size,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+            )
+          : Center(
+              child: Icon(
+                M3EIcons.music_note,
+                size: widget.size * 0.28,
+                color: scheme.onPrimaryContainer,
+              ),
+            ),
     );
   }
 }
