@@ -61,16 +61,12 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
                 ),
                 const Spacer(),
                 Text(
-                  track == null
-                      ? l10n.nothingPlaying
-                      : (track.album.trim().isEmpty
-                            ? track.title
-                            : track.album),
+                  track?.title ?? l10n.nothingPlaying,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: theme.typeScale.displayLarge.copyWith(
-                    color: theme.colorScheme.primary,
+                    color: theme.colorScheme.tertiary,
                   ),
                 ),
                 const Spacer(),
