@@ -40,9 +40,10 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final shapeSize = math.min(
-          constraints.maxWidth * 0.78,
-          math.min(320.0, constraints.maxHeight * 0.42),
+        final contentWidth = math.max(0.0, constraints.maxWidth - 48);
+        final shapeHeight = math.min(
+          contentWidth,
+          math.max(220.0, constraints.maxHeight * 0.42),
         );
         return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
@@ -52,7 +53,11 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Center(
-                  child: _HomeHeroShape(size: shapeSize, cover: cover),
+                  child: _HomeHeroShape(
+                    width: contentWidth,
+                    height: shapeHeight,
+                    cover: cover,
+                  ),
                 ),
                 const SizedBox(height: 28),
                 Text(
@@ -66,17 +71,13 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
                 ),
                 const Spacer(),
                 const SizedBox(height: 32),
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 360),
-                    child: SquishButtonPair(
-                      isPlaying: isPlaying,
-                      toggleEnabled: track != null,
-                      nextEnabled: player.queue.isNotEmpty,
-                      onToggle: notifier.toggle,
-                      onNext: notifier.next,
-                    ),
-                  ),
+                SquishButtonPair(
+                  expand: true,
+                  isPlaying: isPlaying,
+                  toggleEnabled: track != null,
+                  nextEnabled: player.queue.isNotEmpty,
+                  onToggle: notifier.toggle,
+                  onNext: notifier.next,
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -86,7 +87,7 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
                       dimension: 84,
                       child: M3EIconButton(
                         icon: const Icon(M3EIcons.skip_previous),
-                        variant: M3EIconButtonVariant.filled,
+                        variant: M3EIconButtonVariant.tonal,
                         size: M3EIconButtonSize.lg,
                         shape: M3EIconButtonShapeVariant.round,
                         matchParentConstraints: true,
@@ -161,9 +162,14 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
 }
 
 class _HomeHeroShape extends StatefulWidget {
-  const _HomeHeroShape({required this.size, required this.cover});
+  const _HomeHeroShape({
+    required this.width,
+    required this.height,
+    required this.cover,
+  });
 
-  final double size;
+  final double width;
+  final double height;
   final PlaybackCover? cover;
 
   @override
@@ -187,8 +193,8 @@ class _HomeHeroShapeState extends State<_HomeHeroShape> {
 
     return M3EShapeContainer(
       kind: _kind,
-      width: widget.size,
-      height: widget.size,
+      width: widget.width,
+      height: widget.height,
       gradient: hasCover
           ? null
           : LinearGradient(
@@ -203,15 +209,15 @@ class _HomeHeroShapeState extends State<_HomeHeroShape> {
       child: hasCover
           ? Image.memory(
               bytes,
-              width: widget.size,
-              height: widget.size,
+              width: widget.width,
+              height: widget.height,
               fit: BoxFit.cover,
               gaplessPlayback: true,
             )
           : Center(
               child: Icon(
                 M3EIcons.music_note,
-                size: widget.size * 0.28,
+                size: math.min(widget.width, widget.height) * 0.28,
                 color: scheme.onPrimaryContainer,
               ),
             ),
