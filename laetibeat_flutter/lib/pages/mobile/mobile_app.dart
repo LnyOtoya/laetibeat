@@ -119,7 +119,9 @@ class MobileShell extends ConsumerWidget {
             _tabForRoute(routeName) ?? AppDestination.home;
         final int selectedIndex = _tabs.indexOf(tab);
         final bool showNavigationBar = _showNavigationBar(routeName);
-        final bool showMiniPlayer = hasTrack && showNavigationBar;
+        final bool isHome = routeName == null || routeName == MobileRoutes.home;
+        // 主页保持沉浸式，不显示 MiniPlayer；其他 tab 保持原行为。
+        final bool showMiniPlayer = hasTrack && showNavigationBar && !isHome;
 
         return TapHapticDetector(
           child: Scaffold(
