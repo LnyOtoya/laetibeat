@@ -212,7 +212,6 @@ class _HomeHeroShapeState extends State<_HomeHeroShape> {
   static const List<M3EShapeKind> _kinds = <M3EShapeKind>[
     M3EShapeKind.bun,
     M3EShapeKind.puffy,
-    M3EShapeKind.clamShell,
   ];
 
   late final M3EShapeKind _kind = _kinds[math.Random().nextInt(_kinds.length)];

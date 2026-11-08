@@ -477,7 +477,9 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
                   children: [
                     Text(
                       track?.title ?? l10n.nothingPlaying,
-                      style: theme.typeScale.headlineSmall,
+                      style: theme.typeScale.headlineSmall.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -745,8 +747,15 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
                     children: [
                       M3EButton(
                         size: M3EButtonSize.sm,
-                        icon: const Icon(Icons.playlist_play),
-                        label: Text(l10n.queueButton),
+                        isSelected: false,
+                        icon: Icon(
+                          Icons.playlist_play,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        label: Text(
+                          l10n.queueButton,
+                          style: TextStyle(color: scheme.onSurfaceVariant),
+                        ),
                         style: M3EButtonStyle.filled,
                         shape: M3EButtonShape.square,
                         onPressed: () =>
@@ -964,6 +973,7 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
   //竖向三点菜单
   Widget _moreMenu(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = M3ETheme.of(context).colorScheme;
     return M3EMenu.entries(
       position: M3EMenuAnchorPosition.bottomEnd,
       entries: [
@@ -988,8 +998,12 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
       ],
       anchorBuilder: (context, open) => M3EButton(
         size: M3EButtonSize.sm,
-        icon: const Icon(Icons.more_vert),
-        label: Text(l10n.more),
+        isSelected: false,
+        icon: Icon(Icons.more_vert, color: scheme.onSurfaceVariant),
+        label: Text(
+          l10n.more,
+          style: TextStyle(color: scheme.onSurfaceVariant),
+        ),
         style: M3EButtonStyle.filled,
         shape: M3EButtonShape.square,
         onPressed: open,
