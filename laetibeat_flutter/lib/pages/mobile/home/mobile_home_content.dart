@@ -59,18 +59,21 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
                     cover: cover,
                   ),
                 ),
-                const SizedBox(height: 28),
+                const Spacer(),
                 Text(
-                  track?.title ?? l10n.nothingPlaying,
+                  track == null
+                      ? l10n.nothingPlaying
+                      : (track.album.trim().isEmpty
+                            ? track.title
+                            : track.album),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: theme.typeScale.headlineLarge.copyWith(
-                    color: theme.colorScheme.onSurface,
+                  style: theme.typeScale.displayLarge.copyWith(
+                    color: theme.colorScheme.primary,
                   ),
                 ),
                 const Spacer(),
-                const SizedBox(height: 32),
                 SquishButtonPair(
                   expand: true,
                   isPlaying: isPlaying,
