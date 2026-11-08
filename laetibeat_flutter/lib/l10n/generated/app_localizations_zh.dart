@@ -93,6 +93,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appThemeSupporting => '浅色、深色之间切换，或者跟随系统默认';
 
   @override
+  String get coverShape => '封面形状';
+
+  @override
+  String get coverShapeSupporting => '选择播放页封面的形状';
+
+  @override
+  String get coverShapeDialogTitle => '封面形状';
+
+  @override
   String get themeLight => '浅色';
 
   @override

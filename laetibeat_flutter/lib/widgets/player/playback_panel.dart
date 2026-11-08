@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import '../../l10n/generated/app_localizations.dart';
 import '../../animations.dart';
+import '../settings/cover_shape_settings.dart';
 import '../settings/music_library_provider.dart';
 import 'cover_provider.dart';
 import 'player_provider.dart';
@@ -38,6 +41,9 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
   /// 竖直空间低于该值时(如矮窗口被下方播放队列压缩)退化为可滚动布局,
   /// 避免固定内容超出可用高度导致 RenderFlex 溢出
   static const double _tightHeight = 460.0;
+
+  /// 播放页控制组统一使用的最大宽度：以随机/循环/歌单胶囊为基准。
+  static const double _controlMaxWidth = 340.0;
 
   /// 是否在面板内切换显示歌词。默认 false = 显示封面(播放页);
   /// 按歌词按钮切换为歌词区,再按切回封面。不进入全屏,全屏方案另做。
@@ -149,19 +155,21 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
                               ? theme.spacing.lg
                               : theme.spacing.xxl,
                         ),
-                        _infoRow(context, theme, track, bytes),
+                        _controlWidth(_infoRow(context, theme, track, bytes)),
                         SizedBox(
                           height: compact
                               ? theme.spacing.lg
                               : theme.spacing.xxl,
                         ),
-                        _controlRegion(
-                          context,
-                          theme,
-                          scheme,
-                          player,
-                          ref,
-                          compact: compact,
+                        _controlWidth(
+                          _controlRegion(
+                            context,
+                            theme,
+                            scheme,
+                            player,
+                            ref,
+                            compact: compact,
+                          ),
                         ),
                       ],
                     ),
@@ -194,17 +202,19 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
                       SizedBox(
                         height: compact ? theme.spacing.lg : theme.spacing.xxl,
                       ),
-                      _infoRow(context, theme, track, bytes),
+                      _controlWidth(_infoRow(context, theme, track, bytes)),
                       SizedBox(
                         height: compact ? theme.spacing.lg : theme.spacing.xxl,
                       ),
-                      _controlRegion(
-                        context,
-                        theme,
-                        scheme,
-                        player,
-                        ref,
-                        compact: compact,
+                      _controlWidth(
+                        _controlRegion(
+                          context,
+                          theme,
+                          scheme,
+                          player,
+                          ref,
+                          compact: compact,
+                        ),
                       ),
                     ],
                   ),
@@ -386,13 +396,29 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
       },
       child: _showLyrics
           ? const LyricsView(key: ValueKey('lyrics'))
-          : Center(
+          : LayoutBuilder(
               key: const ValueKey('cover'),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: _cover(theme, bytes: bytes),
-              ),
+              builder: (context, constraints) {
+                final width = math.min(_controlMaxWidth, constraints.maxWidth);
+                return Center(
+                  child: SizedBox(
+                    width: width,
+                    height: constraints.maxHeight,
+                    child: _cover(theme, bytes: bytes),
+                  ),
+                );
+              },
             ),
+    );
+  }
+
+  /// 将信息行、控制区统一到与随机/循环/歌单胶囊相同的最大宽度。
+  Widget _controlWidth(Widget child) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _controlMaxWidth),
+        child: SizedBox(width: double.infinity, child: child),
+      ),
     );
   }
 
@@ -435,11 +461,7 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
                               child: SizedBox(
                                 width: coverSize,
                                 height: coverSize,
-                                child: _cover(
-                                  theme,
-                                  bytes: bytes,
-                                  radius: theme.spacing.sm,
-                                ),
+                                child: _cover(theme, bytes: bytes),
                               ),
                             ),
                           ),
@@ -533,11 +555,13 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
 
   //封面:自控圆角(比M3EShapeContainer.square默认radius更小)。
   //有封面字节则铺满显示 Image.memory,无封面回退占位音符图标(按边长比例)
-  Widget _cover(M3EThemeData theme, {Uint8List? bytes, double? radius}) {
+  Widget _cover(M3EThemeData theme, {Uint8List? bytes}) {
     final scheme = theme.colorScheme;
     final hasArt = bytes != null && bytes.isNotEmpty;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius ?? theme.spacing.md),
+    final shape = ref.watch(coverShapeProvider);
+    return M3EShapeContainer(
+      kind: shape,
+      clipBehavior: Clip.antiAlias,
       child: ColoredBox(
         color: scheme.secondaryContainer,
         child: hasArt
@@ -618,14 +642,19 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
               SizedBox(height: theme.spacing.md),
               //上一首 / 播放暂停 / 下一首 - 横向内边距已由全页统一 Padding 提供
               //复刻 neighbor-squish 效果;内部用 FittedBox 兜底窄屏不横向溢出
-              SquishButtonRow(
-                isPlaying: player.isPlaying,
-                previousEnabled: player.queue.isNotEmpty,
-                toggleEnabled: player.current != null,
-                nextEnabled: player.queue.isNotEmpty,
-                onPrevious: notifier.prev,
-                onToggle: notifier.toggle,
-                onNext: notifier.next,
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _controlMaxWidth),
+                  child: SquishButtonRow(
+                    isPlaying: player.isPlaying,
+                    previousEnabled: player.queue.isNotEmpty,
+                    toggleEnabled: player.current != null,
+                    nextEnabled: player.queue.isNotEmpty,
+                    onPrevious: notifier.prev,
+                    onToggle: notifier.toggle,
+                    onNext: notifier.next,
+                  ),
+                ),
               ),
               SizedBox(height: theme.spacing.md),
               //第一行:随机 / 重复(单曲-列表循环切换) / 添加到歌单(仅图标,逻辑未接入)
@@ -708,19 +737,25 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
               SizedBox(height: theme.spacing.md),
               //第二行:左侧播放队列 + 右侧三点菜单(均文字+图标, sm 方形规格)
               //队列按钮不做 compact 隐藏,小窗口也始终保留(入口固定可见)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  M3EButton(
-                    size: M3EButtonSize.sm,
-                    icon: const Icon(Icons.playlist_play),
-                    label: Text(l10n.queueButton),
-                    style: M3EButtonStyle.filled,
-                    shape: M3EButtonShape.square,
-                    onPressed: () => setState(() => _showQueue = !_showQueue),
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _controlMaxWidth),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      M3EButton(
+                        size: M3EButtonSize.sm,
+                        icon: const Icon(Icons.playlist_play),
+                        label: Text(l10n.queueButton),
+                        style: M3EButtonStyle.filled,
+                        shape: M3EButtonShape.square,
+                        onPressed: () =>
+                            setState(() => _showQueue = !_showQueue),
+                      ),
+                      _moreMenu(context),
+                    ],
                   ),
-                  _moreMenu(context),
-                ],
+                ),
               ),
             ],
           ),

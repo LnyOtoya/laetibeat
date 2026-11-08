@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:laetibeat/widgets/settings/cover_shape_settings.dart';
 import 'package:laetibeat/widgets/settings/song_sort_settings.dart';
 import 'package:laetibeat/widgets/settings/song_source_settings.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
@@ -8,10 +9,20 @@ import '../../../../app/app_locale.dart';
 import '../../../../widgets/settings/settings_provider.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../widgets/mobile_large_subpage_app_bar.dart';
+import 'cover_shape_dialog.dart';
 
 /// 移动端外观设置子页面。
 class MobileAppearanceSettingsPage extends ConsumerWidget {
   const MobileAppearanceSettingsPage({super.key});
+
+  Future<void> _pickCoverShape(BuildContext context, WidgetRef ref) async {
+    final picked = await showCoverShapeDialog(
+      context,
+      initial: ref.read(coverShapeProvider),
+    );
+    if (!context.mounted || picked == null) return;
+    await ref.read(coverShapeProvider.notifier).setShape(picked);
+  }
 
   Future<void> _pickSongSource(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
@@ -114,14 +125,16 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
                   case 0:
                     _pickTheme(context, ref);
                   case 1:
-                    _pickSongSource(context, ref);
+                    _pickCoverShape(context, ref);
                   case 2:
-                    _pickSongSort(context, ref);
+                    _pickSongSource(context, ref);
                   case 3:
+                    _pickSongSort(context, ref);
+                  case 4:
                     _pickLanguage(context, ref);
                 }
               },
-              itemCount: 4,
+              itemCount: 5,
               itemBuilder: (BuildContext context, int index) {
                 return switch (index) {
                   0 => M3EListItem(
@@ -129,10 +142,14 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
                     supportingText: l10n.appThemeSupporting,
                   ),
                   1 => M3EListItem(
+                    headline: l10n.coverShape,
+                    supportingText: l10n.coverShapeSupporting,
+                  ),
+                  2 => M3EListItem(
                     headline: l10n.songSource,
                     supportingText: l10n.songSourceSupporting,
                   ),
-                  2 => M3EListItem(
+                  3 => M3EListItem(
                     headline: l10n.songSort,
                     supportingText: l10n.songSortSupporting,
                   ),

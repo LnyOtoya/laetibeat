@@ -95,6 +95,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Switch between light and dark, or follow the system default';
 
   @override
+  String get coverShape => 'Cover shape';
+
+  @override
+  String get coverShapeSupporting =>
+      'Choose the shape used for the now playing cover';
+
+  @override
+  String get coverShapeDialogTitle => 'Cover shape';
+
+  @override
   String get themeLight => 'Light';
 
   @override

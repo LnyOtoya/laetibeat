@@ -195,7 +195,12 @@ class _SquishButtonPairState extends State<SquishButtonPair>
     final Widget visual;
     if (label == null) {
       visual = M3EIconButton(
-        icon: Icon(icon),
+        icon: Icon(
+          icon,
+          color: enabled
+              ? scheme.onSecondaryContainer
+              : scheme.onSurface.withValues(alpha: 0.38),
+        ),
         variant: M3EIconButtonVariant.tonal,
         size: M3EIconButtonSize.lg,
         shape: M3EIconButtonShapeVariant.round,
@@ -206,16 +211,19 @@ class _SquishButtonPairState extends State<SquishButtonPair>
         onPressed: enabled ? () {} : null,
       );
     } else {
+      final playForeground = enabled
+          ? scheme.onTertiaryContainer
+          : scheme.onSurface.withValues(alpha: 0.38);
       visual = M3EButton(
-        icon: Icon(icon),
-        label: Text(label),
+        icon: Icon(icon, color: playForeground),
+        label: Text(label, style: TextStyle(color: playForeground)),
         decoration: M3EButtonDecoration(
           fixedSize: Size(width, _buttonHeight),
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.disabled)) {
               return scheme.onSurface.withValues(alpha: 0.12);
             }
-            return scheme.tertiary;
+            return scheme.tertiaryContainer;
           }),
           foregroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.disabled)) {

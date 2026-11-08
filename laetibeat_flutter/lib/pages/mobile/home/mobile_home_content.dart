@@ -89,7 +89,14 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
                     SizedBox.square(
                       dimension: 84,
                       child: M3EIconButton(
-                        icon: const Icon(M3EIcons.skip_previous),
+                        icon: Icon(
+                          M3EIcons.skip_previous,
+                          color: player.queue.isEmpty
+                              ? theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.38,
+                                )
+                              : theme.colorScheme.onSecondaryContainer,
+                        ),
                         variant: M3EIconButtonVariant.tonal,
                         size: M3EIconButtonSize.lg,
                         shape: M3EIconButtonShapeVariant.round,
@@ -103,23 +110,45 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          M3ESlider(
-                            value: sliderValue,
-                            trackThickness: 10,
-                            onChanged: total > 0
-                                ? (value) => setState(() => _dragValue = value)
-                                : null,
-                            onChangeEnd: total > 0
-                                ? (value) {
-                                    setState(() => _dragValue = null);
-                                    notifier.seek(
-                                      Duration(
-                                        milliseconds: (value * total).round(),
-                                      ),
-                                    );
-                                  }
-                                : null,
-                          ),
+                          isPlaying
+                              ? M3ESlider.wavy(
+                                  value: sliderValue,
+                                  trackThickness: 10,
+                                  onChanged: total > 0
+                                      ? (value) =>
+                                            setState(() => _dragValue = value)
+                                      : null,
+                                  onChangeEnd: total > 0
+                                      ? (value) {
+                                          setState(() => _dragValue = null);
+                                          notifier.seek(
+                                            Duration(
+                                              milliseconds: (value * total)
+                                                  .round(),
+                                            ),
+                                          );
+                                        }
+                                      : null,
+                                )
+                              : M3ESlider(
+                                  value: sliderValue,
+                                  trackThickness: 10,
+                                  onChanged: total > 0
+                                      ? (value) =>
+                                            setState(() => _dragValue = value)
+                                      : null,
+                                  onChangeEnd: total > 0
+                                      ? (value) {
+                                          setState(() => _dragValue = null);
+                                          notifier.seek(
+                                            Duration(
+                                              milliseconds: (value * total)
+                                                  .round(),
+                                            ),
+                                          );
+                                        }
+                                      : null,
+                                ),
                           const SizedBox(height: 4),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,

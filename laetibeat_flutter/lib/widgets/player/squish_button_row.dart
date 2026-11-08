@@ -188,6 +188,7 @@ class _SquishButtonRowState extends State<SquishButtonRow>
     final l10n = AppLocalizations.of(context);
     final labelStyle = theme.typeScale.bodyMedium;
     final playLabel = widget.isPlaying ? l10n.pause : l10n.play;
+    final scheme = theme.colorScheme;
 
     // 其余控件用同款 FittedBox 防溢出: 空间不足时整行缩放而非横向溢出
     return FittedBox(
@@ -208,6 +209,7 @@ class _SquishButtonRowState extends State<SquishButtonRow>
                   icon: Icons.skip_previous,
                   label: null,
                   tooltip: l10n.previousTrack,
+                  scheme: scheme,
                 ),
                 SizedBox(width: theme.spacing.sm),
                 _button(
@@ -216,6 +218,7 @@ class _SquishButtonRowState extends State<SquishButtonRow>
                   icon: widget.isPlaying ? Icons.pause : Icons.play_arrow,
                   label: playLabel,
                   tooltip: playLabel,
+                  scheme: scheme,
                 ),
                 SizedBox(width: theme.spacing.sm),
                 _button(
@@ -224,6 +227,7 @@ class _SquishButtonRowState extends State<SquishButtonRow>
                   icon: Icons.skip_next,
                   label: null,
                   tooltip: l10n.nextTrack,
+                  scheme: scheme,
                 ),
               ],
             ),
@@ -239,6 +243,7 @@ class _SquishButtonRowState extends State<SquishButtonRow>
     required IconData icon,
     required String? label,
     required String tooltip,
+    required M3EColorScheme scheme,
   }) {
     final enabled = _enabled(index);
     // GestureDetector 持有手势(驱动 squish 动画),按钮只做视觉;
@@ -248,11 +253,28 @@ class _SquishButtonRowState extends State<SquishButtonRow>
         // matchParentConstraints 让其随 squish 槽位宽度伸缩、保持圆角不裁切
         ? M3EIconButton(
             icon: Icon(icon),
-            variant: M3EIconButtonVariant.filled,
+            variant: M3EIconButtonVariant.tonal,
             size: M3EIconButtonSize.lg,
             shape: M3EIconButtonShapeVariant.round,
             matchParentConstraints: true,
             tooltip: tooltip,
+            // 外层的 GestureDetector 负责点击；这里必须让按钮保持 enabled，
+            // 否则 M3E 会使用 disabled 色而不是 tonal 色。
+            onPressed: enabled ? () {} : null,
+            decoration: M3EIconButtonDecoration(
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return scheme.onSurface.withValues(alpha: 0.12);
+                }
+                return scheme.primary;
+              }),
+              foregroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return scheme.onSurface.withValues(alpha: 0.38);
+                }
+                return scheme.onPrimary;
+              }),
+            ),
           )
         // 中间播放/暂停: 带 label 的 M3EButton, 用 fixedSize 精确等于 squish
         // 宽度并居中 icon+label, 不再依赖外层 SizedBox 强改宽度
@@ -261,6 +283,18 @@ class _SquishButtonRowState extends State<SquishButtonRow>
             label: Text(label),
             decoration: M3EButtonDecoration(
               fixedSize: Size(width, _buttonHeight),
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return scheme.onSurface.withValues(alpha: 0.12);
+                }
+                return scheme.tertiary;
+              }),
+              foregroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return scheme.onSurface.withValues(alpha: 0.38);
+                }
+                return scheme.onTertiary;
+              }),
             ),
             onPressed: enabled ? () {} : null,
             enabled: enabled,

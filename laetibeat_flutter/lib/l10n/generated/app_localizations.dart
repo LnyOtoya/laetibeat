@@ -266,6 +266,24 @@ abstract class AppLocalizations {
   /// **'Switch between light and dark, or follow the system default'**
   String get appThemeSupporting;
 
+  /// No description provided for @coverShape.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover shape'**
+  String get coverShape;
+
+  /// No description provided for @coverShapeSupporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the shape used for the now playing cover'**
+  String get coverShapeSupporting;
+
+  /// No description provided for @coverShapeDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover shape'**
+  String get coverShapeDialogTitle;
+
   /// No description provided for @themeLight.
   ///
   /// In en, this message translates to:
