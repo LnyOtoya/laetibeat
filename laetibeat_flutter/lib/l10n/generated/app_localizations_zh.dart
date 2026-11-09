@@ -391,6 +391,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lxSourceLowerPriority => '降低优先级';
 
   @override
+  String get lxSearchTitle => '洛雪平台搜索';
+
+  @override
+  String get lxSearchEnableHint => '先启用一个洛雪音源后即可搜索';
+
+  @override
+  String get lxSearchNoResults => '没有找到歌曲';
+
+  @override
+  String get lxSearchFailed => '洛雪平台搜索失败';
+
+  @override
+  String get lxPlatformKw => '酷我';
+
+  @override
+  String get lxPlatformKg => '酷狗';
+
+  @override
+  String get lxPlatformMg => '咪咕';
+
+  @override
   String get statisticsTitle => '统计';
 
   @override

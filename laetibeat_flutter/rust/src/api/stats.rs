@@ -67,10 +67,7 @@ pub fn record_play_event(event: UiPlayEvent) -> Result<(), String> {
 }
 
 /// 查询某个音源实例下的曲目统计
-pub fn query_track_stats(
-    source: String,
-    source_id: String,
-) -> Result<Vec<UiTrackStat>, String> {
+pub fn query_track_stats(source: String, source_id: String) -> Result<Vec<UiTrackStat>, String> {
     let stats = core_stats::query_track_stats(&source, &source_id)?;
     Ok(stats.into_iter().map(map_track_stat).collect())
 }
@@ -127,10 +124,7 @@ pub fn query_history_summary(
 }
 
 /// 跨所有音源的时间段播放汇总
-pub fn query_history_summary_all(
-    start_ms: i64,
-    end_ms: i64,
-) -> Result<UiHistorySummary, String> {
+pub fn query_history_summary_all(start_ms: i64, end_ms: i64) -> Result<UiHistorySummary, String> {
     let summary = core_stats::query_history_summary_all(start_ms, end_ms)?;
     Ok(map_history_summary(summary))
 }

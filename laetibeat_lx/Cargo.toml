@@ -10,9 +10,10 @@ rquickjs = { version = "0.14", features = ["array-buffer", "bindgen", "parallel"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
-reqwest = { version = "0.13", default-features = false, features = ["blocking", "json", "form", "rustls"] }
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "json", "form", "query", "rustls"] }
 base64 = "0.22"
 md5 = "0.7"
 aes = "0.8"
 cbc = { version = "0.1", features = ["alloc"] }
 rsa = { version = "0.10", features = ["encoding", "hazmat"] }
+html-escape = "0.2"

@@ -1,7 +1,7 @@
 use flutter_rust_bridge::frb;
-use std::path::PathBuf;
 use laetibeat_core::model::{MusicLibrary, SourceType, Track};
 use laetibeat_core::scanner::scan_directory_incremental;
+use std::path::PathBuf;
 
 // 桌面弹出系统原生文件夹选择框；移动端由 Flutter 原生选择器处理
 pub fn pick_directory() -> Option<String> {
@@ -19,7 +19,7 @@ pub fn pick_directory() -> Option<String> {
 
 // 简化版单曲结构体
 #[frb(non_opaque)]
-pub struct  UiTrack {
+pub struct UiTrack {
     pub id: String,
     /// 相对于音乐库根目录的路径,用作播放统计中的稳定 track_id
     pub relative_path: Option<String>,
@@ -154,55 +154,67 @@ pub fn scan_local_music_folder(
     // 由 Rust 侧完成专辑/艺术家聚合与曲目排序
     library.rebuild_aggregates();
 
-    let tracks = library.tracks.into_iter().map(|track| {
-        // 从音源中取出真实本地路径;非本地音源暂时给空串
-        let path = match &track.source_type {
-            SourceType::LocalFile(p) => p.to_string_lossy().to_string(),
-            SourceType::Opensubsonic { .. } => String::new(),
-        };
-        UiTrack {
-            id: track.id,
-            relative_path: track.relative_path,
-            title: track.title,
-            artist: track.artist,
-            album: track.album,
-            album_artist: track.album_artist,
-            album_id: track.album_id,
-            artist_id: track.artist_id,
-            track_number: track.track_number,
-            disc_number: track.disc_number,
-            year: track.year,
-            genre: track.genre,
-            duration: format_duration(track.duration),
-            duration_seconds: track.duration,
-            path,
-            source: "local".to_string(),
-            source_id: String::new(),
-            cover_id: None,
-            bitrate: track.bitrate,
-            sample_rate: track.sample_rate,
-            channels: track.channels,
-            modified_ms: track.modified_ms,
-            file_size: track.file_size,
-        }
-    }).collect();
+    let tracks = library
+        .tracks
+        .into_iter()
+        .map(|track| {
+            // 从音源中取出真实本地路径;非本地音源暂时给空串
+            let path = match &track.source_type {
+                SourceType::LocalFile(p) => p.to_string_lossy().to_string(),
+                SourceType::Opensubsonic { .. } => String::new(),
+            };
+            UiTrack {
+                id: track.id,
+                relative_path: track.relative_path,
+                title: track.title,
+                artist: track.artist,
+                album: track.album,
+                album_artist: track.album_artist,
+                album_id: track.album_id,
+                artist_id: track.artist_id,
+                track_number: track.track_number,
+                disc_number: track.disc_number,
+                year: track.year,
+                genre: track.genre,
+                duration: format_duration(track.duration),
+                duration_seconds: track.duration,
+                path,
+                source: "local".to_string(),
+                source_id: String::new(),
+                cover_id: None,
+                bitrate: track.bitrate,
+                sample_rate: track.sample_rate,
+                channels: track.channels,
+                modified_ms: track.modified_ms,
+                file_size: track.file_size,
+            }
+        })
+        .collect();
 
-    let albums = library.albums.into_iter().map(|album| UiAlbum {
-        id: album.id,
-        title: album.title,
-        artist: album.artist,
-        year: album.year,
-        track_count: album.track_count,
-        cover_track_id: album.cover_track_id,
-        track_ids: album.track_ids,
-    }).collect();
+    let albums = library
+        .albums
+        .into_iter()
+        .map(|album| UiAlbum {
+            id: album.id,
+            title: album.title,
+            artist: album.artist,
+            year: album.year,
+            track_count: album.track_count,
+            cover_track_id: album.cover_track_id,
+            track_ids: album.track_ids,
+        })
+        .collect();
 
-    let artists = library.artists.into_iter().map(|artist| UiArtist {
-        id: artist.id,
-        name: artist.name,
-        track_count: artist.track_count,
-        cover_track_id: artist.cover_track_id,
-    }).collect();
+    let artists = library
+        .artists
+        .into_iter()
+        .map(|artist| UiArtist {
+            id: artist.id,
+            name: artist.name,
+            track_count: artist.track_count,
+            cover_track_id: artist.cover_track_id,
+        })
+        .collect();
 
     Ok(UiScanResult {
         library: UiLibrary {
@@ -229,5 +241,5 @@ pub fn init_app() {
 fn format_duration(seconds: u64) -> String {
     let mins = seconds / 60;
     let secs = seconds % 60;
-    format!("{:02}:{:02}", mins,secs)
+    format!("{:02}:{:02}", mins, secs)
 }

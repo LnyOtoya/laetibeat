@@ -90,6 +90,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<UiArtist> dco_decode_list_ui_artist(dynamic raw);
 
   @protected
+  List<UiLxSearchTrack> dco_decode_list_ui_lx_search_track(dynamic raw);
+
+  @protected
   List<UiLxSourceCapability> dco_decode_list_ui_lx_source_capability(
     dynamic raw,
   );
@@ -179,6 +182,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiLxMusicInfo dco_decode_ui_lx_music_info(dynamic raw);
+
+  @protected
+  UiLxSearchPage dco_decode_ui_lx_search_page(dynamic raw);
+
+  @protected
+  UiLxSearchTrack dco_decode_ui_lx_search_track(dynamic raw);
 
   @protected
   UiLxSourceCapability dco_decode_ui_lx_source_capability(dynamic raw);
@@ -310,6 +319,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<UiArtist> sse_decode_list_ui_artist(SseDeserializer deserializer);
 
   @protected
+  List<UiLxSearchTrack> sse_decode_list_ui_lx_search_track(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<UiLxSourceCapability> sse_decode_list_ui_lx_source_capability(
     SseDeserializer deserializer,
   );
@@ -413,6 +427,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiLxMusicInfo sse_decode_ui_lx_music_info(SseDeserializer deserializer);
+
+  @protected
+  UiLxSearchPage sse_decode_ui_lx_search_page(SseDeserializer deserializer);
+
+  @protected
+  UiLxSearchTrack sse_decode_ui_lx_search_track(SseDeserializer deserializer);
 
   @protected
   UiLxSourceCapability sse_decode_ui_lx_source_capability(
@@ -573,6 +593,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_ui_artist(List<UiArtist> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_ui_lx_search_track(
+    List<UiLxSearchTrack> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_ui_lx_source_capability(
     List<UiLxSourceCapability> self,
     SseSerializer serializer,
@@ -701,6 +727,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_ui_lx_music_info(
     UiLxMusicInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_lx_search_page(
+    UiLxSearchPage self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_lx_search_track(
+    UiLxSearchTrack self,
     SseSerializer serializer,
   );
 

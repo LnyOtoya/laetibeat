@@ -860,6 +860,48 @@ abstract class AppLocalizations {
   /// **'Lower priority'**
   String get lxSourceLowerPriority;
 
+  /// No description provided for @lxSearchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LX platform search'**
+  String get lxSearchTitle;
+
+  /// No description provided for @lxSearchEnableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable an LX source to search'**
+  String get lxSearchEnableHint;
+
+  /// No description provided for @lxSearchNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No songs found'**
+  String get lxSearchNoResults;
+
+  /// No description provided for @lxSearchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'LX platform search failed'**
+  String get lxSearchFailed;
+
+  /// No description provided for @lxPlatformKw.
+  ///
+  /// In en, this message translates to:
+  /// **'Kuwo'**
+  String get lxPlatformKw;
+
+  /// No description provided for @lxPlatformKg.
+  ///
+  /// In en, this message translates to:
+  /// **'Kugou'**
+  String get lxPlatformKg;
+
+  /// No description provided for @lxPlatformMg.
+  ///
+  /// In en, this message translates to:
+  /// **'Migu'**
+  String get lxPlatformMg;
+
   /// No description provided for @statisticsTitle.
   ///
   /// In en, this message translates to:

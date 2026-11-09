@@ -6,9 +6,12 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/layout/app_bottom_inset.dart';
+import '../../../src/rust/api/lx.dart' as rust_lx;
 import '../../../src/rust/api/simple.dart' as rust;
 import '../../../src/rust/api/subsonic.dart' as rust_subsonic;
 import '../../../widgets/player/cover_provider.dart';
+import '../../../widgets/player/lx_search_provider.dart';
+import '../../../widgets/player/lx_track.dart';
 import '../../../widgets/player/player_provider.dart';
 import '../../../widgets/remote_browser_provider.dart';
 import '../../../widgets/settings/music_library_provider.dart';
@@ -240,6 +243,7 @@ class _MobileSearchResults extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _LxSearchSection(query: query),
         if (server != null)
           _buildRemoteSection(context, ref, theme, l10n, server),
         _buildLocalSection(ref, theme, l10n, local),
@@ -646,6 +650,161 @@ class _RemoteCover extends ConsumerWidget {
                       ? fallback()
                       : Image.memory(bytes, fit: BoxFit.cover),
                 ),
+    );
+  }
+}
+
+class _LxSearchSection extends ConsumerStatefulWidget {
+  const _LxSearchSection({required this.query});
+
+  final String query;
+
+  @override
+  ConsumerState<_LxSearchSection> createState() => _LxSearchSectionState();
+}
+
+class _LxSearchSectionState extends ConsumerState<_LxSearchSection> {
+  String? _selectedPlatform;
+
+  String _effectivePlatform(List<String> platforms) {
+    if (_selectedPlatform != null && platforms.contains(_selectedPlatform)) {
+      return _selectedPlatform!;
+    }
+    return platforms.first;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final platformsAsync = ref.watch(lxEnabledPlatformsProvider);
+
+    return platformsAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (Object error, StackTrace stackTrace) => const SizedBox.shrink(),
+      data: (List<String> platforms) {
+        if (platforms.isEmpty) return const SizedBox.shrink();
+        final platform = _effectivePlatform(platforms);
+        final result = ref.watch(
+          lxSearchProvider((platform: platform, query: widget.query)),
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsetsDirectional.only(top: 8, bottom: 4),
+              child: Text(
+                l10n.lxSearchTitle,
+                style: theme.typeScale.titleMedium,
+              ),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: <Widget>[
+                for (final item in platforms)
+                  M3EChip(
+                    label: lxPlatformLabel(l10n, item),
+                    type: M3EChipType.filter,
+                    selected: item == platform,
+                    onPressed: () => setState(() => _selectedPlatform = item),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            result.when(
+              loading: () => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  l10n.lxSourceInitializing,
+                  style: theme.typeScale.bodySmall.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              error: (Object error, StackTrace stackTrace) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  '${l10n.lxSearchFailed}\n$error',
+                  style: theme.typeScale.bodySmall.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              ),
+              data: (page) {
+                final tracks =
+                    page?.tracks ?? const <rust_lx.UiLxSearchTrack>[];
+                if (tracks.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      l10n.lxSearchNoResults,
+                      style: theme.typeScale.bodySmall.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  );
+                }
+                final uiTracks = tracks.map(lxSearchTrackToUiTrack).toList();
+                return M3EList(
+                  color: theme.colorScheme.surface,
+                  variant: M3ECardVariant.filled,
+                  itemCount: tracks.length,
+                  onTap: (int index) {
+                    ref
+                        .read(playerProvider.notifier)
+                        .load(
+                          uiTracks,
+                          index,
+                          source: '洛雪 · ${lxPlatformLabel(l10n, platform)}',
+                        );
+                  },
+                  itemBuilder: (BuildContext context, int index) {
+                    final track = tracks[index];
+                    return M3EListItem(
+                      leading: _LxSearchCover(url: track.img),
+                      headline: track.name,
+                      supportingText: <String>[
+                        if (track.singer.isNotEmpty) track.singer.join('、'),
+                        if (track.album.isNotEmpty) track.album,
+                      ].join(' · '),
+                      trailingText: uiTracks[index].duration,
+                    );
+                  },
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LxSearchCover extends StatelessWidget {
+  const _LxSearchCover({required this.url});
+
+  final String? url;
+
+  @override
+  Widget build(BuildContext context) {
+    final placeholder = const Icon(M3EIcons.music_note);
+    final value = url?.trim();
+    if (value == null || value.isEmpty) {
+      return SizedBox.square(dimension: 40, child: placeholder);
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.network(
+        value,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) =>
+            SizedBox.square(dimension: 40, child: placeholder),
+      ),
     );
   }
 }

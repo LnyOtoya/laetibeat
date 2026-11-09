@@ -403,6 +403,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lxSourceLowerPriority => 'Lower priority';
 
   @override
+  String get lxSearchTitle => 'LX platform search';
+
+  @override
+  String get lxSearchEnableHint => 'Enable an LX source to search';
+
+  @override
+  String get lxSearchNoResults => 'No songs found';
+
+  @override
+  String get lxSearchFailed => 'LX platform search failed';
+
+  @override
+  String get lxPlatformKw => 'Kuwo';
+
+  @override
+  String get lxPlatformKg => 'Kugou';
+
+  @override
+  String get lxPlatformMg => 'Migu';
+
+  @override
   String get statisticsTitle => 'Statistics';
 
   @override

@@ -66,6 +66,22 @@ Future<String?> resolveLxPic({
   required UiLxMusicInfo music,
 }) => RustLib.instance.api.crateApiLxResolveLxPic(source: source, music: music);
 
+Future<List<String>> supportedLxSearchPlatforms() =>
+    RustLib.instance.api.crateApiLxSupportedLxSearchPlatforms();
+
+/// Search an independent LX platform. No local library/Subsonic is required.
+Future<UiLxSearchPage> searchLxMusic({
+  required String platform,
+  required String keyword,
+  required int page,
+  required int limit,
+}) => RustLib.instance.api.crateApiLxSearchLxMusic(
+  platform: platform,
+  keyword: keyword,
+  page: page,
+  limit: limit,
+);
+
 class UiLxLyric {
   final String lyric;
   final String? tlyric;
@@ -130,6 +146,88 @@ class UiLxMusicInfo {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is UiLxMusicInfo &&
+          runtimeType == other.runtimeType &&
+          source == other.source &&
+          id == other.id &&
+          name == other.name &&
+          singer == other.singer &&
+          album == other.album &&
+          albumId == other.albumId &&
+          interval == other.interval &&
+          img == other.img;
+}
+
+class UiLxSearchPage {
+  final List<UiLxSearchTrack> tracks;
+  final BigInt total;
+  final int page;
+  final int limit;
+  final bool hasMore;
+
+  const UiLxSearchPage({
+    required this.tracks,
+    required this.total,
+    required this.page,
+    required this.limit,
+    required this.hasMore,
+  });
+
+  @override
+  int get hashCode =>
+      tracks.hashCode ^
+      total.hashCode ^
+      page.hashCode ^
+      limit.hashCode ^
+      hasMore.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiLxSearchPage &&
+          runtimeType == other.runtimeType &&
+          tracks == other.tracks &&
+          total == other.total &&
+          page == other.page &&
+          limit == other.limit &&
+          hasMore == other.hasMore;
+}
+
+class UiLxSearchTrack {
+  final String source;
+  final String id;
+  final String name;
+  final List<String> singer;
+  final String album;
+  final String albumId;
+  final PlatformInt64 interval;
+  final String? img;
+
+  const UiLxSearchTrack({
+    required this.source,
+    required this.id,
+    required this.name,
+    required this.singer,
+    required this.album,
+    required this.albumId,
+    required this.interval,
+    this.img,
+  });
+
+  @override
+  int get hashCode =>
+      source.hashCode ^
+      id.hashCode ^
+      name.hashCode ^
+      singer.hashCode ^
+      album.hashCode ^
+      albumId.hashCode ^
+      interval.hashCode ^
+      img.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiLxSearchTrack &&
           runtimeType == other.runtimeType &&
           source == other.source &&
           id == other.id &&

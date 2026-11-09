@@ -65,13 +65,7 @@ pub fn search_remote_library(
     album_count: i32,
     song_count: i32,
 ) -> Result<UiRemoteSearchResult, String> {
-    let result = core_lib::search(
-        &source_id,
-        &query,
-        artist_count,
-        album_count,
-        song_count,
-    )?;
+    let result = core_lib::search(&source_id, &query, artist_count, album_count, song_count)?;
     Ok(UiRemoteSearchResult {
         artists: result.artists.into_iter().map(map_artist).collect(),
         albums: result.albums.into_iter().map(map_album).collect(),

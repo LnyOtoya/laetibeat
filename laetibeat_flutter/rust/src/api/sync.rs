@@ -248,16 +248,14 @@ fn fetch_tracks_concurrently(
         let next = Arc::clone(&next);
         let tx = tx.clone();
         let source_id = source_id.to_string();
-        handles.push(std::thread::spawn(move || {
-            loop {
-                let index = next.fetch_add(1, Ordering::Relaxed);
-                if index >= album_list.len() {
-                    break;
-                }
-                let result = remote::get_album(&source_id, &album_list[index].id);
-                if tx.send((index, result)).is_err() {
-                    break;
-                }
+        handles.push(std::thread::spawn(move || loop {
+            let index = next.fetch_add(1, Ordering::Relaxed);
+            if index >= album_list.len() {
+                break;
+            }
+            let result = remote::get_album(&source_id, &album_list[index].id);
+            if tx.send((index, result)).is_err() {
+                break;
             }
         }));
     }
@@ -281,21 +279,12 @@ fn fetch_tracks_concurrently(
                     .iter()
                     .map(|track| core_lib::RemoteTrackRow {
                         id: track.id.clone(),
-                        album_id: track
-                            .album_id
-                            .clone()
-                            .or_else(|| Some(album.id.clone())),
-                        artist_id: track
-                            .artist_id
-                            .clone()
-                            .or_else(|| album.artist_id.clone()),
+                        album_id: track.album_id.clone().or_else(|| Some(album.id.clone())),
+                        artist_id: track.artist_id.clone().or_else(|| album.artist_id.clone()),
                         title: track.title.clone(),
                         artist: track.artist.clone(),
                         album: track.album.clone(),
-                        cover_id: track
-                            .cover_id
-                            .clone()
-                            .or_else(|| album.cover_id.clone()),
+                        cover_id: track.cover_id.clone().or_else(|| album.cover_id.clone()),
                         duration_seconds: track.duration_seconds,
                         track_number: track.track_number,
                         disc_number: track.disc_number,
@@ -327,10 +316,7 @@ fn fetch_tracks_concurrently(
                 album_count: albums.len() as i64,
                 track_count: fetched_tracks,
                 elapsed_ms: elapsed_ms(started),
-                message: Some(format!(
-                    "已处理 {completed_albums}/{} 张专辑",
-                    albums.len()
-                )),
+                message: Some(format!("已处理 {completed_albums}/{} 张专辑", albums.len())),
             },
         ) {
             // 订阅端已取消:停止后续写入,由上层回滚本次 generation

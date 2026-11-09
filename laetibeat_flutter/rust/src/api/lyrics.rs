@@ -71,7 +71,6 @@ pub fn lrclib_get_lyrics(
     }
 }
 
-
 /// LiriQo 正缓存有效期。
 const LIRIQO_POSITIVE_TTL_MS: i64 = 7 * 24 * 60 * 60 * 1000;
 /// LiriQo 未命中负缓存有效期。
@@ -129,7 +128,6 @@ pub fn liriqo_get_lyrics(
         Err(error) => Err(error),
     }
 }
-
 
 /// 歌词搜索结果，供“搜索歌词”对话框展示。
 #[frb(non_opaque)]

@@ -1,9 +1,8 @@
 use std::sync::{Mutex, OnceLock};
 
 use flutter_rust_bridge::frb;
-use laetibeat_lx::{
-    LxError, LxMusicInfo, LxSourceEntry, LxSourceManager, LxSourceStatus,
-};
+use laetibeat_lx::search as lx_search;
+use laetibeat_lx::{LxError, LxMusicInfo, LxSourceEntry, LxSourceManager, LxSourceStatus};
 
 /// A source capability declared by `inited`.
 #[frb(non_opaque)]
@@ -64,16 +63,17 @@ fn manager_slot() -> &'static Mutex<Option<LxSourceManager>> {
 /// `root` should be an application-private directory, e.g.
 /// `<application support>/laetibeat_lx`.
 pub fn init_lx_source_store(root: String) -> Result<(), String> {
-    let manager = LxSourceManager::open(root).map_err(format_error)?;
+    let mut manager = LxSourceManager::open(root).map_err(format_error)?;
+    // Restore previously enabled sources so independent LX search works after
+    // a cold start even when no local/Subsonic source is configured.
+    manager.load_enabled_sources();
     *manager_slot()
         .lock()
         .map_err(|_| "LX manager lock poisoned".to_string())? = Some(manager);
     Ok(())
 }
 
-fn with_manager<T>(
-    f: impl FnOnce(&mut LxSourceManager) -> Result<T, String>,
-) -> Result<T, String> {
+fn with_manager<T>(f: impl FnOnce(&mut LxSourceManager) -> Result<T, String>) -> Result<T, String> {
     let mut guard = manager_slot()
         .lock()
         .map_err(|_| "LX manager lock poisoned".to_string())?;
@@ -108,10 +108,7 @@ pub fn load_lx_source(id: String) -> Result<UiLxSourceEntry, String> {
     })
 }
 
-pub fn set_lx_source_enabled(
-    id: String,
-    enabled: bool,
-) -> Result<UiLxSourceEntry, String> {
+pub fn set_lx_source_enabled(id: String, enabled: bool) -> Result<UiLxSourceEntry, String> {
     with_manager(|manager| {
         manager.set_enabled(&id, enabled).map_err(format_error)?;
         manager
@@ -150,10 +147,7 @@ pub fn resolve_lx_music_url(
     })
 }
 
-pub fn resolve_lx_lyric(
-    source: String,
-    music: UiLxMusicInfo,
-) -> Result<Option<UiLxLyric>, String> {
+pub fn resolve_lx_lyric(source: String, music: UiLxMusicInfo) -> Result<Option<UiLxLyric>, String> {
     with_manager(|manager| {
         let value = manager
             .resolve_lyric(&source, &music.into())
@@ -162,10 +156,7 @@ pub fn resolve_lx_lyric(
     })
 }
 
-pub fn resolve_lx_pic(
-    source: String,
-    music: UiLxMusicInfo,
-) -> Result<Option<String>, String> {
+pub fn resolve_lx_pic(source: String, music: UiLxMusicInfo) -> Result<Option<String>, String> {
     with_manager(|manager| {
         let value = manager
             .resolve_pic(&source, &music.into())
@@ -256,4 +247,62 @@ impl From<UiLxMusicInfo> for LxMusicInfo {
 
 fn format_error(error: LxError) -> String {
     error.to_string()
+}
+
+#[frb(non_opaque)]
+pub struct UiLxSearchTrack {
+    pub source: String,
+    pub id: String,
+    pub name: String,
+    pub singer: Vec<String>,
+    pub album: String,
+    pub album_id: String,
+    pub interval: i64,
+    pub img: Option<String>,
+}
+
+#[frb(non_opaque)]
+pub struct UiLxSearchPage {
+    pub tracks: Vec<UiLxSearchTrack>,
+    pub total: u64,
+    pub page: u32,
+    pub limit: u32,
+    pub has_more: bool,
+}
+
+pub fn supported_lx_search_platforms() -> Vec<String> {
+    lx_search::SUPPORTED_PLATFORMS
+        .iter()
+        .map(|platform| (*platform).to_string())
+        .collect()
+}
+
+/// Search an independent LX platform. No local library/Subsonic is required.
+pub fn search_lx_music(
+    platform: String,
+    keyword: String,
+    page: u32,
+    limit: u32,
+) -> Result<UiLxSearchPage, String> {
+    let result = lx_search::search(&platform, &keyword, page, limit).map_err(format_error)?;
+    Ok(UiLxSearchPage {
+        tracks: result
+            .tracks
+            .into_iter()
+            .map(|track| UiLxSearchTrack {
+                source: track.source,
+                id: track.id,
+                name: track.name,
+                singer: track.singer,
+                album: track.album,
+                album_id: track.album_id,
+                interval: track.interval,
+                img: track.img,
+            })
+            .collect(),
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        has_more: result.has_more,
+    })
 }

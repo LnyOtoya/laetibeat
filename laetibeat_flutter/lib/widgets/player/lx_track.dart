@@ -27,3 +27,25 @@ String lxQualityForTrack(rust.UiTrack track) {
   if (bitrate >= 320) return '320k';
   return '128k';
 }
+
+rust.UiTrack lxSearchTrackToUiTrack(rust_lx.UiLxSearchTrack track) {
+  final artist = track.singer.join('、');
+  final seconds = track.interval < 0 ? 0 : track.interval;
+  final minutes = seconds ~/ 60;
+  final remainder = seconds % 60;
+  return rust.UiTrack(
+    id: track.id,
+    title: track.name,
+    artist: artist,
+    album: track.album,
+    albumArtist: artist,
+    albumId: track.albumId,
+    artistId: '',
+    duration: '$minutes:${remainder.toString().padLeft(2, '0')}',
+    durationSeconds: BigInt.from(seconds),
+    path: '',
+    source: 'lx',
+    sourceId: track.source,
+    coverId: track.img,
+  );
+}

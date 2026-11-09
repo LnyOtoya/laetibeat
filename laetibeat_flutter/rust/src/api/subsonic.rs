@@ -264,10 +264,7 @@ pub fn subsonic_get_artists(source_id: String) -> Result<Vec<UiRemoteArtist>, St
 }
 
 /// 获取当前登录用户的用户名(OpenSubsonic getUser)。
-pub fn subsonic_get_user_name(
-    source_id: String,
-    username: String,
-) -> Result<String, String> {
+pub fn subsonic_get_user_name(source_id: String, username: String) -> Result<String, String> {
     remote::get_user_name(&source_id, &username)
 }
 
@@ -317,13 +314,7 @@ pub fn subsonic_search3(
     album_count: i32,
     song_count: i32,
 ) -> Result<UiRemoteSearchResult, String> {
-    let result = remote::search3(
-        &source_id,
-        &query,
-        artist_count,
-        album_count,
-        song_count,
-    )?;
+    let result = remote::search3(&source_id, &query, artist_count, album_count, song_count)?;
     Ok(UiRemoteSearchResult {
         artists: result.artists.into_iter().map(map_artist).collect(),
         albums: result.albums.into_iter().map(map_album).collect(),
