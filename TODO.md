@@ -439,6 +439,8 @@
 - [x] kw 搜索封面（web_albumpic_short -> 500px）
 - [x] kg 搜索封面（Image 模板）与播放封面回退（media.store.kugou.com）
 - [x] 用真实 MG mrc 样本验证 TEA 解密与 MRC 解析
+- [x] 将 `lxlyric` 以 QRC 格式传给 flutter_lyric，逐字歌词优先于逐行 LRC
+- [x] 带逐字歌词链路的 release APK 构建通过（151.4MB）
 - [ ] 播放 URL 失效后的媒体层自动重试
 - [ ] `tx` / `wy` 接口失效时的错误提示与降级
 - [ ] 用真实 `source=lx` 曲目测试播放/歌词/封面

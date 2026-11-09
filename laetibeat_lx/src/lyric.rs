@@ -260,7 +260,9 @@ fn parse_krc(text: &str) -> Result<LxLyric> {
             let offset = parts.next().and_then(|value| value.parse::<i64>().ok());
             let during = parts.next().and_then(|value| value.parse::<i64>().ok());
             if let (Some(offset), Some(during)) = (offset, during) {
-                lx_words.push_str(&format!("<{offset},{during}>"));
+                // KRC word offsets are relative to the line start, while QRC
+                // (used by the Flutter renderer) expects absolute timestamps.
+                lx_words.push_str(&format!("({},{during})", start_ms as i64 + offset));
             }
             cursor = tag_end + 1;
         }
@@ -504,7 +506,7 @@ fn parse_mrc(text: &str) -> Result<LxLyric> {
             let offset = parts.next().and_then(|value| value.parse::<i64>().ok());
             let during = parts.next().and_then(|value| value.parse::<i64>().ok());
             if let (Some(offset), Some(during)) = (offset, during) {
-                lx_words.push_str(&format!("<{offset},{during}>"));
+                lx_words.push_str(&format!("({offset},{during})"));
             }
             cursor = tag_end + 1;
         }
@@ -666,14 +668,14 @@ mod tests {
     fn parses_krc_lines() {
         let lyric = parse_krc("[ti:Test]\n[1000,2000]<0,100,0>你<100,100,0>好").unwrap();
         assert!(lyric.lyric.contains("[00:01.00]你好"));
-        assert!(lyric.lxlyric.unwrap().contains("<0,100>你"));
+        assert!(lyric.lxlyric.unwrap().contains("(1000,100)你"));
     }
 
     #[test]
     fn parses_mrc_lines() {
-        let lyric = parse_mrc("[1000,2000](0,100)你(100,100)好").unwrap();
+        let lyric = parse_mrc("[1000,2000](1000,100)你(1100,100)好").unwrap();
         assert!(lyric.lyric.contains("[00:01.00]你好"));
-        assert!(lyric.lxlyric.unwrap().contains("<0,100>你"));
+        assert!(lyric.lxlyric.unwrap().contains("(1000,100)你"));
     }
 
     #[test]

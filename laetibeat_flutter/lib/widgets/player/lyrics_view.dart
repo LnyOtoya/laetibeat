@@ -25,14 +25,16 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
   late final LyricController _controller;
   late final _PlayerProgressSource _progress;
 
-  /// 最近一次解析的原始文本/翻译与结果(结果为空表示按纯文本展示)。
+  /// 最近一次解析的原始文本/翻译/逐字文本与结果。
   String? _parsedRaw;
   String? _parsedTranslation;
+  String? _parsedTimed;
   LyricDocument? _parsedDoc;
 
   /// 已同步进 controller 的原始文本与翻译。
   String? _loadedRaw;
   String? _loadedTranslation;
+  String? _loadedTimed;
 
   @override
   void initState() {
@@ -49,14 +51,38 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
   }
 
   /// 同一份文本/翻译只解析一次;解析异常按纯文本处理。
-  LyricDocument? _documentFor(String raw, String? translation) {
-    if (_parsedRaw == raw && _parsedTranslation == translation) {
+  ///
+  /// 有逐字文本时优先解析 QRC，只有逐字解析失败或没有时间轴时才回退到
+  /// 普通 LRC。这样逐字歌词不会被逐行文本覆盖。
+  LyricDocument? _documentFor(
+    String raw,
+    String? translation,
+    String? timedText,
+  ) {
+    if (_parsedRaw == raw &&
+        _parsedTranslation == translation &&
+        _parsedTimed == timedText) {
       return _parsedDoc;
     }
     _parsedRaw = raw;
     _parsedTranslation = translation;
+    _parsedTimed = timedText;
     try {
       final translationLrc = _translationLrc(raw, translation);
+      if (timedText != null && timedText.trim().isNotEmpty) {
+        final timedDoc = LyricDocument.parse(
+          timedText,
+          translation: translationLrc,
+        );
+        final hasWords = timedDoc.lines.any(
+          (LyricLine line) =>
+              line.words?.any(
+                (LyricWord word) => word.text.trim().isNotEmpty,
+              ) ??
+              false,
+        );
+        if (hasWords) return _parsedDoc = timedDoc;
+      }
       return _parsedDoc = LyricDocument.parse(raw, translation: translationLrc);
     } catch (_) {
       return _parsedDoc = null;
@@ -97,11 +123,16 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
   }
 
   /// 把文档同步进 controller。放在帧后调用,避免 build 期间触发视图通知。
-  void _syncDocument(String? raw, String? translation) {
-    if (raw == _loadedRaw && translation == _loadedTranslation) return;
+  void _syncDocument(String? raw, String? translation, String? timedText) {
+    if (raw == _loadedRaw &&
+        translation == _loadedTranslation &&
+        timedText == _loadedTimed) {
+      return;
+    }
     _loadedRaw = raw;
     _loadedTranslation = translation;
-    final doc = raw == null ? null : _documentFor(raw, translation);
+    _loadedTimed = timedText;
+    final doc = raw == null ? null : _documentFor(raw, translation, timedText);
     if (doc == null || doc.lines.isEmpty) {
       _controller.clear();
     } else {
@@ -132,11 +163,12 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
     final lyricsAsync = ref.watch(lyricsProvider);
     final raw = lyricsAsync.value?.rawText;
     final translation = lyricsAsync.value?.translation;
+    final timedText = lyricsAsync.value?.timedText;
 
     // 文档同步放到帧后:loadDocument/clear 会通知各视图,不能发生在 build 中。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _syncDocument(raw, translation);
+      _syncDocument(raw, translation, timedText);
     });
 
     return lyricsAsync.when(
@@ -154,7 +186,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
         if (text.trim().isEmpty) {
           return _empty(theme, l10n.lyricsEmptyTitle, l10n.lyricsEmptySubtitle);
         }
-        final doc = _documentFor(text, lyrics?.translation);
+        final doc = _documentFor(text, lyrics?.translation, lyrics?.timedText);
         if (doc == null || doc.lines.isEmpty) {
           return _plainLyrics(theme, text.trim());
         }

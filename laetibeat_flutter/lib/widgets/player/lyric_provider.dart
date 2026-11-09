@@ -27,7 +27,10 @@ class Lyrics {
   /// 可选的翻译文本。可以是逐行 LRC，也可以是纯文本。
   final String? translation;
 
-  const Lyrics(this.rawText, {this.translation});
+  /// 可选的逐字歌词（QRC 格式，如 `[start,duration](offset,duration)字`）。
+  final String? timedText;
+
+  const Lyrics(this.rawText, {this.translation, this.timedText});
 }
 
 /// 歌词来源抽象:按曲目返回歌词;无歌词返回 null。
@@ -77,7 +80,11 @@ class LxLyricProvider implements LyricProvider {
       music: lxMusicInfoFromTrack(track),
     );
     if (lyric == null) return null;
-    return _toLyrics(lyric.lyric, translation: lyric.tlyric);
+    return _toLyrics(
+      lyric.lyric,
+      translation: lyric.tlyric,
+      timedText: lyric.lxlyric,
+    );
   }
 }
 
@@ -118,14 +125,16 @@ class LrclibLyricProvider implements LyricProvider {
   }
 }
 
-Lyrics? _toLyrics(String? text, {String? translation}) {
+Lyrics? _toLyrics(String? text, {String? translation, String? timedText}) {
   if (text == null) return null;
   final trimmed = text.trim();
   if (trimmed.isEmpty) return null;
   final translated = translation?.trim();
+  final timed = timedText?.trim();
   return Lyrics(
     trimmed,
     translation: translated == null || translated.isEmpty ? null : translated,
+    timedText: timed == null || timed.isEmpty ? null : timed,
   );
 }
 
