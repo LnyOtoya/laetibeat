@@ -13,7 +13,7 @@
 - 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
 - 歌词：已接入 LRCLIB、LiriQo 搜索，支持逐字/逐行/静态标记、翻译与临时应用
 - 跨平台：Linux 桌面可用；Android UI 已解耦，audio_service 后台/锁屏/通知已验证；Windows/macOS 打包未开始
-- LX 音源：确定独立 `laetibeat_lx` crate + Rust JS 宿主方案，尚未实现
+- LX 音源：`laetibeat_lx` 已建立；QuickJS preload、inited 握手、静态 musicUrl 链路已通过，HTTP/持久化/FRB 尚未接入
 - 主要缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 
@@ -259,14 +259,14 @@
 - [ ] 普通模式与独占模式可切换
 - [ ] 输出路径诊断 UI：采样率/位深/是否 bit-perfect
 
-## 阶段10：洛雪 / LX 音源宿主（规划）
+## 阶段10：洛雪 / LX 音源宿主（进行中）
 
 目标：支持用户导入 LX 自定义 `.js` 音源，在 Rust 侧运行脚本并解析 `musicUrl` / `lyric` / `pic`；不把第三方音源打包进应用。
 
 ### 10.1 边界与目录原则
 
 - [x] `reference/lx-music-mobile` 仅作为协议和行为参考，不参与构建、运行、发布
-- [ ] 将 `reference/` 加入 `.gitignore`，发布前确认不进入源码包/APK
+- [x] 将 `reference/` 加入 `.gitignore`，发布前确认不进入源码包/APK
 - [x] 不直接复制官方 JS/Kotlin/React Native/Redux 代码；按行为重写
 - [x] 新建独立 crate：`laetibeat_lx/`，与 `laetibeat_flutter/`、`laetibeat_core/` 同级
 - [ ] `laetibeat_lx` 只依赖自身需要的 Rust crates，不反向依赖 Flutter/FRB
@@ -286,26 +286,32 @@
 - [ ] Duktape / MuJS / JerryScript：ES5/旧规范风险，暂不考虑
 - [ ] WebView：后台执行和沙箱控制差，暂不考虑
 - [x] 初步决策：优先 `rquickjs`，先做 Android 真机 PoC；不满足再评估 QuickJS-ng/Boa
+- [x] `rquickjs 0.14` 在 Linux host 编译与单元测试通过
+- [x] Android `aarch64-linux-android` `cargo check` 通过
+- [ ] 记录 `rquickjs bindgen` 的 Android 构建参数（`LIBCLANG_PATH`、NDK sysroot、`BINDGEN_EXTRA_CLANG_ARGS_<target>`）
+- [ ] 验证 armv7/i686/x86_64 Android targets
 
 ### 10.3 JS 运行时与宿主
 
 - [ ] 每个音源独立 QuickJS Context，禁止共享全局状态
 - [ ] 专用 JS 线程/Actor；JS Context 只在单线程访问
-- [ ] 内置 LX preload 兼容层，按官方行为重写而不是直接复制
-- [ ] 实现 `globalThis.lx.EVENT_NAMES`
-- [ ] 实现 `lx.on('request')`
-- [ ] 实现 `lx.send('inited')`
-- [ ] 实现 `lx.send('updateAlert')`
-- [ ] 实现 `lx.request`
+- [x] 独立 `laetibeat_lx/src/preload.js` 兼容层初版
+- [x] 实现 `globalThis.lx.EVENT_NAMES`
+- [x] 实现 `lx.on('request')`
+- [x] 实现 `lx.send('inited')`
+- [x] 实现 `lx.send('updateAlert')` 基础事件
+- [ ] 实现完整 `lx.request`（当前是明确的未实现占位）
 - [ ] 实现 `lx.utils.buffer`（from / bufToString）
 - [ ] 实现 `lx.utils.crypto`（md5 / AES / RSA / randomBytes）
 - [ ] 实现 `setTimeout` / `clearTimeout`
 - [ ] 实现 Promise / microtask 调度
 - [ ] 初始化超时、请求超时、脚本执行超时
 - [ ] 请求取消与 Context 销毁
-- [ ] 捕获 JS 异常、未处理 Promise、日志
-- [ ] 禁止 `eval`、动态 `Function`、文件系统和宿主内部对象
-- [ ] 输入/输出长度限制与 JSON 序列化校验
+- [x] 基础 JS 异常/结果回传
+- [x] 禁止 `eval`
+- [x] 脚本大小、inited 载荷、结果大小基础限制
+- [ ] 禁止动态 `Function`、文件系统和宿主内部对象
+- [ ] 完整输入/输出长度限制与 JSON 序列化校验
 - [ ] 脚本内存/CPU 占用限制和崩溃隔离
 
 ### 10.4 HTTP 请求代理
@@ -320,7 +326,7 @@
 
 ### 10.5 音源导入与存储
 
-- [ ] 解析脚本头部 `/* @name @description @author @homepage @version */`
+- [x] 解析脚本头部 `/* @name @description @author @homepage @version */`
 - [ ] 生成稳定 source id，保存脚本正文和元数据
 - [ ] 支持本地 `.js` 文件导入
 - [ ] 支持在线 URL 导入（由 Rust 下载或 Flutter 下载后交给 Rust）
@@ -375,15 +381,16 @@
 
 ### 10.9 测试与安全
 
-- [ ] 用自己编写的 fixture 测试源导入元数据解析
-- [ ] 用简单测试音源验证 `inited` 握手
-- [ ] 验证 `musicUrl` 成功/失败/超时/取消
+- [x] 用自己编写的 fixture 测试源导入元数据解析
+- [x] 用简单测试音源验证 `inited` 握手
+- [x] 验证静态 `musicUrl` 成功路径
+- [ ] 验证 `musicUrl` 失败/超时/取消
 - [ ] 验证歌词/封面返回格式与长度限制
 - [ ] 验证恶意脚本无法访问文件/网络/宿主对象
 - [ ] 验证 `eval` / 动态 Function 被阻止
 - [ ] 验证脚本死循环能被中断
 - [ ] 验证多个源之间上下文隔离
-- [ ] Android 真机验证 QuickJS `.so` 打包与启动
+- [ ] Android 真机验证 QuickJS `.so` 打包、加载与启动
 - [ ] 验证应用后台/锁屏时源请求不会阻塞 UI
 - [ ] 检查 QuickJS/rquickjs/AES/RSA 等依赖许可证
 - [ ] 不提交官方项目代码、素材和第三方音源脚本

@@ -1,0 +1,12 @@
+[package]
+name = "laetibeat_lx"
+version = "0.1.0"
+edition = "2021"
+description = "Independent LX Music custom source host for Laetibeat"
+license = "MIT"
+
+[dependencies]
+rquickjs = { version = "0.14", features = ["array-buffer", "bindgen"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
