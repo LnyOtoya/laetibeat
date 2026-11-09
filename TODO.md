@@ -379,14 +379,14 @@
 
 ### 10.8 搜索与播放接入
 
-- [ ] 明确 LX 自定义源通常只提供 `musicUrl` / `lyric` / `pic`，不提供搜索
+- [x] 明确 LX 自定义源通常只提供 `musicUrl` / `lyric` / `pic`，不提供搜索
 - [ ] 决定搜索层来源：现有来源 / 内置平台搜索 / 其他目录服务
-- [ ] 将 LX 源作为已知歌曲的播放地址解析器，而不是默认搜索源
-- [ ] 扩展 `SongSources` / 播放解析接口，加入 `lx`
+- [x] 将 LX 源作为已知歌曲的播放地址解析器，而不是默认搜索源
+- [x] 扩展播放解析接口，加入 `lx`
 - [ ] 保存 `source/songmid/quality/musicInfo`，保证切歌后可重新解析
 - [ ] URL 缓存与失效重试策略
 - [ ] 播放失败时自动换源/手动换源 UI
-- [ ] 歌词/封面来源与现有缓存策略衔接
+- [x] 歌词/封面来源与现有缓存策略衔接（基础实现）
 
 ### 10.9 测试与安全
 
@@ -415,10 +415,11 @@
 
 ### 10.10 验收标准
 
-- [ ] 用户能导入一个本地 `.js` 源
-- [ ] 源初始化成功并显示声明的平台/音质/动作
-- [ ] 能对一首已知歌曲解析出可播放 URL
-- [ ] 能解析歌词和封面
+- [x] 用户能导入一个本地 `.js` 源
+- [x] 源初始化成功并显示状态；能力详情尚未展开
+- [x] 播放器对 `source=lx` 的已知歌曲调用 `resolveLxMusicUrl`
+- [x] 播放器对 `source=lx` 接入歌词和封面解析（基础实现）
+- [ ] 用真实 `source=lx` 曲目测试播放/歌词/封面
 - [ ] 请求失败/超时/取消不会崩溃
 - [ ] 禁用/删除源后 Context 正确释放
 - [ ] 源脚本失效时错误可定位且不影响本地/OpenSubsonic
@@ -452,5 +453,7 @@
 - `reference/lx-music-mobile` 仅本地参考，不参与构建/发布；正式提交前必须确认其不进入仓库或发布包
 - LX 自定义源主要提供 `musicUrl` / `lyric` / `pic`，通常不提供搜索；搜索层需要单独设计
 - 洛雪音源脚本属于第三方内容，不随应用分发；不同脚本的兼容性、可用性和版权风险需由用户自行承担
+- Flutter release 构建可能复用包含 `integration_test` 的旧 `GeneratedPluginRegistrant.java`；失败时删除该生成文件或 `flutter clean` 后重试
 - LX HTTP 当前使用同步 `reqwest::blocking`，请求会阻塞对应 JS 执行线程；后续改为异步 request broker
-- LX `setTimeout` 目前是有界 timer pump，不是长期异步事件循环；SourceManager 状态目前只在内存，FRB/Flutter UI 尚未接入
+- LX `setTimeout` 目前是有界 timer pump，不是长期异步事件循环；SourceManager 状态目前只在内存
+- LX 播放链路已接，但应用内还没有搜索层来生成 `source=lx` 的 `UiTrack`，所以还不能从搜索页直接播放真实 LX 歌曲

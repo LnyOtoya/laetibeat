@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/library.dart' as rust_library;
+import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/lyrics.dart' as rust_lyrics;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 
 import '../settings/lyrics_settings.dart';
+import 'lx_track.dart';
 import 'player_provider.dart';
 
 // ---------------------------------------------------------------------------
@@ -62,6 +64,22 @@ class RemoteLyricProvider implements LyricProvider {
   }
 }
 
+/// LX 音源歌词来源。歌词解析和网络请求都在 Rust 侧完成。
+class LxLyricProvider implements LyricProvider {
+  LxLyricProvider();
+
+  @override
+  Future<Lyrics?> lyrics(rust.UiTrack track) async {
+    if (track.sourceId.isEmpty) return null;
+    final lyric = await rust_lx.resolveLxLyric(
+      source: track.sourceId,
+      music: lxMusicInfoFromTrack(track),
+    );
+    if (lyric == null) return null;
+    return _toLyrics(lyric.lyric, translation: lyric.tlyric);
+  }
+}
+
 /// LiriQo 网络歌词来源。请求、正/负缓存都由 Rust 层负责。
 class LiriqoLyricProvider implements LyricProvider {
   LiriqoLyricProvider();
@@ -115,6 +133,7 @@ class LyricsRepository {
   LyricsRepository({
     required this.fileProvider,
     required this.remoteProvider,
+    required this.lxProvider,
     required this.lrclibProvider,
     required this.liriqoProvider,
     required this.settings,
@@ -122,6 +141,7 @@ class LyricsRepository {
 
   final FileLyricProvider fileProvider;
   final RemoteLyricProvider remoteProvider;
+  final LxLyricProvider lxProvider;
   final LrclibLyricProvider lrclibProvider;
   final LiriqoLyricProvider liriqoProvider;
   final LyricsSettings settings;
@@ -143,6 +163,9 @@ class LyricsRepository {
   Future<Lyrics?> _loadOwnLyrics(rust.UiTrack track) async {
     if (track.source == 'opensubsonic' && track.sourceId.isNotEmpty) {
       return remoteProvider.lyrics(track);
+    }
+    if (track.source == 'lx' && track.sourceId.isNotEmpty) {
+      return lxProvider.lyrics(track);
     }
     if (track.path.isNotEmpty) {
       return fileProvider.lyrics(track);
@@ -200,6 +223,10 @@ final remoteLyricProvider = Provider<RemoteLyricProvider>((ref) {
   return RemoteLyricProvider();
 });
 
+final lxLyricProvider = Provider<LxLyricProvider>((ref) {
+  return LxLyricProvider();
+});
+
 final lrclibLyricProvider = Provider<LrclibLyricProvider>((ref) {
   return LrclibLyricProvider();
 });
@@ -212,6 +239,7 @@ final lyricsRepositoryProvider = Provider<LyricsRepository>((ref) {
   return LyricsRepository(
     fileProvider: ref.watch(fileLyricProvider),
     remoteProvider: ref.watch(remoteLyricProvider),
+    lxProvider: ref.watch(lxLyricProvider),
     lrclibProvider: ref.watch(lrclibLyricProvider),
     liriqoProvider: ref.watch(liriqoLyricProvider),
     settings: ref.watch(lyricsSettingsProvider),

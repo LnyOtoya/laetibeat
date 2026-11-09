@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 import '../../core/providers/playback_backend_provider.dart';
@@ -10,6 +11,7 @@ import '../settings/subsonic_provider.dart';
 import '../settings/fade_settings.dart';
 import 'playback_backend.dart';
 import 'playback_session_tracker.dart';
+import 'lx_track.dart';
 import 'playback_stats.dart';
 
 //播放状态:当前曲目/播放中/进度/来源/队列
@@ -484,7 +486,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
     final generation = ++_openGeneration;
     try {
       // 远端要先解析 stream URL;期间暂停旧音频,避免旧曲继续出声
-      if (track.source == 'opensubsonic') {
+      if (track.source == 'opensubsonic' || track.source == 'lx') {
         await _backend.pause();
         if (generation != _openGeneration) return;
       }
@@ -594,8 +596,16 @@ class PlayerNotifier extends Notifier<PlayerState> {
     await completer.future;
   }
 
-  /// 本地曲目走 file://,远端曲目走 OpenSubsonic stream URL。
+  /// 本地曲目走 file://,远端曲目走 OpenSubsonic/LX 解析出的 stream URL。
   Future<PlaybackTrack> _resolveTrack(rust.UiTrack t) async {
+    if (t.source == 'lx' && t.sourceId.isNotEmpty) {
+      final url = await rust_lx.resolveLxMusicUrl(
+        source: t.sourceId,
+        music: lxMusicInfoFromTrack(t),
+        quality: lxQualityForTrack(t),
+      );
+      return PlaybackTrack(uri: url, fallbackDuration: _durationOf(t));
+    }
     if (t.source == 'opensubsonic' && t.sourceId.isNotEmpty) {
       String url;
       try {

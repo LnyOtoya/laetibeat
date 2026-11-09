@@ -1,13 +1,16 @@
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/metadata.dart' as rust_meta;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 
 import '../cache/cover_cache.dart';
+import 'lx_track.dart';
 import 'player_provider.dart';
 
 /// 主色取色所需的 Color 类型(dart:ui 命名空间)
@@ -80,6 +83,64 @@ class FileCoverProvider implements CoverProvider {
 Future<Uint8List?> _readEmbeddedArt(String path) =>
     rust_meta.readCover(path: path);
 
+/// LX 音源封面:先让脚本解析 pic URL,再下载并缓存字节。
+class LxCoverProvider {
+  LxCoverProvider();
+
+  static const int _maxCacheBytes = 32 * 1024 * 1024;
+  final Map<String, Uint8List> _cache = <String, Uint8List>{};
+  int _cachedBytes = 0;
+
+  Future<Uint8List?> cover(rust.UiTrack track) async {
+    if (track.sourceId.isEmpty) return null;
+    final url = track.coverId?.trim().isNotEmpty == true
+        ? track.coverId!
+        : await rust_lx.resolveLxPic(
+            source: track.sourceId,
+            music: lxMusicInfoFromTrack(track),
+          );
+    if (url == null || url.isEmpty) return null;
+    return _download(url);
+  }
+
+  Future<Uint8List?> _download(String url) async {
+    final cached = _cache.remove(url);
+    if (cached != null) {
+      _cache[url] = cached;
+      return cached;
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https')) {
+      return null;
+    }
+
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 15);
+    try {
+      final request = await client.getUrl(uri);
+      final response = await request.close();
+      if (response.statusCode < 200 || response.statusCode >= 300) return null;
+      final bytes = await response.fold<Uint8List>(
+        Uint8List(0),
+        (previous, chunk) => Uint8List.fromList(<int>[...previous, ...chunk]),
+      );
+      if (bytes.isEmpty) return null;
+      _cache[url] = bytes;
+      _cachedBytes += bytes.length;
+      while (_cachedBytes > _maxCacheBytes && _cache.isNotEmpty) {
+        final oldestKey = _cache.keys.first;
+        final removed = _cache.remove(oldestKey);
+        _cachedBytes -= removed?.length ?? 0;
+      }
+      return bytes;
+    } catch (_) {
+      return null;
+    } finally {
+      client.close(force: true);
+    }
+  }
+}
+
 /// 远端封面来源:按 (sourceId, coverId) 做 LRU 缓存。
 class RemoteCoverProvider {
   RemoteCoverProvider();
@@ -139,6 +200,10 @@ final remoteCoverSourceProvider = Provider<RemoteCoverProvider>((ref) {
   return RemoteCoverProvider();
 });
 
+final lxCoverSourceProvider = Provider<LxCoverProvider>((ref) {
+  return LxCoverProvider();
+});
+
 /// 当前播放曲目的封面信息(字节 + 主色)。随当前曲目切换而刷新。
 /// 只订阅 current,避免 position 每 tick 更新 state 时反复重跑。
 /// 无封面 / 取色失败时返回 null,UI 回退占位图标并保留应用默认配色。
@@ -148,7 +213,9 @@ final playbackCoverProvider = FutureProvider<PlaybackCover?>((ref) async {
 
   final Uint8List? bytes;
   final coverId = track.coverId;
-  if (track.source == 'opensubsonic' &&
+  if (track.source == 'lx') {
+    bytes = await ref.read(lxCoverSourceProvider).cover(track);
+  } else if (track.source == 'opensubsonic' &&
       coverId != null &&
       coverId.isNotEmpty) {
     bytes = await ref
@@ -164,27 +231,31 @@ final playbackCoverProvider = FutureProvider<PlaybackCover?>((ref) async {
 
 /// 按曲目取封面字节(供音乐库列表等并行展示)。以 track 对象作 family key,
 /// 缓存按 UiTrack 值相等(id/path 等)命中;Provider 内部再按 id 缓存。
-final trackCoverProvider =
-    FutureProvider.family<Uint8List?, rust.UiTrack>((ref, track) async {
+final trackCoverProvider = FutureProvider.family<Uint8List?, rust.UiTrack>((
+  ref,
+  track,
+) async {
   final coverId = track.coverId;
-  if (track.source == 'opensubsonic' &&
-      coverId != null &&
-      coverId.isNotEmpty) {
-    return ref
-        .read(remoteCoverSourceProvider)
-        .cover(track.sourceId, coverId);
+  if (track.source == 'lx') {
+    return ref.read(lxCoverSourceProvider).cover(track);
+  }
+  if (track.source == 'opensubsonic' && coverId != null && coverId.isNotEmpty) {
+    return ref.read(remoteCoverSourceProvider).cover(track.sourceId, coverId);
   }
   if (track.path.isEmpty) return null;
   return ref.read(coverProvider).cover(track);
 });
 
 /// 按远端封面 id 取封面(艺术家/专辑/曲目列表用)
-final remoteCoverProvider = FutureProvider.family<Uint8List?,
-    ({String sourceId, String? coverId})>((ref, key) async {
-  final coverId = key.coverId;
-  if (coverId == null || coverId.isEmpty) return null;
-  return ref.read(remoteCoverSourceProvider).cover(key.sourceId, coverId);
-});
+final remoteCoverProvider =
+    FutureProvider.family<Uint8List?, ({String sourceId, String? coverId})>((
+      ref,
+      key,
+    ) async {
+      final coverId = key.coverId;
+      if (coverId == null || coverId.isEmpty) return null;
+      return ref.read(remoteCoverSourceProvider).cover(key.sourceId, coverId);
+    });
 
 // ---------------------------------------------------------------------------
 // 主色取色:把封面缩放后按低饱和桶量化,取采样最多的桶的平均色当 seed。
