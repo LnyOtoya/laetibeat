@@ -27,6 +27,7 @@
     b64Encode: globalThis.__lx_b64_encode,
     b64Decode: globalThis.__lx_b64_decode,
     b64EncodeBytes: globalThis.__lx_b64_encode_bytes,
+    aesEncrypt: globalThis.__lx_aes_encrypt,
   };
 
   delete globalThis.__lx_on_inited;
@@ -37,6 +38,7 @@
   delete globalThis.__lx_b64_encode;
   delete globalThis.__lx_b64_decode;
   delete globalThis.__lx_b64_encode_bytes;
+  delete globalThis.__lx_aes_encrypt;
 
   function callLog(level, message) {
     try {
@@ -165,6 +167,15 @@
     return result;
   }
 
+  function dataToB64(data) {
+    if (typeof data === 'string') return native.b64Encode(data);
+    if (Array.isArray(data) || ArrayBuffer.isView(data)) {
+      const bytes = ArrayBuffer.isView(data) ? Array.from(data) : data;
+      return native.b64EncodeBytes(JSON.stringify(bytes));
+    }
+    throw new Error('unsupported data type for base64 conversion');
+  }
+
   const utils = {
     buffer: {
       from(input, encoding) {
@@ -192,6 +203,17 @@
       },
     },
     crypto: {
+      aesEncrypt(buffer, mode, key, iv) {
+        const result = JSON.parse(
+          native.aesEncrypt(dataToB64(buffer), mode, dataToB64(key), iv == null ? '' : dataToB64(iv)),
+        );
+        if (!result || result.ok !== true) {
+          throw new Error(result && result.error ? result.error : 'AES encryption failed');
+        }
+        const decoded = JSON.parse(native.b64Decode(result.data));
+        if (decoded && decoded.error) throw new Error(decoded.error);
+        return new Uint8Array(decoded);
+      },
       md5(value) {
         if (typeof value !== 'string') throw new Error('md5 expects a string');
         return native.md5(value);

@@ -1,5 +1,10 @@
+use aes::cipher::block_padding::Pkcs7;
+use aes::cipher::generic_array::GenericArray;
+use aes::cipher::{BlockEncryptMut, KeyInit, KeyIvInit};
+use aes::Aes128;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use cbc::Encryptor;
 
 pub fn md5_hex(value: &str) -> String {
     format!("{:x}", md5::compute(value.as_bytes()))
@@ -45,4 +50,76 @@ mod tests {
             "[104,101,108,108,111]"
         );
     }
+
+    #[test]
+    fn aes_128_ecb_known_vector() {
+        let key = hex_bytes("000102030405060708090a0b0c0d0e0f");
+        let plaintext = hex_bytes("00112233445566778899aabbccddeeff");
+        let expected = hex_bytes("69c4e0d86a7b0430d8cdb78070b4c55a");
+        let encrypted = aes_encrypt(
+            &STANDARD.encode(plaintext),
+            "aes-128-ecb",
+            &STANDARD.encode(key),
+            "",
+        )
+        .unwrap();
+        assert_eq!(STANDARD.decode(encrypted).unwrap(), expected);
+    }
+
+    fn hex_bytes(value: &str) -> Vec<u8> {
+        value
+            .as_bytes()
+            .chunks(2)
+            .map(|pair| {
+                let text = std::str::from_utf8(pair).unwrap();
+                u8::from_str_radix(text, 16).unwrap()
+            })
+            .collect()
+    }
+}
+
+/// AES encryption compatible with the two modes used by LX sources.
+///
+/// Inputs and the result are base64 strings because that is the boundary used
+/// by the JS `utils.buffer` adapter. `aes-128-cbc` uses PKCS#7 padding;
+/// `aes-128-ecb` uses no padding and therefore requires a block-aligned input.
+pub fn aes_encrypt(
+    data_b64: &str,
+    mode: &str,
+    key_b64: &str,
+    iv_b64: &str,
+) -> std::result::Result<String, String> {
+    let data = base64_decode(data_b64)?;
+    let key = base64_decode(key_b64)?;
+    if key.len() != 16 {
+        return Err("AES-128 key must be 16 bytes".to_string());
+    }
+
+    let encrypted = match mode {
+        "aes-128-cbc" => {
+            let iv = base64_decode(iv_b64)?;
+            if iv.len() != 16 {
+                return Err("AES-CBC IV must be 16 bytes".to_string());
+            }
+            let cipher = Encryptor::<Aes128>::new_from_slices(&key, &iv)
+                .map_err(|error| error.to_string())?;
+            cipher.encrypt_padded_vec_mut::<Pkcs7>(&data)
+        }
+        "aes-128-ecb" => {
+            if data.len() % 16 != 0 {
+                return Err("AES-ECB input must be block aligned".to_string());
+            }
+            let mut cipher = Aes128::new_from_slice(&key).map_err(|error| error.to_string())?;
+            let mut output = data;
+            for chunk in output.chunks_mut(16) {
+                let mut block = GenericArray::clone_from_slice(chunk);
+                cipher.encrypt_block_mut(&mut block);
+                chunk.copy_from_slice(&block);
+            }
+            output
+        }
+        other => return Err(format!("unsupported AES mode: {other}")),
+    };
+
+    Ok(STANDARD.encode(encrypted))
 }

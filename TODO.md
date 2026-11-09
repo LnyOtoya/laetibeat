@@ -13,7 +13,7 @@
 - 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
 - 歌词：已接入 LRCLIB、LiriQo 搜索，支持逐字/逐行/静态标记、翻译与临时应用
 - 跨平台：Linux 桌面可用；Android UI 已解耦，audio_service 后台/锁屏/通知已验证；Windows/macOS 打包未开始
-- LX 音源：`laetibeat_lx` 已建立；QuickJS preload、inited 握手、静态 musicUrl 链路已通过，HTTP/持久化/FRB 尚未接入
+- LX 音源：`laetibeat_lx` 已建立；QuickJS、inited、HTTP、AES、SourceStore 已通过；RSA/timer/FRB/UI 尚未接入
 - 主要缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 
@@ -303,12 +303,11 @@
 - [x] 实现 `lx.request` 的 Rust `reqwest` HTTP 代理初版
 - [x] 实现 `lx.utils.buffer` 的基础 base64/hex/UTF-8 转换
 - [x] 实现 `lx.utils.crypto.md5` 与 `randomBytes`
-- [ ] 实现 `lx.utils.crypto.aesEncrypt` / `rsaEncrypt`
+- [x] 实现 `lx.utils.crypto.aesEncrypt`（AES-128-CBC / AES-128-ECB）
+- [x] 实现 `lx.utils.buffer`（from / bufToString，含 base64/hex/UTF-8）
+- [ ] 实现 `lx.utils.crypto.rsaEncrypt`
 - [ ] 实现 `setTimeout` / `clearTimeout` 的真实事件循环
-- [ ] 实现 `lx.utils.buffer`（from / bufToString）
-- [ ] 实现 `lx.utils.crypto`（md5 / AES / RSA / randomBytes）
-- [ ] 实现 `setTimeout` / `clearTimeout`
-- [ ] 实现 Promise / microtask 调度
+- [x] 基础 Promise / microtask 调度（`execute_pending_job`）
 - [ ] 初始化超时、请求超时、脚本执行超时
 - [ ] 请求取消与 Context 销毁
 - [x] 基础 JS 异常/结果回传
@@ -334,14 +333,14 @@
 ### 10.5 音源导入与存储
 
 - [x] 解析脚本头部 `/* @name @description @author @homepage @version */`
-- [ ] 生成稳定 source id，保存脚本正文和元数据
-- [ ] 支持本地 `.js` 文件导入
+- [x] 生成稳定 source id，保存脚本正文和元数据
+- [x] 支持删除、启用、禁用、优先级排序
+- [x] 保存 `allowShowUpdateAlert`
+- [x] 脚本文件放应用私有目录，元数据放 JSON 索引初版
+- [ ] 支持本地 `.js` 文件选择 UI
 - [ ] 支持在线 URL 导入（由 Rust 下载或 Flutter 下载后交给 Rust）
-- [ ] 支持删除、启用、禁用、优先级排序
-- [ ] 保存 `allowShowUpdateAlert`
-- [ ] 保存源状态：未初始化/初始化中/可用/失败
+- [ ] 保存源运行状态：未初始化/初始化中/可用/失败
 - [ ] 保存 `inited` 声明的 sources、actions、qualitys
-- [ ] 脚本文件放应用私有目录，元数据放 SQLite/JSON
 - [ ] 不将脚本内容写入日志或普通配置快照
 
 ### 10.6 源管理器
@@ -392,6 +391,8 @@
 - [x] 用简单测试音源验证 `inited` 握手
 - [x] 验证静态 `musicUrl` 成功路径
 - [x] 用本地 HTTP 测试服务器验证 `lx.request` → JSON → `musicUrl`
+- [x] 验证 AES-128-ECB 已知向量
+- [x] 验证 SourceStore 导入/列表/读取/删除/启用/优先级
 - [ ] 验证 `musicUrl` 失败/超时/取消
 - [ ] 验证歌词/封面返回格式与长度限制
 - [ ] 验证恶意脚本无法访问文件/网络/宿主对象
@@ -442,3 +443,5 @@
 - `reference/lx-music-mobile` 仅本地参考，不参与构建/发布；正式提交前必须确认其不进入仓库或发布包
 - LX 自定义源主要提供 `musicUrl` / `lyric` / `pic`，通常不提供搜索；搜索层需要单独设计
 - 洛雪音源脚本属于第三方内容，不随应用分发；不同脚本的兼容性、可用性和版权风险需由用户自行承担
+- LX HTTP 当前使用同步 `reqwest::blocking`，请求会阻塞对应 JS 执行线程；后续改为异步 request broker
+- LX `setTimeout`、RSA、完整源状态回传和 Flutter UI 尚未接入

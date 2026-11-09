@@ -167,6 +167,19 @@ fn install_host(ctx: &Ctx<'_>, declaration_slot: Arc<Mutex<Option<String>>>) -> 
     )?;
 
     globals.set(
+        "__lx_aes_encrypt",
+        Function::new(
+            ctx.clone(),
+            move |data: String, mode: String, key: String, iv: String| match utils::aes_encrypt(
+                &data, &mode, &key, &iv,
+            ) {
+                Ok(data) => serde_json::json!({ "ok": true, "data": data }).to_string(),
+                Err(error) => serde_json::json!({ "ok": false, "error": error }).to_string(),
+            },
+        )?,
+    )?;
+
+    globals.set(
         "__lx_b64_encode",
         Function::new(ctx.clone(), move |value: String| {
             utils::base64_encode(&value)
