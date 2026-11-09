@@ -12,6 +12,7 @@
 pub mod error;
 pub mod http;
 pub mod import;
+pub mod manager;
 pub mod models;
 pub mod runtime;
 pub mod store;
@@ -19,6 +20,7 @@ pub mod utils;
 
 pub use error::{LxError, Result};
 pub use import::parse_source_manifest;
+pub use manager::{LxSourceEntry, LxSourceManager, LxSourceStatus};
 pub use models::{LxMusicInfo, LxSourceCapability, LxSourceDeclaration, LxSourceManifest};
 pub use runtime::LxRuntime;
 pub use store::{LxSourceRecord, LxSourceStore};

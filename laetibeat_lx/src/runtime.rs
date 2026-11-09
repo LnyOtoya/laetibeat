@@ -86,6 +86,16 @@ impl LxRuntime {
         Ok(url.to_string())
     }
 
+    /// Resolve a generic source action (`musicUrl`, `lyric`, `pic`).
+    pub fn resolve_action(
+        &self,
+        action: &str,
+        info: &LxMusicInfo,
+        quality: &str,
+    ) -> Result<serde_json::Value> {
+        self.dispatch(action, info, quality)
+    }
+
     fn dispatch(
         &self,
         action: &str,

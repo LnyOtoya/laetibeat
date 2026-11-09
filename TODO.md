@@ -13,7 +13,7 @@
 - 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
 - 歌词：已接入 LRCLIB、LiriQo 搜索，支持逐字/逐行/静态标记、翻译与临时应用
 - 跨平台：Linux 桌面可用；Android UI 已解耦，audio_service 后台/锁屏/通知已验证；Windows/macOS 打包未开始
-- LX 音源：`laetibeat_lx` 已建立；QuickJS、inited、HTTP、AES/RSA、setTimeout、SourceStore 已通过；SourceManager/FRB/UI 尚未接入
+- LX 音源：`laetibeat_lx` 已建立；QuickJS、inited、HTTP、AES/RSA、setTimeout、SourceStore、SourceManager 已通过；FRB/UI 尚未接入
 - 主要缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 
@@ -340,20 +340,20 @@
 - [x] 脚本文件放应用私有目录，元数据放 JSON 索引初版
 - [ ] 支持本地 `.js` 文件选择 UI
 - [ ] 支持在线 URL 导入（由 Rust 下载或 Flutter 下载后交给 Rust）
-- [ ] 保存源运行状态：未初始化/初始化中/可用/失败
+- [ ] 持久化源运行状态：未初始化/初始化中/可用/失败
 - [ ] 保存 `inited` 声明的 sources、actions、qualitys
 - [ ] 不将脚本内容写入日志或普通配置快照
 
 ### 10.6 源管理器
 
-- [ ] `LxSourceManager` 生命周期与单实例
-- [ ] 加载/切换当前音源
-- [ ] 多源启用与优先级/回退
-- [ ] 跨源匹配基础结构
-- [ ] `resolveMusicUrl(source, musicInfo, quality)`
-- [ ] `resolveLyric(source, musicInfo)`
-- [ ] `resolvePic(source, musicInfo)`
-- [ ] 初始化失败与请求失败状态回传
+- [x] `LxSourceManager` 生命周期与单实例
+- [x] 加载/切换当前音源
+- [x] 多源启用与优先级/回退基础逻辑
+- [ ] 跨源匹配基础结构（SourceManager 不负责搜索层）
+- [x] `resolveMusicUrl(source, musicInfo, quality)`
+- [x] `resolveLyric(source, musicInfo)` 基础分发
+- [x] `resolvePic(source, musicInfo)` 基础分发
+- [x] 初始化失败与请求失败状态回传（内存状态）
 - [ ] `updateAlert` 事件与更新 URL 展示
 - [ ] 源脚本过期/失效诊断信息
 
@@ -395,6 +395,7 @@
 - [x] 验证 AES-128-ECB 已知向量
 - [x] 验证 SourceStore 导入/列表/读取/删除/启用/优先级
 - [x] 验证 RSA 无效公钥错误路径
+- [x] 验证 SourceManager 启用、加载、优先级、解析、移除
 - [x] 验证 `setTimeout` 延迟后解析 musicUrl
 - [ ] 验证 `musicUrl` 失败/超时/取消
 - [ ] 验证歌词/封面返回格式与长度限制
@@ -447,4 +448,4 @@
 - LX 自定义源主要提供 `musicUrl` / `lyric` / `pic`，通常不提供搜索；搜索层需要单独设计
 - 洛雪音源脚本属于第三方内容，不随应用分发；不同脚本的兼容性、可用性和版权风险需由用户自行承担
 - LX HTTP 当前使用同步 `reqwest::blocking`，请求会阻塞对应 JS 执行线程；后续改为异步 request broker
-- LX `setTimeout` 目前是有界 timer pump，不是长期异步事件循环；完整源状态回传、SourceManager 和 Flutter UI 尚未接入
+- LX `setTimeout` 目前是有界 timer pump，不是长期异步事件循环；SourceManager 状态目前只在内存，FRB/Flutter UI 尚未接入
