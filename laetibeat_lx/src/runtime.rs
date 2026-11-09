@@ -3,8 +3,10 @@ use std::sync::{Arc, Mutex};
 use rquickjs::{Context, Ctx, Function, Runtime};
 
 use crate::error::{LxError, Result};
+use crate::http;
 use crate::import::parse_source_manifest;
 use crate::models::{LxMusicInfo, LxSourceDeclaration, LxSourceManifest};
+use crate::utils;
 
 const PRELOAD: &str = include_str!("preload.js");
 const MAX_RESULT_BYTES: usize = 2 * 1024 * 1024;
@@ -154,8 +156,34 @@ fn install_host(ctx: &Ctx<'_>, declaration_slot: Arc<Mutex<Option<String>>>) -> 
 
     globals.set(
         "__lx_request",
-        Function::new(ctx.clone(), move |_url: String, _options: String| {
-            "{\"ok\":false,\"error\":\"HTTP bridge not implemented yet\"}".to_string()
+        Function::new(ctx.clone(), move |url: String, options: String| {
+            http::execute(&url, &options)
+        })?,
+    )?;
+
+    globals.set(
+        "__lx_md5",
+        Function::new(ctx.clone(), move |value: String| utils::md5_hex(&value))?,
+    )?;
+
+    globals.set(
+        "__lx_b64_encode",
+        Function::new(ctx.clone(), move |value: String| {
+            utils::base64_encode(&value)
+        })?,
+    )?;
+
+    globals.set(
+        "__lx_b64_decode",
+        Function::new(ctx.clone(), move |value: String| {
+            utils::base64_decode_json_array(&value)
+        })?,
+    )?;
+
+    globals.set(
+        "__lx_b64_encode_bytes",
+        Function::new(ctx.clone(), move |value: String| {
+            utils::base64_encode_json_or_string(&value)
         })?,
     )?;
 
@@ -231,6 +259,71 @@ send(EVENT_NAMES.inited, {
         };
         let url = runtime.resolve_music_url(&info, "320k").unwrap();
         assert_eq!(url, "https://example.com/test.mp3");
+    }
+
+    #[test]
+    fn lx_request_uses_http_bridge() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        use std::thread;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buffer = [0_u8; 2048];
+            let _ = stream.read(&mut buffer);
+            let body = r#"{"url":"https://example.com/from-http.mp3"}"#;
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        });
+
+        let source = r#"/**
+ * @name HTTP Test Source
+ * @description Test HTTP bridge
+ * @version 1.0.0
+ * @author laetibeat
+ */
+const { EVENT_NAMES, on, send, request } = globalThis.lx;
+
+on(EVENT_NAMES.request, ({ source, action }) => {
+  if (action !== 'musicUrl') return Promise.reject(new Error('unsupported'));
+  return new Promise((resolve, reject) => {
+    request('__URL__', { method: 'get' }, (error, response, body) => {
+      if (error) return reject(error);
+      if (!response || response.statusCode !== 200) return reject(new Error('bad status'));
+      resolve(body.url);
+    });
+  });
+});
+
+send(EVENT_NAMES.inited, {
+  sources: {
+    kw: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] }
+  }
+});
+"#
+        .replace("__URL__", &format!("http://{address}/resolve"));
+
+        let runtime = LxRuntime::load(&source).unwrap();
+        let info = LxMusicInfo {
+            source: "kw".to_string(),
+            id: "123".to_string(),
+            name: "Song".to_string(),
+            singer: vec!["Artist".to_string()],
+            album: String::new(),
+            album_id: String::new(),
+            interval: 0,
+            img: None,
+        };
+        let url = runtime.resolve_music_url(&info, "128k").unwrap();
+        assert_eq!(url, "https://example.com/from-http.mp3");
+        server.join().unwrap();
     }
 
     #[test]

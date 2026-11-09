@@ -300,7 +300,11 @@
 - [x] 实现 `lx.on('request')`
 - [x] 实现 `lx.send('inited')`
 - [x] 实现 `lx.send('updateAlert')` 基础事件
-- [ ] 实现完整 `lx.request`（当前是明确的未实现占位）
+- [x] 实现 `lx.request` 的 Rust `reqwest` HTTP 代理初版
+- [x] 实现 `lx.utils.buffer` 的基础 base64/hex/UTF-8 转换
+- [x] 实现 `lx.utils.crypto.md5` 与 `randomBytes`
+- [ ] 实现 `lx.utils.crypto.aesEncrypt` / `rsaEncrypt`
+- [ ] 实现 `setTimeout` / `clearTimeout` 的真实事件循环
 - [ ] 实现 `lx.utils.buffer`（from / bufToString）
 - [ ] 实现 `lx.utils.crypto`（md5 / AES / RSA / randomBytes）
 - [ ] 实现 `setTimeout` / `clearTimeout`
@@ -316,13 +320,16 @@
 
 ### 10.4 HTTP 请求代理
 
-- [ ] `lx.request` → Rust `reqwest` 请求代理
-- [ ] 支持 GET/POST、headers、body、form、formData
-- [ ] 支持文本/JSON/二进制响应
-- [ ] 支持超时、重定向、取消
+- [x] `lx.request` → Rust `reqwest` 请求代理
+- [x] 支持 GET/POST、headers、body、form
+- [x] 支持文本/JSON/二进制响应
+- [x] 单请求超时与重定向
+- [ ] 支持 formData/multipart
+- [ ] 支持请求取消与异步 requestKey
 - [ ] 为每个请求建立 requestKey，完成/失败/取消回写 JS
-- [ ] 防止脚本直接访问 Rust 网络/文件系统
-- [ ] Android TLS 初始化复用现有 rustls 方案
+- [x] 脚本只能通过宿主代理发请求，不直接接触 Rust 内部
+- [ ] Android TLS 初始化复用现有 rustls 方案（宿主应用仍需初始化 platform verifier）
+- [ ] 将同步 `reqwest::blocking` 改为异步 request broker，避免阻塞 JS 线程
 
 ### 10.5 音源导入与存储
 
@@ -384,6 +391,7 @@
 - [x] 用自己编写的 fixture 测试源导入元数据解析
 - [x] 用简单测试音源验证 `inited` 握手
 - [x] 验证静态 `musicUrl` 成功路径
+- [x] 用本地 HTTP 测试服务器验证 `lx.request` → JSON → `musicUrl`
 - [ ] 验证 `musicUrl` 失败/超时/取消
 - [ ] 验证歌词/封面返回格式与长度限制
 - [ ] 验证恶意脚本无法访问文件/网络/宿主对象

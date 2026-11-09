@@ -23,12 +23,20 @@
     updateAlert: globalThis.__lx_on_update_alert,
     request: globalThis.__lx_request,
     log: globalThis.__lx_log,
+    md5: globalThis.__lx_md5,
+    b64Encode: globalThis.__lx_b64_encode,
+    b64Decode: globalThis.__lx_b64_decode,
+    b64EncodeBytes: globalThis.__lx_b64_encode_bytes,
   };
 
   delete globalThis.__lx_on_inited;
   delete globalThis.__lx_on_update_alert;
   delete globalThis.__lx_request;
   delete globalThis.__lx_log;
+  delete globalThis.__lx_md5;
+  delete globalThis.__lx_b64_encode;
+  delete globalThis.__lx_b64_decode;
+  delete globalThis.__lx_b64_encode_bytes;
 
   function callLog(level, message) {
     try {
@@ -103,12 +111,21 @@
       return function () {};
     }
     const response = result.response || {};
+    let body = response.body;
+    if (response.binary && response.bodyBase64) {
+      const decoded = JSON.parse(native.b64Decode(response.bodyBase64));
+      if (decoded && decoded.error) {
+        callback(new Error(decoded.error), null, null);
+        return function () {};
+      }
+      body = new Uint8Array(decoded);
+    }
     callback(null, {
       statusCode: response.statusCode,
       statusMessage: response.statusMessage,
       headers: response.headers || {},
-      body: response.body,
-    }, response.body);
+      body: body,
+    }, body);
     return function () {};
   }
 
@@ -150,16 +167,39 @@
 
   const utils = {
     buffer: {
-      from(input) {
-        if (typeof input === 'string') return new Uint8Array(stringToBytes(input));
+      from(input, encoding) {
+        if (typeof input === 'string') {
+          if (encoding === 'base64') {
+            const decoded = JSON.parse(native.b64Decode(input));
+            if (decoded && decoded.error) throw new Error(decoded.error);
+            return new Uint8Array(decoded);
+          }
+          if (encoding === 'hex') {
+            return new Uint8Array(input.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)));
+          }
+          return new Uint8Array(stringToBytes(input));
+        }
         if (Array.isArray(input)) return new Uint8Array(input);
         if (ArrayBuffer.isView(input)) return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
         throw new Error('unsupported buffer input');
       },
-      bufToString(input) {
+      bufToString(input, format) {
         const bytes = ArrayBuffer.isView(input) ? Array.from(input) : input;
         if (!Array.isArray(bytes)) throw new Error('unsupported buffer input');
+        if (format === 'base64') return native.b64EncodeBytes(JSON.stringify(bytes));
+        if (format === 'hex') return bytes.map((byte) => (byte & 0xff).toString(16).padStart(2, '0')).join('');
         return bytesToString(bytes);
+      },
+    },
+    crypto: {
+      md5(value) {
+        if (typeof value !== 'string') throw new Error('md5 expects a string');
+        return native.md5(value);
+      },
+      randomBytes(size) {
+        const bytes = new Uint8Array(size);
+        for (let i = 0; i < size; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+        return bytes;
       },
     },
   };

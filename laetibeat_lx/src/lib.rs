@@ -10,9 +10,11 @@
 //! HTTP proxying, source persistence, and the Flutter facade are later stages.
 
 pub mod error;
+pub mod http;
 pub mod import;
 pub mod models;
 pub mod runtime;
+pub mod utils;
 
 pub use error::{LxError, Result};
 pub use import::parse_source_manifest;
