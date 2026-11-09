@@ -268,7 +268,17 @@ impl LxSourceManager {
     }
 
     pub fn resolve_pic(&mut self, source: &str, info: &LxMusicInfo) -> Result<serde_json::Value> {
-        self.resolve_action(source, "pic", info, "")
+        match self.resolve_action(source, "pic", info, "") {
+            Ok(value) => Ok(value),
+            Err(source_error) => {
+                let url = crate::picture::fetch(source, info).map_err(|fallback_error| {
+                    LxError::Request(format!(
+                        "{source_error}; platform picture failed: {fallback_error}"
+                    ))
+                })?;
+                Ok(serde_json::Value::String(url))
+            }
+        }
     }
 
     fn resolve_action(

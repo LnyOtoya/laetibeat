@@ -431,8 +431,12 @@
 - [x] `UiTrack.sourceExtraJson` 与队列快照持久化
 - [x] LX URL 内存缓存（5 分钟）与失败重试
 - [x] 带平台字段/URL 缓存的 release APK 构建通过（151.2MB）
-- [ ] kg/mg 内置歌词接口
-- [ ] 平台封面接口（kw/kg 等无搜索封面时）
+- [x] 修复 KG 搜索：Audioid 为数字类型时被跳过
+- [x] 带 KG/MG 歌词、KW/KG 封面的 release APK 构建通过（151.4MB）
+- [x] kg 内置歌词接口（KRC 解码）
+- [x] mg 内置 LRC 歌词接口（mrc 逐字解码待补）
+- [x] kw 搜索封面（web_albumpic_short -> 500px）
+- [x] kg 平台封面（media.store.kugou.com）
 - [ ] 播放 URL 失效后的媒体层自动重试
 - [ ] `tx` / `wy` 接口失效时的错误提示与降级
 - [ ] 用真实 `source=lx` 曲目测试播放/歌词/封面

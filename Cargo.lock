@@ -1537,6 +1537,7 @@ dependencies = [
  "aes",
  "base64 0.22.1",
  "cbc",
+ "flate2",
  "html-escape",
  "log",
  "md5",

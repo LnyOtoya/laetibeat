@@ -19,3 +19,4 @@ rsa = { version = "0.10", features = ["encoding", "hazmat"] }
 html-escape = "0.2"
 sha1 = "0.10"
 log = "0.4"
+flate2 = "1"

@@ -15,6 +15,7 @@ pub mod import;
 pub mod lyric;
 pub mod manager;
 pub mod models;
+pub mod picture;
 pub mod runtime;
 pub mod search;
 pub mod store;

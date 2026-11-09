@@ -303,7 +303,13 @@ fn parse_kw(body: &Value) -> (Vec<LxSearchTrack>, u64) {
                 .and_then(value_i64)
                 .map(normalize_seconds)
                 .unwrap_or(0),
-            img: None,
+            img: item
+                .get("web_albumpic_short")
+                .and_then(Value::as_str)
+                .map(|value| {
+                    let path = value.strip_prefix("120/").unwrap_or(value);
+                    format!("http://img1.kwcdn.kuwo.cn/star/albumcover/500/{path}")
+                }),
             extra: BTreeMap::new(),
         });
     }
@@ -342,8 +348,8 @@ fn push_kg_track(
     let id = item
         .get("Audioid")
         .or_else(|| item.get("ID"))
-        .and_then(Value::as_str)
-        .unwrap_or("");
+        .and_then(value_text)
+        .unwrap_or_default();
     let hash = item.get("FileHash").and_then(Value::as_str).unwrap_or("");
     let key = format!("{id}{hash}");
     if id.is_empty() || !seen.insert(key) {
@@ -383,14 +389,11 @@ fn push_kg_track(
     }
     tracks.push(LxSearchTrack {
         source: "kg".to_string(),
-        id: id.to_string(),
+        id,
         name: clean(&display_name),
         singer,
         album: clean(item.get("AlbumName").and_then(Value::as_str).unwrap_or("")),
-        album_id: item
-            .get("AlbumID")
-            .map(|value| value.to_string().trim_matches('"').to_string())
-            .unwrap_or_default(),
+        album_id: item.get("AlbumID").and_then(value_text).unwrap_or_default(),
         interval: item
             .get("Duration")
             .and_then(value_i64)
@@ -750,6 +753,14 @@ fn clean(value: &str) -> String {
         .to_string()
 }
 
+fn value_text(value: &Value) -> Option<String> {
+    value
+        .as_str()
+        .map(ToString::to_string)
+        .or_else(|| value.as_i64().map(|number| number.to_string()))
+        .or_else(|| value.as_u64().map(|number| number.to_string()))
+}
+
 fn value_u64(value: &Value) -> Option<u64> {
     value
         .as_u64()
@@ -802,7 +813,7 @@ mod tests {
             "data": {
                 "total": 2,
                 "lists": [{
-                    "Audioid": "123",
+                    "Audioid": 123,
                     "FileHash": "abc",
                     "OriSongName": "Song",
                     "Suffix": "Live",
