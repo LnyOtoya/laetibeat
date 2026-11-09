@@ -13,7 +13,7 @@
 - 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
 - 歌词：已接入 LRCLIB、LiriQo 搜索，支持逐字/逐行/静态标记、翻译与临时应用
 - 跨平台：Linux 桌面可用；Android UI 已解耦，audio_service 后台/锁屏/通知已验证；Windows/macOS 打包未开始
-- LX 音源：`laetibeat_lx` 已建立；QuickJS、inited、HTTP、AES/RSA、setTimeout、SourceStore、SourceManager 已通过；FRB/UI 尚未接入
+- LX 音源：`laetibeat_lx` 已建立；QuickJS、inited、HTTP、AES/RSA、setTimeout、SourceStore、SourceManager、FRB facade 已通过；Flutter UI 尚未接入
 - 主要缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 
@@ -270,7 +270,7 @@
 - [x] 不直接复制官方 JS/Kotlin/React Native/Redux 代码；按行为重写
 - [x] 新建独立 crate：`laetibeat_lx/`，与 `laetibeat_flutter/`、`laetibeat_core/` 同级
 - [ ] `laetibeat_lx` 只依赖自身需要的 Rust crates，不反向依赖 Flutter/FRB
-- [ ] `laetibeat_flutter/rust` 只增加极薄的 FRB facade，不把宿主逻辑写进现有业务文件
+- [x] `laetibeat_flutter/rust` 只增加极薄的 FRB facade，不把宿主逻辑写进现有业务文件
 - [ ] 用户自行导入音源脚本；不内置、不预置、不自动抓取第三方源
 - [ ] 明确非官方接口、版权和服务条款风险，UI 中保留说明
 
@@ -288,8 +288,8 @@
 - [x] 初步决策：优先 `rquickjs`，先做 Android 真机 PoC；不满足再评估 QuickJS-ng/Boa
 - [x] `rquickjs 0.14` 在 Linux host 编译与单元测试通过
 - [x] Android `aarch64-linux-android` `cargo check` 通过
-- [ ] 记录 `rquickjs bindgen` 的 Android 构建参数（`LIBCLANG_PATH`、NDK sysroot、`BINDGEN_EXTRA_CLANG_ARGS_<target>`）
-- [ ] 验证 armv7/i686/x86_64 Android targets
+- [x] 记录并通过 cargokit 自动向 rquickjs bindgen 传递 NDK sysroot（armv7/aarch64/x86_64）
+- [x] 验证 armv7/aarch64/x86_64 Android release 构建（flutter build apk）
 
 ### 10.3 JS 运行时与宿主
 
@@ -359,17 +359,18 @@
 
 ### 10.7 FRB 与 Flutter UI
 
-- [ ] `laetibeat_flutter/rust` 增加 `api/lx.rs` 薄 facade
-- [ ] 暴露 `import_lx_source`
-- [ ] 暴露 `list_lx_sources`
-- [ ] 暴露 `set_lx_source_enabled`
-- [ ] 暴露 `set_lx_source_priority`
-- [ ] 暴露 `load_lx_source`
-- [ ] 暴露 `resolve_lx_music_url`
-- [ ] 暴露 `resolve_lx_lyric`
-- [ ] 暴露 `resolve_lx_pic`
-- [ ] 状态/日志/更新提示通过事件流或轮询回传
+- [x] `laetibeat_flutter/rust` 增加 `api/lx.rs` 薄 facade
+- [x] 暴露 `import_lx_source`
+- [x] 暴露 `list_lx_sources`
+- [x] 暴露 `set_lx_source_enabled`
+- [x] 暴露 `set_lx_source_priority`
+- [x] 暴露 `load_lx_source`
+- [x] 暴露 `resolve_lx_music_url`
+- [x] 暴露 `resolve_lx_lyric`
+- [x] 暴露 `resolve_lx_pic`
+- [x] 通过 `list_lx_sources` 查询内存状态（事件流/更新提示仍待做）
 - [ ] 移动端设置页增加“洛雪音源”入口
+- [x] 启动时初始化 `<application support>/laetibeat_lx` 存储
 - [ ] 导入弹窗：本地文件/在线 URL
 - [ ] 源列表：名称、版本、作者、状态、启用开关、优先级
 - [ ] 删除确认、更新提示、错误详情
@@ -396,6 +397,9 @@
 - [x] 验证 SourceStore 导入/列表/读取/删除/启用/优先级
 - [x] 验证 RSA 无效公钥错误路径
 - [x] 验证 SourceManager 启用、加载、优先级、解析、移除
+- [x] `flutter analyze` / `flutter test` 通过
+- [x] Android armv7/aarch64/x86_64 release Rust 编译通过（含 LX/QuickJS/FRB）
+- [x] `flutter build apk --release` 通过（150.3MB；不要用 `--no-pub` 跳过插件注册表重生成）
 - [x] 验证 `setTimeout` 延迟后解析 musicUrl
 - [ ] 验证 `musicUrl` 失败/超时/取消
 - [ ] 验证歌词/封面返回格式与长度限制

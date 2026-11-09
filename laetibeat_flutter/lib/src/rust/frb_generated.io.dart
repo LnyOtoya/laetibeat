@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/library.dart';
+import 'api/lx.dart';
 import 'api/lyrics.dart';
 import 'api/metadata.dart';
 import 'api/simple.dart';
@@ -56,6 +57,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_box_autoadd_u_8(dynamic raw);
 
   @protected
+  UiLxLyric dco_decode_box_autoadd_ui_lx_lyric(dynamic raw);
+
+  @protected
+  UiLxMusicInfo dco_decode_box_autoadd_ui_lx_music_info(dynamic raw);
+
+  @protected
   UiPlayEvent dco_decode_box_autoadd_ui_play_event(dynamic raw);
 
   @protected
@@ -81,6 +88,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<UiArtist> dco_decode_list_ui_artist(dynamic raw);
+
+  @protected
+  List<UiLxSourceCapability> dco_decode_list_ui_lx_source_capability(
+    dynamic raw,
+  );
+
+  @protected
+  List<UiLxSourceEntry> dco_decode_list_ui_lx_source_entry(dynamic raw);
 
   @protected
   List<UiLyricsSearchResult> dco_decode_list_ui_lyrics_search_result(
@@ -130,6 +145,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? dco_decode_opt_box_autoadd_u_8(dynamic raw);
 
   @protected
+  UiLxLyric? dco_decode_opt_box_autoadd_ui_lx_lyric(dynamic raw);
+
+  @protected
   UiRemoteSyncMeta? dco_decode_opt_box_autoadd_ui_remote_sync_meta(dynamic raw);
 
   @protected
@@ -155,6 +173,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiLibrary dco_decode_ui_library(dynamic raw);
+
+  @protected
+  UiLxLyric dco_decode_ui_lx_lyric(dynamic raw);
+
+  @protected
+  UiLxMusicInfo dco_decode_ui_lx_music_info(dynamic raw);
+
+  @protected
+  UiLxSourceCapability dco_decode_ui_lx_source_capability(dynamic raw);
+
+  @protected
+  UiLxSourceEntry dco_decode_ui_lx_source_entry(dynamic raw);
 
   @protected
   UiLyricsSearchResult dco_decode_ui_lyrics_search_result(dynamic raw);
@@ -241,6 +271,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_box_autoadd_u_8(SseDeserializer deserializer);
 
   @protected
+  UiLxLyric sse_decode_box_autoadd_ui_lx_lyric(SseDeserializer deserializer);
+
+  @protected
+  UiLxMusicInfo sse_decode_box_autoadd_ui_lx_music_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   UiPlayEvent sse_decode_box_autoadd_ui_play_event(
     SseDeserializer deserializer,
   );
@@ -270,6 +308,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<UiArtist> sse_decode_list_ui_artist(SseDeserializer deserializer);
+
+  @protected
+  List<UiLxSourceCapability> sse_decode_list_ui_lx_source_capability(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<UiLxSourceEntry> sse_decode_list_ui_lx_source_entry(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<UiLyricsSearchResult> sse_decode_list_ui_lyrics_search_result(
@@ -327,6 +375,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? sse_decode_opt_box_autoadd_u_8(SseDeserializer deserializer);
 
   @protected
+  UiLxLyric? sse_decode_opt_box_autoadd_ui_lx_lyric(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   UiRemoteSyncMeta? sse_decode_opt_box_autoadd_ui_remote_sync_meta(
     SseDeserializer deserializer,
   );
@@ -354,6 +407,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiLibrary sse_decode_ui_library(SseDeserializer deserializer);
+
+  @protected
+  UiLxLyric sse_decode_ui_lx_lyric(SseDeserializer deserializer);
+
+  @protected
+  UiLxMusicInfo sse_decode_ui_lx_music_info(SseDeserializer deserializer);
+
+  @protected
+  UiLxSourceCapability sse_decode_ui_lx_source_capability(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  UiLxSourceEntry sse_decode_ui_lx_source_entry(SseDeserializer deserializer);
 
   @protected
   UiLyricsSearchResult sse_decode_ui_lyrics_search_result(
@@ -458,6 +525,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_8(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_ui_lx_lyric(
+    UiLxLyric self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_ui_lx_music_info(
+    UiLxMusicInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_ui_play_event(
     UiPlayEvent self,
     SseSerializer serializer,
@@ -492,6 +571,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_ui_artist(List<UiArtist> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_ui_lx_source_capability(
+    List<UiLxSourceCapability> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_ui_lx_source_entry(
+    List<UiLxSourceEntry> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_ui_lyrics_search_result(
@@ -563,6 +654,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_u_8(int? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_ui_lx_lyric(
+    UiLxLyric? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_ui_remote_sync_meta(
     UiRemoteSyncMeta? self,
     SseSerializer serializer,
@@ -597,6 +694,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_ui_library(UiLibrary self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ui_lx_lyric(UiLxLyric self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ui_lx_music_info(
+    UiLxMusicInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_lx_source_capability(
+    UiLxSourceCapability self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_lx_source_entry(
+    UiLxSourceEntry self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_ui_lyrics_search_result(

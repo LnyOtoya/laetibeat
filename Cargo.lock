@@ -2395,9 +2395,11 @@ dependencies = [
  "flutter_rust_bridge",
  "jni",
  "laetibeat_core",
+ "laetibeat_lx",
  "laetibeat_remote",
  "rfd",
  "rustls-platform-verifier",
+ "serde_json",
 ]
 
 [[package]]

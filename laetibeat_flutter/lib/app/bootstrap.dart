@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/library.dart' as rust_library;
+import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/stats.dart' as rust_stats;
 import 'package:laetibeat/src/rust/frb_generated.dart';
 import 'package:path_provider/path_provider.dart';
@@ -59,6 +60,15 @@ Future<void> bootstrap() async {
     );
   } catch (e) {
     debugPrint('初始化远端音乐库数据库失败: $e');
+  }
+
+  // 初始化 LX 音源存储(失败不阻塞应用启动；音源由用户自行导入)
+  try {
+    final supportDir = await getApplicationSupportDirectory();
+    await supportDir.create(recursive: true);
+    await rust_lx.initLxSourceStore(root: '${supportDir.path}/laetibeat_lx');
+  } catch (e) {
+    debugPrint('初始化 LX 音源存储失败: $e');
   }
 
   // 预加载本地设置与播放快照,供 Riverpod provider 构建时同步恢复

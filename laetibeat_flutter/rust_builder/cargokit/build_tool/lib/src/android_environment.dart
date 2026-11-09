@@ -110,6 +110,19 @@ class AndroidEnvironment {
     }
 
     final targetArg = '--target=${target.rust}$minSdkVersion';
+    final sysroot = path.join(
+      ndkPath,
+      'toolchains',
+      'llvm',
+      'prebuilt',
+      hostArch,
+      'sysroot',
+    );
+    // rquickjs-sys uses bindgen and needs the NDK sysroot when cross-building.
+    // Without this, bindgen picks up host /usr/include and fails on armv7.
+    final bindgenKey =
+        'BINDGEN_EXTRA_CLANG_ARGS_${target.rust.replaceAll('-', '_')}';
+    final bindgenValue = '--sysroot=$sysroot $targetArg';
 
     final ccKey = 'CC_${target.rust}';
     final ccValue = path.join(toolchainPath, 'clang$exe');
@@ -156,6 +169,7 @@ class AndroidEnvironment {
       cfFlagsKey: cFlagsValue,
       cxxKey: cxxValue,
       cxxFlagsKey: cxxFlagsValue,
+      bindgenKey: bindgenValue,
       ranlibKey: ranlibValue,
       rustFlagsKey: rustFlagsValue,
       linkerKey: selfPath,
