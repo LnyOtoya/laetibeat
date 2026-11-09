@@ -41,6 +41,8 @@ final lxSearchProvider =
 const Map<String, String> _platformLabels = <String, String>{
   'kw': 'kw',
   'kg': 'kg',
+  'tx': 'tx',
+  'wy': 'wy',
   'mg': 'mg',
 };
 
@@ -51,6 +53,8 @@ String lxPlatformLabel(AppLocalizations l10n, String platform) =>
     switch (platform) {
       'kw' => l10n.lxPlatformKw,
       'kg' => l10n.lxPlatformKg,
+      'tx' => l10n.lxPlatformTx,
+      'wy' => l10n.lxPlatformWy,
       'mg' => l10n.lxPlatformMg,
       _ => platform,
     };

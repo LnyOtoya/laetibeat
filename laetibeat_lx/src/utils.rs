@@ -40,6 +40,20 @@ pub fn base64_encode_json_or_string(value: &str) -> String {
     base64_encode(value)
 }
 
+/// AES-128-ECB with PKCS#7 padding, returned as uppercase hex. WY's eapi
+/// request params use this encoding.
+pub fn aes_ecb_pkcs7_hex(data: &[u8], key: &[u8]) -> std::result::Result<String, String> {
+    if key.len() != 16 {
+        return Err("AES-128 key must be 16 bytes".to_string());
+    }
+    let cipher = Aes128::new_from_slice(key).map_err(|error| error.to_string())?;
+    let encrypted = cipher.encrypt_padded_vec_mut::<Pkcs7>(data);
+    Ok(encrypted
+        .iter()
+        .map(|byte| format!("{byte:02X}"))
+        .collect::<String>())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

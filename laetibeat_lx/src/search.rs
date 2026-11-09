@@ -1,18 +1,22 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
+
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
+use sha1::{Digest, Sha1};
 
 use crate::error::{LxError, Result};
-use crate::utils::md5_hex;
+use crate::utils::{aes_ecb_pkcs7_hex, md5_hex};
 
 const USER_AGENT: &str = "Mozilla/5.0 (Linux; U; Android 11.0.0; zh-cn; MI 11) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30";
 const MAX_RESPONSE_BYTES: usize = 5 * 1024 * 1024;
 const MAX_LIMIT: u32 = 50;
 
 /// Platforms with a standalone search implementation in this milestone.
-pub const SUPPORTED_PLATFORMS: &[&str] = &["kw", "kg", "mg"];
+pub const SUPPORTED_PLATFORMS: &[&str] = &["kw", "kg", "tx", "wy", "mg"];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LxSearchTrack {
@@ -67,6 +71,8 @@ pub fn search(platform: &str, keyword: &str, page: u32, limit: u32) -> Result<Lx
     let (tracks, total) = match platform {
         "kw" => search_kw(&client, keyword, page, limit)?,
         "kg" => search_kg(&client, keyword, page, limit)?,
+        "tx" => search_tx(&client, keyword, page, limit)?,
+        "wy" => search_wy(&client, keyword, page, limit)?,
         "mg" => search_mg(&client, keyword, page, limit)?,
         other => {
             return Err(LxError::Request(format!(
@@ -135,6 +141,62 @@ fn search_kg(
             ]),
     )?;
     Ok(parse_kg(&body))
+}
+
+fn search_tx(
+    client: &Client,
+    keyword: &str,
+    page: u32,
+    limit: u32,
+) -> Result<(Vec<LxSearchTrack>, u64)> {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| LxError::Request(error.to_string()))?
+        .as_nanos();
+    let search_id = format!("{nanos:032X}{:05}", nanos % 100_000);
+    let payload = json!({
+        "comm": {
+            "_channelid": "0",
+            "_os_version": "6.2.9200-2",
+            "ct": "19",
+            "cv": "2151",
+            "guid": "1F70E520B2EAA7D25E11760783C53CA9",
+            "patch": "118",
+            "psrf_access_token_expiresAt": 0,
+            "psrf_qqaccess_token": "",
+            "psrf_qqopenid": "",
+            "psrf_qqunionid": "",
+            "tmeAppID": "qqmusic",
+            "tmeLoginType": 0,
+            "uin": "0",
+            "wid": "7223299733393904640"
+        },
+        "music.search.SearchCgiService": {
+            "module": "music.search.SearchCgiService",
+            "method": "DoSearchForQQMusicDesktop",
+            "param": {
+                "grp": 1,
+                "num_per_page": limit,
+                "page_num": page,
+                "query": keyword,
+                "remoteplace": "txt.newclient.top",
+                "search_type": 0,
+                "searchid": search_id
+            }
+        }
+    });
+    let text =
+        serde_json::to_string(&payload).map_err(|error| LxError::Request(error.to_string()))?;
+    let sign = zzc_sign(&text);
+    let body = get_json(
+        client
+            .post("https://u.y.qq.com/cgi-bin/musics.fcg")
+            .query(&[("sign", sign)])
+            .header("User-Agent", "QQMusic 14090508(android 12)")
+            .header("Content-Type", "application/json")
+            .body(text),
+    )?;
+    Ok(parse_tx(&body))
 }
 
 fn search_mg(
@@ -329,6 +391,244 @@ fn push_kg_track(
     });
 }
 
+fn parse_tx(body: &Value) -> (Vec<LxSearchTrack>, u64) {
+    let request = body
+        .get("music.search.SearchCgiService")
+        .or_else(|| body.get("req"));
+    let data = request.and_then(|value| value.get("data"));
+    let song = data.and_then(|value| value.get("song")).or_else(|| {
+        data.and_then(|value| value.get("body"))
+            .and_then(|value| value.get("song"))
+    });
+    let total = song
+        .and_then(|value| value.get("total"))
+        .and_then(value_u64)
+        .unwrap_or(0);
+    let mut tracks = Vec::new();
+    for item in song
+        .and_then(|value| value.get("list"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let Some(file) = item.get("file") else {
+            continue;
+        };
+        if file
+            .get("media_mid")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .is_empty()
+        {
+            continue;
+        }
+        let Some(id) = item.get("mid").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(name) = item
+            .get("title")
+            .or_else(|| item.get("name"))
+            .and_then(Value::as_str)
+        else {
+            continue;
+        };
+        let album = item.get("album");
+        let album_id = album
+            .and_then(|value| value.get("mid"))
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        let album_name = album
+            .and_then(|value| value.get("name"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let singer = item
+            .get("singer")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item.get("name").and_then(Value::as_str))
+                    .map(clean)
+                    .filter(|value| !value.is_empty())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let img = if album_id.is_empty() || album_id == "空" {
+            item.get("singer")
+                .and_then(Value::as_array)
+                .and_then(|items| items.first())
+                .and_then(|item| item.get("mid"))
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+                .map(|mid| format!("https://y.gtimg.cn/music/photo_new/T001R500x500M000{mid}.jpg"))
+        } else {
+            Some(format!(
+                "https://y.gtimg.cn/music/photo_new/T002R500x500M000{album_id}.jpg"
+            ))
+        };
+        tracks.push(LxSearchTrack {
+            source: "tx".to_string(),
+            id: id.to_string(),
+            name: clean(name),
+            singer,
+            album: clean(album_name),
+            album_id,
+            interval: item
+                .get("interval")
+                .and_then(value_i64)
+                .map(normalize_seconds)
+                .unwrap_or(0),
+            img,
+        });
+    }
+    let total = if total == 0 {
+        tracks.len() as u64
+    } else {
+        total
+    };
+    (tracks, total)
+}
+
+fn zzc_sign(text: &str) -> String {
+    const PART_1_INDEXES: [usize; 8] = [23, 14, 6, 36, 16, 40, 7, 19];
+    const PART_2_INDEXES: [usize; 8] = [16, 1, 32, 12, 19, 27, 8, 5];
+    const SCRAMBLE_VALUES: [u8; 20] = [
+        89, 39, 179, 150, 218, 82, 58, 252, 177, 52, 186, 123, 120, 64, 242, 133, 143, 161, 121,
+        179,
+    ];
+
+    let hash = format!("{:x}", Sha1::digest(text.as_bytes()));
+    let part1 = PART_1_INDEXES
+        .iter()
+        .filter_map(|index| hash.get(*index..index + 1))
+        .collect::<String>();
+    let part2 = PART_2_INDEXES
+        .iter()
+        .filter_map(|index| hash.get(*index..index + 1))
+        .collect::<String>();
+    let part3 = SCRAMBLE_VALUES
+        .iter()
+        .enumerate()
+        .map(|(index, value)| {
+            let high = u8::from_str_radix(&hash[index * 2..index * 2 + 1], 16).unwrap_or(0);
+            let low = u8::from_str_radix(&hash[index * 2 + 1..index * 2 + 2], 16).unwrap_or(0);
+            value ^ ((high << 4) | low)
+        })
+        .collect::<Vec<u8>>();
+    let encoded = STANDARD
+        .encode(part3)
+        .replace('/', "")
+        .replace('+', "")
+        .replace('=', "");
+    format!("zzc{part1}{encoded}{part2}").to_lowercase()
+}
+
+fn search_wy(
+    client: &Client,
+    keyword: &str,
+    page: u32,
+    limit: u32,
+) -> Result<(Vec<LxSearchTrack>, u64)> {
+    let path = "/api/search/song/list/page";
+    let payload = json!({
+        "keyword": keyword,
+        "needCorrect": "1",
+        "channel": "typing",
+        "offset": limit * (page - 1),
+        "scene": "normal",
+        "total": page == 1,
+        "limit": limit
+    });
+    let text =
+        serde_json::to_string(&payload).map_err(|error| LxError::Request(error.to_string()))?;
+    let digest = md5_hex(&format!("nobody{path}use{text}md5forencrypt"));
+    let data = format!("{path}-36cd479b6b5-{text}-36cd479b6b5-{digest}");
+    let params =
+        aes_ecb_pkcs7_hex(data.as_bytes(), b"e82ckenh8dichen8").map_err(LxError::Request)?;
+    let body = get_json(
+        client
+            .post("http://interface.music.163.com/eapi/batch")
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36",
+            )
+            .header("origin", "https://music.163.com")
+            .form(&[("params", params)]),
+    )?;
+    Ok(parse_wy(&body))
+}
+
+fn parse_wy(body: &Value) -> (Vec<LxSearchTrack>, u64) {
+    let data = body.get("data").unwrap_or(&Value::Null);
+    let total = data.get("totalCount").and_then(value_u64).unwrap_or(0);
+    let mut tracks = Vec::new();
+    for resource in data
+        .get("resources")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let Some(song) = resource
+            .get("baseInfo")
+            .and_then(|value| value.get("simpleSongData"))
+        else {
+            continue;
+        };
+        let Some(id) = song.get("id").and_then(value_u64) else {
+            continue;
+        };
+        let Some(name) = song.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        let album = song.get("al");
+        let singer = song
+            .get("ar")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item.get("name").and_then(Value::as_str))
+                    .map(clean)
+                    .filter(|value| !value.is_empty())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        tracks.push(LxSearchTrack {
+            source: "wy".to_string(),
+            id: id.to_string(),
+            name: clean(name),
+            singer,
+            album: clean(
+                album
+                    .and_then(|value| value.get("name"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+            ),
+            album_id: album
+                .and_then(|value| value.get("id"))
+                .and_then(value_u64)
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            interval: song
+                .get("dt")
+                .and_then(value_i64)
+                .map(normalize_seconds)
+                .unwrap_or(0),
+            img: album
+                .and_then(|value| value.get("picUrl"))
+                .and_then(Value::as_str)
+                .map(ToString::to_string),
+        });
+    }
+    let total = if total == 0 {
+        tracks.len() as u64
+    } else {
+        total
+    };
+    (tracks, total)
+}
+
 fn parse_mg(body: &Value) -> (Vec<LxSearchTrack>, u64) {
     let data = body.get("songResultData").unwrap_or(&Value::Null);
     let total = data.get("totalCount").and_then(value_u64).unwrap_or(0);
@@ -490,6 +790,69 @@ mod tests {
         assert_eq!(tracks.len(), 2);
         assert_eq!(tracks[0].name, "Song Live");
         assert_eq!(tracks[1].source, "kg");
+    }
+
+    #[test]
+    fn signs_tx_payload() {
+        assert_eq!(
+            zzc_sign("hello"),
+            "zzcfa14dde89n1iwax0l5rimr0qwjexceiov4daaee8d6"
+        );
+    }
+
+    #[test]
+    fn parses_tx_results() {
+        let body = json!({
+            "music.search.SearchCgiService": {
+                "data": {
+                    "body": {
+                        "song": {
+                            "total": 1,
+                            "list": [{
+                                "mid": "003OUlho2HcRHC",
+                                "title": "晴天",
+                                "album": {"mid": "0024bjiL2aocxT", "name": "叶惠美"},
+                                "singer": [{"name": "周杰伦", "mid": "0025NhlN2yWrP4"}],
+                                "interval": 269,
+                                "file": {"media_mid": "002A6j2q1tdUUP"}
+                            }]
+                        }
+                    }
+                }
+            }
+        });
+        let (tracks, total) = parse_tx(&body);
+        assert_eq!(total, 1);
+        assert_eq!(tracks[0].source, "tx");
+        assert_eq!(tracks[0].id, "003OUlho2HcRHC");
+        assert_eq!(tracks[0].album_id, "0024bjiL2aocxT");
+        assert_eq!(tracks[0].interval, 269);
+    }
+
+    #[test]
+    fn parses_wy_results() {
+        let body = json!({
+            "code": 200,
+            "data": {
+                "totalCount": 5,
+                "resources": [{
+                    "baseInfo": {
+                        "simpleSongData": {
+                            "id": 509781655,
+                            "name": "想你就写信",
+                            "ar": [{"name": "周杰伦"}],
+                            "al": {"id": 36412633, "name": "中国新歌声", "picUrl": "https://example.com/wy.jpg"},
+                            "dt": 238698
+                        }
+                    }
+                }]
+            }
+        });
+        let (tracks, total) = parse_wy(&body);
+        assert_eq!(total, 5);
+        assert_eq!(tracks[0].source, "wy");
+        assert_eq!(tracks[0].interval, 238);
+        assert_eq!(tracks[0].singer, vec!["周杰伦"]);
     }
 
     #[test]

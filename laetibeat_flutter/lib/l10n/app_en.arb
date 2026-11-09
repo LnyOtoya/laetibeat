@@ -134,7 +134,9 @@
   "lxSearchFailed": "LX platform search failed",
   "lxPlatformKw": "Kuwo",
   "lxPlatformKg": "Kugou",
-  "lxPlatformMg": "Migu",  "statisticsTitle": "Statistics",
+
+  "lxPlatformTx": "QQ Music",
+  "lxPlatformWy": "NetEase",  "lxPlatformMg": "Migu",  "statisticsTitle": "Statistics",
   "commonBack": "Back",
   "previousTrack": "Previous track",
   "pause": "Pause",

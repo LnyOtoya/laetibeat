@@ -896,6 +896,18 @@ abstract class AppLocalizations {
   /// **'Kugou'**
   String get lxPlatformKg;
 
+  /// No description provided for @lxPlatformTx.
+  ///
+  /// In en, this message translates to:
+  /// **'QQ Music'**
+  String get lxPlatformTx;
+
+  /// No description provided for @lxPlatformWy.
+  ///
+  /// In en, this message translates to:
+  /// **'NetEase'**
+  String get lxPlatformWy;
+
   /// No description provided for @lxPlatformMg.
   ///
   /// In en, this message translates to:

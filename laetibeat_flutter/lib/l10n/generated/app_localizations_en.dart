@@ -421,6 +421,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lxPlatformKg => 'Kugou';
 
   @override
+  String get lxPlatformTx => 'QQ Music';
+
+  @override
+  String get lxPlatformWy => 'NetEase';
+
+  @override
   String get lxPlatformMg => 'Migu';
 
   @override

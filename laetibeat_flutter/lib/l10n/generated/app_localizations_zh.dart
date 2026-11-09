@@ -409,6 +409,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lxPlatformKg => '酷狗';
 
   @override
+  String get lxPlatformTx => 'QQ音乐';
+
+  @override
+  String get lxPlatformWy => '网易云';
+
+  @override
   String get lxPlatformMg => '咪咕';
 
   @override
