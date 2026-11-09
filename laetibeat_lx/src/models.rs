@@ -33,19 +33,26 @@ pub struct LxSourceDeclaration {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LxMusicInfo {
     pub source: String,
+    /// LX custom sources expect `songmid`, not our internal `id` name.
+    #[serde(rename = "songmid")]
     pub id: String,
     #[serde(default)]
     pub name: String,
+    /// LX source API exposes the artist display string as `singer`.
     #[serde(default)]
-    pub singer: Vec<String>,
-    #[serde(default)]
+    pub singer: String,
+    #[serde(default, rename = "albumName")]
     pub album: String,
-    #[serde(default)]
+    #[serde(default, rename = "albumId")]
     pub album_id: String,
     #[serde(default)]
     pub interval: i64,
     #[serde(default)]
     pub img: Option<String>,
+    /// Platform-specific fields used by source scripts, e.g. kg hash,
+    /// mg copyrightId, tx strMediaMid/songId.
+    #[serde(flatten, default)]
+    pub extra: BTreeMap<String, serde_json::Value>,
 }
 
 impl LxMusicInfo {

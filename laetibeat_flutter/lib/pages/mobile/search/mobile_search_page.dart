@@ -665,12 +665,98 @@ class _LxSearchSection extends ConsumerStatefulWidget {
 
 class _LxSearchSectionState extends ConsumerState<_LxSearchSection> {
   String? _selectedPlatform;
+  String _loadedKey = '';
+  String _pendingKey = '';
+  List<rust_lx.UiLxSearchTrack> _tracks = const [];
+  int _page = 0;
+  int _requestGeneration = 0;
+  bool _loading = false;
+  bool _loadingMore = false;
+  bool _hasMore = false;
+  String? _error;
 
   String _effectivePlatform(List<String> platforms) {
     if (_selectedPlatform != null && platforms.contains(_selectedPlatform)) {
       return _selectedPlatform!;
     }
     return platforms.first;
+  }
+
+  String _key(String platform) => '$platform\u0000${widget.query.trim()}';
+
+  void _ensureSearch(String platform) {
+    if (widget.query.trim().isEmpty) return;
+    final key = _key(platform);
+    if (key == _loadedKey || key == _pendingKey) return;
+    _pendingKey = key;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _pendingKey != key) return;
+      _pendingKey = '';
+      _load(platform: platform, append: false);
+    });
+  }
+
+  Future<void> _load({required String platform, required bool append}) async {
+    final query = widget.query.trim();
+    if (query.isEmpty) return;
+    if (append && (!_hasMore || _loading || _loadingMore)) return;
+
+    final generation = append ? _requestGeneration : ++_requestGeneration;
+    final page = append ? _page + 1 : 1;
+    if (!append) {
+      _loadedKey = _key(platform);
+      setState(() {
+        _loading = true;
+        _loadingMore = false;
+        _error = null;
+        _tracks = const [];
+        _page = 0;
+        _hasMore = false;
+      });
+    } else {
+      setState(() {
+        _loadingMore = true;
+        _error = null;
+      });
+    }
+
+    try {
+      final result = await rust_lx.searchLxMusic(
+        platform: platform,
+        keyword: query,
+        page: page,
+        limit: 30,
+      );
+      if (!mounted || generation != _requestGeneration) return;
+      setState(() {
+        _tracks = append
+            ? <rust_lx.UiLxSearchTrack>[..._tracks, ...result.tracks]
+            : result.tracks;
+        _page = result.page;
+        _hasMore = result.hasMore;
+        _loading = false;
+        _loadingMore = false;
+      });
+    } catch (error) {
+      if (!mounted || generation != _requestGeneration) return;
+      setState(() {
+        _loading = false;
+        _loadingMore = false;
+        _error = error.toString();
+      });
+    }
+  }
+
+  void _selectPlatform(String platform) {
+    setState(() {
+      _selectedPlatform = platform;
+      _tracks = const [];
+      _loadedKey = '';
+      _pendingKey = '';
+      _page = 0;
+      _hasMore = false;
+      _error = null;
+    });
   }
 
   @override
@@ -685,9 +771,8 @@ class _LxSearchSectionState extends ConsumerState<_LxSearchSection> {
       data: (List<String> platforms) {
         if (platforms.isEmpty) return const SizedBox.shrink();
         final platform = _effectivePlatform(platforms);
-        final result = ref.watch(
-          lxSearchProvider((platform: platform, query: widget.query)),
-        );
+        _ensureSearch(platform);
+        final uiTracks = _tracks.map(lxSearchTrackToUiTrack).toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -708,13 +793,13 @@ class _LxSearchSectionState extends ConsumerState<_LxSearchSection> {
                     label: lxPlatformLabel(l10n, item),
                     type: M3EChipType.filter,
                     selected: item == platform,
-                    onPressed: () => setState(() => _selectedPlatform = item),
+                    onPressed: () => _selectPlatform(item),
                   ),
               ],
             ),
             const SizedBox(height: 8),
-            result.when(
-              loading: () => Padding(
+            if (_loading)
+              Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
                   l10n.lxSourceInitializing,
@@ -722,59 +807,91 @@ class _LxSearchSectionState extends ConsumerState<_LxSearchSection> {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-              ),
-              error: (Object error, StackTrace stackTrace) => Padding(
+              )
+            else if (_error != null && _tracks.isEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Text(
+                    '${l10n.lxSearchFailed}\n$_error',
+                    style: theme.typeScale.bodySmall.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: M3EButton(
+                      label: Text(l10n.lxSourceRetry),
+                      onPressed: () => _load(platform: platform, append: false),
+                    ),
+                  ),
+                ],
+              )
+            else if (_tracks.isEmpty)
+              Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
-                  '${l10n.lxSearchFailed}\n$error',
+                  l10n.lxSearchNoResults,
+                  style: theme.typeScale.bodySmall.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              )
+            else
+              M3EList(
+                color: theme.colorScheme.surface,
+                variant: M3ECardVariant.filled,
+                itemCount: _tracks.length,
+                onTap: (int index) {
+                  ref
+                      .read(playerProvider.notifier)
+                      .load(
+                        uiTracks,
+                        index,
+                        source: '洛雪 · ${lxPlatformLabel(l10n, platform)}',
+                      );
+                },
+                itemBuilder: (BuildContext context, int index) {
+                  final track = _tracks[index];
+                  return M3EListItem(
+                    leading: _LxSearchCover(url: track.img),
+                    headline: track.name,
+                    supportingText: <String>[
+                      if (track.singer.isNotEmpty) track.singer.join('、'),
+                      if (track.album.isNotEmpty) track.album,
+                    ].join(' · '),
+                    trailingText: uiTracks[index].duration,
+                  );
+                },
+              ),
+            if (_tracks.isNotEmpty && _hasMore) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: M3EButton(
+                  style: M3EButtonStyle.tonal,
+                  label: Text(
+                    _loadingMore
+                        ? l10n.lxSearchLoadingMore
+                        : l10n.lxSearchLoadMore,
+                  ),
+                  onPressed: _loadingMore
+                      ? null
+                      : () => _load(platform: platform, append: true),
+                ),
+              ),
+            ],
+            if (_error != null && _tracks.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '${l10n.lxSearchFailed}\n$_error',
                   style: theme.typeScale.bodySmall.copyWith(
                     color: theme.colorScheme.error,
                   ),
                 ),
               ),
-              data: (page) {
-                final tracks =
-                    page?.tracks ?? const <rust_lx.UiLxSearchTrack>[];
-                if (tracks.isEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      l10n.lxSearchNoResults,
-                      style: theme.typeScale.bodySmall.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  );
-                }
-                final uiTracks = tracks.map(lxSearchTrackToUiTrack).toList();
-                return M3EList(
-                  color: theme.colorScheme.surface,
-                  variant: M3ECardVariant.filled,
-                  itemCount: tracks.length,
-                  onTap: (int index) {
-                    ref
-                        .read(playerProvider.notifier)
-                        .load(
-                          uiTracks,
-                          index,
-                          source: '洛雪 · ${lxPlatformLabel(l10n, platform)}',
-                        );
-                  },
-                  itemBuilder: (BuildContext context, int index) {
-                    final track = tracks[index];
-                    return M3EListItem(
-                      leading: _LxSearchCover(url: track.img),
-                      headline: track.name,
-                      supportingText: <String>[
-                        if (track.singer.isNotEmpty) track.singer.join('、'),
-                        if (track.album.isNotEmpty) track.album,
-                      ].join(' · '),
-                      trailingText: uiTracks[index].duration,
-                    );
-                  },
-                );
-              },
-            ),
             const SizedBox(height: 8),
           ],
         );

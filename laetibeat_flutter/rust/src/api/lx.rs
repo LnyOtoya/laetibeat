@@ -236,11 +236,12 @@ impl From<UiLxMusicInfo> for LxMusicInfo {
             source: value.source,
             id: value.id,
             name: value.name,
-            singer: value.singer,
+            singer: value.singer.join("、"),
             album: value.album,
             album_id: value.album_id,
             interval: value.interval,
             img: value.img,
+            extra: Default::default(),
         }
     }
 }

@@ -131,13 +131,19 @@
   "lxSearchTitle": "LX platform search",
   "lxSearchEnableHint": "Enable an LX source to search",
   "lxSearchNoResults": "No songs found",
-  "lxSearchFailed": "LX platform search failed",
+
+  "lxSearchLoadMore": "Load more",
+  "lxSearchLoadingMore": "Loading…",  "lxSearchFailed": "LX platform search failed",
   "lxPlatformKw": "Kuwo",
   "lxPlatformKg": "Kugou",
 
   "lxPlatformTx": "QQ Music",
   "lxPlatformWy": "NetEase",  "lxPlatformMg": "Migu",  "statisticsTitle": "Statistics",
-  "commonBack": "Back",
+
+  "lxDefaultQuality": "Default quality",
+  "lxQuality128": "Standard 128k",
+  "lxQuality320": "High 320k",
+  "lxQualityFlac": "Lossless FLAC",  "commonBack": "Back",
   "previousTrack": "Previous track",
   "pause": "Pause",
   "play": "Play",

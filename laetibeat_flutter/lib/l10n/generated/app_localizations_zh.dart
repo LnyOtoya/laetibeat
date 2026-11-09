@@ -400,6 +400,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lxSearchNoResults => '没有找到歌曲';
 
   @override
+  String get lxSearchLoadMore => '加载更多';
+
+  @override
+  String get lxSearchLoadingMore => '加载中…';
+
+  @override
   String get lxSearchFailed => '洛雪平台搜索失败';
 
   @override
@@ -419,6 +425,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statisticsTitle => '统计';
+
+  @override
+  String get lxDefaultQuality => '默认音质';
+
+  @override
+  String get lxQuality128 => '标准 128k';
+
+  @override
+  String get lxQuality320 => '高品质 320k';
+
+  @override
+  String get lxQualityFlac => '无损 FLAC';
 
   @override
   String get commonBack => '返回';

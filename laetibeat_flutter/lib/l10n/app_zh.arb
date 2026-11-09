@@ -131,13 +131,19 @@
   "lxSearchTitle": "洛雪平台搜索",
   "lxSearchEnableHint": "先启用一个洛雪音源后即可搜索",
   "lxSearchNoResults": "没有找到歌曲",
-  "lxSearchFailed": "洛雪平台搜索失败",
+
+  "lxSearchLoadMore": "加载更多",
+  "lxSearchLoadingMore": "加载中…",  "lxSearchFailed": "洛雪平台搜索失败",
   "lxPlatformKw": "酷我",
   "lxPlatformKg": "酷狗",
 
   "lxPlatformTx": "QQ音乐",
   "lxPlatformWy": "网易云",  "lxPlatformMg": "咪咕",  "statisticsTitle": "统计",
-  "commonBack": "返回",
+
+  "lxDefaultQuality": "默认音质",
+  "lxQuality128": "标准 128k",
+  "lxQuality320": "高品质 320k",
+  "lxQualityFlac": "无损 FLAC",  "commonBack": "返回",
   "previousTrack": "上一曲",
   "pause": "暂停",
   "play": "播放",

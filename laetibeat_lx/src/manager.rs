@@ -323,11 +323,12 @@ send(EVENT_NAMES.inited, {
             source: "kw".to_string(),
             id: "123".to_string(),
             name: "Song".to_string(),
-            singer: vec!["Artist".to_string()],
+            singer: "Artist".to_string(),
             album: String::new(),
             album_id: String::new(),
             interval: 0,
             img: None,
+            extra: Default::default(),
         };
         assert_eq!(
             manager.resolve_music_url("kw", &info, "128k").unwrap(),

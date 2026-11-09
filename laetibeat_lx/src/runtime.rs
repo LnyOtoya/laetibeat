@@ -322,14 +322,57 @@ send(EVENT_NAMES.inited, {
             source: "kw".to_string(),
             id: "123".to_string(),
             name: "Song".to_string(),
-            singer: vec!["Artist".to_string()],
+            singer: "Artist".to_string(),
             album: String::new(),
             album_id: String::new(),
             interval: 0,
             img: None,
+            extra: Default::default(),
         };
         let url = runtime.resolve_music_url(&info, "320k").unwrap();
         assert_eq!(url, "https://example.com/test.mp3");
+    }
+
+    #[test]
+    fn passes_nested_music_info_to_source() {
+        let source = r#"/**
+ * @name Info Shape Test
+ * @description Verify LX request shape
+ * @version 1.0.0
+ * @author laetibeat
+ */
+const { EVENT_NAMES, on, send } = globalThis.lx;
+on(EVENT_NAMES.request, ({ action, info }) => {
+  if (action !== 'musicUrl') return Promise.reject(new Error('unsupported'));
+  if (info.type !== '320k') return Promise.reject(new Error('quality missing'));
+  const music = info.musicInfo;
+  if (music.songmid !== '123') return Promise.reject(new Error('songmid missing'));
+  if (music.singer !== 'Artist') return Promise.reject(new Error('singer shape'));
+  if (music.albumName !== 'Album') return Promise.reject(new Error('albumName shape'));
+  return Promise.resolve('https://example.com/nested.mp3');
+});
+send(EVENT_NAMES.inited, {
+  sources: {
+    tx: { type: 'music', actions: ['musicUrl'], qualitys: ['320k'] }
+  }
+});
+"#;
+        let runtime = LxRuntime::load(source).unwrap();
+        let info = LxMusicInfo {
+            source: "tx".to_string(),
+            id: "123".to_string(),
+            name: "Song".to_string(),
+            singer: "Artist".to_string(),
+            album: "Album".to_string(),
+            album_id: "album-1".to_string(),
+            interval: 180,
+            img: None,
+            extra: Default::default(),
+        };
+        assert_eq!(
+            runtime.resolve_music_url(&info, "320k").unwrap(),
+            "https://example.com/nested.mp3"
+        );
     }
 
     #[test]
@@ -386,11 +429,12 @@ send(EVENT_NAMES.inited, {
             source: "kw".to_string(),
             id: "123".to_string(),
             name: "Song".to_string(),
-            singer: vec!["Artist".to_string()],
+            singer: "Artist".to_string(),
             album: String::new(),
             album_id: String::new(),
             interval: 0,
             img: None,
+            extra: Default::default(),
         };
         let url = runtime.resolve_music_url(&info, "128k").unwrap();
         assert_eq!(url, "https://example.com/from-http.mp3");
@@ -425,11 +469,12 @@ send(EVENT_NAMES.inited, {
             source: "kw".to_string(),
             id: "timer".to_string(),
             name: "Timer".to_string(),
-            singer: Vec::new(),
+            singer: String::new(),
             album: String::new(),
             album_id: String::new(),
             interval: 0,
             img: None,
+            extra: Default::default(),
         };
         assert_eq!(
             runtime.resolve_music_url(&info, "128k").unwrap(),

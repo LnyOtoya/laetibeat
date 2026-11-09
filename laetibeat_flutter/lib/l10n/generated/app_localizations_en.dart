@@ -412,6 +412,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lxSearchNoResults => 'No songs found';
 
   @override
+  String get lxSearchLoadMore => 'Load more';
+
+  @override
+  String get lxSearchLoadingMore => 'Loading…';
+
+  @override
   String get lxSearchFailed => 'LX platform search failed';
 
   @override
@@ -431,6 +437,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statisticsTitle => 'Statistics';
+
+  @override
+  String get lxDefaultQuality => 'Default quality';
+
+  @override
+  String get lxQuality128 => 'Standard 128k';
+
+  @override
+  String get lxQuality320 => 'High 320k';
+
+  @override
+  String get lxQualityFlac => 'Lossless FLAC';
 
   @override
   String get commonBack => 'Back';

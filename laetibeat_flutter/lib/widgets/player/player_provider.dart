@@ -9,6 +9,7 @@ import '../../core/providers/playback_backend_provider.dart';
 import '../settings/persistence.dart';
 import '../settings/subsonic_provider.dart';
 import '../settings/fade_settings.dart';
+import '../settings/lx_settings.dart';
 import 'playback_backend.dart';
 import 'playback_session_tracker.dart';
 import 'lx_track.dart';
@@ -599,12 +600,30 @@ class PlayerNotifier extends Notifier<PlayerState> {
   /// 本地曲目走 file://,远端曲目走 OpenSubsonic/LX 解析出的 stream URL。
   Future<PlaybackTrack> _resolveTrack(rust.UiTrack t) async {
     if (t.source == 'lx' && t.sourceId.isNotEmpty) {
-      final url = await rust_lx.resolveLxMusicUrl(
-        source: t.sourceId,
-        music: lxMusicInfoFromTrack(t),
-        quality: lxQualityForTrack(t),
-      );
-      return PlaybackTrack(uri: url, fallbackDuration: _durationOf(t));
+      final music = lxMusicInfoFromTrack(t);
+      final preferred = ref.read(lxDefaultQualityProvider);
+      final trackQuality = lxQualityForTrack(t);
+      final qualities = <String>{
+        preferred,
+        trackQuality,
+        '128k',
+      }.toList(growable: false);
+      Object? lastError;
+      for (final quality in qualities) {
+        try {
+          final url = await rust_lx.resolveLxMusicUrl(
+            source: t.sourceId,
+            music: music,
+            quality: quality,
+          );
+          return PlaybackTrack(uri: url, fallbackDuration: _durationOf(t));
+        } catch (error) {
+          lastError = error;
+          debugPrint('LX 解析失败($quality): $error');
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        }
+      }
+      throw lastError ?? StateError('LX 解析失败');
     }
     if (t.source == 'opensubsonic' && t.sourceId.isNotEmpty) {
       String url;

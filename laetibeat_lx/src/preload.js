@@ -305,7 +305,10 @@
       value = handler.call(globalThis.lx, {
         source: source,
         action: action,
-        info: JSON.parse(infoJson),
+        info: {
+          type: globalThis.__lx_quality || '',
+          musicInfo: JSON.parse(infoJson),
+        },
       });
     } catch (error) {
       globalThis.__lx_result = JSON.stringify({

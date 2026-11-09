@@ -2,22 +2,25 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../l10n/generated/app_localizations.dart';
+import '../../../../../widgets/settings/lx_settings.dart';
 import '../../../widgets/mobile_large_subpage_app_bar.dart';
 
 /// Mobile UI for importing and managing user-provided LX source scripts.
-class MobileLxSourcesPage extends StatefulWidget {
+class MobileLxSourcesPage extends ConsumerStatefulWidget {
   const MobileLxSourcesPage({super.key});
 
   @override
-  State<MobileLxSourcesPage> createState() => _MobileLxSourcesPageState();
+  ConsumerState<MobileLxSourcesPage> createState() =>
+      _MobileLxSourcesPageState();
 }
 
-class _MobileLxSourcesPageState extends State<MobileLxSourcesPage> {
+class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
   List<rust_lx.UiLxSourceEntry> _sources = const [];
   final Set<String> _busy = <String>{};
   bool _loading = true;
@@ -233,6 +236,28 @@ class _MobileLxSourcesPageState extends State<MobileLxSourcesPage> {
     }
   }
 
+  Future<void> _pickQuality() async {
+    final l10n = AppLocalizations.of(context);
+    final current = ref.read(lxDefaultQualityProvider);
+    final labels = <String, String>{
+      '128k': l10n.lxQuality128,
+      '320k': l10n.lxQuality320,
+      'flac': l10n.lxQualityFlac,
+    };
+    final currentLabel = labels[current] ?? current;
+    final picked = await M3EDialog.showSelectionScreen(
+      context,
+      title: l10n.lxDefaultQuality,
+      options: labels.values.toList(growable: false),
+      initialSelection: <String>[currentLabel],
+      icon: const Icon(M3EIcons.graphic_eq),
+    );
+    if (!mounted || picked == null || picked.isEmpty) return;
+    final entry = labels.entries.where((item) => item.value == picked.first);
+    if (entry.isEmpty) return;
+    ref.read(lxDefaultQualityProvider.notifier).setQuality(entry.first.key);
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -357,6 +382,25 @@ class _MobileLxSourcesPageState extends State<MobileLxSourcesPage> {
           style: theme.typeScale.bodySmall.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
+        ),
+        const SizedBox(height: 12),
+        M3EList(
+          color: theme.colorScheme.surface,
+          variant: M3ECardVariant.filled,
+          itemCount: 1,
+          onTap: (_) => _pickQuality(),
+          itemBuilder: (BuildContext context, int index) {
+            final quality = ref.watch(lxDefaultQualityProvider);
+            final qualityLabel = switch (quality) {
+              '320k' => l10n.lxQuality320,
+              'flac' => l10n.lxQualityFlac,
+              _ => l10n.lxQuality128,
+            };
+            return M3EListItem(
+              headline: l10n.lxDefaultQuality,
+              supportingText: qualityLabel,
+            );
+          },
         ),
         const SizedBox(height: 12),
         M3EList(

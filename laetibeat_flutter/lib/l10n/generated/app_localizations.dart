@@ -878,6 +878,18 @@ abstract class AppLocalizations {
   /// **'No songs found'**
   String get lxSearchNoResults;
 
+  /// No description provided for @lxSearchLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get lxSearchLoadMore;
+
+  /// No description provided for @lxSearchLoadingMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading…'**
+  String get lxSearchLoadingMore;
+
   /// No description provided for @lxSearchFailed.
   ///
   /// In en, this message translates to:
@@ -919,6 +931,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Statistics'**
   String get statisticsTitle;
+
+  /// No description provided for @lxDefaultQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Default quality'**
+  String get lxDefaultQuality;
+
+  /// No description provided for @lxQuality128.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard 128k'**
+  String get lxQuality128;
+
+  /// No description provided for @lxQuality320.
+  ///
+  /// In en, this message translates to:
+  /// **'High 320k'**
+  String get lxQuality320;
+
+  /// No description provided for @lxQualityFlac.
+  ///
+  /// In en, this message translates to:
+  /// **'Lossless FLAC'**
+  String get lxQualityFlac;
 
   /// No description provided for @commonBack.
   ///
