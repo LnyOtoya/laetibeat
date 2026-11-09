@@ -2576,6 +2576,7 @@ impl SseDecode for crate::api::lx::UiLxMusicInfo {
         let mut var_albumId = <String>::sse_decode(deserializer);
         let mut var_interval = <i64>::sse_decode(deserializer);
         let mut var_img = <Option<String>>::sse_decode(deserializer);
+        let mut var_extraJson = <Option<String>>::sse_decode(deserializer);
         return crate::api::lx::UiLxMusicInfo {
             source: var_source,
             id: var_id,
@@ -2585,6 +2586,7 @@ impl SseDecode for crate::api::lx::UiLxMusicInfo {
             album_id: var_albumId,
             interval: var_interval,
             img: var_img,
+            extra_json: var_extraJson,
         };
     }
 }
@@ -2618,6 +2620,7 @@ impl SseDecode for crate::api::lx::UiLxSearchTrack {
         let mut var_albumId = <String>::sse_decode(deserializer);
         let mut var_interval = <i64>::sse_decode(deserializer);
         let mut var_img = <Option<String>>::sse_decode(deserializer);
+        let mut var_extraJson = <String>::sse_decode(deserializer);
         return crate::api::lx::UiLxSearchTrack {
             source: var_source,
             id: var_id,
@@ -2627,6 +2630,7 @@ impl SseDecode for crate::api::lx::UiLxSearchTrack {
             album_id: var_albumId,
             interval: var_interval,
             img: var_img,
+            extra_json: var_extraJson,
         };
     }
 }
@@ -3001,6 +3005,7 @@ impl SseDecode for crate::api::simple::UiTrack {
         let mut var_source = <String>::sse_decode(deserializer);
         let mut var_sourceId = <String>::sse_decode(deserializer);
         let mut var_coverId = <Option<String>>::sse_decode(deserializer);
+        let mut var_sourceExtraJson = <Option<String>>::sse_decode(deserializer);
         let mut var_bitrate = <Option<u32>>::sse_decode(deserializer);
         let mut var_sampleRate = <Option<u32>>::sse_decode(deserializer);
         let mut var_channels = <Option<u8>>::sse_decode(deserializer);
@@ -3025,6 +3030,7 @@ impl SseDecode for crate::api::simple::UiTrack {
             source: var_source,
             source_id: var_sourceId,
             cover_id: var_coverId,
+            source_extra_json: var_sourceExtraJson,
             bitrate: var_bitrate,
             sample_rate: var_sampleRate,
             channels: var_channels,
@@ -3366,6 +3372,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::lx::UiLxMusicInfo {
             self.album_id.into_into_dart().into_dart(),
             self.interval.into_into_dart().into_dart(),
             self.img.into_into_dart().into_dart(),
+            self.extra_json.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3414,6 +3421,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::lx::UiLxSearchTrack {
             self.album_id.into_into_dart().into_dart(),
             self.interval.into_into_dart().into_dart(),
             self.img.into_into_dart().into_dart(),
+            self.extra_json.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3865,6 +3873,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::simple::UiTrack {
             self.source.into_into_dart().into_dart(),
             self.source_id.into_into_dart().into_dart(),
             self.cover_id.into_into_dart().into_dart(),
+            self.source_extra_json.into_into_dart().into_dart(),
             self.bitrate.into_into_dart().into_dart(),
             self.sample_rate.into_into_dart().into_dart(),
             self.channels.into_into_dart().into_dart(),
@@ -4303,6 +4312,7 @@ impl SseEncode for crate::api::lx::UiLxMusicInfo {
         <String>::sse_encode(self.album_id, serializer);
         <i64>::sse_encode(self.interval, serializer);
         <Option<String>>::sse_encode(self.img, serializer);
+        <Option<String>>::sse_encode(self.extra_json, serializer);
     }
 }
 
@@ -4328,6 +4338,7 @@ impl SseEncode for crate::api::lx::UiLxSearchTrack {
         <String>::sse_encode(self.album_id, serializer);
         <i64>::sse_encode(self.interval, serializer);
         <Option<String>>::sse_encode(self.img, serializer);
+        <String>::sse_encode(self.extra_json, serializer);
     }
 }
 
@@ -4558,6 +4569,7 @@ impl SseEncode for crate::api::simple::UiTrack {
         <String>::sse_encode(self.source, serializer);
         <String>::sse_encode(self.source_id, serializer);
         <Option<String>>::sse_encode(self.cover_id, serializer);
+        <Option<String>>::sse_encode(self.source_extra_json, serializer);
         <Option<u32>>::sse_encode(self.bitrate, serializer);
         <Option<u32>>::sse_encode(self.sample_rate, serializer);
         <Option<u8>>::sse_encode(self.channels, serializer);

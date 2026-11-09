@@ -42,6 +42,9 @@ pub struct UiLxMusicInfo {
     pub album_id: String,
     pub interval: i64,
     pub img: Option<String>,
+    /// JSON object with platform-specific fields (kg hash, mg copyrightId,
+    /// tx strMediaMid/songId/albumMid, ...).
+    pub extra_json: Option<String>,
 }
 
 #[frb(non_opaque)]
@@ -251,7 +254,11 @@ impl From<UiLxMusicInfo> for LxMusicInfo {
             album_id: value.album_id,
             interval: value.interval,
             img: value.img,
-            extra: Default::default(),
+            extra: value
+                .extra_json
+                .as_deref()
+                .and_then(|raw| serde_json::from_str(raw).ok())
+                .unwrap_or_default(),
         }
     }
 }
@@ -270,6 +277,7 @@ pub struct UiLxSearchTrack {
     pub album_id: String,
     pub interval: i64,
     pub img: Option<String>,
+    pub extra_json: String,
 }
 
 #[frb(non_opaque)]
@@ -309,6 +317,7 @@ pub fn search_lx_music(
                 album_id: track.album_id,
                 interval: track.interval,
                 img: track.img,
+                extra_json: serde_json::to_string(&track.extra).unwrap_or_default(),
             })
             .collect(),
         total: result.total,

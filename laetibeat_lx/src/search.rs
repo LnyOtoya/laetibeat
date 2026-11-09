@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use base64::engine::general_purpose::STANDARD;
@@ -31,6 +32,9 @@ pub struct LxSearchTrack {
     /// Seconds.
     pub interval: i64,
     pub img: Option<String>,
+    /// Platform-specific fields required by source scripts, e.g. kg hash,
+    /// mg copyrightId, tx strMediaMid.
+    pub extra: BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -300,6 +304,7 @@ fn parse_kw(body: &Value) -> (Vec<LxSearchTrack>, u64) {
                 .map(normalize_seconds)
                 .unwrap_or(0),
             img: None,
+            extra: BTreeMap::new(),
         });
     }
     (tracks, total)
@@ -372,6 +377,10 @@ fn push_kg_track(
     } else {
         format!("{name} {suffix}")
     };
+    let mut extra = BTreeMap::new();
+    if !hash.is_empty() {
+        extra.insert("hash".to_string(), Value::String(hash.to_string()));
+    }
     tracks.push(LxSearchTrack {
         source: "kg".to_string(),
         id: id.to_string(),
@@ -388,6 +397,7 @@ fn push_kg_track(
             .map(normalize_seconds)
             .unwrap_or(0),
         img: None,
+        extra,
     });
 }
 
@@ -467,6 +477,19 @@ fn parse_tx(body: &Value) -> (Vec<LxSearchTrack>, u64) {
                 "https://y.gtimg.cn/music/photo_new/T002R500x500M000{album_id}.jpg"
             ))
         };
+        let mut extra = BTreeMap::new();
+        if let Some(media_mid) = file.get("media_mid").and_then(Value::as_str) {
+            extra.insert(
+                "strMediaMid".to_string(),
+                Value::String(media_mid.to_string()),
+            );
+        }
+        if let Some(song_id) = item.get("id").and_then(value_u64) {
+            extra.insert("songId".to_string(), Value::String(song_id.to_string()));
+        }
+        if !album_id.is_empty() {
+            extra.insert("albumMid".to_string(), Value::String(album_id.clone()));
+        }
         tracks.push(LxSearchTrack {
             source: "tx".to_string(),
             id: id.to_string(),
@@ -480,6 +503,7 @@ fn parse_tx(body: &Value) -> (Vec<LxSearchTrack>, u64) {
                 .map(normalize_seconds)
                 .unwrap_or(0),
             img,
+            extra,
         });
     }
     let total = if total == 0 {
@@ -619,6 +643,7 @@ fn parse_wy(body: &Value) -> (Vec<LxSearchTrack>, u64) {
                 .and_then(|value| value.get("picUrl"))
                 .and_then(Value::as_str)
                 .map(ToString::to_string),
+            extra: BTreeMap::new(),
         });
     }
     let total = if total == 0 {
@@ -678,6 +703,15 @@ fn parse_mg(body: &Value) -> (Vec<LxSearchTrack>, u64) {
                     *value = format!("http://d.musicapp.migu.cn{value}");
                 }
             }
+            let mut extra = BTreeMap::new();
+            if let Some(value) = item.get("copyrightId").and_then(Value::as_str) {
+                extra.insert("copyrightId".to_string(), Value::String(value.to_string()));
+            }
+            for key in ["lrcUrl", "mrcUrl", "trcUrl"] {
+                if let Some(value) = item.get(key).and_then(Value::as_str) {
+                    extra.insert(key.to_string(), Value::String(value.to_string()));
+                }
+            }
             tracks.push(LxSearchTrack {
                 source: "mg".to_string(),
                 id: id.to_string(),
@@ -695,6 +729,7 @@ fn parse_mg(body: &Value) -> (Vec<LxSearchTrack>, u64) {
                     .map(normalize_seconds)
                     .unwrap_or(0),
                 img,
+                extra,
             });
         }
     }

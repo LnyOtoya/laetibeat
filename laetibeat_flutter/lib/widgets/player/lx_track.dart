@@ -18,6 +18,7 @@ rust_lx.UiLxMusicInfo lxMusicInfoFromTrack(rust.UiTrack track) {
     albumId: track.albumId,
     interval: track.durationSeconds.toInt(),
     img: track.coverId,
+    extraJson: track.sourceExtraJson,
   );
 }
 
@@ -47,5 +48,6 @@ rust.UiTrack lxSearchTrackToUiTrack(rust_lx.UiLxSearchTrack track) {
     source: 'lx',
     sourceId: track.source,
     coverId: track.img,
+    sourceExtraJson: track.extraJson.isEmpty ? null : track.extraJson,
   );
 }

@@ -47,6 +47,8 @@ pub struct UiTrack {
     pub source_id: String,
     /// 远端封面 id
     pub cover_id: Option<String>,
+    /// 音源特定字段的 JSON（LX: hash/copyrightId/strMediaMid 等）
+    pub source_extra_json: Option<String>,
     /// 音频码率(kbps)
     pub bitrate: Option<u32>,
     /// 采样率(Hz)
@@ -182,6 +184,7 @@ pub fn scan_local_music_folder(
                 source: "local".to_string(),
                 source_id: String::new(),
                 cover_id: None,
+                source_extra_json: None,
                 bitrate: track.bitrate,
                 sample_rate: track.sample_rate,
                 channels: track.channels,

@@ -427,7 +427,10 @@
 - [x] 搜索失败重试
 - [ ] 搜索请求取消（当前通过请求代次丢弃旧结果）
 - [ ] 真实 LX 源 + 真实平台搜索结果联调
-- [ ] 平台特定字段透传（kg hash、mg copyrightId、tx strMediaMid/songId）
+- [x] 平台特定字段透传（kg hash、mg copyrightId、tx strMediaMid/songId）
+- [x] `UiTrack.sourceExtraJson` 与队列快照持久化
+- [x] LX URL 内存缓存（5 分钟）与失败重试
+- [x] 带平台字段/URL 缓存的 release APK 构建通过（151.2MB）
 - [ ] kg/mg 内置歌词接口
 - [ ] 平台封面接口（kw/kg 等无搜索封面时）
 - [ ] 播放 URL 失效后的媒体层自动重试

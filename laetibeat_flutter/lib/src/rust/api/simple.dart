@@ -209,6 +209,9 @@ class UiTrack {
   /// 远端封面 id
   final String? coverId;
 
+  /// 音源特定字段的 JSON（LX: hash/copyrightId/strMediaMid 等）
+  final String? sourceExtraJson;
+
   /// 音频码率(kbps)
   final int? bitrate;
 
@@ -243,6 +246,7 @@ class UiTrack {
     required this.source,
     required this.sourceId,
     this.coverId,
+    this.sourceExtraJson,
     this.bitrate,
     this.sampleRate,
     this.channels,
@@ -270,6 +274,7 @@ class UiTrack {
       source.hashCode ^
       sourceId.hashCode ^
       coverId.hashCode ^
+      sourceExtraJson.hashCode ^
       bitrate.hashCode ^
       sampleRate.hashCode ^
       channels.hashCode ^
@@ -299,6 +304,7 @@ class UiTrack {
           source == other.source &&
           sourceId == other.sourceId &&
           coverId == other.coverId &&
+          sourceExtraJson == other.sourceExtraJson &&
           bitrate == other.bitrate &&
           sampleRate == other.sampleRate &&
           channels == other.channels &&

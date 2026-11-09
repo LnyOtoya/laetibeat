@@ -105,7 +105,21 @@ class PlayerState {
 /// 重复模式:off=顺序播完即停, single=单曲循环, all=列表循环
 enum PlaybackRepeatMode { off, single, all }
 
+class _LxUrlCacheEntry {
+  const _LxUrlCacheEntry(this.url, this.expiresAt);
+
+  final String url;
+  final DateTime expiresAt;
+}
+
 class PlayerNotifier extends Notifier<PlayerState> {
+  static const Duration _lxUrlTtl = Duration(minutes: 5);
+
+  /// LX URLs are short-lived and source resolution is expensive. Keep only a
+  /// small in-memory cache; expired URLs are re-resolved before playback.
+  final Map<String, _LxUrlCacheEntry> _lxUrlCache =
+      <String, _LxUrlCacheEntry>{};
+
   //真实播放后端(Linux 首发为 media_kit)。只通过这一层拼口驱动,不直接碰引擎。
   late final PlaybackBackend _backend;
 
@@ -483,7 +497,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
 
   /// 异步解析播放源(本地文件或远端 stream URL)后打开。
   /// 用 generation 防止快速切歌时旧请求覆盖新曲目。
-  Future<void> _openResolved(rust.UiTrack track) async {
+  Future<void> _openResolved(rust.UiTrack track, {int attempt = 0}) async {
     final generation = ++_openGeneration;
     try {
       // 远端要先解析 stream URL;期间暂停旧音频,避免旧曲继续出声
@@ -492,7 +506,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
         if (generation != _openGeneration) return;
       }
 
-      final playbackTrack = await _resolveTrack(track);
+      final playbackTrack = await _resolveTrack(track, refreshLx: attempt > 0);
       if (generation != _openGeneration) return;
       await _prepareVolumeForOpen();
       await _backend.open(playbackTrack);
@@ -500,6 +514,13 @@ class PlayerNotifier extends Notifier<PlayerState> {
       await _fadeAfterOpen();
     } catch (e) {
       if (generation != _openGeneration) return;
+      if (track.source == 'lx' && attempt < 1) {
+        debugPrint('LX 播放失败，清除 URL 缓存并重试一次: $e');
+        _invalidateLxUrl(track);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        if (generation != _openGeneration) return;
+        return _openResolved(track, attempt: attempt + 1);
+      }
       debugPrint('打开曲目失败: $e');
       _mediaLoaded = false;
       state = state.copyWith(isPlaying: false);
@@ -597,8 +618,38 @@ class PlayerNotifier extends Notifier<PlayerState> {
     await completer.future;
   }
 
+  String _lxUrlCacheKey(rust.UiTrack track, String quality) {
+    return '${track.sourceId}\u0000${track.id}\u0000$quality';
+  }
+
+  String? _cachedLxUrl(rust.UiTrack track, String quality) {
+    final key = _lxUrlCacheKey(track, quality);
+    final entry = _lxUrlCache[key];
+    if (entry == null) return null;
+    if (DateTime.now().isAfter(entry.expiresAt)) {
+      _lxUrlCache.remove(key);
+      return null;
+    }
+    return entry.url;
+  }
+
+  void _cacheLxUrl(rust.UiTrack track, String quality, String url) {
+    _lxUrlCache[_lxUrlCacheKey(track, quality)] = _LxUrlCacheEntry(
+      url,
+      DateTime.now().add(_lxUrlTtl),
+    );
+  }
+
+  void _invalidateLxUrl(rust.UiTrack track) {
+    final prefix = '${track.sourceId}\u0000${track.id}\u0000';
+    _lxUrlCache.removeWhere((key, _) => key.startsWith(prefix));
+  }
+
   /// 本地曲目走 file://,远端曲目走 OpenSubsonic/LX 解析出的 stream URL。
-  Future<PlaybackTrack> _resolveTrack(rust.UiTrack t) async {
+  Future<PlaybackTrack> _resolveTrack(
+    rust.UiTrack t, {
+    bool refreshLx = false,
+  }) async {
     if (t.source == 'lx' && t.sourceId.isNotEmpty) {
       final music = lxMusicInfoFromTrack(t);
       final preferred = ref.read(lxDefaultQualityProvider);
@@ -615,6 +666,13 @@ class PlayerNotifier extends Notifier<PlayerState> {
         'qualities=$qualities',
       );
       for (final quality in qualities) {
+        if (!refreshLx) {
+          final cached = _cachedLxUrl(t, quality);
+          if (cached != null) {
+            debugPrint('LX play cache hit quality=$quality');
+            return PlaybackTrack(uri: cached, fallbackDuration: _durationOf(t));
+          }
+        }
         final attemptWatch = Stopwatch()..start();
         try {
           debugPrint('LX play attempt start quality=$quality');
@@ -623,6 +681,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
             music: music,
             quality: quality,
           );
+          _cacheLxUrl(t, quality, url);
           debugPrint(
             'LX play attempt ok quality=$quality '
             'elapsed=${attemptWatch.elapsedMilliseconds}ms',

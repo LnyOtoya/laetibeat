@@ -2667,8 +2667,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   UiLxMusicInfo dco_decode_ui_lx_music_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return UiLxMusicInfo(
       source: dco_decode_String(arr[0]),
       id: dco_decode_String(arr[1]),
@@ -2678,6 +2678,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       albumId: dco_decode_String(arr[5]),
       interval: dco_decode_i_64(arr[6]),
       img: dco_decode_opt_String(arr[7]),
+      extraJson: dco_decode_opt_String(arr[8]),
     );
   }
 
@@ -2700,8 +2701,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   UiLxSearchTrack dco_decode_ui_lx_search_track(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return UiLxSearchTrack(
       source: dco_decode_String(arr[0]),
       id: dco_decode_String(arr[1]),
@@ -2711,6 +2712,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       albumId: dco_decode_String(arr[5]),
       interval: dco_decode_i_64(arr[6]),
       img: dco_decode_opt_String(arr[7]),
+      extraJson: dco_decode_String(arr[8]),
     );
   }
 
@@ -2988,8 +2990,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   UiTrack dco_decode_ui_track(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 23)
-      throw Exception('unexpected arr length: expect 23 but see ${arr.length}');
+    if (arr.length != 24)
+      throw Exception('unexpected arr length: expect 24 but see ${arr.length}');
     return UiTrack(
       id: dco_decode_String(arr[0]),
       relativePath: dco_decode_opt_String(arr[1]),
@@ -3009,11 +3011,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       source: dco_decode_String(arr[15]),
       sourceId: dco_decode_String(arr[16]),
       coverId: dco_decode_opt_String(arr[17]),
-      bitrate: dco_decode_opt_box_autoadd_u_32(arr[18]),
-      sampleRate: dco_decode_opt_box_autoadd_u_32(arr[19]),
-      channels: dco_decode_opt_box_autoadd_u_8(arr[20]),
-      modifiedMs: dco_decode_opt_box_autoadd_u_64(arr[21]),
-      fileSize: dco_decode_opt_box_autoadd_u_64(arr[22]),
+      sourceExtraJson: dco_decode_opt_String(arr[18]),
+      bitrate: dco_decode_opt_box_autoadd_u_32(arr[19]),
+      sampleRate: dco_decode_opt_box_autoadd_u_32(arr[20]),
+      channels: dco_decode_opt_box_autoadd_u_8(arr[21]),
+      modifiedMs: dco_decode_opt_box_autoadd_u_64(arr[22]),
+      fileSize: dco_decode_opt_box_autoadd_u_64(arr[23]),
     );
   }
 
@@ -3580,6 +3583,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_albumId = sse_decode_String(deserializer);
     var var_interval = sse_decode_i_64(deserializer);
     var var_img = sse_decode_opt_String(deserializer);
+    var var_extraJson = sse_decode_opt_String(deserializer);
     return UiLxMusicInfo(
       source: var_source,
       id: var_id,
@@ -3589,6 +3593,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       albumId: var_albumId,
       interval: var_interval,
       img: var_img,
+      extraJson: var_extraJson,
     );
   }
 
@@ -3620,6 +3625,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_albumId = sse_decode_String(deserializer);
     var var_interval = sse_decode_i_64(deserializer);
     var var_img = sse_decode_opt_String(deserializer);
+    var var_extraJson = sse_decode_String(deserializer);
     return UiLxSearchTrack(
       source: var_source,
       id: var_id,
@@ -3629,6 +3635,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       albumId: var_albumId,
       interval: var_interval,
       img: var_img,
+      extraJson: var_extraJson,
     );
   }
 
@@ -3994,6 +4001,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_source = sse_decode_String(deserializer);
     var var_sourceId = sse_decode_String(deserializer);
     var var_coverId = sse_decode_opt_String(deserializer);
+    var var_sourceExtraJson = sse_decode_opt_String(deserializer);
     var var_bitrate = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_sampleRate = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_channels = sse_decode_opt_box_autoadd_u_8(deserializer);
@@ -4018,6 +4026,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       source: var_source,
       sourceId: var_sourceId,
       coverId: var_coverId,
+      sourceExtraJson: var_sourceExtraJson,
       bitrate: var_bitrate,
       sampleRate: var_sampleRate,
       channels: var_channels,
@@ -4554,6 +4563,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.albumId, serializer);
     sse_encode_i_64(self.interval, serializer);
     sse_encode_opt_String(self.img, serializer);
+    sse_encode_opt_String(self.extraJson, serializer);
   }
 
   @protected
@@ -4583,6 +4593,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.albumId, serializer);
     sse_encode_i_64(self.interval, serializer);
     sse_encode_opt_String(self.img, serializer);
+    sse_encode_String(self.extraJson, serializer);
   }
 
   @protected
@@ -4835,6 +4846,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.source, serializer);
     sse_encode_String(self.sourceId, serializer);
     sse_encode_opt_String(self.coverId, serializer);
+    sse_encode_opt_String(self.sourceExtraJson, serializer);
     sse_encode_opt_box_autoadd_u_32(self.bitrate, serializer);
     sse_encode_opt_box_autoadd_u_32(self.sampleRate, serializer);
     sse_encode_opt_box_autoadd_u_8(self.channels, serializer);

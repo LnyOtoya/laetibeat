@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `format_error`, `manager_slot`, `map_entry`, `parse_lyric`, `with_manager`
+// These functions are ignored because they are not marked as `pub`: `format_error`, `init_lx_logging`, `manager_slot`, `map_entry`, `parse_lyric`, `with_manager`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`
 
 /// Initialize the filesystem-backed source store.
@@ -120,6 +120,10 @@ class UiLxMusicInfo {
   final PlatformInt64 interval;
   final String? img;
 
+  /// JSON object with platform-specific fields (kg hash, mg copyrightId,
+  /// tx strMediaMid/songId/albumMid, ...).
+  final String? extraJson;
+
   const UiLxMusicInfo({
     required this.source,
     required this.id,
@@ -129,6 +133,7 @@ class UiLxMusicInfo {
     required this.albumId,
     required this.interval,
     this.img,
+    this.extraJson,
   });
 
   @override
@@ -140,7 +145,8 @@ class UiLxMusicInfo {
       album.hashCode ^
       albumId.hashCode ^
       interval.hashCode ^
-      img.hashCode;
+      img.hashCode ^
+      extraJson.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -154,7 +160,8 @@ class UiLxMusicInfo {
           album == other.album &&
           albumId == other.albumId &&
           interval == other.interval &&
-          img == other.img;
+          img == other.img &&
+          extraJson == other.extraJson;
 }
 
 class UiLxSearchPage {
@@ -201,6 +208,7 @@ class UiLxSearchTrack {
   final String albumId;
   final PlatformInt64 interval;
   final String? img;
+  final String extraJson;
 
   const UiLxSearchTrack({
     required this.source,
@@ -211,6 +219,7 @@ class UiLxSearchTrack {
     required this.albumId,
     required this.interval,
     this.img,
+    required this.extraJson,
   });
 
   @override
@@ -222,7 +231,8 @@ class UiLxSearchTrack {
       album.hashCode ^
       albumId.hashCode ^
       interval.hashCode ^
-      img.hashCode;
+      img.hashCode ^
+      extraJson.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -236,7 +246,8 @@ class UiLxSearchTrack {
           album == other.album &&
           albumId == other.albumId &&
           interval == other.interval &&
-          img == other.img;
+          img == other.img &&
+          extraJson == other.extraJson;
 }
 
 /// A source capability declared by `inited`.
