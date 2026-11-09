@@ -93,12 +93,19 @@ class LxCoverProvider {
 
   Future<Uint8List?> cover(rust.UiTrack track) async {
     if (track.sourceId.isEmpty) return null;
-    final url = track.coverId?.trim().isNotEmpty == true
-        ? track.coverId!
-        : await rust_lx.resolveLxPic(
-            source: track.sourceId,
-            music: lxMusicInfoFromTrack(track),
-          );
+    String? url = track.coverId?.trim().isNotEmpty == true
+        ? track.coverId
+        : null;
+    if (url == null) {
+      try {
+        url = await rust_lx.resolveLxPic(
+          source: track.sourceId,
+          music: lxMusicInfoFromTrack(track),
+        );
+      } catch (_) {
+        return null;
+      }
+    }
     if (url == null || url.isEmpty) return null;
     return _download(url);
   }

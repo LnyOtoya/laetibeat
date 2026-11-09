@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/library.dart' as rust_library;
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
@@ -149,12 +150,16 @@ class LyricsRepository {
   Future<Lyrics?> lyrics(rust.UiTrack track) async {
     for (final source in settings.order) {
       if (!settings.isEnabled(source)) continue;
-      final lyrics = await switch (source) {
-        LyricsSourceId.tags => _loadOwnLyrics(track),
-        LyricsSourceId.lrclib => lrclibProvider.lyrics(track),
-        LyricsSourceId.liriqo => liriqoProvider.lyrics(track),
-      };
-      if (lyrics != null) return lyrics;
+      try {
+        final lyrics = await switch (source) {
+          LyricsSourceId.tags => _loadOwnLyrics(track),
+          LyricsSourceId.lrclib => lrclibProvider.lyrics(track),
+          LyricsSourceId.liriqo => liriqoProvider.lyrics(track),
+        };
+        if (lyrics != null) return lyrics;
+      } catch (error) {
+        debugPrint('歌词源 ${source.name} 失败: $error');
+      }
     }
     return null;
   }

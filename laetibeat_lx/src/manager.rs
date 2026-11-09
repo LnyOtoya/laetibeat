@@ -195,7 +195,22 @@ impl LxSourceManager {
     }
 
     pub fn resolve_lyric(&mut self, source: &str, info: &LxMusicInfo) -> Result<serde_json::Value> {
-        self.resolve_action(source, "lyric", info, "")
+        match self.resolve_action(source, "lyric", info, "") {
+            Ok(value) => Ok(value),
+            Err(source_error) => {
+                // Online platforms expose lyrics through their own API rather
+                // than the custom source script. Fall back to the built-in
+                // platform lyric client when no source handles `lyric`.
+                let lyric = crate::lyric::fetch(source, info).map_err(|fallback_error| {
+                    LxError::Request(format!(
+                        "{source_error}; platform lyric failed: {fallback_error}"
+                    ))
+                })?;
+                serde_json::to_value(lyric).map_err(|error| {
+                    LxError::InvalidResponse(format!("lyric serialization failed: {error}"))
+                })
+            }
+        }
     }
 
     pub fn resolve_pic(&mut self, source: &str, info: &LxMusicInfo) -> Result<serde_json::Value> {
