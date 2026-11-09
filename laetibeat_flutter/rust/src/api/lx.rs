@@ -54,6 +54,15 @@ pub struct UiLxLyric {
 
 static MANAGER: OnceLock<Mutex<Option<LxSourceManager>>> = OnceLock::new();
 
+fn init_lx_logging() {
+    #[cfg(target_os = "android")]
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_max_level(log::LevelFilter::Debug)
+            .with_tag("LaetibeatLx"),
+    );
+}
+
 fn manager_slot() -> &'static Mutex<Option<LxSourceManager>> {
     MANAGER.get_or_init(|| Mutex::new(None))
 }
@@ -63,6 +72,7 @@ fn manager_slot() -> &'static Mutex<Option<LxSourceManager>> {
 /// `root` should be an application-private directory, e.g.
 /// `<application support>/laetibeat_lx`.
 pub fn init_lx_source_store(root: String) -> Result<(), String> {
+    init_lx_logging();
     let mut manager = LxSourceManager::open(root).map_err(format_error)?;
     // Restore previously enabled sources so independent LX search works after
     // a cold start even when no local/Subsonic source is configured.

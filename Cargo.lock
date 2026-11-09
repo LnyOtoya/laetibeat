@@ -1538,6 +1538,7 @@ dependencies = [
  "base64 0.22.1",
  "cbc",
  "html-escape",
+ "log",
  "md5",
  "reqwest",
  "rquickjs",
@@ -2400,11 +2401,13 @@ dependencies = [
 name = "rust_lib_laetibeat"
 version = "0.1.0"
 dependencies = [
+ "android_logger",
  "flutter_rust_bridge",
  "jni",
  "laetibeat_core",
  "laetibeat_lx",
  "laetibeat_remote",
+ "log",
  "rfd",
  "rustls-platform-verifier",
  "serde_json",

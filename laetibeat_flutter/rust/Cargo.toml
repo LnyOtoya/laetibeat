@@ -12,6 +12,7 @@ laetibeat_core = { path = "../../laetibeat_core" }
 laetibeat_remote = { path = "../../laetibeat_remote" }
 laetibeat_lx = { path = "../../laetibeat_lx" }
 serde_json = "1"
+log = "0.4"
 
 # 桌面原生文件选择框；移动端由 Flutter 原生选择器处理
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
@@ -21,5 +22,6 @@ rfd = "0.15"
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 
 [target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.15"
 jni = { version = "0.22", default-features = false }
 rustls-platform-verifier = "0.7.1"

@@ -608,21 +608,43 @@ class PlayerNotifier extends Notifier<PlayerState> {
         trackQuality,
         '128k',
       }.toList(growable: false);
+      final totalWatch = Stopwatch()..start();
       Object? lastError;
+      debugPrint(
+        'LX play resolve start source=${t.sourceId} songmid=${t.id} '
+        'qualities=$qualities',
+      );
       for (final quality in qualities) {
+        final attemptWatch = Stopwatch()..start();
         try {
+          debugPrint('LX play attempt start quality=$quality');
           final url = await rust_lx.resolveLxMusicUrl(
             source: t.sourceId,
             music: music,
             quality: quality,
           );
+          debugPrint(
+            'LX play attempt ok quality=$quality '
+            'elapsed=${attemptWatch.elapsedMilliseconds}ms',
+          );
+          debugPrint(
+            'LX play resolve done source=${t.sourceId} songmid=${t.id} '
+            'total=${totalWatch.elapsedMilliseconds}ms',
+          );
           return PlaybackTrack(uri: url, fallbackDuration: _durationOf(t));
         } catch (error) {
           lastError = error;
-          debugPrint('LX 解析失败($quality): $error');
+          debugPrint(
+            'LX play attempt failed quality=$quality '
+            'elapsed=${attemptWatch.elapsedMilliseconds}ms error=$error',
+          );
           await Future<void>.delayed(const Duration(milliseconds: 300));
         }
       }
+      debugPrint(
+        'LX play resolve failed source=${t.sourceId} songmid=${t.id} '
+        'total=${totalWatch.elapsedMilliseconds}ms',
+      );
       throw lastError ?? StateError('LX 解析失败');
     }
     if (t.source == 'opensubsonic' && t.sourceId.isNotEmpty) {

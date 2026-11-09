@@ -19,8 +19,7 @@ const TIMER_PUMP_LIMIT: Duration = Duration::from_secs(5);
 /// operation in this first milestone. A later revision should keep one
 /// long-lived context per source on a dedicated JS thread.
 pub struct LxRuntime {
-    runtime: Runtime,
-    script: String,
+    context: Context,
     manifest: LxSourceManifest,
     declaration: LxSourceDeclaration,
 }
@@ -36,29 +35,32 @@ impl LxRuntime {
         }
 
         let runtime = Runtime::new().map_err(|error| LxError::Js(error.to_string()))?;
+        let context = Context::full(&runtime)?;
         let declaration_slot = Arc::new(Mutex::new(None::<String>));
-        let declaration = {
-            let context = Context::full(&runtime)?;
-            context.with(|ctx| {
-                install_host(&ctx, declaration_slot.clone())?;
-                ctx.eval::<(), _>(PRELOAD)?;
-                ctx.eval::<(), _>(script)?;
-                // Source scripts normally call send(inited) synchronously, but
-                // allow promise jobs and short timers queued during init.
-                drain_jobs(&ctx);
-                pump_timers(&ctx);
-                let raw = declaration_slot
-                    .lock()
-                    .map_err(|_| LxError::Init("declaration lock poisoned".to_string()))?
-                    .clone()
-                    .ok_or_else(|| LxError::Init("source did not send inited".to_string()))?;
-                parse_declaration(&raw)
-            })?
-        };
+        let declaration = context.with(|ctx| {
+            install_host(&ctx, declaration_slot.clone())?;
+            let started = Instant::now();
+            ctx.eval::<(), _>(PRELOAD)?;
+            ctx.eval::<(), _>(script)?;
+            // Source scripts normally call send(inited) synchronously, but
+            // allow promise jobs and short timers queued during init.
+            drain_jobs(&ctx);
+            pump_timers(&ctx);
+            log::info!(
+                "lx.runtime init source={} elapsed={}ms",
+                manifest.name,
+                started.elapsed().as_millis()
+            );
+            let raw = declaration_slot
+                .lock()
+                .map_err(|_| LxError::Init("declaration lock poisoned".to_string()))?
+                .clone()
+                .ok_or_else(|| LxError::Init("source did not send inited".to_string()))?;
+            parse_declaration(&raw)
+        })?;
 
         Ok(Self {
-            runtime,
-            script: script.to_string(),
+            context,
             manifest,
             declaration,
         })
@@ -102,14 +104,8 @@ impl LxRuntime {
         info: &LxMusicInfo,
         quality: &str,
     ) -> Result<serde_json::Value> {
-        let context = Context::full(&self.runtime)?;
-        context.with(|ctx| {
-            let declaration_slot = Arc::new(Mutex::new(None));
-            install_host(&ctx, declaration_slot)?;
-            ctx.eval::<(), _>(PRELOAD)?;
-            ctx.eval::<(), _>(self.script.as_str())?;
-            drain_jobs(&ctx);
-
+        let total_started = Instant::now();
+        self.context.with(|ctx| {
             let globals = ctx.globals();
             globals.set("__lx_source", info.source.clone())?;
             globals.set("__lx_action", action.to_string())?;
@@ -121,11 +117,31 @@ impl LxRuntime {
             )?;
             globals.set("__lx_quality", quality.to_string())?;
             globals.set("__lx_result", rquickjs::Undefined)?;
+            let dispatch_started = Instant::now();
             ctx.eval::<(), _>(
                 "__lx_dispatch(globalThis.__lx_source, globalThis.__lx_action, globalThis.__lx_info_json)",
             )?;
             drain_jobs(&ctx);
-            pump_timers(&ctx);
+            log::debug!(
+                "lx.js action={action} source={} dispatch={}ms",
+                info.source,
+                dispatch_started.elapsed().as_millis()
+            );
+            let raw: Option<String> = ctx.eval("globalThis.__lx_result")?;
+            if raw.is_some() {
+                log::debug!(
+                    "lx.js action={action} source={} timers=skipped (result ready)",
+                    info.source
+                );
+            } else {
+                let timer_started = Instant::now();
+                pump_timers(&ctx);
+                log::debug!(
+                    "lx.js action={action} source={} timers={}ms",
+                    info.source,
+                    timer_started.elapsed().as_millis()
+                );
+            }
 
             let raw: Option<String> = ctx.eval("globalThis.__lx_result")?;
             let raw = raw.ok_or_else(|| {
@@ -143,7 +159,13 @@ impl LxRuntime {
                     .unwrap_or("source rejected request");
                 return Err(LxError::Request(message.to_string()));
             }
-            Ok(parsed.get("value").cloned().unwrap_or(serde_json::Value::Null))
+            let value = parsed.get("value").cloned().unwrap_or(serde_json::Value::Null);
+            log::debug!(
+                "lx.js action={action} source={} total={}ms",
+                info.source,
+                total_started.elapsed().as_millis()
+            );
+            Ok(value)
         })
     }
 }

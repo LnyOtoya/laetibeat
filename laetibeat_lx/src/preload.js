@@ -297,9 +297,12 @@
 
   // The host calls this to dispatch lx.on('request').
   globalThis.__lx_dispatch = function (source, action, infoJson) {
-    globalThis.__lx_result = JSON.stringify({ ok: false, error: 'request not handled' });
+    globalThis.__lx_result = undefined;
     const handler = events.request;
-    if (!handler) return false;
+    if (!handler) {
+      globalThis.__lx_result = JSON.stringify({ ok: false, error: 'request not handled' });
+      return false;
+    }
     let value;
     try {
       value = handler.call(globalThis.lx, {

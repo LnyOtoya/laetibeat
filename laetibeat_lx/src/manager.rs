@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
@@ -162,33 +163,86 @@ impl LxSourceManager {
         info: &LxMusicInfo,
         quality: &str,
     ) -> Result<String> {
+        let total_started = Instant::now();
         let candidates = self.candidates_for(source, "musicUrl");
         if candidates.is_empty() {
+            log::warn!(
+                "lx.play source={source} songmid={} quality={quality}: no candidate sources",
+                info.id
+            );
             return Err(LxError::Request(format!(
                 "no enabled source supports musicUrl for {source}"
             )));
         }
+        let candidate_info = candidates
+            .iter()
+            .map(|id| {
+                let priority = self
+                    .store
+                    .get(id)
+                    .map(|record| record.priority)
+                    .unwrap_or_default();
+                format!("{id}(p{priority})")
+            })
+            .collect::<Vec<_>>();
+        log::info!(
+            "lx.play start source={source} songmid={} quality={quality} candidates={:?}",
+            info.id,
+            candidate_info
+        );
 
         let mut request_info = info.clone();
         request_info.source = source.to_string();
         let mut last_error = None;
 
         for id in candidates {
+            let load_started = Instant::now();
             if !self.runtimes.contains_key(&id) {
                 if let Err(error) = self.load_source(&id) {
+                    log::warn!(
+                        "lx.play candidate={id}: load failed in {}ms: {error}",
+                        load_started.elapsed().as_millis()
+                    );
                     last_error = Some(error);
                     continue;
                 }
+                log::info!(
+                    "lx.play candidate={id}: loaded in {}ms",
+                    load_started.elapsed().as_millis()
+                );
             }
             let Some(runtime) = self.runtimes.get(&id) else {
                 continue;
             };
+            let resolve_started = Instant::now();
             match runtime.resolve_music_url(&request_info, quality) {
-                Ok(url) => return Ok(url),
-                Err(error) => last_error = Some(error),
+                Ok(url) => {
+                    log::info!(
+                        "lx.play candidate={id}: ok in {}ms",
+                        resolve_started.elapsed().as_millis()
+                    );
+                    log::info!(
+                        "lx.play done source={source} songmid={} quality={quality} total={}ms",
+                        info.id,
+                        total_started.elapsed().as_millis()
+                    );
+                    return Ok(url);
+                }
+                Err(error) => {
+                    log::warn!(
+                        "lx.play candidate={id}: failed in {}ms: {error}",
+                        resolve_started.elapsed().as_millis()
+                    );
+                    last_error = Some(error);
+                }
             }
         }
 
+        log::warn!(
+            "lx.play failed source={source} songmid={} quality={quality} total={}ms",
+            info.id,
+            total_started.elapsed().as_millis()
+        );
         Err(last_error.unwrap_or_else(|| {
             LxError::Request(format!("no source resolved musicUrl for {source}"))
         }))

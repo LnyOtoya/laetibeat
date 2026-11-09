@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
@@ -31,9 +31,28 @@ struct RequestOptions {
 /// makes the first bridge simple; a later revision can move it to an async
 /// request broker without changing the JS-facing `lx.request` contract.
 pub fn execute(url: &str, options_json: &str) -> String {
+    let started = Instant::now();
+    let safe_url = url.split('?').next().unwrap_or(url);
+    log::debug!("lx.http start url={safe_url}");
     match run(url, options_json) {
-        Ok(response) => json!({ "ok": true, "response": response }).to_string(),
-        Err(error) => json!({ "ok": false, "error": error }).to_string(),
+        Ok(response) => {
+            log::debug!(
+                "lx.http done url={safe_url} status={} elapsed={}ms",
+                response
+                    .get("statusCode")
+                    .and_then(|value| value.as_u64())
+                    .unwrap_or(0),
+                started.elapsed().as_millis()
+            );
+            json!({ "ok": true, "response": response }).to_string()
+        }
+        Err(error) => {
+            log::warn!(
+                "lx.http failed url={safe_url} elapsed={}ms: {error}",
+                started.elapsed().as_millis()
+            );
+            json!({ "ok": false, "error": error }).to_string()
+        }
     }
 }
 
