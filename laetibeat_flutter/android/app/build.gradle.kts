@@ -23,10 +23,18 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["appLabel"] = "Laetibeat"
     }
 
     buildTypes {
+        debug {
+            // 与日常 release 并存安装，flutter run 不会覆盖日常版本。
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            manifestPlaceholders["appLabel"] = "Laetibeat Debug"
+        }
         release {
+            manifestPlaceholders["appLabel"] = "Laetibeat"
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
