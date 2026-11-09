@@ -28,6 +28,7 @@
     b64Decode: globalThis.__lx_b64_decode,
     b64EncodeBytes: globalThis.__lx_b64_encode_bytes,
     aesEncrypt: globalThis.__lx_aes_encrypt,
+    rsaEncrypt: globalThis.__lx_rsa_encrypt,
   };
 
   delete globalThis.__lx_on_inited;
@@ -39,6 +40,7 @@
   delete globalThis.__lx_b64_decode;
   delete globalThis.__lx_b64_encode_bytes;
   delete globalThis.__lx_aes_encrypt;
+  delete globalThis.__lx_rsa_encrypt;
 
   function callLog(level, message) {
     try {
@@ -214,6 +216,16 @@
         if (decoded && decoded.error) throw new Error(decoded.error);
         return new Uint8Array(decoded);
       },
+      rsaEncrypt(buffer, key) {
+        if (typeof key !== 'string') throw new Error('RSA key must be a string');
+        const result = JSON.parse(native.rsaEncrypt(dataToB64(buffer), key));
+        if (!result || result.ok !== true) {
+          throw new Error(result && result.error ? result.error : 'RSA encryption failed');
+        }
+        const decoded = JSON.parse(native.b64Decode(result.data));
+        if (decoded && decoded.error) throw new Error(decoded.error);
+        return new Uint8Array(decoded);
+      },
       md5(value) {
         if (typeof value !== 'string') throw new Error('md5 expects a string');
         return native.md5(value);
@@ -224,6 +236,53 @@
         return bytes;
       },
     },
+  };
+
+  const timers = new Map();
+  let nextTimerId = 1;
+  const MAX_TIMERS = 256;
+  const MAX_TIMER_DELAY = 60_000;
+
+  function setTimeout(callback, delay, ...args) {
+    if (typeof callback !== 'function') throw new Error('setTimeout callback must be a function');
+    if (timers.size >= MAX_TIMERS) throw new Error('too many timers');
+    const id = nextTimerId++;
+    const wait = Math.max(0, Math.min(Number(delay) || 0, MAX_TIMER_DELAY));
+    timers.set(id, { due: Date.now() + wait, callback, args });
+    return id;
+  }
+
+  function clearTimeout(id) {
+    timers.delete(id);
+  }
+
+  globalThis.setTimeout = setTimeout;
+  globalThis.clearTimeout = clearTimeout;
+
+  // Host pumping hooks. The Rust side sleeps only until the next due timer,
+  // then asks JS to run all timers whose deadline has arrived.
+  globalThis.__lx_next_timer_delay = function () {
+    if (timers.size === 0) return -1;
+    let earliest = Infinity;
+    for (const timer of timers.values()) earliest = Math.min(earliest, timer.due);
+    return Math.max(0, earliest - Date.now());
+  };
+
+  globalThis.__lx_run_due_timers = function () {
+    const now = Date.now();
+    const due = [];
+    for (const [id, timer] of timers) {
+      if (timer.due <= now) due.push([id, timer]);
+    }
+    for (const [id, timer] of due) {
+      timers.delete(id);
+      try {
+        timer.callback(...timer.args);
+      } catch (error) {
+        callLog('error', error && error.message ? error.message : String(error));
+      }
+    }
+    return due.length;
   };
 
   globalThis.lx = {

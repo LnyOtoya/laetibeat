@@ -13,7 +13,7 @@
 - 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
 - 歌词：已接入 LRCLIB、LiriQo 搜索，支持逐字/逐行/静态标记、翻译与临时应用
 - 跨平台：Linux 桌面可用；Android UI 已解耦，audio_service 后台/锁屏/通知已验证；Windows/macOS 打包未开始
-- LX 音源：`laetibeat_lx` 已建立；QuickJS、inited、HTTP、AES、SourceStore 已通过；RSA/timer/FRB/UI 尚未接入
+- LX 音源：`laetibeat_lx` 已建立；QuickJS、inited、HTTP、AES/RSA、setTimeout、SourceStore 已通过；SourceManager/FRB/UI 尚未接入
 - 主要缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 
@@ -305,8 +305,9 @@
 - [x] 实现 `lx.utils.crypto.md5` 与 `randomBytes`
 - [x] 实现 `lx.utils.crypto.aesEncrypt`（AES-128-CBC / AES-128-ECB）
 - [x] 实现 `lx.utils.buffer`（from / bufToString，含 base64/hex/UTF-8）
-- [ ] 实现 `lx.utils.crypto.rsaEncrypt`
-- [ ] 实现 `setTimeout` / `clearTimeout` 的真实事件循环
+- [x] 实现 `lx.utils.crypto.rsaEncrypt`（NoPadding，PEM / 裸 base64 公钥）
+- [x] 实现基础 `setTimeout` / `clearTimeout`（Rust 有界 timer pump）
+- [ ] 替换为长期异步 JS 事件循环，支持超过 5 秒的定时任务
 - [x] 基础 Promise / microtask 调度（`execute_pending_job`）
 - [ ] 初始化超时、请求超时、脚本执行超时
 - [ ] 请求取消与 Context 销毁
@@ -393,6 +394,8 @@
 - [x] 用本地 HTTP 测试服务器验证 `lx.request` → JSON → `musicUrl`
 - [x] 验证 AES-128-ECB 已知向量
 - [x] 验证 SourceStore 导入/列表/读取/删除/启用/优先级
+- [x] 验证 RSA 无效公钥错误路径
+- [x] 验证 `setTimeout` 延迟后解析 musicUrl
 - [ ] 验证 `musicUrl` 失败/超时/取消
 - [ ] 验证歌词/封面返回格式与长度限制
 - [ ] 验证恶意脚本无法访问文件/网络/宿主对象
@@ -444,4 +447,4 @@
 - LX 自定义源主要提供 `musicUrl` / `lyric` / `pic`，通常不提供搜索；搜索层需要单独设计
 - 洛雪音源脚本属于第三方内容，不随应用分发；不同脚本的兼容性、可用性和版权风险需由用户自行承担
 - LX HTTP 当前使用同步 `reqwest::blocking`，请求会阻塞对应 JS 执行线程；后续改为异步 request broker
-- LX `setTimeout`、RSA、完整源状态回传和 Flutter UI 尚未接入
+- LX `setTimeout` 目前是有界 timer pump，不是长期异步事件循环；完整源状态回传、SourceManager 和 Flutter UI 尚未接入

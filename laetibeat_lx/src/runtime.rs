@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use rquickjs::{Context, Ctx, Function, Runtime};
 
@@ -10,6 +11,7 @@ use crate::utils;
 
 const PRELOAD: &str = include_str!("preload.js");
 const MAX_RESULT_BYTES: usize = 2 * 1024 * 1024;
+const TIMER_PUMP_LIMIT: Duration = Duration::from_secs(5);
 
 /// A loaded LX source script and the capabilities it declared.
 ///
@@ -42,8 +44,9 @@ impl LxRuntime {
                 ctx.eval::<(), _>(PRELOAD)?;
                 ctx.eval::<(), _>(script)?;
                 // Source scripts normally call send(inited) synchronously, but
-                // allow promise jobs queued during initialization.
+                // allow promise jobs and short timers queued during init.
                 drain_jobs(&ctx);
+                pump_timers(&ctx);
                 let raw = declaration_slot
                     .lock()
                     .map_err(|_| LxError::Init("declaration lock poisoned".to_string()))?
@@ -112,6 +115,7 @@ impl LxRuntime {
                 "__lx_dispatch(globalThis.__lx_source, globalThis.__lx_action, globalThis.__lx_info_json)",
             )?;
             drain_jobs(&ctx);
+            pump_timers(&ctx);
 
             let raw: Option<String> = ctx.eval("globalThis.__lx_result")?;
             let raw = raw.ok_or_else(|| {
@@ -180,6 +184,17 @@ fn install_host(ctx: &Ctx<'_>, declaration_slot: Arc<Mutex<Option<String>>>) -> 
     )?;
 
     globals.set(
+        "__lx_rsa_encrypt",
+        Function::new(
+            ctx.clone(),
+            move |data: String, key: String| match utils::rsa_encrypt(&data, &key) {
+                Ok(data) => serde_json::json!({ "ok": true, "data": data }).to_string(),
+                Err(error) => serde_json::json!({ "ok": false, "error": error }).to_string(),
+            },
+        )?,
+    )?;
+
+    globals.set(
         "__lx_b64_encode",
         Function::new(ctx.clone(), move |value: String| {
             utils::base64_encode(&value)
@@ -206,6 +221,39 @@ fn install_host(ctx: &Ctx<'_>, declaration_slot: Arc<Mutex<Option<String>>>) -> 
     )?;
 
     Ok(())
+}
+
+/// Run queued JS timers until none remain or the pump budget expires.
+///
+/// This is deliberately bounded: a source cannot keep the host thread alive
+/// forever with a long timer. A later async runtime can replace this with a
+/// real event loop.
+fn pump_timers(ctx: &Ctx<'_>) {
+    let started = Instant::now();
+    loop {
+        let delay: i64 = match ctx.eval("globalThis.__lx_next_timer_delay()") {
+            Ok(delay) => delay,
+            Err(_) => return,
+        };
+        if delay < 0 {
+            return;
+        }
+        let remaining = TIMER_PUMP_LIMIT.saturating_sub(started.elapsed());
+        if remaining.is_zero() {
+            return;
+        }
+        let wait = Duration::from_millis(delay.max(0) as u64).min(remaining);
+        if !wait.is_zero() {
+            std::thread::sleep(wait);
+        }
+        if ctx
+            .eval::<i64, _>("globalThis.__lx_run_due_timers()")
+            .is_err()
+        {
+            return;
+        }
+        drain_jobs(ctx);
+    }
 }
 
 fn parse_declaration(raw: &str) -> Result<LxSourceDeclaration> {
@@ -337,6 +385,46 @@ send(EVENT_NAMES.inited, {
         let url = runtime.resolve_music_url(&info, "128k").unwrap();
         assert_eq!(url, "https://example.com/from-http.mp3");
         server.join().unwrap();
+    }
+
+    #[test]
+    fn resolves_after_set_timeout() {
+        let source = r#"/**
+ * @name Timer Test
+ * @description Timer source
+ * @version 1.0.0
+ * @author laetibeat
+ */
+const { EVENT_NAMES, on, send } = globalThis.lx;
+
+on(EVENT_NAMES.request, ({ action }) => {
+  if (action !== 'musicUrl') return Promise.reject(new Error('unsupported'));
+  return new Promise((resolve) => {
+    setTimeout(() => resolve('https://example.com/timer.mp3'), 10);
+  });
+});
+
+send(EVENT_NAMES.inited, {
+  sources: {
+    kw: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] }
+  }
+});
+"#;
+        let runtime = LxRuntime::load(source).unwrap();
+        let info = LxMusicInfo {
+            source: "kw".to_string(),
+            id: "timer".to_string(),
+            name: "Timer".to_string(),
+            singer: Vec::new(),
+            album: String::new(),
+            album_id: String::new(),
+            interval: 0,
+            img: None,
+        };
+        assert_eq!(
+            runtime.resolve_music_url(&info, "128k").unwrap(),
+            "https://example.com/timer.mp3"
+        );
     }
 
     #[test]

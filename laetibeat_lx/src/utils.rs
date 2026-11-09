@@ -5,6 +5,10 @@ use aes::Aes128;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use cbc::Encryptor;
+use rsa::pkcs1::DecodeRsaPublicKey;
+use rsa::pkcs8::DecodePublicKey;
+use rsa::traits::PublicKeyParts;
+use rsa::{BoxedUint, PublicKey};
 
 pub fn md5_hex(value: &str) -> String {
     format!("{:x}", md5::compute(value.as_bytes()))
@@ -66,6 +70,11 @@ mod tests {
         assert_eq!(STANDARD.decode(encrypted).unwrap(), expected);
     }
 
+    #[test]
+    fn rsa_rejects_invalid_key() {
+        assert!(rsa_encrypt(&STANDARD.encode(b"hello"), "not a key").is_err());
+    }
+
     fn hex_bytes(value: &str) -> Vec<u8> {
         value
             .as_bytes()
@@ -122,4 +131,38 @@ pub fn aes_encrypt(
     };
 
     Ok(STANDARD.encode(encrypted))
+}
+
+/// Raw RSA public-key encryption with no padding, matching the LX source
+/// utility's `rsaEncrypt` behavior. The key may be a PEM public key or the
+/// bare base64 body commonly embedded in source scripts.
+pub fn rsa_encrypt(data_b64: &str, public_key: &str) -> std::result::Result<String, String> {
+    let data = base64_decode(data_b64)?;
+    let pem = normalize_public_key(public_key);
+    let key = PublicKey::from_public_key_pem(&pem)
+        .or_else(|_| PublicKey::from_pkcs1_pem(&pem))
+        .map_err(|error| format!("invalid RSA public key: {error}"))?;
+    if data.len() > key.size() {
+        return Err("RSA input is too large for the public key".to_string());
+    }
+
+    let message = BoxedUint::from_be_slice_vartime(&data);
+    let encrypted = rsa::hazmat::rsa_encrypt(&key, &message)
+        .map_err(|error| format!("RSA encryption failed: {error}"))?;
+    let mut bytes = encrypted.to_be_bytes().to_vec();
+    if bytes.len() < key.size() {
+        let mut padded = vec![0_u8; key.size() - bytes.len()];
+        padded.extend_from_slice(&bytes);
+        bytes = padded;
+    }
+    Ok(STANDARD.encode(bytes))
+}
+
+fn normalize_public_key(key: &str) -> String {
+    let trimmed = key.trim();
+    if trimmed.contains("BEGIN PUBLIC KEY") || trimmed.contains("BEGIN RSA PUBLIC KEY") {
+        return trimmed.to_string();
+    }
+    let body = trimmed.split_whitespace().collect::<String>();
+    format!("-----BEGIN PUBLIC KEY-----\n{body}\n-----END PUBLIC KEY-----")
 }

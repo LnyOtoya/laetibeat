@@ -15,3 +15,4 @@ base64 = "0.22"
 md5 = "0.7"
 aes = "0.8"
 cbc = { version = "0.1", features = ["alloc"] }
+rsa = { version = "0.10", features = ["encoding", "hazmat"] }
