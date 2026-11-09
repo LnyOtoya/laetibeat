@@ -1,7 +1,7 @@
 # Laetibeat 项目蓝图
 
-> 最后更新：2026-11-02
-> 当前阶段：Android 播放/后台/通知已验证，开始补播放音效与 DSP
+> 最后更新：2026-11-09
+> 当前阶段：Android 播放/后台/通知已验证，规划独立的洛雪/LX 音源宿主
 
 ## 当前状态速览
 
@@ -13,6 +13,7 @@
 - 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
 - 歌词：已接入 LRCLIB、LiriQo 搜索，支持逐字/逐行/静态标记、翻译与临时应用
 - 跨平台：Linux 桌面可用；Android UI 已解耦，audio_service 后台/锁屏/通知已验证；Windows/macOS 打包未开始
+- LX 音源：确定独立 `laetibeat_lx` crate + Rust JS 宿主方案，尚未实现
 - 主要缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 
@@ -258,6 +259,146 @@
 - [ ] 普通模式与独占模式可切换
 - [ ] 输出路径诊断 UI：采样率/位深/是否 bit-perfect
 
+## 阶段10：洛雪 / LX 音源宿主（规划）
+
+目标：支持用户导入 LX 自定义 `.js` 音源，在 Rust 侧运行脚本并解析 `musicUrl` / `lyric` / `pic`；不把第三方音源打包进应用。
+
+### 10.1 边界与目录原则
+
+- [x] `reference/lx-music-mobile` 仅作为协议和行为参考，不参与构建、运行、发布
+- [ ] 将 `reference/` 加入 `.gitignore`，发布前确认不进入源码包/APK
+- [x] 不直接复制官方 JS/Kotlin/React Native/Redux 代码；按行为重写
+- [x] 新建独立 crate：`laetibeat_lx/`，与 `laetibeat_flutter/`、`laetibeat_core/` 同级
+- [ ] `laetibeat_lx` 只依赖自身需要的 Rust crates，不反向依赖 Flutter/FRB
+- [ ] `laetibeat_flutter/rust` 只增加极薄的 FRB facade，不把宿主逻辑写进现有业务文件
+- [ ] 用户自行导入音源脚本；不内置、不预置、不自动抓取第三方源
+- [ ] 明确非官方接口、版权和服务条款风险，UI 中保留说明
+
+### 10.2 JS 引擎选型
+
+候选：
+
+- [ ] `rquickjs` + QuickJS：优先评估，体积小、适合 Android、Rust 绑定成熟
+- [ ] QuickJS-ng：作为 QuickJS 维护性替代评估
+- [ ] `boa_engine`：纯 Rust、移植简单，但 ES 覆盖/性能/Promise 事件循环需验证
+- [ ] `deno_core` / V8：能力完整但体积和构建成本过高，暂不作为移动端首选
+- [ ] Hermes：RN 生态引擎，嵌入 Rust 成本高，暂不考虑
+- [ ] Duktape / MuJS / JerryScript：ES5/旧规范风险，暂不考虑
+- [ ] WebView：后台执行和沙箱控制差，暂不考虑
+- [x] 初步决策：优先 `rquickjs`，先做 Android 真机 PoC；不满足再评估 QuickJS-ng/Boa
+
+### 10.3 JS 运行时与宿主
+
+- [ ] 每个音源独立 QuickJS Context，禁止共享全局状态
+- [ ] 专用 JS 线程/Actor；JS Context 只在单线程访问
+- [ ] 内置 LX preload 兼容层，按官方行为重写而不是直接复制
+- [ ] 实现 `globalThis.lx.EVENT_NAMES`
+- [ ] 实现 `lx.on('request')`
+- [ ] 实现 `lx.send('inited')`
+- [ ] 实现 `lx.send('updateAlert')`
+- [ ] 实现 `lx.request`
+- [ ] 实现 `lx.utils.buffer`（from / bufToString）
+- [ ] 实现 `lx.utils.crypto`（md5 / AES / RSA / randomBytes）
+- [ ] 实现 `setTimeout` / `clearTimeout`
+- [ ] 实现 Promise / microtask 调度
+- [ ] 初始化超时、请求超时、脚本执行超时
+- [ ] 请求取消与 Context 销毁
+- [ ] 捕获 JS 异常、未处理 Promise、日志
+- [ ] 禁止 `eval`、动态 `Function`、文件系统和宿主内部对象
+- [ ] 输入/输出长度限制与 JSON 序列化校验
+- [ ] 脚本内存/CPU 占用限制和崩溃隔离
+
+### 10.4 HTTP 请求代理
+
+- [ ] `lx.request` → Rust `reqwest` 请求代理
+- [ ] 支持 GET/POST、headers、body、form、formData
+- [ ] 支持文本/JSON/二进制响应
+- [ ] 支持超时、重定向、取消
+- [ ] 为每个请求建立 requestKey，完成/失败/取消回写 JS
+- [ ] 防止脚本直接访问 Rust 网络/文件系统
+- [ ] Android TLS 初始化复用现有 rustls 方案
+
+### 10.5 音源导入与存储
+
+- [ ] 解析脚本头部 `/* @name @description @author @homepage @version */`
+- [ ] 生成稳定 source id，保存脚本正文和元数据
+- [ ] 支持本地 `.js` 文件导入
+- [ ] 支持在线 URL 导入（由 Rust 下载或 Flutter 下载后交给 Rust）
+- [ ] 支持删除、启用、禁用、优先级排序
+- [ ] 保存 `allowShowUpdateAlert`
+- [ ] 保存源状态：未初始化/初始化中/可用/失败
+- [ ] 保存 `inited` 声明的 sources、actions、qualitys
+- [ ] 脚本文件放应用私有目录，元数据放 SQLite/JSON
+- [ ] 不将脚本内容写入日志或普通配置快照
+
+### 10.6 源管理器
+
+- [ ] `LxSourceManager` 生命周期与单实例
+- [ ] 加载/切换当前音源
+- [ ] 多源启用与优先级/回退
+- [ ] 跨源匹配基础结构
+- [ ] `resolveMusicUrl(source, musicInfo, quality)`
+- [ ] `resolveLyric(source, musicInfo)`
+- [ ] `resolvePic(source, musicInfo)`
+- [ ] 初始化失败与请求失败状态回传
+- [ ] `updateAlert` 事件与更新 URL 展示
+- [ ] 源脚本过期/失效诊断信息
+
+### 10.7 FRB 与 Flutter UI
+
+- [ ] `laetibeat_flutter/rust` 增加 `api/lx.rs` 薄 facade
+- [ ] 暴露 `import_lx_source`
+- [ ] 暴露 `list_lx_sources`
+- [ ] 暴露 `set_lx_source_enabled`
+- [ ] 暴露 `set_lx_source_priority`
+- [ ] 暴露 `load_lx_source`
+- [ ] 暴露 `resolve_lx_music_url`
+- [ ] 暴露 `resolve_lx_lyric`
+- [ ] 暴露 `resolve_lx_pic`
+- [ ] 状态/日志/更新提示通过事件流或轮询回传
+- [ ] 移动端设置页增加“洛雪音源”入口
+- [ ] 导入弹窗：本地文件/在线 URL
+- [ ] 源列表：名称、版本、作者、状态、启用开关、优先级
+- [ ] 删除确认、更新提示、错误详情
+- [ ] 移动端与桌面端 UI 隔离，不共享桌面布局
+
+### 10.8 搜索与播放接入
+
+- [ ] 明确 LX 自定义源通常只提供 `musicUrl` / `lyric` / `pic`，不提供搜索
+- [ ] 决定搜索层来源：现有来源 / 内置平台搜索 / 其他目录服务
+- [ ] 将 LX 源作为已知歌曲的播放地址解析器，而不是默认搜索源
+- [ ] 扩展 `SongSources` / 播放解析接口，加入 `lx`
+- [ ] 保存 `source/songmid/quality/musicInfo`，保证切歌后可重新解析
+- [ ] URL 缓存与失效重试策略
+- [ ] 播放失败时自动换源/手动换源 UI
+- [ ] 歌词/封面来源与现有缓存策略衔接
+
+### 10.9 测试与安全
+
+- [ ] 用自己编写的 fixture 测试源导入元数据解析
+- [ ] 用简单测试音源验证 `inited` 握手
+- [ ] 验证 `musicUrl` 成功/失败/超时/取消
+- [ ] 验证歌词/封面返回格式与长度限制
+- [ ] 验证恶意脚本无法访问文件/网络/宿主对象
+- [ ] 验证 `eval` / 动态 Function 被阻止
+- [ ] 验证脚本死循环能被中断
+- [ ] 验证多个源之间上下文隔离
+- [ ] Android 真机验证 QuickJS `.so` 打包与启动
+- [ ] 验证应用后台/锁屏时源请求不会阻塞 UI
+- [ ] 检查 QuickJS/rquickjs/AES/RSA 等依赖许可证
+- [ ] 不提交官方项目代码、素材和第三方音源脚本
+
+### 10.10 验收标准
+
+- [ ] 用户能导入一个本地 `.js` 源
+- [ ] 源初始化成功并显示声明的平台/音质/动作
+- [ ] 能对一首已知歌曲解析出可播放 URL
+- [ ] 能解析歌词和封面
+- [ ] 请求失败/超时/取消不会崩溃
+- [ ] 禁用/删除源后 Context 正确释放
+- [ ] 源脚本失效时错误可定位且不影响本地/OpenSubsonic
+- [ ] `reference/` 不被提交，应用不内置任何洛雪音源
+
 ## 已知问题 / 技术债
 
 - 自研 MPRIS 会卡死 waybar，已停用；后续统一迁移 audio_service
@@ -283,3 +424,6 @@
 - 远端歌词正缓存没有 TTL，服务器更新歌词后需要手动清理
 - 高级 DSP、USB 独占、DSD 尚未实现；当前没有现成 Flutter 包可直接满足
 - 蓝牙/外放仍经过 Android 混音与蓝牙编码，DSP 可改善听感但无法 bit-perfect
+- `reference/lx-music-mobile` 仅本地参考，不参与构建/发布；正式提交前必须确认其不进入仓库或发布包
+- LX 自定义源主要提供 `musicUrl` / `lyric` / `pic`，通常不提供搜索；搜索层需要单独设计
+- 洛雪音源脚本属于第三方内容，不随应用分发；不同脚本的兼容性、可用性和版权风险需由用户自行承担
