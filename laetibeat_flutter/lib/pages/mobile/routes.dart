@@ -19,4 +19,5 @@ abstract final class MobileRoutes {
   static const String musicSources = '/settings/music-sources';
   static const String opensubsonicConfig =
       '/settings/music-sources/opensubsonic';
+  static const String lxSources = '/settings/music-sources/lx';
 }

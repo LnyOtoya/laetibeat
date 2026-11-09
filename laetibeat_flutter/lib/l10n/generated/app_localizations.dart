@@ -680,6 +680,186 @@ abstract class AppLocalizations {
   /// **'LX Music'**
   String get sourceLxMusic;
 
+  /// No description provided for @lxSourcesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LX Music sources'**
+  String get lxSourcesTitle;
+
+  /// No description provided for @lxSourcesSupporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Import, enable and order custom LX sources'**
+  String get lxSourcesSupporting;
+
+  /// No description provided for @lxSourcesWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Source scripts are imported by you. The app does not bundle or fetch third-party sources.'**
+  String get lxSourcesWarning;
+
+  /// No description provided for @lxImportSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Import source'**
+  String get lxImportSource;
+
+  /// No description provided for @lxImportLocalFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Import local file'**
+  String get lxImportLocalFile;
+
+  /// No description provided for @lxImportFromUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from URL'**
+  String get lxImportFromUrl;
+
+  /// No description provided for @lxImportUrlTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from URL'**
+  String get lxImportUrlTitle;
+
+  /// No description provided for @lxImportUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Source script URL'**
+  String get lxImportUrlLabel;
+
+  /// No description provided for @lxImportUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://example.com/source.js'**
+  String get lxImportUrlHint;
+
+  /// No description provided for @lxSourceEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No sources imported'**
+  String get lxSourceEmpty;
+
+  /// No description provided for @lxSourceEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap import to add a .js source script'**
+  String get lxSourceEmptyHint;
+
+  /// No description provided for @lxSourceImportSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Source imported'**
+  String get lxSourceImportSuccess;
+
+  /// No description provided for @lxSourceImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to import source'**
+  String get lxSourceImportFailed;
+
+  /// No description provided for @lxSourceRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get lxSourceRetry;
+
+  /// No description provided for @lxSourceLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load sources'**
+  String get lxSourceLoadFailed;
+
+  /// No description provided for @lxSourceUninitialized.
+  ///
+  /// In en, this message translates to:
+  /// **'Not initialized'**
+  String get lxSourceUninitialized;
+
+  /// No description provided for @lxSourceInitializing.
+  ///
+  /// In en, this message translates to:
+  /// **'Initializing'**
+  String get lxSourceInitializing;
+
+  /// No description provided for @lxSourceReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get lxSourceReady;
+
+  /// No description provided for @lxSourceFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Initialization failed'**
+  String get lxSourceFailed;
+
+  /// No description provided for @lxSourcePriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority'**
+  String get lxSourcePriority;
+
+  /// No description provided for @lxSourceDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get lxSourceDelete;
+
+  /// No description provided for @lxSourceDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete source?'**
+  String get lxSourceDeleteTitle;
+
+  /// No description provided for @lxSourceDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The script and its settings will be removed. This cannot be undone.'**
+  String get lxSourceDeleteBody;
+
+  /// No description provided for @lxSourceDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get lxSourceDeleteConfirm;
+
+  /// No description provided for @lxSourceCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get lxSourceCancel;
+
+  /// No description provided for @lxSourceNoCapabilities.
+  ///
+  /// In en, this message translates to:
+  /// **'No capabilities declared'**
+  String get lxSourceNoCapabilities;
+
+  /// No description provided for @lxSourceEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get lxSourceEnabled;
+
+  /// No description provided for @lxSourceDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get lxSourceDisabled;
+
+  /// No description provided for @lxSourceRaisePriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Raise priority'**
+  String get lxSourceRaisePriority;
+
+  /// No description provided for @lxSourceLowerPriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Lower priority'**
+  String get lxSourceLowerPriority;
+
   /// No description provided for @statisticsTitle.
   ///
   /// In en, this message translates to:

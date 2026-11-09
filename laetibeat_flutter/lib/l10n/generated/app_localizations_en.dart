@@ -310,6 +310,99 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sourceLxMusic => 'LX Music';
 
   @override
+  String get lxSourcesTitle => 'LX Music sources';
+
+  @override
+  String get lxSourcesSupporting =>
+      'Import, enable and order custom LX sources';
+
+  @override
+  String get lxSourcesWarning =>
+      'Source scripts are imported by you. The app does not bundle or fetch third-party sources.';
+
+  @override
+  String get lxImportSource => 'Import source';
+
+  @override
+  String get lxImportLocalFile => 'Import local file';
+
+  @override
+  String get lxImportFromUrl => 'Import from URL';
+
+  @override
+  String get lxImportUrlTitle => 'Import from URL';
+
+  @override
+  String get lxImportUrlLabel => 'Source script URL';
+
+  @override
+  String get lxImportUrlHint => 'https://example.com/source.js';
+
+  @override
+  String get lxSourceEmpty => 'No sources imported';
+
+  @override
+  String get lxSourceEmptyHint => 'Tap import to add a .js source script';
+
+  @override
+  String get lxSourceImportSuccess => 'Source imported';
+
+  @override
+  String get lxSourceImportFailed => 'Failed to import source';
+
+  @override
+  String get lxSourceRetry => 'Retry';
+
+  @override
+  String get lxSourceLoadFailed => 'Failed to load sources';
+
+  @override
+  String get lxSourceUninitialized => 'Not initialized';
+
+  @override
+  String get lxSourceInitializing => 'Initializing';
+
+  @override
+  String get lxSourceReady => 'Ready';
+
+  @override
+  String get lxSourceFailed => 'Initialization failed';
+
+  @override
+  String get lxSourcePriority => 'Priority';
+
+  @override
+  String get lxSourceDelete => 'Delete';
+
+  @override
+  String get lxSourceDeleteTitle => 'Delete source?';
+
+  @override
+  String get lxSourceDeleteBody =>
+      'The script and its settings will be removed. This cannot be undone.';
+
+  @override
+  String get lxSourceDeleteConfirm => 'Delete';
+
+  @override
+  String get lxSourceCancel => 'Cancel';
+
+  @override
+  String get lxSourceNoCapabilities => 'No capabilities declared';
+
+  @override
+  String get lxSourceEnabled => 'Enabled';
+
+  @override
+  String get lxSourceDisabled => 'Disabled';
+
+  @override
+  String get lxSourceRaisePriority => 'Raise priority';
+
+  @override
+  String get lxSourceLowerPriority => 'Lower priority';
+
+  @override
   String get statisticsTitle => 'Statistics';
 
   @override

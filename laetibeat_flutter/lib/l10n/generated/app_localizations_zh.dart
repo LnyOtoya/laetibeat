@@ -301,6 +301,96 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sourceLxMusic => '洛雪音源';
 
   @override
+  String get lxSourcesTitle => '洛雪音源';
+
+  @override
+  String get lxSourcesSupporting => '导入、启用和排序自定义 LX 音源';
+
+  @override
+  String get lxSourcesWarning => '音源脚本由你自行导入，应用不内置也不自动获取第三方音源。';
+
+  @override
+  String get lxImportSource => '导入音源';
+
+  @override
+  String get lxImportLocalFile => '从本地文件导入';
+
+  @override
+  String get lxImportFromUrl => '从在线地址导入';
+
+  @override
+  String get lxImportUrlTitle => '从在线地址导入';
+
+  @override
+  String get lxImportUrlLabel => '音源脚本 URL';
+
+  @override
+  String get lxImportUrlHint => 'https://example.com/source.js';
+
+  @override
+  String get lxSourceEmpty => '还没有导入音源';
+
+  @override
+  String get lxSourceEmptyHint => '点击右上角导入一个 .js 音源脚本';
+
+  @override
+  String get lxSourceImportSuccess => '音源已导入';
+
+  @override
+  String get lxSourceImportFailed => '导入音源失败';
+
+  @override
+  String get lxSourceRetry => '重试';
+
+  @override
+  String get lxSourceLoadFailed => '读取音源失败';
+
+  @override
+  String get lxSourceUninitialized => '未初始化';
+
+  @override
+  String get lxSourceInitializing => '初始化中';
+
+  @override
+  String get lxSourceReady => '可用';
+
+  @override
+  String get lxSourceFailed => '初始化失败';
+
+  @override
+  String get lxSourcePriority => '优先级';
+
+  @override
+  String get lxSourceDelete => '删除';
+
+  @override
+  String get lxSourceDeleteTitle => '删除音源？';
+
+  @override
+  String get lxSourceDeleteBody => '将移除脚本和配置，无法撤销。';
+
+  @override
+  String get lxSourceDeleteConfirm => '删除';
+
+  @override
+  String get lxSourceCancel => '取消';
+
+  @override
+  String get lxSourceNoCapabilities => '未声明能力';
+
+  @override
+  String get lxSourceEnabled => '已启用';
+
+  @override
+  String get lxSourceDisabled => '已禁用';
+
+  @override
+  String get lxSourceRaisePriority => '提高优先级';
+
+  @override
+  String get lxSourceLowerPriority => '降低优先级';
+
+  @override
   String get statisticsTitle => '统计';
 
   @override

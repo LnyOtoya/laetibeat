@@ -13,7 +13,7 @@
 - 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
 - 歌词：已接入 LRCLIB、LiriQo 搜索，支持逐字/逐行/静态标记、翻译与临时应用
 - 跨平台：Linux 桌面可用；Android UI 已解耦，audio_service 后台/锁屏/通知已验证；Windows/macOS 打包未开始
-- LX 音源：`laetibeat_lx` 已建立；QuickJS、inited、HTTP、AES/RSA、setTimeout、SourceStore、SourceManager、FRB facade 已通过；Flutter UI 尚未接入
+- LX 音源：`laetibeat_lx` 已建立；QuickJS、inited、HTTP、AES/RSA、setTimeout、SourceStore、SourceManager、FRB facade、移动端管理 UI 已通过；搜索/播放接入尚未完成
 - 主要缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 
@@ -369,12 +369,13 @@
 - [x] 暴露 `resolve_lx_lyric`
 - [x] 暴露 `resolve_lx_pic`
 - [x] 通过 `list_lx_sources` 查询内存状态（事件流/更新提示仍待做）
-- [ ] 移动端设置页增加“洛雪音源”入口
+- [x] 移动端设置页增加“洛雪音源”入口
 - [x] 启动时初始化 `<application support>/laetibeat_lx` 存储
-- [ ] 导入弹窗：本地文件/在线 URL
-- [ ] 源列表：名称、版本、作者、状态、启用开关、优先级
-- [ ] 删除确认、更新提示、错误详情
-- [ ] 移动端与桌面端 UI 隔离，不共享桌面布局
+- [x] 导入弹窗：本地文件/在线 URL
+- [x] 源列表：名称、版本、作者、状态、启用开关、优先级
+- [x] 删除确认、错误提示
+- [ ] `updateAlert` 更新提示 UI
+- [x] 移动端与桌面端 UI 隔离，不共享桌面布局
 
 ### 10.8 搜索与播放接入
 

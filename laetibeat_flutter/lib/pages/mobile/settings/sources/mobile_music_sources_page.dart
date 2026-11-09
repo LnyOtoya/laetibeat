@@ -5,6 +5,7 @@ import '../../../../l10n/generated/app_localizations.dart';
 import '../../mobile_navigation.dart';
 import '../../routes.dart';
 import '../../widgets/mobile_large_subpage_app_bar.dart';
+import 'lx/mobile_lx_sources_page.dart';
 import 'opensubsonic/mobile_opensubsonic_config_page.dart';
 
 /// 音乐源配置页面。
@@ -32,12 +33,19 @@ class MobileMusicSourcesPage extends StatelessWidget {
               color: theme.colorScheme.surface,
               variant: M3ECardVariant.filled,
               onTap: (int index) {
-                if (index != 0) return;
-                pushMobileRootPage(
-                  context,
-                  const MobileOpensubsonicConfigPage(),
-                  name: MobileRoutes.opensubsonicConfig,
-                );
+                if (index == 0) {
+                  pushMobileRootPage(
+                    context,
+                    const MobileOpensubsonicConfigPage(),
+                    name: MobileRoutes.opensubsonicConfig,
+                  );
+                } else if (index == 3) {
+                  pushMobileRootPage(
+                    context,
+                    const MobileLxSourcesPage(),
+                    name: MobileRoutes.lxSources,
+                  );
+                }
               },
               itemCount: 4,
               itemBuilder: (BuildContext context, int index) {
@@ -56,7 +64,7 @@ class MobileMusicSourcesPage extends StatelessWidget {
                   ),
                   _ => M3EListItem(
                     headline: l10n.sourceLxMusic,
-                    supportingText: l10n.notAvailable,
+                    supportingText: l10n.lxSourcesSupporting,
                   ),
                 };
               },
