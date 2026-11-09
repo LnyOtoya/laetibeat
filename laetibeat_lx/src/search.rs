@@ -399,7 +399,11 @@ fn push_kg_track(
             .and_then(value_i64)
             .map(normalize_seconds)
             .unwrap_or(0),
-        img: None,
+        img: item
+            .get("Image")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .map(|value| value.replace("{size}", "480")),
         extra,
     });
 }
@@ -710,8 +714,15 @@ fn parse_mg(body: &Value) -> (Vec<LxSearchTrack>, u64) {
             if let Some(value) = item.get("copyrightId").and_then(Value::as_str) {
                 extra.insert("copyrightId".to_string(), Value::String(value.to_string()));
             }
-            for key in ["lrcUrl", "mrcUrl", "trcUrl"] {
-                if let Some(value) = item.get(key).and_then(Value::as_str) {
+            for (key, aliases) in [
+                ("lrcUrl", &["lrcUrl", "lyricUrl"][..]),
+                ("mrcUrl", &["mrcUrl", "mrcurl"][..]),
+                ("trcUrl", &["trcUrl", "trcurl"][..]),
+            ] {
+                if let Some(value) = aliases
+                    .iter()
+                    .find_map(|alias| item.get(*alias).and_then(Value::as_str))
+                {
                     extra.insert(key.to_string(), Value::String(value.to_string()));
                 }
             }

@@ -227,7 +227,7 @@ fn parse_krc(text: &str) -> Result<LxLyric> {
             continue;
         };
         let header = &line[1..close];
-        let Some((start, _duration)) = header.split_once(',') else {
+        let Some((start, duration)) = header.split_once(',') else {
             lrc_lines.push(line.to_string());
             lx_lines.push(line.to_string());
             continue;
@@ -235,6 +235,7 @@ fn parse_krc(text: &str) -> Result<LxLyric> {
         let Ok(start_ms) = start.parse::<f64>() else {
             continue;
         };
+        let duration_ms = duration.parse::<i64>().unwrap_or(0);
         let rest = &line[close + 1..];
         let mut words = String::new();
         let mut lx_words = String::new();
@@ -270,7 +271,7 @@ fn parse_krc(text: &str) -> Result<LxLyric> {
                 html_escape::decode_html_entities(&words)
             ));
             lx_lines.push(format!(
-                "{timestamp}{}",
+                "[{start_ms:.0},{duration_ms}]{}",
                 html_escape::decode_html_entities(&lx_words)
             ));
         }
@@ -286,22 +287,247 @@ fn parse_krc(text: &str) -> Result<LxLyric> {
 }
 
 fn fetch_mg(client: &Client, info: &LxMusicInfo) -> Result<LxLyric> {
-    if let Some(url) = extra_string(info, "lrcUrl") {
-        let lyric = get_text(client.get(&url))?.trim().to_string();
+    // The search endpoint often omits mrcUrl/trcUrl even though the resource
+    // info endpoint has them. Fetch that extra metadata once per lyric request.
+    let resource = fetch_mg_resource(client, info);
+    let resource_value = resource.as_ref();
+    let mrc_url = extra_string(info, "mrcUrl").or_else(|| {
+        resource_value.and_then(|value| {
+            value
+                .get("mrcUrl")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
+    });
+    let lrc_url = extra_string(info, "lrcUrl").or_else(|| {
+        resource_value.and_then(|value| {
+            value
+                .get("lrcUrl")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
+    });
+    let trc_url = extra_string(info, "trcUrl").or_else(|| {
+        resource_value.and_then(|value| {
+            value
+                .get("trcUrl")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
+    });
+    let translation = trc_url
+        .filter(|url| !url.is_empty())
+        .and_then(|url| mg_get_text(client, &url).ok())
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let mut mrc_error = None;
+
+    if let Some(url) = mrc_url {
+        match fetch_mg_mrc(client, &url) {
+            Ok(mut lyric) => {
+                lyric.tlyric = translation;
+                return Ok(lyric);
+            }
+            Err(error) => mrc_error = Some(error),
+        }
+    }
+
+    if let Some(url) = lrc_url {
+        let lyric = mg_get_text(client, &url)?.trim().to_string();
         if !lyric.is_empty() {
             return Ok(LxLyric {
                 lyric,
+                tlyric: translation,
                 ..Default::default()
             });
         }
     }
-    if let Some(url) = extra_string(info, "mrcUrl") {
-        let _ = url;
-        return Err(LxError::Request(
-            "mg mrc lyric decoder is not implemented yet".to_string(),
-        ));
+
+    Err(mrc_error.unwrap_or_else(|| LxError::Request("no mg lyric url".to_string())))
+}
+
+fn fetch_mg_resource(client: &Client, info: &LxMusicInfo) -> Option<Value> {
+    let body = get_json(
+        client
+            .post("https://c.musicapp.migu.cn/MIGUM2.0/v1.0/content/resourceinfo.do")
+            .query(&[("resourceType", "2")])
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (Linux; Android 5.1.1; Nexus 6 Build/LYZ28E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Mobile Safari/537.36",
+            )
+            .form(&[("resourceId", &info.id)]),
+    )
+    .ok()?;
+    body.get("resource")
+        .and_then(Value::as_array)
+        .and_then(|items| items.first())
+        .cloned()
+}
+
+fn fetch_mg_mrc(client: &Client, url: &str) -> Result<LxLyric> {
+    let encrypted = mg_get_text(client, url)?;
+    let text = decrypt_mrc(encrypted.trim())?;
+    parse_mrc(&text)
+}
+
+fn mg_get_text(client: &Client, url: &str) -> Result<String> {
+    get_text(
+        client
+            .get(url)
+            .header("Referer", "https://app.c.nf.migu.cn/")
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (Linux; Android 5.1.1; Nexus 6 Build/LYZ28E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Mobile Safari/537.36",
+            ),
+    )
+}
+
+fn decrypt_mrc(data: &str) -> Result<String> {
+    const DELTA: u64 = 2_654_435_769;
+    const KEY: [u64; 9] = [
+        27_303_562_373_562_475,
+        18_014_862_372_307_051,
+        22_799_692_160_172_081,
+        34_058_940_340_699_235,
+        30_962_724_186_095_721,
+        27_303_523_720_101_991,
+        27_303_523_720_101_998,
+        31_244_139_033_526_382,
+        28_992_395_054_481_524,
+    ];
+
+    if data.len() < 32 {
+        return Ok(data.to_string());
     }
-    Err(LxError::Request("no mg lyric url".to_string()))
+    let mut words = Vec::new();
+    for chunk in data.as_bytes().chunks(16) {
+        if chunk.len() < 16 {
+            break;
+        }
+        let text = std::str::from_utf8(chunk)
+            .map_err(|error| LxError::Request(format!("invalid mrc hex: {error}")))?;
+        let value = u64::from_str_radix(text, 16)
+            .map_err(|error| LxError::Request(format!("invalid mrc word: {error}")))?;
+        words.push(value as i64);
+    }
+    if words.is_empty() {
+        return Ok(data.to_string());
+    }
+
+    let length = words.len() as u64;
+    let mut j2 = words[0];
+    let mut j3 = ((6 + 52 / length).wrapping_mul(DELTA)) as i64;
+    while j3 != 0 {
+        let j4 = j3;
+        let j5 = ((j4 >> 2) & 3) as i64;
+        let mut j6 = length as i64;
+        loop {
+            j6 -= 1;
+            if j6 <= 0 {
+                break;
+            }
+            let j7 = words[(j6 - 1) as usize];
+            let index = j6 as usize;
+            let key = KEY[((j6 & 3) ^ j5) as usize];
+            let mixed = ((j2 ^ j4).wrapping_add(j7 ^ (key as i64)))
+                ^ (j7.wrapping_shr(5) ^ j2.wrapping_shl(2))
+                    .wrapping_add(j2.wrapping_shr(3) ^ j7.wrapping_shl(4));
+            j2 = words[index].wrapping_sub(mixed);
+            words[index] = j2;
+        }
+        let j8 = words[length as usize - 1];
+        let key = KEY[((j6 & 3) ^ j5) as usize];
+        let mixed = ((key as i64 ^ j8).wrapping_add(j2 ^ j4))
+            ^ (j8.wrapping_shr(5) ^ j2.wrapping_shl(2))
+                .wrapping_add(j2.wrapping_shr(3) ^ j8.wrapping_shl(4));
+        j2 = words[0].wrapping_sub(mixed);
+        words[0] = j2;
+        j3 = j4.wrapping_sub(DELTA as i64);
+    }
+
+    let mut bytes = Vec::with_capacity(words.len() * 8);
+    for word in words {
+        bytes.extend_from_slice(&(word as u64).to_le_bytes());
+    }
+    let units = bytes
+        .chunks_exact(2)
+        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+        .collect::<Vec<_>>();
+    let text = String::from_utf16_lossy(&units);
+    Ok(text.trim_matches('\0').to_string())
+}
+
+fn parse_mrc(text: &str) -> Result<LxLyric> {
+    let mut lrc_lines = Vec::new();
+    let mut lx_lines = Vec::new();
+    for raw_line in text.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Some(close) = line.find(']') else {
+            lrc_lines.push(line.to_string());
+            lx_lines.push(line.to_string());
+            continue;
+        };
+        let header = &line[1..close];
+        let Some((start, duration)) = header.split_once(',') else {
+            lrc_lines.push(line.to_string());
+            lx_lines.push(line.to_string());
+            continue;
+        };
+        let Ok(start_ms) = start.parse::<f64>() else {
+            continue;
+        };
+        let duration_ms = duration.parse::<i64>().unwrap_or(0);
+        let rest = &line[close + 1..];
+        let mut words = String::new();
+        let mut lx_words = String::new();
+        let mut cursor = 0;
+        while cursor < rest.len() {
+            let Some(tag_start_rel) = rest[cursor..].find('(') else {
+                words.push_str(&rest[cursor..]);
+                lx_words.push_str(&rest[cursor..]);
+                break;
+            };
+            let tag_start = cursor + tag_start_rel;
+            words.push_str(&rest[cursor..tag_start]);
+            lx_words.push_str(&rest[cursor..tag_start]);
+            let Some(tag_end_rel) = rest[tag_start..].find(')') else {
+                words.push_str(&rest[tag_start..]);
+                lx_words.push_str(&rest[tag_start..]);
+                break;
+            };
+            let tag_end = tag_start + tag_end_rel;
+            let tag = &rest[tag_start + 1..tag_end];
+            let mut parts = tag.split(',');
+            let offset = parts.next().and_then(|value| value.parse::<i64>().ok());
+            let during = parts.next().and_then(|value| value.parse::<i64>().ok());
+            if let (Some(offset), Some(during)) = (offset, during) {
+                lx_words.push_str(&format!("<{offset},{during}>"));
+            }
+            cursor = tag_end + 1;
+        }
+        let timestamp = lrc_time(start_ms / 1000.0);
+        if !words.trim().is_empty() {
+            lrc_lines.push(format!(
+                "{timestamp}{}",
+                html_escape::decode_html_entities(&words)
+            ));
+            lx_lines.push(format!(
+                "[{start_ms:.0},{duration_ms}]{}",
+                html_escape::decode_html_entities(&lx_words)
+            ));
+        }
+    }
+    if lrc_lines.is_empty() {
+        return Err(LxError::Request("empty mrc lyric".to_string()));
+    }
+    Ok(LxLyric {
+        lyric: lrc_lines.join("\n"),
+        lxlyric: Some(lx_lines.join("\n")),
+        ..Default::default()
+    })
 }
 
 fn fetch_wy(client: &Client, song_mid: &str) -> Result<LxLyric> {
@@ -439,6 +665,13 @@ mod tests {
     #[test]
     fn parses_krc_lines() {
         let lyric = parse_krc("[ti:Test]\n[1000,2000]<0,100,0>你<100,100,0>好").unwrap();
+        assert!(lyric.lyric.contains("[00:01.00]你好"));
+        assert!(lyric.lxlyric.unwrap().contains("<0,100>你"));
+    }
+
+    #[test]
+    fn parses_mrc_lines() {
+        let lyric = parse_mrc("[1000,2000](0,100)你(100,100)好").unwrap();
         assert!(lyric.lyric.contains("[00:01.00]你好"));
         assert!(lyric.lxlyric.unwrap().contains("<0,100>你"));
     }

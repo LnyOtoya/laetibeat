@@ -425,18 +425,20 @@
 - [x] 无本地/Subsonic 时，启用 LX 源后可在搜索页搜索 kw/kg/tx/wy/mg 并播放
 - [x] 搜索分页 / 加载更多
 - [x] 搜索失败重试
-- [ ] 搜索请求取消（当前通过请求代次丢弃旧结果）
+- [x] 搜索输入防抖（300ms）
+- [ ] 搜索请求真正取消（当前通过请求代次丢弃旧结果）
 - [ ] 真实 LX 源 + 真实平台搜索结果联调
 - [x] 平台特定字段透传（kg hash、mg copyrightId、tx strMediaMid/songId）
 - [x] `UiTrack.sourceExtraJson` 与队列快照持久化
 - [x] LX URL 内存缓存（5 分钟）与失败重试
 - [x] 带平台字段/URL 缓存的 release APK 构建通过（151.2MB）
 - [x] 修复 KG 搜索：Audioid 为数字类型时被跳过
-- [x] 带 KG/MG 歌词、KW/KG 封面的 release APK 构建通过（151.4MB）
+- [x] 带 KG/MG 歌词、KW/KG 封面、MG mrc 解密、搜索防抖的 release APK 构建通过（151.4MB）
 - [x] kg 内置歌词接口（KRC 解码）
-- [x] mg 内置 LRC 歌词接口（mrc 逐字解码待补）
+- [x] mg 内置歌词接口：lrcUrl + mrcUrl TEA 解密 + trcUrl 翻译（待真实 mrc 样本验证）
 - [x] kw 搜索封面（web_albumpic_short -> 500px）
-- [x] kg 平台封面（media.store.kugou.com）
+- [x] kg 搜索封面（Image 模板）与播放封面回退（media.store.kugou.com）
+- [x] 用真实 MG mrc 样本验证 TEA 解密与 MRC 解析
 - [ ] 播放 URL 失效后的媒体层自动重试
 - [ ] `tx` / `wy` 接口失效时的错误提示与降级
 - [ ] 用真实 `source=lx` 曲目测试播放/歌词/封面

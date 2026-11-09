@@ -664,9 +664,12 @@ class _LxSearchSection extends ConsumerStatefulWidget {
 }
 
 class _LxSearchSectionState extends ConsumerState<_LxSearchSection> {
+  static const Duration _searchDebounce = Duration(milliseconds: 300);
+
   String? _selectedPlatform;
   String _loadedKey = '';
   String _pendingKey = '';
+  Timer? _debounceTimer;
   List<rust_lx.UiLxSearchTrack> _tracks = const [];
   int _page = 0;
   int _requestGeneration = 0;
@@ -689,7 +692,8 @@ class _LxSearchSectionState extends ConsumerState<_LxSearchSection> {
     final key = _key(platform);
     if (key == _loadedKey || key == _pendingKey) return;
     _pendingKey = key;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(_searchDebounce, () {
       if (!mounted || _pendingKey != key) return;
       _pendingKey = '';
       _load(platform: platform, append: false);
@@ -748,15 +752,22 @@ class _LxSearchSectionState extends ConsumerState<_LxSearchSection> {
   }
 
   void _selectPlatform(String platform) {
+    _debounceTimer?.cancel();
     setState(() {
       _selectedPlatform = platform;
+      _pendingKey = '';
       _tracks = const [];
       _loadedKey = '';
-      _pendingKey = '';
       _page = 0;
       _hasMore = false;
       _error = null;
     });
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
   }
 
   @override
