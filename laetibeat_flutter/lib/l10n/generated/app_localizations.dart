@@ -404,6 +404,30 @@ abstract class AppLocalizations {
   /// **'Cache overview'**
   String get cacheOverview;
 
+  /// No description provided for @cacheUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Used'**
+  String get cacheUsed;
+
+  /// No description provided for @cacheTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get cacheTotal;
+
+  /// No description provided for @cacheFreeSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'Free up space'**
+  String get cacheFreeSpace;
+
+  /// No description provided for @cacheTotalSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Total cache size'**
+  String get cacheTotalSize;
+
   /// No description provided for @cacheLyrics.
   ///
   /// In en, this message translates to:

@@ -226,7 +226,7 @@ class RemoteCoverProvider {
 // ---------------------------------------------------------------------------
 
 /// 全局封面来源(本地文件实现)。
-final coverProvider = Provider<CoverProvider>((ref) {
+final coverProvider = Provider<FileCoverProvider>((ref) {
   return FileCoverProvider();
 });
 

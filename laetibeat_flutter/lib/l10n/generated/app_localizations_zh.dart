@@ -162,6 +162,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cacheOverview => '缓存概览';
 
   @override
+  String get cacheUsed => '已使用';
+
+  @override
+  String get cacheTotal => '共';
+
+  @override
+  String get cacheFreeSpace => '释放空间';
+
+  @override
+  String get cacheTotalSize => '总缓存大小';
+
+  @override
   String get cacheLyrics => '歌词缓存';
 
   @override

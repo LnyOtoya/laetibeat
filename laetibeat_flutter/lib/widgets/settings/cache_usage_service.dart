@@ -4,22 +4,44 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/library.dart' as rust_library;
 import 'package:path_provider/path_provider.dart';
 
+import '../cache/cover_cache.dart';
+import '../player/cover_provider.dart';
 import 'persistence.dart';
 
 enum CacheGroup { local, subsonic, lx }
 
-const List<int> kCacheLimitMbLevels = <int>[256, 512, 1024, 2048, 4096, 0];
+/// Default total quota kept in sync with the historical per-group defaults
+/// (local 1GB + Subsonic 2GB + LX 512MB).
+const int kDefaultCacheTotalMb = 3584;
 
+/// Slider stops shown under the global cache-size setting.
+const List<int> kCacheLimitMbLevels = <int>[512, 1024, 2048, 3584, 4096, 0];
+
+/// One global cache quota, split across the three caches using the historical
+/// default ratio. The UI only edits the total; each provider still receives
+/// its own byte limit so existing LRU implementations keep working.
 class CacheLimits {
-  const CacheLimits({
-    this.localMb = 1024,
-    this.subsonicMb = 2048,
-    this.lxMb = 512,
-  });
+  const CacheLimits({this.totalMb = kDefaultCacheTotalMb});
 
-  final int localMb;
-  final int subsonicMb;
-  final int lxMb;
+  final int totalMb;
+
+  static const int _localWeight = 1024;
+  static const int _subsonicWeight = 2048;
+  static const int _lxWeight = 512;
+  static const int _weightSum = _localWeight + _subsonicWeight + _lxWeight;
+
+  bool get isUnlimited => totalMb == 0;
+
+  int get totalBytes => totalMb * 1024 * 1024;
+
+  int get localMb => isUnlimited ? 0 : totalMb * _localWeight ~/ _weightSum;
+
+  int get subsonicMb =>
+      isUnlimited ? 0 : totalMb * _subsonicWeight ~/ _weightSum;
+
+  /// Take the remainder so the three per-group limits always add up to the
+  /// total shown in the UI.
+  int get lxMb => isUnlimited ? 0 : totalMb - localMb - subsonicMb;
 
   int forGroup(CacheGroup group) => switch (group) {
     CacheGroup.local => localMb,
@@ -27,43 +49,62 @@ class CacheLimits {
     CacheGroup.lx => lxMb,
   };
 
-  CacheLimits withGroup(CacheGroup group, int mb) => CacheLimits(
-    localMb: group == CacheGroup.local ? mb : localMb,
-    subsonicMb: group == CacheGroup.subsonic ? mb : subsonicMb,
-    lxMb: group == CacheGroup.lx ? mb : lxMb,
-  );
+  /// Byte cap passed to the actual cache implementations. `0` means unlimited
+  /// at the UI level; providers use a very large cap instead of special-casing.
+  int bytesFor(CacheGroup group) {
+    final mb = forGroup(group);
+    return mb == 0 ? (1 << 60) : mb * 1024 * 1024;
+  }
 }
 
 class CacheLimitsNotifier extends Notifier<CacheLimits> {
-  static const String _localKey = 'cache.limit.local_mb';
-  static const String _subsonicKey = 'cache.limit.subsonic_mb';
-  static const String _lxKey = 'cache.limit.lx_mb';
+  static const String _totalKey = 'cache.limit.total_mb';
+  static const String _legacyLocalKey = 'cache.limit.local_mb';
+  static const String _legacySubsonicKey = 'cache.limit.subsonic_mb';
+  static const String _legacyLxKey = 'cache.limit.lx_mb';
 
   @override
   CacheLimits build() {
     final prefs = ref.read(sharedPreferencesProvider);
-    return CacheLimits(
-      localMb: prefs.getInt(_localKey) ?? 1024,
-      subsonicMb: prefs.getInt(_subsonicKey) ?? 2048,
-      lxMb: prefs.getInt(_lxKey) ?? 512,
-    );
+    final saved = prefs.getInt(_totalKey);
+    if (saved != null) return CacheLimits(totalMb: saved);
+
+    // Migrate the old per-group settings once, so existing users keep their
+    // effective total instead of suddenly falling back to the default.
+    final legacyTotal =
+        (prefs.getInt(_legacyLocalKey) ?? 1024) +
+        (prefs.getInt(_legacySubsonicKey) ?? 2048) +
+        (prefs.getInt(_legacyLxKey) ?? 512);
+    return CacheLimits(totalMb: legacyTotal);
   }
 
-  Future<void> setLimit(CacheGroup group, int mb) async {
-    if (state.forGroup(group) == mb) return;
-    state = state.withGroup(group, mb);
-    final prefs = ref.read(sharedPreferencesProvider);
-    await prefs.setInt(switch (group) {
-      CacheGroup.local => _localKey,
-      CacheGroup.subsonic => _subsonicKey,
-      CacheGroup.lx => _lxKey,
-    }, mb);
+  Future<void> setTotalMb(int mb) async {
+    if (state.totalMb == mb) return;
+    state = CacheLimits(totalMb: mb);
+    await ref
+        .read(sharedPreferencesProvider)
+        .setInt(_totalKey, mb);
   }
 }
 
 final cacheLimitsProvider = NotifierProvider<CacheLimitsNotifier, CacheLimits>(
   CacheLimitsNotifier.new,
 );
+
+/// Push the global quota down to the three memory/disk cache implementations.
+Future<void> applyCacheLimitsToCovers({
+  required CacheLimits limits,
+  required FileCoverProvider localCovers,
+  required RemoteCoverProvider remoteCovers,
+  required LxCoverProvider lxCovers,
+}) async {
+  localCovers.setMaxBytes(limits.bytesFor(CacheGroup.local));
+  remoteCovers.setMaxBytes(limits.bytesFor(CacheGroup.subsonic));
+  await remoteCoverDiskCache.setMaxBytes(
+    limits.bytesFor(CacheGroup.subsonic),
+  );
+  lxCovers.setMaxBytes(limits.bytesFor(CacheGroup.lx));
+}
 
 class CacheGroupUsage {
   const CacheGroupUsage({
@@ -116,22 +157,19 @@ class CacheUsageService {
     final localSnapshot = await _fileSize(
       File('${support.path}/library_snapshot.json'),
     );
-    final libraryDb = await _fileSize(File('${support.path}/laetibeat_library.db'));
+    final libraryDb = await _fileSize(
+      File('${support.path}/laetibeat_library.db'),
+    );
     final covers = await _dirSize(Directory('${support.path}/remote_covers'));
-    final lxStore = await _dirSize(Directory('${support.path}/laetibeat_lx'));
-    final statsDb = await _fileSize(File('${support.path}/laetibeat_stats.db'));
-    final queue = await _fileSize(
-      File('${support.path}/playback_queue.json'),
-    ) + await _fileSize(File('${support.path}/playback_state.json'));
 
-    // The library DB also contains lyric rows, so subtract the lyric text
-    // bytes to avoid counting them twice in the breakdown.
+    // 只统计“清除所有缓存”会真正释放的内容。LX 源脚本、播放统计库和
+    // 播放队列属于用户数据，不应被算进缓存占用。
     final subsonicOther = (libraryDb - totalLyrics).clamp(0, libraryDb);
     return CacheUsageSnapshot(
       local: CacheGroupUsage(
         lyricsBytes: localLyrics,
         coversBytes: 0,
-        otherBytes: localSnapshot + queue,
+        otherBytes: localSnapshot,
       ),
       subsonic: CacheGroupUsage(
         lyricsBytes: subsonicLyrics,
@@ -141,7 +179,7 @@ class CacheUsageService {
       lx: CacheGroupUsage(
         lyricsBytes: lxLyrics,
         coversBytes: 0,
-        otherBytes: lxStore + statsDb,
+        otherBytes: 0,
       ),
     );
   }
@@ -188,12 +226,28 @@ final cacheUsageProvider = FutureProvider<CacheUsageSnapshot>((ref) {
 });
 
 String formatCacheBytes(int bytes) {
-  if (bytes < 1024) return '$bytes B';
+  final parts = formatCacheSizeParts(bytes);
+  return '${parts.value} ${parts.unit}';
+}
+
+/// Split value and unit so the storage header can enlarge only the number.
+({String value, String unit}) formatCacheSizeParts(int bytes) {
+  if (bytes < 1024) return (value: '$bytes', unit: 'B');
   if (bytes < 1024 * 1024) {
-    return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return (value: (bytes / 1024).toStringAsFixed(1), unit: 'KB');
   }
   if (bytes < 1024 * 1024 * 1024) {
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return (value: (bytes / (1024 * 1024)).toStringAsFixed(1), unit: 'MB');
   }
-  return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  return (value: (bytes / (1024 * 1024 * 1024)).toStringAsFixed(2), unit: 'GB');
+}
+
+/// Compact label used by the total-cache-size slider stops.
+String formatCacheLimitLabel(int mb) {
+  if (mb == 0) return '∞';
+  if (mb < 1024) return '${mb}MB';
+  final gb = mb / 1024;
+  return gb == gb.roundToDouble()
+      ? '${gb.toInt()}GB'
+      : '${gb.toStringAsFixed(1)}GB';
 }

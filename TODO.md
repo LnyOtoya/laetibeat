@@ -7,7 +7,7 @@
 
 - 本地音乐：扫描、增量复用、专辑/艺术家聚合、播放、封面、歌词、统计、推荐
 - Navidrome：单服务端配置、手动同步、SQLite 快照、浏览/搜索/播放、封面/歌词、scrobble
-- 缓存：本地封面按需读取；远端封面内存 + 磁盘 LRU；歌词 SQLite 正负缓存；LX 目前仅内存封面缓存
+- 缓存：本地封面按需读取；远端封面内存 + 磁盘 LRU；歌词 SQLite 正负缓存；LX 目前仅内存封面缓存；移动端缓存管理支持总上限滑块、三源明细与一键释放空间
 - 移动端：音乐库/搜索/设置/播放页/迷你播放器已完成；首页目前只保留播放器主视图，`mobile_welcome_section` / `mobile_daily_section` 组件尚未接入
 - 移动端 OpenSubsonic：连接、测试、扫描、歌单、艺术家简介、专辑/曲目浏览已接入真实数据
 - 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
@@ -29,7 +29,7 @@
 - [ ] 搜索建议增加 300ms 防抖：`LibrarySearchSuggestions` 当前每次按键都会触发 LX 网络搜索
 - [ ] LX 源导入/启用/禁用/删除/改优先级后刷新 `lxEnabledPlatformsProvider` 与 `lxSearchProvider`
 - [ ] LX 冷启动改为懒加载：`init_lx_source_store` 不再同步 `load_enabled_sources()`，避免 bootstrap 被脚本初始化/网络阻塞
-- [ ] 缓存上限在启动时应用；统一 UI 默认值与实际内存/磁盘上限；清理缓存时同时清理内存缓存
+- [x] 缓存管理重做：总缓存上限滑块、启动时套用、UI 默认值与实际分配对齐、清理缓存时同步清理内存缓存（`flutter analyze` / `flutter test` 通过）
 - [ ] 为 QuickJS 增加执行超时、内存上限、中断与死循环保护
 - [ ] Android 接入 SAF / file_picker 目录选择，修复 `MobileDirectoryPicker` 返回 null
 - [ ] `PlaybackBackend` 增加 buffering / error / processing phase，`LaetibeatAudioHandler` 不再固定 `processingState=ready`
@@ -43,7 +43,8 @@
 - [ ] 统一 `source` 类型（local / opensubsonic / lx）为常量或枚举，清理字符串字面量
 - [ ] 清理死代码：`AudioSource`、`PlayState`、`SourceType::Opensubsonic`、`linux_mpris.dart`、`tmp.dart.bak`、未引用的移动首页组件
 - [ ] 更新 `ARCHITECTURE.md`：当前移动端播放后端、单 Navigator、audio_service 状态
-- [ ] 在可用 Flutter 环境复验 `flutter analyze` / `flutter test`，并补充播放队列、搜索、缓存测试
+- [x] 在可用 Flutter 环境复验 `flutter analyze` / `flutter test`（2026-11-10；analyze 仍有 4 个既有 warning/info）
+- [ ] 补充播放队列、搜索、缓存管理的回归测试
 - [ ] 补齐仓库 LICENSE / 第三方 NOTICE，确认 QuickJS / FFmpeg 分发合规
 - [ ] Android cleartext 改为按域名白名单的 network security config
 
@@ -127,12 +128,13 @@
 ## 阶段6：封面 / 歌词 / 缓存
 
 - [x] 6.1 本地封面：Rust lofty 读取内嵌图
-- [x] 6.2 远端封面：内存 LRU + 磁盘 LRU 256MB，服务器变更时清理
+- [x] 6.2 远端封面：内存 LRU + 磁盘 LRU（受总缓存上限的 Subsonic 份额控制），服务器变更时清理
 - [x] 6.3 本地歌词：内嵌 → sidecar，按音频/sidecar 指纹缓存
 - [x] 6.4 远端歌词：OpenSubsonic 返回，正缓存长期、负缓存 1 天
 - [x] 6.5 歌词缓存 20MB 上限与过期负缓存清理
 - [x] 6.6 搜索歌词：LRCLIB + LiriQo、逐字/逐行/静态、翻译、应用覆盖
 - [ ] 6.7 搜索歌词持久化：写入本地 .lrc / 标签，或保存覆盖记录
+- [x] 6.8 移动端缓存管理：总用量/上限、粗细进度条、释放空间、三源歌词/封面/其他明细、总缓存上限滑块
 
 ## 阶段7：跨平台与系统集成
 
@@ -452,7 +454,7 @@
 - [x] 验证 SourceStore 导入/列表/读取/删除/启用/优先级
 - [x] 验证 RSA 无效公钥错误路径
 - [x] 验证 SourceManager 启用、加载、优先级、解析、移除
-- [ ] 复验 `flutter analyze` / `flutter test`（历史记录通过；当前环境未安装 Flutter）
+- [x] `flutter analyze` / `flutter test` 通过（2026-11-10；analyze 仍有 4 个既有 warning/info，本次无新增问题）
 - [x] `cargo test --workspace` 通过（30 tests：core 5 / lx 22 / remote 3）
 - [x] Android armv7/aarch64/x86_64 release Rust 编译通过（含 LX/QuickJS/FRB）
 - [x] `flutter build apk --release` 通过（150.3MB；不要用 `--no-pub` 跳过插件注册表重生成）
@@ -515,9 +517,9 @@
 - `lxEnabledPlatformsProvider` 没有 autoDispose 且从未 invalidate；启用/删除/禁用 LX 源后，搜索页能力列表可能一直保持旧值直到重启
 - `init_lx_source_store` 在 bootstrap 中同步执行 `load_enabled_sources()`，每个源都会 eval 脚本、执行 inited、pump timer（最长 5 秒），并可能同步发 HTTP 请求；源多时冷启动会被阻塞
 - LX source id 基于脚本全文 MD5，脚本一更新就变成新 source，旧记录残留并产生重复条目
-- LX 歌词/封面没有持久化缓存；LX 封面目前只有内存 LRU，源码缓存设置中的 `lx` 分组基本没有实际意义
-- `CacheLimits` UI 默认值与实际缓存上限不一致：UI 为 1GB/2GB/512MB，实际为 64MB/256MB/32MB；持久化限制只在用户拖动滑块时应用，启动时不会生效
-- “清除所有缓存”没有清理 `remoteCoverSourceProvider` 的内存缓存；“清除 Subsonic 缓存”会调用 `remoteCoverDiskCache.clearAll()`，影响所有源
+- LX 歌词没有 SQLite 持久化缓存，LX 封面只有内存 LRU；总缓存上限中的 LX 份额目前只作用于封面内存缓存
+- 全局缓存上限目前按历史默认比例（本地 1GB : Subsonic 2GB : 洛雪 512MB）分配到三组，暂不支持独立分组配额
+- 缓存占用只统计“清除所有缓存”会释放的内容；LX 源脚本、播放统计库和播放队列不计入缓存大小
 - `SourceType` 只有 `LocalFile` 和 `Opensubsonic`，LX 不在数据模型中；`source` 字段仍是字符串字面量，容易拼错
 - 移动端首页只挂载播放器主视图，`mobile_welcome_section.dart` / `mobile_daily_section.dart` / `mobile_home_constants.dart` 当前无引用
 - 本地歌单尚未实现；移动端歌单页只显示 OpenSubsonic 歌单

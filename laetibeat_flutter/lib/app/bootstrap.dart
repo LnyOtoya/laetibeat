@@ -17,7 +17,9 @@ import '../core/playback/laetibeat_audio_handler.dart';
 import '../core/providers/playback_backend_provider.dart';
 import '../core/services/directory_picker.dart';
 import '../core/services/window_service.dart';
+import '../widgets/player/cover_provider.dart';
 import '../widgets/player/playback_backend.dart';
+import '../widgets/settings/cache_usage_service.dart';
 import '../widgets/settings/persistence.dart';
 import '../widgets/settings/subsonic_provider.dart';
 import 'app.dart';
@@ -132,6 +134,22 @@ Future<void> bootstrap() async {
       child: const LaetibeatApp(),
     ),
   );
+
+  // 启动后套用用户保存的缓存上限；磁盘 LRU 扫描放在首帧之后，避免阻塞启动。
+  unawaited(_applyStartupCacheLimits(container));
+}
+
+Future<void> _applyStartupCacheLimits(ProviderContainer container) async {
+  try {
+    await applyCacheLimitsToCovers(
+      limits: container.read(cacheLimitsProvider),
+      localCovers: container.read(coverProvider),
+      remoteCovers: container.read(remoteCoverSourceProvider),
+      lxCovers: container.read(lxCoverSourceProvider),
+    );
+  } catch (error) {
+    debugPrint('应用启动缓存上限失败: $error');
+  }
 }
 
 /// 在 runApp 之前为 Android 通知渠道选择语言。

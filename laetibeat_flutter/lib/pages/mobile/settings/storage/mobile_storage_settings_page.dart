@@ -59,56 +59,63 @@ class _CacheBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
     final limits = ref.watch(cacheLimitsProvider);
+    final totalLimitBytes = limits.isUnlimited ? null : limits.totalBytes;
+    final progress = totalLimitBytes == null || totalLimitBytes <= 0
+        ? 0.0
+        : (usage.totalBytes / totalLimitBytes).clamp(0.0, 1.0).toDouble();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: <Widget>[
-        Column(
-          children: <Widget>[
-            Text(l10n.cacheOverview, style: theme.typeScale.titleMedium),
-            const SizedBox(height: 4),
-            Text(
-              formatCacheBytes(usage.totalBytes),
-              style: theme.typeScale.headlineSmall.copyWith(
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ],
+        _StorageSummary(
+          usedBytes: usage.totalBytes,
+          totalLimitBytes: totalLimitBytes,
+          progress: progress,
         ),
-        const SizedBox(height: 8),
-        _CacheBreakdown(usage: usage),
-        const SizedBox(height: 12),
-        M3EButton(
-          label: Text(l10n.clearAllCaches),
-          style: M3EButtonStyle.tonal,
-          onPressed: () => _clearAll(context, ref),
-        ),
-        const SizedBox(height: 24),
-        _GroupSection(
+        const SizedBox(height: 18),
+        _FreeSpaceCard(onTap: () => _clearAll(context, ref)),
+        const SizedBox(height: 28),
+        _CacheGroupSection(
           title: l10n.cacheLocal,
-          group: CacheGroup.local,
           usage: usage.local,
-          limitMb: limits.localMb,
         ),
-        const SizedBox(height: 16),
-        _GroupSection(
+        const SizedBox(height: 20),
+        _CacheGroupSection(
           title: l10n.cacheSubsonic,
-          group: CacheGroup.subsonic,
           usage: usage.subsonic,
-          limitMb: limits.subsonicMb,
         ),
-        const SizedBox(height: 16),
-        _GroupSection(
+        const SizedBox(height: 20),
+        _CacheGroupSection(
           title: l10n.cacheLx,
-          group: CacheGroup.lx,
           usage: usage.lx,
-          limitMb: limits.lxMb,
+        ),
+        const SizedBox(height: 28),
+        _TotalCacheLimitCard(
+          selectedMb: limits.totalMb,
+          onSelected: (mb) => _applyTotalLimit(ref, mb),
         ),
       ],
     );
+  }
+
+  Future<void> _applyTotalLimit(WidgetRef ref, int mb) async {
+    await ref.read(cacheLimitsProvider.notifier).setTotalMb(mb);
+    await _applyCurrentLimits(ref);
+  }
+
+  Future<void> _applyCurrentLimits(WidgetRef ref) async {
+    try {
+      await applyCacheLimitsToCovers(
+        limits: ref.read(cacheLimitsProvider),
+        localCovers: ref.read(coverProvider),
+        remoteCovers: ref.read(remoteCoverSourceProvider),
+        lxCovers: ref.read(lxCoverSourceProvider),
+      );
+    } catch (error) {
+      debugPrint('应用缓存上限失败: $error');
+    }
   }
 
   Future<void> _clearAll(BuildContext context, WidgetRef ref) async {
@@ -124,10 +131,13 @@ class _CacheBody extends ConsumerWidget {
         await rust_library.clearRemoteLibrary(sourceId: server.id);
       }
       ref.invalidate(coverProvider);
+      ref.invalidate(remoteCoverSourceProvider);
       ref.invalidate(lxCoverSourceProvider);
       ref.invalidate(lxSearchProvider);
       ref.invalidate(musicLibraryProvider);
       ref.invalidate(cacheUsageProvider);
+      // Invalidate 会创建新的缓存实例；重新套用用户配置的总上限。
+      await _applyCurrentLimits(ref);
       if (context.mounted) _showMessage(context, l10n.cacheCleared);
     } catch (error) {
       if (context.mounted) _showMessage(context, error.toString());
@@ -135,66 +145,319 @@ class _CacheBody extends ConsumerWidget {
   }
 }
 
-class _CacheBreakdown extends StatelessWidget {
-  const _CacheBreakdown({required this.usage});
+class _StorageSummary extends StatelessWidget {
+  const _StorageSummary({
+    required this.usedBytes,
+    required this.totalLimitBytes,
+    required this.progress,
+  });
 
-  final CacheUsageSnapshot usage;
+  final int usedBytes;
+  final int? totalLimitBytes;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
-    return M3EList(
-      color: M3ETheme.of(context).colorScheme.surface,
-      variant: M3ECardVariant.filled,
-      itemCount: 3,
-      itemBuilder: (BuildContext context, int index) {
-        final (label, bytes) = switch (index) {
-          0 => (l10n.cacheLyrics, usage.lyricsBytes),
-          1 => (l10n.cacheCovers, usage.coversBytes),
-          _ => (l10n.cacheOther, usage.otherBytes),
-        };
-        final icon = switch (index) {
-          0 => M3EIcons.lyrics,
-          1 => M3EIcons.image,
-          _ => M3EIcons.storage,
-        };
-        return _CacheBreakdownRow(
-          icon: icon,
-          label: label,
-          value: usage.totalBytes == 0 ? 0 : bytes / usage.totalBytes,
-          detail: formatCacheBytes(bytes),
-        );
-      },
+    final used = formatCacheSizeParts(usedBytes);
+    final total = totalLimitBytes == null
+        ? null
+        : formatCacheSizeParts(totalLimitBytes!);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: <Widget>[
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Text.rich(
+                  TextSpan(
+                    children: <InlineSpan>[
+                      TextSpan(
+                        text: '${l10n.cacheUsed} ',
+                        style: theme.typeScale.bodyMedium.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      TextSpan(
+                        text: used.value,
+                        style: theme.typeScale.displaySmall.copyWith(
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      TextSpan(
+                        text: ' ${used.unit}',
+                        style: theme.typeScale.bodyMedium.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  maxLines: 1,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              total == null
+                  ? '${l10n.cacheTotal} ∞'
+                  : '${l10n.cacheTotal} ${total.value} ${total.unit}',
+              style: theme.typeScale.bodyMedium.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        M3EProgressIndicator.linearWavy(
+          value: progress,
+          strokeWidth: 16,
+          trackStrokeWidth: 16,
+          gapSize: 0,
+          color: theme.colorScheme.primary,
+          trackColor: theme.colorScheme.surfaceContainerHighest,
+        ),
+      ],
     );
   }
 }
 
-class _GroupSection extends ConsumerWidget {
-  const _GroupSection({
-    required this.title,
-    required this.group,
-    required this.usage,
-    required this.limitMb,
-  });
+class _FreeSpaceCard extends StatelessWidget {
+  const _FreeSpaceCard({required this.onTap});
 
-  final String title;
-  final CacheGroup group;
-  final CacheGroupUsage usage;
-  final int limitMb;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
-    final limitBytes = limitMb == 0 ? 0 : limitMb * 1024 * 1024;
-    final progress = limitBytes == 0
-        ? 0.0
-        : (usage.totalBytes / limitBytes).clamp(0.0, 1.0);
+    final scheme = theme.colorScheme;
+
+    return Material(
+      color: scheme.primaryContainer,
+      borderRadius: BorderRadius.circular(28),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: <Widget>[
+              Icon(
+                M3EIcons.delete_outline,
+                size: 24,
+                color: scheme.onPrimaryContainer,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      l10n.cacheFreeSpace,
+                      style: theme.typeScale.titleMedium.copyWith(
+                        color: scheme.onPrimaryContainer,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      l10n.clearAllCaches,
+                      style: theme.typeScale.bodySmall.copyWith(
+                        color: scheme.onPrimaryContainer.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CacheGroupSection extends StatelessWidget {
+  const _CacheGroupSection({required this.title, required this.usage});
+
+  final String title;
+  final CacheGroupUsage usage;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final scheme = theme.colorScheme;
+    final total = usage.totalBytes;
+
+    final metrics = <_CacheMetric>[
+      _CacheMetric(
+        icon: M3EIcons.lyrics,
+        label: l10n.cacheLyrics,
+        bytes: usage.lyricsBytes,
+        color: scheme.primary,
+      ),
+      _CacheMetric(
+        icon: M3EIcons.image,
+        label: l10n.cacheCovers,
+        bytes: usage.coversBytes,
+        color: scheme.tertiary,
+      ),
+      _CacheMetric(
+        icon: M3EIcons.storage,
+        label: l10n.cacheOther,
+        bytes: usage.otherBytes,
+        color: scheme.secondary,
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsetsDirectional.only(start: 16, bottom: 8),
+          child: Text(
+            title,
+            style: theme.typeScale.titleSmall.copyWith(
+              color: scheme.onPrimaryContainer,
+            ),
+          ),
+        ),
+        Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            children: <Widget>[
+              for (var index = 0; index < metrics.length; index++) ...[
+                if (index > 0)
+                  Divider(
+                    height: 1,
+                    thickness: 1,
+                    indent: 56,
+                    endIndent: 16,
+                    color: scheme.outlineVariant.withValues(alpha: 0.35),
+                  ),
+                _CacheMetricRow(
+                  metric: metrics[index],
+                  fraction: total == 0 ? 0 : metrics[index].bytes / total,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CacheMetric {
+  const _CacheMetric({
+    required this.icon,
+    required this.label,
+    required this.bytes,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final int bytes;
+  final Color color;
+}
+
+class _CacheMetricRow extends StatelessWidget {
+  const _CacheMetricRow({required this.metric, required this.fraction});
+
+  final _CacheMetric metric;
+  final double fraction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+
+    // Match the two-line M3EListItem height used by the appearance settings
+    // page (72dp). The list card otherwise collapses to its content height,
+    // which makes these rows look noticeably smaller than the other settings.
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 72),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Icon(metric.icon, size: 24, color: metric.color),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          metric.label,
+                          style: theme.typeScale.bodyMedium,
+                        ),
+                      ),
+                      Text(
+                        formatCacheBytes(metric.bytes),
+                        style: theme.typeScale.labelMedium.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  // Flutter's LinearProgressIndicator draws from x=0. The M3E
+                  // variant paints with a 4dp inset and a round cap, so its
+                  // visible left edge sits 1dp inside the text edge; using the
+                  // standard bar keeps both edges pixel-aligned.
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: LinearProgressIndicator(
+                      value: fraction.clamp(0.0, 1.0).toDouble(),
+                      minHeight: 6,
+                      backgroundColor: scheme.surfaceContainerHighest,
+                      valueColor: AlwaysStoppedAnimation<Color>(metric.color),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TotalCacheLimitCard extends StatelessWidget {
+  const _TotalCacheLimitCard({
+    required this.selectedMb,
+    required this.onSelected,
+  });
+
+  final int selectedMb;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final scheme = theme.colorScheme;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -202,152 +465,74 @@ class _GroupSection extends ConsumerWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Expanded(child: Text(title, style: theme.typeScale.titleMedium)),
-              Text(
-                formatCacheBytes(usage.totalBytes),
-                style: theme.typeScale.bodyMedium.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          M3EProgressIndicator.linearWavy(
-            value: progress,
-            strokeWidth: 24,
-            trackStrokeWidth: 24,
-            gapSize: 0,
-            color: theme.colorScheme.primary,
-            trackColor: theme.colorScheme.surfaceContainerHighest,
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: <Widget>[
               Expanded(
                 child: Text(
-                  '${l10n.cacheLyrics} ${formatCacheBytes(usage.lyricsBytes)}',
-                  style: theme.typeScale.bodySmall.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                  l10n.cacheTotalSize,
+                  style: theme.typeScale.titleMedium,
                 ),
               ),
               Text(
-                '${l10n.cacheCovers} ${formatCacheBytes(usage.coversBytes)}',
-                style: theme.typeScale.bodySmall.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                formatCacheLimitLabel(selectedMb),
+                style: theme.typeScale.titleMedium.copyWith(
+                  color: scheme.primary,
                 ),
               ),
             ],
           ),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Text(
-              '${l10n.cacheOther} ${formatCacheBytes(usage.otherBytes)}',
-              style: theme.typeScale.bodySmall.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(l10n.cacheLimit, style: theme.typeScale.labelLarge),
-          const SizedBox(height: 6),
-          _LimitSlider(
-            selectedMb: limitMb,
-            onSelected: (mb) => _applyLimit(ref, mb),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: M3EButton(
-              label: Text(l10n.clearGroupCache),
-              style: M3EButtonStyle.text,
-              size: M3EButtonSize.sm,
-              onPressed: () => _clearGroup(context, ref),
-            ),
+          const SizedBox(height: 4),
+          _CacheLimitSlider(
+            selectedMb: selectedMb,
+            onSelected: onSelected,
           ),
         ],
       ),
     );
   }
-
-  Future<void> _applyLimit(WidgetRef ref, int mb) async {
-    await ref.read(cacheLimitsProvider.notifier).setLimit(group, mb);
-    final bytes = mb == 0 ? (1 << 60) : mb * 1024 * 1024;
-    switch (group) {
-      case CacheGroup.local:
-        final provider = ref.read(coverProvider);
-        if (provider is FileCoverProvider) provider.setMaxBytes(bytes);
-      case CacheGroup.subsonic:
-        ref.read(remoteCoverSourceProvider).setMaxBytes(bytes);
-        await remoteCoverDiskCache.setMaxBytes(bytes);
-      case CacheGroup.lx:
-        ref.read(lxCoverSourceProvider).setMaxBytes(bytes);
-    }
-  }
-
-  Future<void> _clearGroup(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context);
-    try {
-      switch (group) {
-        case CacheGroup.local:
-          await ref.read(librarySnapshotStoreProvider).clear();
-          await rust_library.clearLyricsCache(prefix: 'local:');
-          ref.invalidate(coverProvider);
-          ref.invalidate(musicLibraryProvider);
-        case CacheGroup.subsonic:
-          final servers =
-              ref.read(subsonicServersProvider).value ??
-              const <SubsonicServerConfig>[];
-          for (final server in servers) {
-            await rust_library.clearRemoteLibrary(sourceId: server.id);
-            await rust_library.clearRemoteLyricsCache(sourceId: server.id);
-          }
-          await rust_library.clearLyricsCache(prefix: 'opensubsonic:');
-          await remoteCoverDiskCache.clearAll();
-        case CacheGroup.lx:
-          await rust_library.clearLyricsCache(prefix: 'lx:');
-          ref.invalidate(lxCoverSourceProvider);
-          ref.invalidate(lxSearchProvider);
-      }
-      ref.invalidate(cacheUsageProvider);
-      if (context.mounted) _showMessage(context, l10n.cacheCleared);
-    } catch (error) {
-      if (context.mounted) _showMessage(context, error.toString());
-    }
-  }
 }
 
-class _LimitSlider extends StatefulWidget {
-  const _LimitSlider({required this.selectedMb, required this.onSelected});
+class _CacheLimitSlider extends StatefulWidget {
+  const _CacheLimitSlider({
+    required this.selectedMb,
+    required this.onSelected,
+  });
 
   final int selectedMb;
   final ValueChanged<int> onSelected;
 
   @override
-  State<_LimitSlider> createState() => _LimitSliderState();
+  State<_CacheLimitSlider> createState() => _CacheLimitSliderState();
 }
 
-class _LimitSliderState extends State<_LimitSlider> {
-  late int _index = _indexOf(widget.selectedMb);
+class _CacheLimitSliderState extends State<_CacheLimitSlider> {
+  late int _index = _nearestIndex(widget.selectedMb);
 
-  static int _indexOf(int mb) {
-    final index = kCacheLimitMbLevels.indexOf(mb);
-    return index < 0 ? kCacheLimitMbLevels.length - 1 : index;
+  static int _nearestIndex(int mb) {
+    var bestIndex = 0;
+    var bestDistance = (kCacheLimitMbLevels.first - mb).abs();
+    for (var index = 1; index < kCacheLimitMbLevels.length; index++) {
+      final distance = (kCacheLimitMbLevels[index] - mb).abs();
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = index;
+      }
+    }
+    return bestIndex;
   }
 
   @override
-  void didUpdateWidget(_LimitSlider oldWidget) {
+  void didUpdateWidget(_CacheLimitSlider oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedMb != widget.selectedMb) {
-      _index = _indexOf(widget.selectedMb);
+      _index = _nearestIndex(widget.selectedMb);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
     final maxIndex = kCacheLimitMbLevels.length - 1;
-    final mb = kCacheLimitMbLevels[_index];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -356,82 +541,27 @@ class _LimitSliderState extends State<_LimitSlider> {
           min: 0,
           max: maxIndex.toDouble(),
           divisions: maxIndex,
-          label: mb == 0 ? '∞' : '${mb}MB',
+          label: formatCacheLimitLabel(kCacheLimitMbLevels[_index]),
           size: M3ESliderSize.s,
           onChanged: (value) => setState(() => _index = value.round()),
           onChangeEnd: (value) =>
               widget.onSelected(kCacheLimitMbLevels[value.round()]),
         ),
-        Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: Text(
-            mb == 0 ? '∞' : '${mb}MB',
-            style: theme.typeScale.labelSmall.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CacheBreakdownRow extends StatelessWidget {
-  const _CacheBreakdownRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.detail,
-  });
-
-  final IconData icon;
-  final String label;
-  final double value;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = M3ETheme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          Icon(icon, size: 22, color: theme.colorScheme.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(label, style: theme.typeScale.bodyMedium),
-                    ),
-                    Text(
-                      detail,
-                      style: theme.typeScale.bodySmall.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                SizedBox(
-                  width: 150,
-                  child: M3EProgressIndicator.linear(
-                    value: value.clamp(0, 1),
-                    strokeWidth: 24,
-                    trackStrokeWidth: 24,
-                    color: theme.colorScheme.primary,
-                    trackColor: theme.colorScheme.surfaceContainerHighest,
+        Row(
+          children: <Widget>[
+            for (final mb in kCacheLimitMbLevels)
+              Expanded(
+                child: Text(
+                  formatCacheLimitLabel(mb),
+                  textAlign: TextAlign.center,
+                  style: theme.typeScale.labelSmall.copyWith(
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }

@@ -167,6 +167,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cacheOverview => 'Cache overview';
 
   @override
+  String get cacheUsed => 'Used';
+
+  @override
+  String get cacheTotal => 'Total';
+
+  @override
+  String get cacheFreeSpace => 'Free up space';
+
+  @override
+  String get cacheTotalSize => 'Total cache size';
+
+  @override
   String get cacheLyrics => 'Lyrics cache';
 
   @override
