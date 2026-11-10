@@ -11,6 +11,7 @@ import 'package:laetibeat/widgets/player/player_provider.dart';
 import 'package:laetibeat/widgets/remote_browser_provider.dart';
 import 'package:laetibeat/widgets/settings/cover_shape_settings.dart';
 import 'package:laetibeat/widgets/settings/music_library_provider.dart';
+import 'package:laetibeat/widgets/settings/search_settings.dart';
 import 'package:laetibeat/widgets/settings/persistence.dart';
 import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
@@ -210,13 +211,14 @@ class _MobileSearchResultsPageState
     extends ConsumerState<MobileSearchResultsPage> {
   late final TextEditingController _controller;
   MobileSearchCategory _category = MobileSearchCategory.songs;
-  MobileSearchSourceFilter _filter = MobileSearchSourceFilter.all;
+  late MobileSearchSourceFilter _filter;
   String _lxPlatform = 'tx';
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialQuery);
+    _filter = ref.read(defaultSearchSourceProvider);
   }
 
   void _playLxResults() {
@@ -500,6 +502,16 @@ class _SearchResults extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
+    if (category == MobileSearchCategory.songs &&
+        (filter == MobileSearchSourceFilter.all ||
+            filter == MobileSearchSourceFilter.local ||
+            filter == MobileSearchSourceFilter.subsonic)) {
+      return _PagedSongsResults(
+        key: ValueKey<String>('$query\u0000${filter.name}'),
+        query: query,
+        filter: filter,
+      );
+    }
     if (category == MobileSearchCategory.songs &&
         filter == MobileSearchSourceFilter.lx &&
         lxPlatform != null) {
@@ -887,6 +899,201 @@ class _SearchResults extends ConsumerWidget {
     if (tracks.isEmpty) return;
     ref.read(playerProvider.notifier).load(tracks, 0, source: album.title);
   }
+}
+
+class _PagedSongsResults extends ConsumerStatefulWidget {
+  const _PagedSongsResults({
+    super.key,
+    required this.query,
+    required this.filter,
+  });
+
+  final String query;
+  final MobileSearchSourceFilter filter;
+
+  @override
+  ConsumerState<_PagedSongsResults> createState() => _PagedSongsResultsState();
+}
+
+class _PagedSongsResultsState extends ConsumerState<_PagedSongsResults> {
+  static const int _pageSize = 10;
+
+  final ScrollController _scrollController = ScrollController();
+  int _visible = _pageSize;
+  bool _hasMore = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.extentAfter < 240 && _hasMore) {
+      setState(() => _visible += _pageSize);
+    }
+  }
+
+  void _ensureViewportFilled() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_hasMore) return;
+      if (!_scrollController.hasClients) return;
+      if (_scrollController.position.maxScrollExtent <= 0) {
+        setState(() => _visible += _pageSize);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final query = widget.query.trim().toLowerCase();
+    final entries = <_PagedSongEntry>[];
+    var loading = false;
+
+    if (widget.filter != MobileSearchSourceFilter.subsonic) {
+      final localAsync = ref.watch(musicLibraryProvider);
+      if (localAsync.isLoading) loading = true;
+      final local = localAsync.value;
+      if (local != null) {
+        for (final track in local.tracks) {
+          if (!track.title.toLowerCase().contains(query) &&
+              !track.artist.toLowerCase().contains(query) &&
+              !track.album.toLowerCase().contains(query)) {
+            continue;
+          }
+          entries.add(
+            _PagedSongEntry(
+              track: track,
+              source: l10n.searchSourceLocal,
+              sourceKey: 'local',
+            ),
+          );
+        }
+      }
+    }
+
+    if (widget.filter != MobileSearchSourceFilter.local) {
+      final servers =
+          ref.watch(subsonicServersProvider).value ??
+          const <SubsonicServerConfig>[];
+      if (servers.isNotEmpty) {
+        final server = servers.first;
+        final remoteAsync = ref.watch(
+          remoteSearchProvider((sourceId: server.id, query: widget.query)),
+        );
+        if (remoteAsync.isLoading) loading = true;
+        final remote = remoteAsync.value;
+        if (remote != null) {
+          final sourceKey = server.name.toLowerCase().contains('navidrome')
+              ? 'navidrome'
+              : 'subsonic';
+          for (final track in remote.tracks) {
+            entries.add(
+              _PagedSongEntry(
+                track: remoteTrackToUiTrack(track, server.id),
+                source: server.name,
+                sourceKey: sourceKey,
+              ),
+            );
+          }
+        }
+      }
+    }
+
+    if (widget.filter == MobileSearchSourceFilter.all) {
+      final platforms =
+          ref.watch(lxEnabledPlatformsProvider).value ?? const <String>[];
+      for (final platform in platforms) {
+        final async = ref.watch(
+          lxSearchProvider((platform: platform, query: widget.query)),
+        );
+        if (async.isLoading) loading = true;
+        final lx = async.value;
+        if (lx == null) continue;
+        for (final track in lx.tracks) {
+          entries.add(
+            _PagedSongEntry(
+              track: lxSearchTrackToUiTrack(track),
+              source: '洛雪',
+              sourceKey: platform,
+            ),
+          );
+        }
+      }
+    }
+
+    if (entries.isEmpty) {
+      if (loading) {
+        return Center(
+          child: M3ELoadingIndicator(
+            color: theme.colorScheme.primary,
+            containerColor: theme.colorScheme.surfaceContainerHighest,
+          ),
+        );
+      }
+      return Center(child: Text(l10n.searchNoResults));
+    }
+
+    _hasMore = entries.length > _visible;
+    final visibleEntries = entries.take(_visible).toList(growable: false);
+    _ensureViewportFilled();
+
+    return ListView(
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      children: <Widget>[
+        M3EList(
+          color: theme.colorScheme.surface,
+          variant: M3ECardVariant.filled,
+          itemCount: visibleEntries.length,
+          onTap: (index) => ref
+              .read(playerProvider.notifier)
+              .load(
+                visibleEntries
+                    .map((entry) => entry.track)
+                    .toList(growable: false),
+                index,
+                source: '搜索',
+              ),
+          itemBuilder: (BuildContext context, int index) {
+            final entry = visibleEntries[index];
+            return M3EListItem(
+              leading: _SearchResultCover(track: entry.track),
+              headline: entry.track.title,
+              supportingText: entry.track.artist,
+              trailing: widget.filter == MobileSearchSourceFilter.all
+                  ? _sourceChip(entry.source, entry.sourceKey)
+                  : null,
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _PagedSongEntry {
+  const _PagedSongEntry({
+    required this.track,
+    required this.source,
+    required this.sourceKey,
+  });
+
+  final rust.UiTrack track;
+  final String source;
+  final String sourceKey;
 }
 
 class _LxPlatformResults extends ConsumerStatefulWidget {

@@ -278,6 +278,18 @@ abstract class AppLocalizations {
   /// **'Search cover shape'**
   String get searchCoverShape;
 
+  /// No description provided for @defaultSearchSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Default search source'**
+  String get defaultSearchSource;
+
+  /// No description provided for @defaultSearchSourceSupporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Source selected by default when opening search results'**
+  String get defaultSearchSourceSupporting;
+
   /// No description provided for @searchCoverShapeSupporting.
   ///
   /// In en, this message translates to:

@@ -99,6 +99,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get searchCoverShape => '搜索封面形状';
 
   @override
+  String get defaultSearchSource => '默认搜索来源';
+
+  @override
+  String get defaultSearchSourceSupporting => '打开搜索结果页时默认显示的来源';
+
+  @override
   String get searchCoverShapeSupporting => '搜索结果歌曲封面使用的 M3E 形状';
 
   @override

@@ -31,7 +31,9 @@
   "coverShape": "封面形状",
 
   "searchCoverShape": "搜索封面形状",
-  "searchCoverShapeSupporting": "搜索结果歌曲封面使用的 M3E 形状",  "coverShapeSupporting": "选择播放页封面的形状",
+
+  "defaultSearchSource": "默认搜索来源",
+  "defaultSearchSourceSupporting": "打开搜索结果页时默认显示的来源",  "searchCoverShapeSupporting": "搜索结果歌曲封面使用的 M3E 形状",  "coverShapeSupporting": "选择播放页封面的形状",
   "coverShapeDialogTitle": "封面形状",
   "themeLight": "浅色",
   "themeDark": "深色",

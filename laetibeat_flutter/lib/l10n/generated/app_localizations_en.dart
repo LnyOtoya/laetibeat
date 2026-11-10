@@ -101,6 +101,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchCoverShape => 'Search cover shape';
 
   @override
+  String get defaultSearchSource => 'Default search source';
+
+  @override
+  String get defaultSearchSourceSupporting =>
+      'Source selected by default when opening search results';
+
+  @override
   String get searchCoverShapeSupporting =>
       'M3E shape used by song covers in search results';
 

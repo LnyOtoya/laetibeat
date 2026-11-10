@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/widgets/settings/cover_shape_settings.dart';
+import 'package:laetibeat/widgets/settings/search_settings.dart';
 import 'package:laetibeat/widgets/settings/song_sort_settings.dart';
 import 'package:laetibeat/widgets/settings/song_source_settings.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
@@ -8,6 +9,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../app/app_locale.dart';
 import '../../../../widgets/settings/settings_provider.dart';
 import '../../../../l10n/generated/app_localizations.dart';
+import '../../search/search_models.dart';
 import '../../widgets/mobile_large_subpage_app_bar.dart';
 import 'cover_shape_dialog.dart';
 
@@ -34,6 +36,34 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
     );
     if (!context.mounted || picked == null) return;
     await ref.read(searchCoverShapeProvider.notifier).setShape(picked);
+  }
+
+  Future<void> _pickDefaultSearchSource(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final labels = <String>[
+      l10n.searchFilterAll,
+      l10n.searchSourceLocal,
+      l10n.searchFilterSubsonic,
+      l10n.searchFilterLx,
+    ];
+    final current = ref.read(defaultSearchSourceProvider);
+    final currentLabel = labels[current.index];
+    final picked = await M3EDialog.showSelectionScreen(
+      context,
+      title: l10n.defaultSearchSource,
+      options: labels,
+      initialSelection: <String>[currentLabel],
+      icon: const Icon(M3EIcons.search),
+    );
+    if (!context.mounted || picked == null || picked.isEmpty) return;
+    final index = labels.indexOf(picked.first);
+    if (index < 0) return;
+    await ref
+        .read(defaultSearchSourceProvider.notifier)
+        .setSource(MobileSearchSourceFilter.values[index]);
   }
 
   Future<void> _pickSongSource(BuildContext context, WidgetRef ref) async {
@@ -146,9 +176,11 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
                     _pickSongSort(context, ref);
                   case 5:
                     _pickLanguage(context, ref);
+                  case 6:
+                    _pickDefaultSearchSource(context, ref);
                 }
               },
-              itemCount: 6,
+              itemCount: 7,
               itemBuilder: (BuildContext context, int index) {
                 return switch (index) {
                   0 => M3EListItem(
@@ -171,9 +203,13 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
                     headline: l10n.songSort,
                     supportingText: l10n.songSortSupporting,
                   ),
-                  _ => M3EListItem(
+                  5 => M3EListItem(
                     headline: l10n.language,
                     supportingText: l10n.languageSupporting,
+                  ),
+                  _ => M3EListItem(
+                    headline: l10n.defaultSearchSource,
+                    supportingText: l10n.defaultSearchSourceSupporting,
                   ),
                 };
               },
