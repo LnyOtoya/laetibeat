@@ -382,6 +382,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lxSourceEnabled => '已启用';
 
   @override
+  String get lxSourceActive => '当前音源';
+
+  @override
+  String get playbackFailed => '播放失败';
+
+  @override
+  String get playbackRetry => '重试';
+
+  @override
+  String get lxSourceSetActive => '设为当前音源';
+
+  @override
+  String get lxSourceClearActive => '取消当前音源';
+
+  @override
   String get lxSourceDisabled => '已禁用';
 
   @override

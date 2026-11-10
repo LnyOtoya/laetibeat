@@ -20,6 +20,9 @@ pub struct LxSourceRecord {
     pub manifest: LxSourceManifest,
     pub script_file: String,
     pub enabled: bool,
+    /// User-selected source. At most one record should be active.
+    #[serde(default)]
+    pub active: bool,
     pub priority: i32,
     pub allow_update_alert: bool,
 }
@@ -90,6 +93,7 @@ impl LxSourceStore {
             manifest,
             script_file,
             enabled: false,
+            active: false,
             priority,
             allow_update_alert: true,
         };
@@ -129,6 +133,23 @@ impl LxSourceStore {
             .ok_or_else(|| LxError::InvalidSource(format!("source not found: {id}")))?;
         record.enabled = enabled;
         self.save_index()
+    }
+
+    pub fn set_active(&mut self, id: &str, active: bool) -> Result<()> {
+        if !self.records.iter().any(|record| record.id == id) {
+            return Err(LxError::InvalidSource(format!("source not found: {id}")));
+        }
+        for record in &mut self.records {
+            record.active = active && record.id == id;
+        }
+        self.save_index()
+    }
+
+    pub fn active_id(&self) -> Option<String> {
+        self.records
+            .iter()
+            .find(|record| record.active)
+            .map(|record| record.id.clone())
     }
 
     pub fn set_priority(&mut self, id: &str, priority: i32) -> Result<()> {

@@ -43,6 +43,9 @@ class PlayerState {
   /// 当前重复模式(顺序/单曲/列表)
   final PlaybackRepeatMode repeatMode;
 
+  /// 最近一次播放错误，供全局 SnackBar 提示；成功后清空。
+  final String? errorMessage;
+
   const PlayerState({
     this.queue = const <rust.UiTrack>[],
     this.currentIndex = 0,
@@ -56,6 +59,7 @@ class PlayerState {
     this.audioBitrate,
     this.shuffle = false,
     this.repeatMode = PlaybackRepeatMode.off,
+    this.errorMessage,
   });
 
   rust.UiTrack? get current => queue.isEmpty ? null : queue[currentIndex];
@@ -78,6 +82,7 @@ class PlayerState {
     Object? audioBitrate = _unset,
     bool? shuffle,
     PlaybackRepeatMode? repeatMode,
+    Object? errorMessage = _unset,
   }) {
     return PlayerState(
       queue: queue ?? this.queue,
@@ -98,6 +103,9 @@ class PlayerState {
           : audioBitrate as double?,
       shuffle: shuffle ?? this.shuffle,
       repeatMode: repeatMode ?? this.repeatMode,
+      errorMessage: identical(errorMessage, _unset)
+          ? this.errorMessage
+          : errorMessage as String?,
     );
   }
 }
@@ -380,6 +388,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
         duration: state.duration > Duration.zero
             ? state.duration
             : _durationOf(track),
+        errorMessage: null,
       );
       // 真正开始播放时才开启统计会话(懒加载恢复不算播放)
       _sessionTracker.onTrackChanged(track);
@@ -391,7 +400,10 @@ class PlayerNotifier extends Notifier<PlayerState> {
       if (generation == _openGeneration) {
         debugPrint('恢复播放失败: $e');
         _mediaLoaded = false;
-        state = state.copyWith(isPlaying: false);
+        state = state.copyWith(
+          isPlaying: false,
+          errorMessage: _playbackErrorMessage(e),
+        );
         try {
           await _backend.stop();
         } catch (_) {}
@@ -431,6 +443,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
       // 避免面板短暂显示上一首的信息。
       audioParams: null,
       audioBitrate: null,
+      errorMessage: null,
     );
     // 队列已变化:随机轮次从当前起播曲目重新开始
     if (state.shuffle) {
@@ -485,6 +498,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
       // 同上:换曲时清掉旧曲的音频参数/码率
       audioParams: null,
       audioBitrate: null,
+      errorMessage: null,
     );
     // 手动选曲也计入本次随机轮次,避免自动切歌时重复选中
     if (state.shuffle) _shuffleVisited.add(idx);
@@ -510,6 +524,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
       if (generation != _openGeneration) return;
       await _prepareVolumeForOpen();
       await _backend.open(playbackTrack);
+      state = state.copyWith(errorMessage: null);
       _reportNowPlaying(track);
       await _fadeAfterOpen();
     } catch (e) {
@@ -523,11 +538,34 @@ class PlayerNotifier extends Notifier<PlayerState> {
       }
       debugPrint('打开曲目失败: $e');
       _mediaLoaded = false;
-      state = state.copyWith(isPlaying: false);
+      state = state.copyWith(
+        isPlaying: false,
+        errorMessage: _playbackErrorMessage(e),
+      );
       try {
         await _backend.stop();
       } catch (_) {}
     }
+  }
+
+  void clearError() {
+    if (state.errorMessage == null) return;
+    state = state.copyWith(errorMessage: null);
+  }
+
+  /// Retry the current track, bypassing a possibly stale LX URL.
+  Future<void> retryCurrent() async {
+    final track = state.current;
+    if (track == null) return;
+    clearError();
+    if (track.source == 'lx') _invalidateLxUrl(track);
+    await _openResolved(track);
+  }
+
+  String _playbackErrorMessage(Object error) {
+    final raw = error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+    final message = raw.length > 320 ? '${raw.substring(0, 320)}…' : raw;
+    return message.isEmpty ? '播放失败' : '播放失败：$message';
   }
 
   FadeSettings get _fadeSettings => ref.read(fadeSettingsProvider);

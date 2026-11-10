@@ -66,8 +66,9 @@ impl LxSourceManager {
         let mut records = self.store.list().to_vec();
         records.sort_by(|left, right| {
             right
-                .priority
-                .cmp(&left.priority)
+                .active
+                .cmp(&left.active)
+                .then_with(|| right.priority.cmp(&left.priority))
                 .then_with(|| left.manifest.name.cmp(&right.manifest.name))
         });
         records
@@ -135,7 +136,11 @@ impl LxSourceManager {
         self.store.set_enabled(id, enabled)?;
         if enabled {
             self.load_source(id)?;
+            if self.store.active_id().is_none() {
+                self.store.set_active(id, true)?;
+            }
         } else {
+            self.store.set_active(id, false)?;
             self.unload_source(id);
         }
         Ok(())
@@ -143,6 +148,14 @@ impl LxSourceManager {
 
     pub fn set_priority(&mut self, id: &str, priority: i32) -> Result<()> {
         self.store.set_priority(id, priority)
+    }
+
+    pub fn set_active(&mut self, id: &str, active: bool) -> Result<()> {
+        self.store.set_active(id, active)
+    }
+
+    pub fn active_id(&self) -> Option<String> {
+        self.store.active_id()
     }
 
     pub fn set_allow_update_alert(&mut self, id: &str, allow: bool) -> Result<()> {
@@ -335,7 +348,12 @@ impl LxSourceManager {
             })
             .cloned()
             .collect::<Vec<_>>();
-        records.sort_by(|left, right| right.priority.cmp(&left.priority));
+        records.sort_by(|left, right| {
+            right
+                .active
+                .cmp(&left.active)
+                .then_with(|| right.priority.cmp(&left.priority))
+        });
         records.into_iter().map(|record| record.id).collect()
     }
 

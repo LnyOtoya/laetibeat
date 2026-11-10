@@ -32,6 +32,9 @@ Future<UiLxSourceEntry> setLxSourceEnabled({
 }) =>
     RustLib.instance.api.crateApiLxSetLxSourceEnabled(id: id, enabled: enabled);
 
+Future<void> setLxActiveSource({required String id, required bool active}) =>
+    RustLib.instance.api.crateApiLxSetLxActiveSource(id: id, active: active);
+
 Future<void> setLxSourcePriority({required String id, required int priority}) =>
     RustLib.instance.api.crateApiLxSetLxSourcePriority(
       id: id,
@@ -292,6 +295,9 @@ class UiLxSourceEntry {
   final String author;
   final String homepage;
   final bool enabled;
+
+  /// Whether this source is preferred over other enabled sources.
+  final bool active;
   final int priority;
   final bool allowUpdateAlert;
 
@@ -308,6 +314,7 @@ class UiLxSourceEntry {
     required this.author,
     required this.homepage,
     required this.enabled,
+    required this.active,
     required this.priority,
     required this.allowUpdateAlert,
     required this.status,
@@ -324,6 +331,7 @@ class UiLxSourceEntry {
       author.hashCode ^
       homepage.hashCode ^
       enabled.hashCode ^
+      active.hashCode ^
       priority.hashCode ^
       allowUpdateAlert.hashCode ^
       status.hashCode ^
@@ -342,6 +350,7 @@ class UiLxSourceEntry {
           author == other.author &&
           homepage == other.homepage &&
           enabled == other.enabled &&
+          active == other.active &&
           priority == other.priority &&
           allowUpdateAlert == other.allowUpdateAlert &&
           status == other.status &&

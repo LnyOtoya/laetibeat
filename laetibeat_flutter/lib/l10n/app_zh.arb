@@ -124,7 +124,12 @@
   "lxSourceCancel": "取消",
   "lxSourceNoCapabilities": "未声明能力",
   "lxSourceEnabled": "已启用",
-  "lxSourceDisabled": "已禁用",
+
+  "lxSourceActive": "当前音源",
+
+  "playbackFailed": "播放失败",
+  "playbackRetry": "重试",  "lxSourceSetActive": "设为当前音源",
+  "lxSourceClearActive": "取消当前音源",  "lxSourceDisabled": "已禁用",
   "lxSourceRaisePriority": "提高优先级",
   "lxSourceLowerPriority": "降低优先级",
 

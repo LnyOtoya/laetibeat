@@ -24,6 +24,8 @@ pub struct UiLxSourceEntry {
     pub author: String,
     pub homepage: String,
     pub enabled: bool,
+    /// Whether this source is preferred over other enabled sources.
+    pub active: bool,
     pub priority: i32,
     pub allow_update_alert: bool,
     /// uninitialized / initializing / ready / failed
@@ -131,6 +133,10 @@ pub fn set_lx_source_enabled(id: String, enabled: bool) -> Result<UiLxSourceEntr
     })
 }
 
+pub fn set_lx_active_source(id: String, active: bool) -> Result<(), String> {
+    with_manager(|manager| manager.set_active(&id, active).map_err(format_error))
+}
+
 pub fn set_lx_source_priority(id: String, priority: i32) -> Result<(), String> {
     with_manager(|manager| manager.set_priority(&id, priority).map_err(format_error))
 }
@@ -209,6 +215,7 @@ fn map_entry(entry: LxSourceEntry) -> UiLxSourceEntry {
         author: entry.record.manifest.author,
         homepage: entry.record.manifest.homepage,
         enabled: entry.record.enabled,
+        active: entry.record.active,
         priority: entry.record.priority,
         allow_update_alert: entry.record.allow_update_alert,
         status,

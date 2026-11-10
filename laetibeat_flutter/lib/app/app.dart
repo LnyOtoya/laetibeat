@@ -11,6 +11,7 @@ import '../pages/mobile/home/mobile_home_page.dart';
 import '../pages/mobile/mobile_app.dart';
 import '../pages/mobile/mobile_navigation.dart';
 import '../widgets/integration/media_integration_host.dart';
+import '../widgets/player/player_error_listener.dart';
 import '../widgets/settings/settings_provider.dart';
 import 'app_form_factor.dart';
 import 'app_locale.dart';
@@ -77,15 +78,17 @@ class LaetibeatApp extends ConsumerWidget {
                 autoTheming: followSystem,
                 dynamicColoring: true,
                 initialTheme: initialTheme,
-                child: MediaIntegrationHost(
-                  child: MobileShell(child: child ?? const SizedBox.shrink()),
+                child: PlayerErrorListener(
+                  child: MediaIntegrationHost(
+                    child: MobileShell(child: child ?? const SizedBox.shrink()),
+                  ),
                 ),
               );
             }
           : null,
       home: switch (formFactor) {
-        AppFormFactor.desktop => const MediaIntegrationHost(
-          child: DesktopApp(),
+        AppFormFactor.desktop => const PlayerErrorListener(
+          child: MediaIntegrationHost(child: DesktopApp()),
         ),
         AppFormFactor.mobile => const MobileHomePage(),
       },

@@ -394,6 +394,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lxSourceEnabled => 'Enabled';
 
   @override
+  String get lxSourceActive => 'Current source';
+
+  @override
+  String get playbackFailed => 'Playback failed';
+
+  @override
+  String get playbackRetry => 'Retry';
+
+  @override
+  String get lxSourceSetActive => 'Set as current source';
+
+  @override
+  String get lxSourceClearActive => 'Clear current source';
+
+  @override
   String get lxSourceDisabled => 'Disabled';
 
   @override

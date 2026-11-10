@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -2126585073;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1920312223;
 
 // Section: executor
 
@@ -1387,6 +1387,40 @@ fn wire__crate__api__library__search_remote_library_impl(
         },
     )
 }
+fn wire__crate__api__lx__set_lx_active_source_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_lx_active_source",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            let api_active = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::lx::set_lx_active_source(api_id, api_active)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__lx__set_lx_allow_update_alert_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -2661,6 +2695,7 @@ impl SseDecode for crate::api::lx::UiLxSourceEntry {
         let mut var_author = <String>::sse_decode(deserializer);
         let mut var_homepage = <String>::sse_decode(deserializer);
         let mut var_enabled = <bool>::sse_decode(deserializer);
+        let mut var_active = <bool>::sse_decode(deserializer);
         let mut var_priority = <i32>::sse_decode(deserializer);
         let mut var_allowUpdateAlert = <bool>::sse_decode(deserializer);
         let mut var_status = <String>::sse_decode(deserializer);
@@ -2675,6 +2710,7 @@ impl SseDecode for crate::api::lx::UiLxSourceEntry {
             author: var_author,
             homepage: var_homepage,
             enabled: var_enabled,
+            active: var_active,
             priority: var_priority,
             allow_update_alert: var_allowUpdateAlert,
             status: var_status,
@@ -3164,72 +3200,73 @@ fn pde_ffi_dispatcher_primary_impl(
         38 => {
             wire__crate__api__library__search_remote_library_impl(port, ptr, rust_vec_len, data_len)
         }
-        39 => {
+        39 => wire__crate__api__lx__set_lx_active_source_impl(port, ptr, rust_vec_len, data_len),
+        40 => {
             wire__crate__api__lx__set_lx_allow_update_alert_impl(port, ptr, rust_vec_len, data_len)
         }
-        40 => wire__crate__api__lx__set_lx_source_enabled_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__lx__set_lx_source_priority_impl(port, ptr, rust_vec_len, data_len),
-        42 => {
+        41 => wire__crate__api__lx__set_lx_source_enabled_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__lx__set_lx_source_priority_impl(port, ptr, rust_vec_len, data_len),
+        43 => {
             wire__crate__api__subsonic__subsonic_get_album_impl(port, ptr, rust_vec_len, data_len)
         }
-        43 => {
+        44 => {
             wire__crate__api__subsonic__subsonic_get_artist_impl(port, ptr, rust_vec_len, data_len)
         }
-        44 => wire__crate__api__subsonic__subsonic_get_artist_biography_impl(
+        45 => wire__crate__api__subsonic__subsonic_get_artist_biography_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        45 => {
+        46 => {
             wire__crate__api__subsonic__subsonic_get_artists_impl(port, ptr, rust_vec_len, data_len)
         }
-        46 => wire__crate__api__subsonic__subsonic_get_cover_art_impl(
+        47 => wire__crate__api__subsonic__subsonic_get_cover_art_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        47 => {
+        48 => {
             wire__crate__api__subsonic__subsonic_get_lyrics_impl(port, ptr, rust_vec_len, data_len)
         }
-        48 => wire__crate__api__subsonic__subsonic_get_lyrics_cached_impl(
+        49 => wire__crate__api__subsonic__subsonic_get_lyrics_cached_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        49 => wire__crate__api__subsonic__subsonic_get_playlists_impl(
+        50 => wire__crate__api__subsonic__subsonic_get_playlists_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        50 => wire__crate__api__subsonic__subsonic_get_user_name_impl(
+        51 => wire__crate__api__subsonic__subsonic_get_user_name_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        51 => wire__crate__api__subsonic__subsonic_scrobble_impl(port, ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__subsonic__subsonic_search3_impl(port, ptr, rust_vec_len, data_len),
-        53 => {
+        52 => wire__crate__api__subsonic__subsonic_scrobble_impl(port, ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__subsonic__subsonic_search3_impl(port, ptr, rust_vec_len, data_len),
+        54 => {
             wire__crate__api__subsonic__subsonic_stream_url_impl(port, ptr, rust_vec_len, data_len)
         }
-        54 => wire__crate__api__lx__supported_lx_search_platforms_impl(
+        55 => wire__crate__api__lx__supported_lx_search_platforms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        55 => wire__crate__api__sync__sync_subsonic_library_impl(port, ptr, rust_vec_len, data_len),
-        56 => wire__crate__api__subsonic__test_subsonic_connection_impl(
+        56 => wire__crate__api__sync__sync_subsonic_library_impl(port, ptr, rust_vec_len, data_len),
+        57 => wire__crate__api__subsonic__test_subsonic_connection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        57 => wire__crate__api__sync__ui_remote_sync_progress_default_impl(
+        58 => wire__crate__api__sync__ui_remote_sync_progress_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -3471,6 +3508,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::lx::UiLxSourceEntry {
             self.author.into_into_dart().into_dart(),
             self.homepage.into_into_dart().into_dart(),
             self.enabled.into_into_dart().into_dart(),
+            self.active.into_into_dart().into_dart(),
             self.priority.into_into_dart().into_dart(),
             self.allow_update_alert.into_into_dart().into_dart(),
             self.status.into_into_dart().into_dart(),
@@ -4362,6 +4400,7 @@ impl SseEncode for crate::api::lx::UiLxSourceEntry {
         <String>::sse_encode(self.author, serializer);
         <String>::sse_encode(self.homepage, serializer);
         <bool>::sse_encode(self.enabled, serializer);
+        <bool>::sse_encode(self.active, serializer);
         <i32>::sse_encode(self.priority, serializer);
         <bool>::sse_encode(self.allow_update_alert, serializer);
         <String>::sse_encode(self.status, serializer);

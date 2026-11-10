@@ -842,6 +842,36 @@ abstract class AppLocalizations {
   /// **'Enabled'**
   String get lxSourceEnabled;
 
+  /// No description provided for @lxSourceActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Current source'**
+  String get lxSourceActive;
+
+  /// No description provided for @playbackFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback failed'**
+  String get playbackFailed;
+
+  /// No description provided for @playbackRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get playbackRetry;
+
+  /// No description provided for @lxSourceSetActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as current source'**
+  String get lxSourceSetActive;
+
+  /// No description provided for @lxSourceClearActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear current source'**
+  String get lxSourceClearActive;
+
   /// No description provided for @lxSourceDisabled.
   ///
   /// In en, this message translates to:

@@ -167,6 +167,8 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
       context,
       title: source.name,
       options: <String>[
+        if (source.enabled)
+          source.active ? l10n.lxSourceClearActive : l10n.lxSourceSetActive,
         l10n.lxSourceRaisePriority,
         l10n.lxSourceLowerPriority,
         l10n.lxSourceDelete,
@@ -176,12 +178,30 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
     if (!mounted || picked == null || picked.isEmpty) return;
 
     switch (picked.first) {
+      case final option when option == l10n.lxSourceSetActive:
+        await _setActive(source, true);
+      case final option when option == l10n.lxSourceClearActive:
+        await _setActive(source, false);
       case final option when option == l10n.lxSourceRaisePriority:
         await _changePriority(source, 1);
       case final option when option == l10n.lxSourceLowerPriority:
         await _changePriority(source, -1);
       case final option when option == l10n.lxSourceDelete:
         await _confirmDelete(source);
+    }
+  }
+
+  Future<void> _setActive(rust_lx.UiLxSourceEntry source, bool active) async {
+    if (_busy.contains(source.id)) return;
+    setState(() => _busy.add(source.id));
+    try {
+      await rust_lx.setLxActiveSource(id: source.id, active: active);
+      await _reload();
+    } catch (error) {
+      await _reload();
+      if (mounted) _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _busy.remove(source.id));
     }
   }
 
@@ -278,6 +298,7 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
     rust_lx.UiLxSourceEntry source,
   ) {
     final parts = <String>[
+      if (source.active) l10n.lxSourceActive,
       if (source.version.isNotEmpty) 'v${source.version}',
       if (source.author.isNotEmpty) source.author,
       _statusLabel(l10n, source),
@@ -411,6 +432,12 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
             final source = _sources[index];
             final busy = _busy.contains(source.id);
             return M3EListItem(
+              leading: source.active
+                  ? Icon(
+                      M3EIcons.check_circle,
+                      color: theme.colorScheme.primary,
+                    )
+                  : null,
               headline: source.name,
               supportingText: _supportingText(l10n, source),
               trailingText: 'P${source.priority}',

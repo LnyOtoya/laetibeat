@@ -124,7 +124,12 @@
   "lxSourceCancel": "Cancel",
   "lxSourceNoCapabilities": "No capabilities declared",
   "lxSourceEnabled": "Enabled",
-  "lxSourceDisabled": "Disabled",
+
+  "lxSourceActive": "Current source",
+
+  "playbackFailed": "Playback failed",
+  "playbackRetry": "Retry",  "lxSourceSetActive": "Set as current source",
+  "lxSourceClearActive": "Clear current source",  "lxSourceDisabled": "Disabled",
   "lxSourceRaisePriority": "Raise priority",
   "lxSourceLowerPriority": "Lower priority",
 
