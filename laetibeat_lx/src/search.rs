@@ -85,13 +85,10 @@ pub fn search(platform: &str, keyword: &str, page: u32, limit: u32) -> Result<Lx
         }
     };
 
-    // Some platforms (notably QQ) omit a reliable total. When total is
-    // unknown, a full page means there may be another page.
-    let has_more = if total == 0 {
-        tracks.len() as u32 >= limit
-    } else {
-        (page as u64 * limit as u64) < total
-    };
+    // Some platforms (notably QQ) return a total that is inaccurate or
+    // clamped to the current page. A full page is the reliable signal that
+    // another request is worth trying; the next empty/duplicate page stops it.
+    let has_more = tracks.len() as u32 >= limit;
     Ok(LxSearchPage {
         has_more,
         tracks,

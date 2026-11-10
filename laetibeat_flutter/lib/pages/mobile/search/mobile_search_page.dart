@@ -860,11 +860,19 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
       );
       if (!mounted || generation != _generation) return;
       setState(() {
-        _tracks = reset
-            ? result.tracks
-            : <rust_lx.UiLxSearchTrack>[..._tracks, ...result.tracks];
+        if (reset) {
+          _tracks = result.tracks;
+          _hasMore = result.hasMore;
+        } else {
+          final knownIds = _tracks.map((track) => track.id).toSet();
+          final fresh = result.tracks
+              .where((track) => knownIds.add(track.id))
+              .toList(growable: false);
+          _tracks = <rust_lx.UiLxSearchTrack>[..._tracks, ...fresh];
+          // A repeated page must not create an endless load loop.
+          _hasMore = result.hasMore && fresh.isNotEmpty;
+        }
         _page = result.page;
-        _hasMore = result.hasMore;
         _loading = false;
       });
       _ensureViewportFilled();
