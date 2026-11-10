@@ -7,9 +7,12 @@ import 'package:path_provider/path_provider.dart';
 /// 远端封面磁盘缓存:按 sourceId 分目录,总容量 LRU 淘汰。
 /// 文件名使用 base64Url,避免 coverId 里的特殊字符影响路径。
 class RemoteCoverDiskCache {
-  RemoteCoverDiskCache({this.maxBytes = 256 * 1024 * 1024});
+  RemoteCoverDiskCache({
+    this.maxBytes = 256 * 1024 * 1024,
+    this.rootName = 'remote_covers',
+  });
 
-  static const String _rootName = 'remote_covers';
+  final String rootName;
 
   /// 磁盘缓存总上限,默认 256MB
   int maxBytes;
@@ -104,7 +107,7 @@ class RemoteCoverDiskCache {
     if (existing != null) return existing;
 
     final support = await getApplicationSupportDirectory();
-    final dir = Directory('${support.path}/$_rootName');
+    final dir = Directory('${support.path}/$rootName');
     await dir.create(recursive: true);
     _root = dir;
     return dir;
@@ -197,6 +200,11 @@ class _CacheEntry {
 
 /// 全局封面磁盘缓存
 final RemoteCoverDiskCache remoteCoverDiskCache = RemoteCoverDiskCache();
+
+/// LX 音源封面磁盘缓存，和 Subsonic 封面分目录统计与清理。
+final RemoteCoverDiskCache lxCoverDiskCache = RemoteCoverDiskCache(
+  rootName: 'lx_covers',
+);
 
 /// 清理某个音源的封面缓存
 Future<void> clearRemoteCoverCache(String sourceId) =>

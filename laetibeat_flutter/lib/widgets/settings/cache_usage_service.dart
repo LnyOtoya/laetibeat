@@ -104,6 +104,7 @@ Future<void> applyCacheLimitsToCovers({
     limits.bytesFor(CacheGroup.subsonic),
   );
   lxCovers.setMaxBytes(limits.bytesFor(CacheGroup.lx));
+  await lxCoverDiskCache.setMaxBytes(limits.bytesFor(CacheGroup.lx));
 }
 
 class CacheGroupUsage {
@@ -161,6 +162,7 @@ class CacheUsageService {
       File('${support.path}/laetibeat_library.db'),
     );
     final covers = await _dirSize(Directory('${support.path}/remote_covers'));
+    final lxCovers = await _dirSize(Directory('${support.path}/lx_covers'));
 
     // 只统计“清除所有缓存”会真正释放的内容。LX 源脚本、播放统计库和
     // 播放队列属于用户数据，不应被算进缓存占用。
@@ -178,7 +180,7 @@ class CacheUsageService {
       ),
       lx: CacheGroupUsage(
         lyricsBytes: lxLyrics,
-        coversBytes: 0,
+        coversBytes: lxCovers,
         otherBytes: 0,
       ),
     );

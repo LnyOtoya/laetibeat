@@ -221,6 +221,7 @@ class _CacheBodyState extends ConsumerState<_CacheBody>
     try {
       await rust_library.clearLyricsCache();
       await remoteCoverDiskCache.clearAll();
+      await lxCoverDiskCache.clearAll();
       await ref.read(librarySnapshotStoreProvider).clear();
       for (final server in servers) {
         await rust_library.clearRemoteLibrary(sourceId: server.id);
@@ -389,12 +390,15 @@ class _CacheGroupSection extends StatelessWidget {
     final total = usage.totalBytes;
 
     final metrics = <_CacheMetric>[
-      _CacheMetric(
-        icon: M3EIcons.lyrics,
-        label: l10n.cacheLyrics,
-        bytes: usage.lyricsBytes,
-        color: scheme.primary,
-      ),
+      // 歌词是按需加载的，未打开过歌词时通常没有正缓存；无歌词文本时
+      // 不显示这一行，避免每个分组都出现“歌词缓存 0 B”。
+      if (usage.lyricsBytes > 0)
+        _CacheMetric(
+          icon: M3EIcons.lyrics,
+          label: l10n.cacheLyrics,
+          bytes: usage.lyricsBytes,
+          color: scheme.primary,
+        ),
       _CacheMetric(
         icon: M3EIcons.image,
         label: l10n.cacheCovers,

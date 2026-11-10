@@ -1,6 +1,7 @@
 use std::sync::{Mutex, OnceLock};
 
 use flutter_rust_bridge::frb;
+use laetibeat_core::remote_library as core_lib;
 use laetibeat_lx::search as lx_search;
 use laetibeat_lx::{LxError, LxMusicInfo, LxSourceEntry, LxSourceManager, LxSourceStatus};
 
@@ -166,12 +167,58 @@ pub fn resolve_lx_music_url(
     })
 }
 
+/// 歌词正缓存长期保留；未找到时缓存 1 天，避免反复请求。
+const LX_LYRICS_NEGATIVE_TTL_MS: i64 = 24 * 60 * 60 * 1000;
+
 pub fn resolve_lx_lyric(source: String, music: UiLxMusicInfo) -> Result<Option<UiLxLyric>, String> {
+    let cache_key = format!("lx:{source}:{}", music.id);
+    if let Ok(Some(entry)) = core_lib::get_lyrics_cache(&cache_key) {
+        return Ok(entry.raw_text.as_deref().and_then(parse_cached_lyric));
+    }
+
+    let music_info: LxMusicInfo = music.into();
     with_manager(|manager| {
-        let value = manager
-            .resolve_lyric(&source, &music.into())
-            .map_err(format_error)?;
-        Ok(parse_lyric(value))
+        match manager.resolve_lyric(&source, &music_info) {
+            Ok(value) => {
+                let parsed = parse_lyric(value);
+                let now = core_lib::now_ms();
+                match &parsed {
+                    Some(lyric) => {
+                        let raw = serde_json::json!({
+                            "lyric": &lyric.lyric,
+                            "tlyric": &lyric.tlyric,
+                            "rlyric": &lyric.rlyric,
+                            "lxlyric": &lyric.lxlyric,
+                        })
+                        .to_string();
+                        let synced =
+                            lyric.lxlyric.is_some() || lyric.lyric.contains('[');
+                        let _ = core_lib::put_lyrics_cache(
+                            &cache_key,
+                            "lx",
+                            Some(&raw),
+                            synced,
+                            None,
+                            now,
+                            None,
+                        );
+                    }
+                    None => {
+                        let _ = core_lib::put_lyrics_cache(
+                            &cache_key,
+                            "lx",
+                            None,
+                            false,
+                            None,
+                            now,
+                            Some(now + LX_LYRICS_NEGATIVE_TTL_MS),
+                        );
+                    }
+                }
+                Ok(parsed)
+            }
+            Err(error) => Err(format_error(error)),
+        }
     })
 }
 
@@ -222,6 +269,21 @@ fn map_entry(entry: LxSourceEntry) -> UiLxSourceEntry {
         status_message,
         capabilities,
     }
+}
+
+fn parse_cached_lyric(raw: &str) -> Option<UiLxLyric> {
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(raw) {
+        if let Some(lyric) = parse_lyric(value) {
+            return Some(lyric);
+        }
+    }
+    // Older cache entries may be plain LRC text.
+    Some(UiLxLyric {
+        lyric: raw.to_string(),
+        tlyric: None,
+        rlyric: None,
+        lxlyric: None,
+    })
 }
 
 fn parse_lyric(value: serde_json::Value) -> Option<UiLxLyric> {

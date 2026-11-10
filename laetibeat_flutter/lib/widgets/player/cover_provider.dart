@@ -129,15 +129,28 @@ class LxCoverProvider {
       }
     }
     if (url == null || url.isEmpty) return null;
-    return _download(url);
+    return _download(track.sourceId, track.id, url);
   }
 
-  Future<Uint8List?> _download(String url) async {
+  Future<Uint8List?> _download(
+    String sourceId,
+    String cacheKey,
+    String url,
+  ) async {
     final cached = _cache.remove(url);
     if (cached != null) {
       _cache[url] = cached;
       return cached;
     }
+
+    final disk = await lxCoverDiskCache.read(sourceId, cacheKey);
+    if (disk != null && disk.isNotEmpty) {
+      _cache[url] = disk;
+      _cachedBytes += disk.length;
+      _trim();
+      return disk;
+    }
+
     final uri = Uri.tryParse(url);
     if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https')) {
       return null;
@@ -154,6 +167,7 @@ class LxCoverProvider {
         (previous, chunk) => Uint8List.fromList(<int>[...previous, ...chunk]),
       );
       if (bytes.isEmpty) return null;
+      await lxCoverDiskCache.write(sourceId, cacheKey, bytes);
       _cache[url] = bytes;
       _cachedBytes += bytes.length;
       _trim();

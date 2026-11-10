@@ -7,7 +7,7 @@
 
 - 本地音乐：扫描、增量复用、专辑/艺术家聚合、播放、封面、歌词、统计、推荐
 - Navidrome：单服务端配置、手动同步、SQLite 快照、浏览/搜索/播放、封面/歌词、scrobble
-- 缓存：本地封面按需读取；远端封面内存 + 磁盘 LRU；歌词 SQLite 正负缓存；LX 目前仅内存封面缓存；移动端缓存管理支持总上限滑块、三源明细与一键释放空间
+- 缓存：本地封面按需读取；远端封面内存 + 磁盘 LRU；歌词 SQLite 正负缓存；LX 歌词 SQLite 正缓存 + 封面磁盘 LRU；移动端缓存管理支持总上限滑块、三源明细与一键释放空间
 - 移动端：音乐库/搜索/设置/播放页/迷你播放器已完成；首页目前只保留播放器主视图，`mobile_welcome_section` / `mobile_daily_section` 组件尚未接入
 - 移动端 OpenSubsonic：连接、测试、扫描、歌单、艺术家简介、专辑/曲目浏览已接入真实数据
 - 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
@@ -38,7 +38,7 @@
 
 - [ ] LX 源 id 改为基于 manifest 身份的稳定 id，脚本 hash 仅作版本字段
 - [ ] `lx.request` 从同步 `reqwest::blocking` 改为异步 request broker，支持取消
-- [ ] LX 歌词/封面持久化缓存，并与缓存分组统计对齐
+- [x] LX 歌词/封面持久化缓存，并与缓存分组统计对齐
 - [ ] 远端同步支持增量、取消与进度节流；推荐避免全量加载远端曲目
 - [ ] 统一 `source` 类型（local / opensubsonic / lx）为常量或枚举，清理字符串字面量
 - [ ] 清理死代码：`AudioSource`、`PlayState`、`SourceType::Opensubsonic`、`linux_mpris.dart`、`tmp.dart.bak`、未引用的移动首页组件
@@ -440,7 +440,7 @@
 - [x] URL 内存缓存（5 分钟）与失效重试
 - [ ] 播放失败时自动换源/手动换源 UI（当前只有当前曲目重试）
 - [x] 歌词/封面来源与现有缓存策略衔接（基础实现）
-- [ ] LX 歌词/封面持久化缓存，避免每次重新解析/下载
+- [x] LX 歌词/封面持久化缓存，避免每次重新解析/下载
 - [ ] 修复 LX 播放统计来源：统计键使用 `source=lx` + 平台 `sourceId`
 - [ ] 搜索建议 300ms 防抖，避免每次按键触发 LX 网络搜索
 
@@ -517,7 +517,7 @@
 - `lxEnabledPlatformsProvider` 没有 autoDispose 且从未 invalidate；启用/删除/禁用 LX 源后，搜索页能力列表可能一直保持旧值直到重启
 - `init_lx_source_store` 在 bootstrap 中同步执行 `load_enabled_sources()`，每个源都会 eval 脚本、执行 inited、pump timer（最长 5 秒），并可能同步发 HTTP 请求；源多时冷启动会被阻塞
 - LX source id 基于脚本全文 MD5，脚本一更新就变成新 source，旧记录残留并产生重复条目
-- LX 歌词没有 SQLite 持久化缓存，LX 封面只有内存 LRU；总缓存上限中的 LX 份额目前只作用于封面内存缓存
+- LX 歌词正缓存长期保留、未命中负缓存 1 天；封面磁盘缓存按平台 + 歌曲 id，URL 变化时需等待缓存清理
 - 全局缓存上限目前按历史默认比例（本地 1GB : Subsonic 2GB : 洛雪 512MB）分配到三组，暂不支持独立分组配额
 - 缓存占用只统计“清除所有缓存”会释放的内容；LX 源脚本、播放统计库和播放队列不计入缓存大小
 - `SourceType` 只有 `LocalFile` 和 `Opensubsonic`，LX 不在数据模型中；`source` 字段仍是字符串字面量，容易拼错
