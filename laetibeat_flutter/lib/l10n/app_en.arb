@@ -127,8 +127,16 @@
 
   "lxSourceActive": "Current source",
 
-  "playbackFailed": "Playback failed",
-  "playbackRetry": "Retry",  "lxSourceSetActive": "Set as current source",
+  "searchSourceLocal": "Local",
+
+  "searchBack": "Back",
+  "searchFilter": "Filter sources",
+  "searchFilterAll": "All sources",
+  "searchFilterSubsonic": "Subsonic",
+  "searchFilterLx": "LX sources",  "playbackFailed": "Playback failed",
+
+  "searchLxCurrentSource": "Current source",
+  "searchLxFilter": "Filter",  "playbackRetry": "Retry",  "lxSourceSetActive": "Set as current source",
   "lxSourceClearActive": "Clear current source",  "lxSourceDisabled": "Disabled",
   "lxSourceRaisePriority": "Raise priority",
   "lxSourceLowerPriority": "Lower priority",

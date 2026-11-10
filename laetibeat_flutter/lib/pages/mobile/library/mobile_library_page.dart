@@ -1,8 +1,11 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../l10n/generated/app_localizations.dart';
+import '../mobile_navigation.dart';
 import '../routes.dart';
+import '../search/mobile_search_page.dart';
 import '../widgets/mobile_app_bar.dart';
 import 'views/albums_library_view.dart';
 import 'views/artists_library_view.dart';
@@ -29,10 +32,23 @@ enum LibrarySection {
 }
 
 /// 移动端音乐库页面。
-class MobileLibraryPage extends StatelessWidget {
+class MobileLibraryPage extends ConsumerStatefulWidget {
   const MobileLibraryPage({super.key, required this.section});
 
   final LibrarySection section;
+
+  @override
+  ConsumerState<MobileLibraryPage> createState() => _MobileLibraryPageState();
+}
+
+class _MobileLibraryPageState extends ConsumerState<MobileLibraryPage> {
+  void _openSearchPage() {
+    pushMobileRootPage(
+      context,
+      const MobileSearchPage(),
+      name: MobileRoutes.search,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +74,17 @@ class MobileLibraryPage extends StatelessWidget {
       backgroundColor: theme.colorScheme.surfaceContainer,
       appBar: mobileTopAppBar(
         context,
-        title: mobileTopAppBarTitle(context, l10n.libraryTitle),
+        title: M3ESearchBar(
+          hintText: l10n.searchHint,
+          leading: const Icon(M3EIcons.search),
+          readOnly: true,
+          expandOnFocus: false,
+          constraints: const BoxConstraints.tightFor(height: 48),
+          backgroundColor: WidgetStatePropertyAll<Color?>(
+            theme.colorScheme.surfaceContainerHigh,
+          ),
+          onTap: _openSearchPage,
+        ),
         actions: mobileHomeAppBarActions(context),
       ),
       body: SafeArea(
@@ -77,11 +103,11 @@ class MobileLibraryPage extends StatelessWidget {
                 selectionRequired: true,
                 neighborSquish: true,
                 overflow: M3EButtonGroupOverflow.scroll,
-                selectedIndex: section.index,
+                selectedIndex: widget.section.index,
                 onSelectedIndexChanged: (int? index) {
                   if (index == null) return;
                   final next = LibrarySection.values[index];
-                  if (next == section) return;
+                  if (next == widget.section) return;
                   Navigator.of(context).pushNamed(next.routeName);
                 },
                 actions: [
@@ -101,7 +127,7 @@ class MobileLibraryPage extends StatelessWidget {
   }
 
   Widget _buildContent(AppLocalizations l10n) {
-    return switch (section) {
+    return switch (widget.section) {
       LibrarySection.songs => const SongsLibraryView(),
       LibrarySection.playlists => const PlaylistsLibraryView(),
       LibrarySection.artists => const ArtistsLibraryView(),

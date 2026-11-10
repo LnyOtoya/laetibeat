@@ -29,7 +29,6 @@ class MobileShell extends ConsumerWidget {
   static const List<AppDestination> _tabs = [
     AppDestination.home,
     AppDestination.library,
-    AppDestination.search,
   ];
 
   List<M3ENavigationBarDestination> _destinations(AppLocalizations l10n) {
@@ -42,10 +41,6 @@ class MobileShell extends ConsumerWidget {
         icon: const Icon(M3EIcons.music_note),
         label: l10n.navLibrary,
       ),
-      M3ENavigationBarDestination(
-        icon: const Icon(M3EIcons.search),
-        label: l10n.navSearch,
-      ),
     ];
   }
 
@@ -53,7 +48,6 @@ class MobileShell extends ConsumerWidget {
     if (route == null || route == MobileRoutes.home) {
       return AppDestination.home;
     }
-    if (route == MobileRoutes.search) return AppDestination.search;
     if (route == MobileRoutes.library || route.startsWith('/library/')) {
       return AppDestination.library;
     }
@@ -69,7 +63,6 @@ class MobileShell extends ConsumerWidget {
       MobileRoutes.libraryArtists,
       MobileRoutes.libraryAlbums,
       MobileRoutes.libraryPodcasts,
-      MobileRoutes.search,
     };
     return visible.contains(route);
   }

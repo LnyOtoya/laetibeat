@@ -385,7 +385,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lxSourceActive => '当前音源';
 
   @override
+  String get searchSourceLocal => '本地音乐';
+
+  @override
+  String get searchBack => '返回';
+
+  @override
+  String get searchFilter => '筛选来源';
+
+  @override
+  String get searchFilterAll => '全部来源';
+
+  @override
+  String get searchFilterSubsonic => 'Subsonic';
+
+  @override
+  String get searchFilterLx => '洛雪音源';
+
+  @override
   String get playbackFailed => '播放失败';
+
+  @override
+  String get searchLxCurrentSource => '当前音源';
+
+  @override
+  String get searchLxFilter => '筛选';
 
   @override
   String get playbackRetry => '重试';
@@ -783,9 +807,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get searchSource => '搜索源';
-
-  @override
-  String get searchSourceLocal => '本地音乐';
 
   @override
   String get searchSourceSubsonic => 'Subsonic';

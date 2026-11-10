@@ -127,8 +127,16 @@
 
   "lxSourceActive": "当前音源",
 
-  "playbackFailed": "播放失败",
-  "playbackRetry": "重试",  "lxSourceSetActive": "设为当前音源",
+  "searchSourceLocal": "本地",
+
+  "searchBack": "返回",
+  "searchFilter": "筛选来源",
+  "searchFilterAll": "全部来源",
+  "searchFilterSubsonic": "Subsonic",
+  "searchFilterLx": "洛雪音源",  "playbackFailed": "播放失败",
+
+  "searchLxCurrentSource": "当前音源",
+  "searchLxFilter": "筛选",  "playbackRetry": "重试",  "lxSourceSetActive": "设为当前音源",
   "lxSourceClearActive": "取消当前音源",  "lxSourceDisabled": "已禁用",
   "lxSourceRaisePriority": "提高优先级",
   "lxSourceLowerPriority": "降低优先级",

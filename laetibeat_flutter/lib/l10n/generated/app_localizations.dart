@@ -848,11 +848,59 @@ abstract class AppLocalizations {
   /// **'Current source'**
   String get lxSourceActive;
 
+  /// No description provided for @searchSourceLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Local music'**
+  String get searchSourceLocal;
+
+  /// No description provided for @searchBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get searchBack;
+
+  /// No description provided for @searchFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter sources'**
+  String get searchFilter;
+
+  /// No description provided for @searchFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All sources'**
+  String get searchFilterAll;
+
+  /// No description provided for @searchFilterSubsonic.
+  ///
+  /// In en, this message translates to:
+  /// **'Subsonic'**
+  String get searchFilterSubsonic;
+
+  /// No description provided for @searchFilterLx.
+  ///
+  /// In en, this message translates to:
+  /// **'LX sources'**
+  String get searchFilterLx;
+
   /// No description provided for @playbackFailed.
   ///
   /// In en, this message translates to:
   /// **'Playback failed'**
   String get playbackFailed;
+
+  /// No description provided for @searchLxCurrentSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Current source'**
+  String get searchLxCurrentSource;
+
+  /// No description provided for @searchLxFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter'**
+  String get searchLxFilter;
 
   /// No description provided for @playbackRetry.
   ///
@@ -1603,12 +1651,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search source'**
   String get searchSource;
-
-  /// No description provided for @searchSourceLocal.
-  ///
-  /// In en, this message translates to:
-  /// **'Local music'**
-  String get searchSourceLocal;
 
   /// No description provided for @searchSourceSubsonic.
   ///

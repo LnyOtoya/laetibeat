@@ -397,7 +397,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lxSourceActive => 'Current source';
 
   @override
+  String get searchSourceLocal => 'Local music';
+
+  @override
+  String get searchBack => 'Back';
+
+  @override
+  String get searchFilter => 'Filter sources';
+
+  @override
+  String get searchFilterAll => 'All sources';
+
+  @override
+  String get searchFilterSubsonic => 'Subsonic';
+
+  @override
+  String get searchFilterLx => 'LX sources';
+
+  @override
   String get playbackFailed => 'Playback failed';
+
+  @override
+  String get searchLxCurrentSource => 'Current source';
+
+  @override
+  String get searchLxFilter => 'Filter';
 
   @override
   String get playbackRetry => 'Retry';
@@ -800,9 +824,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchSource => 'Search source';
-
-  @override
-  String get searchSourceLocal => 'Local music';
 
   @override
   String get searchSourceSubsonic => 'Subsonic';
