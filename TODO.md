@@ -1,26 +1,66 @@
 # Laetibeat 项目蓝图
 
-> 最后更新：2026-11-09
-> 当前阶段：Android 播放/后台/通知已验证，规划独立的洛雪/LX 音源宿主
+> 最后更新：2026-11-10
+> 当前阶段：本地 / OpenSubsonic / LX 三源搜索与播放链路已打通，进入正确性、稳定性与工程债收尾
 
 ## 当前状态速览
 
 - 本地音乐：扫描、增量复用、专辑/艺术家聚合、播放、封面、歌词、统计、推荐
 - Navidrome：单服务端配置、手动同步、SQLite 快照、浏览/搜索/播放、封面/歌词、scrobble
-- 缓存：本地封面按需读取；远端封面内存 + 磁盘 LRU；歌词 SQLite 正负缓存
-- 移动端：首页/音乐库/搜索/设置/播放页/迷你播放器已完成；音乐库按歌曲、歌单、艺术家、专辑分组
+- 缓存：本地封面按需读取；远端封面内存 + 磁盘 LRU；歌词 SQLite 正负缓存；LX 目前仅内存封面缓存
+- 移动端：音乐库/搜索/设置/播放页/迷你播放器已完成；首页目前只保留播放器主视图，`mobile_welcome_section` / `mobile_daily_section` 组件尚未接入
 - 移动端 OpenSubsonic：连接、测试、扫描、歌单、艺术家简介、专辑/曲目浏览已接入真实数据
 - 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
 - 歌词：已接入 LRCLIB、LiriQo 搜索，支持逐字/逐行/静态标记、翻译与临时应用
 - 跨平台：Linux 桌面可用；Android UI 已解耦，audio_service 后台/锁屏/通知已验证；Windows/macOS 打包未开始
-- LX 音源：`laetibeat_lx` 已建立；QuickJS、inited、HTTP、AES/RSA、setTimeout、SourceStore、SourceManager、FRB facade、移动端管理 UI 已通过；搜索/播放接入尚未完成
-- 主要缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
+- LX 音源：QuickJS、inited、HTTP、AES/RSA、setTimeout、SourceStore、SourceManager、FRB facade、移动端管理 UI、五平台独立搜索、`musicUrl` / `lyric` / `pic` 播放链路已打通
+- LX 剩余重点：脚本执行安全与中断、源生命周期与懒加载、稳定 source id、歌词/封面持久缓存、真实源联调
+- 主要功能缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
+
+## 当前优先事项（2026-11-10）
+
+> 排序原则：用户可见错误 > 稳定性/安全 > 功能补齐 > 工程债。
+> 详细背景见各阶段条目与“已知问题 / 技术债”。
+
+### P0 正确性与用户可见问题
+
+- [ ] 修复 LX 播放统计来源：`PlaybackSessionTracker` 当前把 `source=lx` 记成 `local`，污染本地统计与推荐
+- [ ] 搜索建议增加 300ms 防抖：`LibrarySearchSuggestions` 当前每次按键都会触发 LX 网络搜索
+- [ ] LX 源导入/启用/禁用/删除/改优先级后刷新 `lxEnabledPlatformsProvider` 与 `lxSearchProvider`
+- [ ] LX 冷启动改为懒加载：`init_lx_source_store` 不再同步 `load_enabled_sources()`，避免 bootstrap 被脚本初始化/网络阻塞
+- [ ] 缓存上限在启动时应用；统一 UI 默认值与实际内存/磁盘上限；清理缓存时同时清理内存缓存
+- [ ] 为 QuickJS 增加执行超时、内存上限、中断与死循环保护
+- [ ] Android 接入 SAF / file_picker 目录选择，修复 `MobileDirectoryPicker` 返回 null
+- [ ] `PlaybackBackend` 增加 buffering / error / processing phase，`LaetibeatAudioHandler` 不再固定 `processingState=ready`
+
+### P1 稳定性与架构债
+
+- [ ] LX 源 id 改为基于 manifest 身份的稳定 id，脚本 hash 仅作版本字段
+- [ ] `lx.request` 从同步 `reqwest::blocking` 改为异步 request broker，支持取消
+- [ ] LX 歌词/封面持久化缓存，并与缓存分组统计对齐
+- [ ] 远端同步支持增量、取消与进度节流；推荐避免全量加载远端曲目
+- [ ] 统一 `source` 类型（local / opensubsonic / lx）为常量或枚举，清理字符串字面量
+- [ ] 清理死代码：`AudioSource`、`PlayState`、`SourceType::Opensubsonic`、`linux_mpris.dart`、`tmp.dart.bak`、未引用的移动首页组件
+- [ ] 更新 `ARCHITECTURE.md`：当前移动端播放后端、单 Navigator、audio_service 状态
+- [ ] 在可用 Flutter 环境复验 `flutter analyze` / `flutter test`，并补充播放队列、搜索、缓存测试
+- [ ] 补齐仓库 LICENSE / 第三方 NOTICE，确认 QuickJS / FFmpeg 分发合规
+- [ ] Android cleartext 改为按域名白名单的 network security config
+
+### P2 功能补齐
+
+- [ ] 收藏/喜欢（本地 + OpenSubsonic star/unstar）
+- [ ] 本地歌单 CRUD 与加入歌单
+- [ ] 队列编辑（加入队列、下一首播放、删除、拖动排序、清空）
+- [ ] 下载
+- [ ] 移动端首页推荐/历史接入，或删除孤立组件
+- [ ] MPRIS 迁移到 audio_service，或彻底移除旧实现
+- [ ] 高级 DSP / ReplayGain / 响度归一
 
 ## 阶段1：数据模型与基础扫描
 
 - [x] 1.1 初始化 Rust workspace
-- [x] 1.2 定义 Track/Album/Artist/PlayState 与音源抽象（AudioSource 目前保留，远端由 laetibeat_remote 独立实现）
+- [x] 1.2 定义 Track/Album/Artist 与音源抽象（`PlayState` / `AudioSource` 当前未使用，列入死代码清理；远端由 laetibeat_remote 独立实现）
 - [x] 1.3 本地文件夹扫描与元数据解析（walkdir + lofty，支持 mp3/flac/m4a/wav）
 - [x] 1.4 解码方案定板：桌面使用 media_kit（libmpv + FFmpeg），不自研 PCM 解码
 - [x] 1.5 增量扫描：path + modified_ms + file_size 指纹复用
@@ -79,7 +119,7 @@
 
 - [x] 5.1 SQLite 播放事件与曲目聚合统计
 - [x] 5.2 首页播放记录：今天/本周/本月、累计播放、收听时长、Top 歌手/专辑
-- [x] 5.3 跨音源统计（本地 + 远端合并）
+- [x] 5.3 跨音源统计（本地 + 远端合并；LX 来源分类待修复）
 - [x] 5.4 专辑级推荐三模式，合并本地与远端播放记录
 - [ ] 5.5 播放热力图
 - [ ] 5.6 Home「See all」等入口落地
@@ -111,7 +151,7 @@
 - [x] 7.13 歌曲排序：默认/标题/艺术家/专辑/添加时间，设置页同步
 - [x] 7.14 移动端 OpenSubsonic 配置页真实连接、测试、扫描
 
-## 阶段8：Android 音频服务迁移（当前）
+## 阶段8：Android 音频服务迁移（已完成主体，待状态抽象收尾）
 
 目标：Android 从 media_kit 迁移到 `audio_service` + `just_audio`，桌面继续 media_kit。
 
@@ -120,7 +160,8 @@
 - [x] 新增 `JustAudioBackend`（Android/iOS）
 - [x] bootstrap 按平台注入：Android/iOS → JustAudio，桌面 → MediaKit
 - [x] 保持 `PlaybackBackend` 接口不向 UI 泄漏具体引擎
-- [ ] 补齐 buffering / error / processing state 抽象
+- [ ] 补齐 buffering / error / processing state 抽象；当前 `LaetibeatAudioHandler` 固定 `processingState=ready`，`bufferedPosition` 直接等于 `position`
+- [ ] PlaybackBackend 暴露 buffering / error / phase 流；JustAudio 映射 `processingStateStream`，MediaKit 映射对应状态
 - [ ] 验证 OpenSubsonic stream URL、本地 file URI、恢复播放
 
 ### 8.2 audio_service 与状态归属
@@ -259,7 +300,7 @@
 - [ ] 普通模式与独占模式可切换
 - [ ] 输出路径诊断 UI：采样率/位深/是否 bit-perfect
 
-## 阶段10：洛雪 / LX 音源宿主（进行中）
+## 阶段10：洛雪 / LX 音源宿主（已接入，收尾中）
 
 目标：支持用户导入 LX 自定义 `.js` 音源，在 Rust 侧运行脚本并解析 `musicUrl` / `lyric` / `pic`；不把第三方音源打包进应用。
 
@@ -269,10 +310,10 @@
 - [x] 将 `reference/` 加入 `.gitignore`，发布前确认不进入源码包/APK
 - [x] 不直接复制官方 JS/Kotlin/React Native/Redux 代码；按行为重写
 - [x] 新建独立 crate：`laetibeat_lx/`，与 `laetibeat_flutter/`、`laetibeat_core/` 同级
-- [ ] `laetibeat_lx` 只依赖自身需要的 Rust crates，不反向依赖 Flutter/FRB
+- [x] `laetibeat_lx` 只依赖自身需要的 Rust crates，不反向依赖 Flutter/FRB
 - [x] `laetibeat_flutter/rust` 只增加极薄的 FRB facade，不把宿主逻辑写进现有业务文件
-- [ ] 用户自行导入音源脚本；不内置、不预置、不自动抓取第三方源
-- [ ] 明确非官方接口、版权和服务条款风险，UI 中保留说明
+- [x] 用户自行导入音源脚本；不内置、不预置、不自动抓取第三方源
+- [x] 明确非官方接口、版权和服务条款风险，UI 中保留说明
 
 ### 10.2 JS 引擎选型
 
@@ -293,7 +334,7 @@
 
 ### 10.3 JS 运行时与宿主
 
-- [ ] 每个音源独立 QuickJS Context，禁止共享全局状态
+- [x] 每个音源独立 QuickJS Context，禁止共享全局状态
 - [ ] 专用 JS 线程/Actor；JS Context 只在单线程访问
 - [x] 独立 `laetibeat_lx/src/preload.js` 兼容层初版
 - [x] 实现 `globalThis.lx.EVENT_NAMES`
@@ -310,13 +351,15 @@
 - [ ] 替换为长期异步 JS 事件循环，支持超过 5 秒的定时任务
 - [x] 基础 Promise / microtask 调度（`execute_pending_job`）
 - [ ] 初始化超时、请求超时、脚本执行超时
+- [ ] 为 QuickJS 设置内存上限与 interrupt handler，死循环可被中断
 - [ ] 请求取消与 Context 销毁
 - [x] 基础 JS 异常/结果回传
 - [x] 禁止 `eval`
 - [x] 脚本大小、inited 载荷、结果大小基础限制
-- [ ] 禁止动态 `Function`、文件系统和宿主内部对象
+- [ ] 禁止动态 `Function`、文件系统和宿主内部对象（当前只禁用了 `eval`）
 - [ ] 完整输入/输出长度限制与 JSON 序列化校验
 - [ ] 脚本内存/CPU 占用限制和崩溃隔离
+- [ ] 避免启动时同步加载全部启用源：拆分 store 初始化与 runtime 懒加载
 
 ### 10.4 HTTP 请求代理
 
@@ -328,21 +371,22 @@
 - [ ] 支持请求取消与异步 requestKey
 - [ ] 为每个请求建立 requestKey，完成/失败/取消回写 JS
 - [x] 脚本只能通过宿主代理发请求，不直接接触 Rust 内部
-- [ ] Android TLS 初始化复用现有 rustls 方案（宿主应用仍需初始化 platform verifier）
+- [x] Android TLS 初始化：`LaetibeatApplication` 在进程启动时调用 rustls-platform-verifier
 - [ ] 将同步 `reqwest::blocking` 改为异步 request broker，避免阻塞 JS 线程
 
 ### 10.5 音源导入与存储
 
 - [x] 解析脚本头部 `/* @name @description @author @homepage @version */`
-- [x] 生成稳定 source id，保存脚本正文和元数据
+- [ ] 生成稳定 source id：当前基于脚本全文 MD5，脚本一更新就会变成新源；应改为基于 manifest 身份，脚本 hash 仅作版本字段
+- [x] 保存脚本正文和元数据
 - [x] 支持删除、启用、禁用、优先级排序
 - [x] 保存 `allowShowUpdateAlert`
 - [x] 脚本文件放应用私有目录，元数据放 JSON 索引初版
-- [ ] 支持本地 `.js` 文件选择 UI
-- [ ] 支持在线 URL 导入（由 Rust 下载或 Flutter 下载后交给 Rust）
+- [x] 支持本地 `.js` 文件选择 UI
+- [x] 支持在线 URL 导入（当前由 Flutter 下载后交给 Rust）
 - [ ] 持久化源运行状态：未初始化/初始化中/可用/失败
-- [ ] 保存 `inited` 声明的 sources、actions、qualitys
-- [ ] 不将脚本内容写入日志或普通配置快照
+- [ ] 保存 `inited` 声明的 sources、actions、qualitys（当前仅保存在内存）
+- [x] 不将脚本内容写入日志或普通配置快照
 
 ### 10.6 源管理器
 
@@ -356,6 +400,8 @@
 - [x] 初始化失败与请求失败状态回传（内存状态）
 - [ ] `updateAlert` 事件与更新 URL 展示
 - [ ] 源脚本过期/失效诊断信息
+- [ ] 启用/禁用/删除/优先级/active 变更后通知 Flutter 刷新能力 Provider
+- [ ] 启动时只加载 store，源 runtime 按首次搜索/播放懒加载，并隔离单源初始化失败
 
 ### 10.7 FRB 与 Flutter UI
 
@@ -371,10 +417,12 @@
 - [x] 通过 `list_lx_sources` 查询内存状态（事件流/更新提示仍待做）
 - [x] 移动端设置页增加“洛雪音源”入口
 - [x] 启动时初始化 `<application support>/laetibeat_lx` 存储
+- [ ] 启动时仅打开 store；已启用源按需懒加载，避免 bootstrap 同步加载
 - [x] 导入弹窗：本地文件/在线 URL
 - [x] 源列表：名称、版本、作者、状态、启用开关、优先级
 - [x] 删除确认、错误提示
 - [ ] `updateAlert` 更新提示 UI
+- [ ] 导入/启用/禁用/删除/优先级变更后 invalidate `lxEnabledPlatformsProvider` / `lxSearchProvider`
 - [x] 移动端与桌面端 UI 隔离，不共享桌面布局
 
 ### 10.8 搜索与播放接入
@@ -385,10 +433,14 @@
 - [x] `wy` eapi 加密搜索
 - [x] 将 LX 源作为已知歌曲的播放地址解析器，而不是默认搜索源
 - [x] 扩展播放解析接口，加入 `lx`
-- [ ] 保存 `source/songmid/quality/musicInfo`，保证切歌后可重新解析
-- [ ] URL 缓存与失效重试策略
-- [ ] 播放失败时自动换源/手动换源 UI
+- [x] 保存 `source/songmid/musicInfo`：`UiTrack.sourceId` / `id` / `sourceExtraJson` 与队列快照已持久化
+- [ ] 持久化 quality 偏好或解析时的 quality，保证切歌后可稳定复现
+- [x] URL 内存缓存（5 分钟）与失效重试
+- [ ] 播放失败时自动换源/手动换源 UI（当前只有当前曲目重试）
 - [x] 歌词/封面来源与现有缓存策略衔接（基础实现）
+- [ ] LX 歌词/封面持久化缓存，避免每次重新解析/下载
+- [ ] 修复 LX 播放统计来源：统计键使用 `source=lx` + 平台 `sourceId`
+- [ ] 搜索建议 300ms 防抖，避免每次按键触发 LX 网络搜索
 
 ### 10.9 测试与安全
 
@@ -400,10 +452,12 @@
 - [x] 验证 SourceStore 导入/列表/读取/删除/启用/优先级
 - [x] 验证 RSA 无效公钥错误路径
 - [x] 验证 SourceManager 启用、加载、优先级、解析、移除
-- [x] `flutter analyze` / `flutter test` 通过
+- [ ] 复验 `flutter analyze` / `flutter test`（历史记录通过；当前环境未安装 Flutter）
+- [x] `cargo test --workspace` 通过（30 tests：core 5 / lx 22 / remote 3）
 - [x] Android armv7/aarch64/x86_64 release Rust 编译通过（含 LX/QuickJS/FRB）
 - [x] `flutter build apk --release` 通过（150.3MB；不要用 `--no-pub` 跳过插件注册表重生成）
 - [x] 验证 `setTimeout` 延迟后解析 musicUrl
+- [ ] 为 LX 统计来源、搜索防抖、Provider invalidation、缓存上限补充回归测试
 - [ ] 验证 `musicUrl` 失败/超时/取消
 - [ ] 验证歌词/封面返回格式与长度限制
 - [ ] 验证恶意脚本无法访问文件/网络/宿主对象
@@ -425,15 +479,16 @@
 - [x] 无本地/Subsonic 时，启用 LX 源后可在搜索页搜索 kw/kg/tx/wy/mg 并播放
 - [x] 搜索分页 / 加载更多
 - [x] 搜索失败重试
-- [x] 搜索输入防抖（300ms）
+- [ ] 搜索输入防抖（300ms）：当前 `LibrarySearchSuggestions` 每次按键都会触发搜索
 - [ ] 搜索请求真正取消（当前通过请求代次丢弃旧结果）
+- [ ] LX 源启用/删除后搜索页能力列表立即刷新
 - [ ] 真实 LX 源 + 真实平台搜索结果联调
 - [x] 平台特定字段透传（kg hash、mg copyrightId、tx strMediaMid/songId）
 - [x] `UiTrack.sourceExtraJson` 与队列快照持久化
 - [x] LX URL 内存缓存（5 分钟）与失败重试
 - [x] 带平台字段/URL 缓存的 release APK 构建通过（151.2MB）
 - [x] 修复 KG 搜索：Audioid 为数字类型时被跳过
-- [x] 带 KG/MG 歌词、KW/KG 封面、MG mrc 解密、搜索防抖的 release APK 构建通过（151.4MB）
+- [x] 带 KG/MG 歌词、KW/KG 封面、MG mrc 解密的 release APK 构建通过（151.4MB）
 - [x] kg 内置歌词接口（KRC 解码）
 - [x] mg 内置歌词接口：lrcUrl + mrcUrl TEA 解密 + trcUrl 翻译（待真实 mrc 样本验证）
 - [x] kw 搜索封面（web_albumpic_short -> 500px）
@@ -447,38 +502,71 @@
 - [ ] 用真实 `source=lx` 曲目测试播放/歌词/封面
 - [ ] 请求失败/超时/取消不会崩溃
 - [ ] 禁用/删除源后 Context 正确释放
+- [ ] LX 播放统计按 `source=lx` + 平台 `sourceId` 记录，不污染本地统计
 - [ ] 源脚本失效时错误可定位且不影响本地/OpenSubsonic
-- [ ] `reference/` 不被提交，应用不内置任何洛雪音源
+- [x] `reference/` 不被提交，应用不内置任何洛雪音源
 
 ## 已知问题 / 技术债
 
-- 自研 MPRIS 会卡死 waybar，已停用；后续统一迁移 audio_service
+### 正确性与状态一致性
+
+- `PlaybackSessionTracker` 只区分 `opensubsonic` 和 `local`，LX 播放会被记成 `local`，污染本地统计、Top 歌手/专辑与推荐；应使用 `source=lx` + 平台 `sourceId`
+- 搜索建议未做 300ms 防抖，`LibrarySearchSuggestions` 每次按键都会触发 LX 网络搜索
+- `lxEnabledPlatformsProvider` 没有 autoDispose 且从未 invalidate；启用/删除/禁用 LX 源后，搜索页能力列表可能一直保持旧值直到重启
+- `init_lx_source_store` 在 bootstrap 中同步执行 `load_enabled_sources()`，每个源都会 eval 脚本、执行 inited、pump timer（最长 5 秒），并可能同步发 HTTP 请求；源多时冷启动会被阻塞
+- LX source id 基于脚本全文 MD5，脚本一更新就变成新 source，旧记录残留并产生重复条目
+- LX 歌词/封面没有持久化缓存；LX 封面目前只有内存 LRU，源码缓存设置中的 `lx` 分组基本没有实际意义
+- `CacheLimits` UI 默认值与实际缓存上限不一致：UI 为 1GB/2GB/512MB，实际为 64MB/256MB/32MB；持久化限制只在用户拖动滑块时应用，启动时不会生效
+- “清除所有缓存”没有清理 `remoteCoverSourceProvider` 的内存缓存；“清除 Subsonic 缓存”会调用 `remoteCoverDiskCache.clearAll()`，影响所有源
+- `SourceType` 只有 `LocalFile` 和 `Opensubsonic`，LX 不在数据模型中；`source` 字段仍是字符串字面量，容易拼错
+- 移动端首页只挂载播放器主视图，`mobile_welcome_section.dart` / `mobile_daily_section.dart` / `mobile_home_constants.dart` 当前无引用
+- 本地歌单尚未实现；移动端歌单页只显示 OpenSubsonic 歌单
+- 移动端内容设置中的“选择本地音乐库”“同步数据库”按钮仍是空实现
+
+### 播放、音频服务与平台
+
+- 自研 MPRIS 会卡死 waybar，已停用；`linux_mpris.dart` 仍留在仓库但没有引用，后续应迁移 audio_service 或删除
 - Android 已接入 just_audio + audio_service；后台、锁屏、通知、划掉 App、scrobble 已完成真机验证
-- `MediaSessionService` 当前仍是 Noop，`MediaIntegrationHost` 仅做简单状态同步
-- Android 播放后端已按平台拆分，桌面仍使用 MediaKitBackend
+- `MediaSessionService` 仍是 Noop，`MediaIntegrationHost` 仅做简单状态同步；当前真正生效的是 `LaetibeatAudioHandler` 直连 PlayerNotifier
+- `PlaybackBackend` 没有 buffering / error / processing phase；`LaetibeatAudioHandler` 固定 `processingState=ready`，`bufferedPosition` 直接等于 `position`
+- audio_service 只在 Android 初始化；iOS 目前没有后台媒体会话接入
 - media_kit 在 Android 上出现过原生 SIGSEGV；Android 已改用 just_audio，桌面风险另论
-- `audio_service` 的 `AudioHandler` 与 UI 同 isolate，当前仍由 `PlayerNotifier` 持有播放状态
-- 远端同步仅支持全量，暂无取消与增量；大库同步时间较长
-- Scrobble 为 best-effort，服务器离线时不会补报
-- 推荐聚合会把全部远端曲目缓存到内存，超大曲库需要改为聚合查询
-- 本地音乐库仍使用 JSON 快照；播放统计与远端库使用两个独立 SQLite
-- 多个设置分类仍是占位：储存、备份与还原、更新日志
+- `MobileDirectoryPicker` 仍返回 null，Android 无法配置本地音乐目录，需接 SAF / `file_picker.getDirectoryPath` / `READ_MEDIA_AUDIO`
+- Android `usesCleartextTraffic="true"` 全局放开；LX 的 kw/wy 等接口需要 HTTP，但建议改为按域名白名单的 network security config
+- 通知点击回到播放页/当前页面尚未验证
+- 导航 Favorite/History/Daily Recommend 目前只改变选中态，不切换页面
+- 桌面 `chart_page.dart` / `playlist_page.dart` 仍是 `Placeholder`
 - AndroidEqualizer 的频段数量/频率由设备决定，当前 UI 固定展示 5 个典型频段
 - 淡入淡出通过音量渐变实现，不是双 deck 的 crossfade；切歌仍有短暂换曲间隔
 - 当前只接入 AndroidEqualizer 和 LoudnessEnhancer 能力；压缩/限幅/Bass Boost/Virtualizer/Crossfeed 尚无实现
-- 歌词搜索结果的应用是当前会话内存覆盖，尚未持久化到本地 .lrc 或数据库
-- Flick 试听与 just_audio 差异不明显，音质问题更可能来自解码/系统音效/耳机调音；后续以 ReplayGain、EQ、DSP 为主线
-- 导航 Favorite/History/Daily Recommend 目前只改变选中态，不切换页面
-- 移动端目录选择已抽象为 DirectoryPicker，但 MobileDirectoryPicker 仍返回 null，需接 SAF / READ_MEDIA_AUDIO
-- 移动端收藏、歌单编辑、下载、队列编辑仍为占位
-- 远端推荐依赖先执行一次「同步音乐」
-- 远端歌词正缓存没有 TTL，服务器更新歌词后需要手动清理
 - 高级 DSP、USB 独占、DSD 尚未实现；当前没有现成 Flutter 包可直接满足
 - 蓝牙/外放仍经过 Android 混音与蓝牙编码，DSP 可改善听感但无法 bit-perfect
-- `reference/lx-music-mobile` 仅本地参考，不参与构建/发布；正式提交前必须确认其不进入仓库或发布包
-- LX 自定义源主要提供 `musicUrl` / `lyric` / `pic`，通常不提供搜索；搜索层需要单独设计
-- 洛雪音源脚本属于第三方内容，不随应用分发；不同脚本的兼容性、可用性和版权风险需由用户自行承担
-- Flutter release 构建可能复用包含 `integration_test` 的旧 `GeneratedPluginRegistrant.java`；失败时删除该生成文件或 `flutter clean` 后重试
+- Flick 试听与 just_audio 差异不明显，音质问题更可能来自解码/系统音效/耳机调音；后续以 ReplayGain、EQ、DSP 为主线
+
+### 远端与缓存
+
+- 远端同步仅支持全量，暂无取消与增量；大库同步时间较长
+- Scrobble 为 best-effort，服务器离线时不会补报
+- 推荐聚合会把全部远端曲目缓存到内存，超大曲库需要改为聚合查询
+- 远端推荐依赖先执行一次「同步音乐」
+- 远端歌词正缓存没有 TTL，服务器更新歌词后需要手动清理
+- 本地音乐库仍使用 JSON 快照；播放统计与远端库使用两个独立 SQLite
+- 歌词搜索结果的应用是当前会话内存覆盖，尚未持久化到本地 .lrc 或数据库
+- 多个设置分类仍是占位：备份与还原、更新日志；桌面“储存”“播放器与音频”仍为占位
+- 大量 UI 文案仍是硬编码中文，未全部接入 l10n
+
+### LX 运行时与安全
+
+- QuickJS 没有内存上限、执行超时和 interrupt handler；恶意/错误脚本的 `while(true)` 会长期占用 manager mutex
+- `eval` 已禁用，但动态 `Function` 仍可用；文件系统/宿主内部对象隔离仍需验证
 - LX HTTP 当前使用同步 `reqwest::blocking`，请求会阻塞对应 JS 执行线程；后续改为异步 request broker
-- LX `setTimeout` 目前是有界 timer pump，不是长期异步事件循环；SourceManager 状态目前只在内存
-- LX 播放链路已接，但应用内还没有搜索层来生成 `source=lx` 的 `UiTrack`，所以还不能从搜索页直接播放真实 LX 歌曲
+- 每个请求没有 requestKey，无法完成/失败/取消回写 JS
+- `setTimeout` 目前是有界 timer pump，不是长期异步事件循环；超过 5 秒的定时任务会失败
+- `updateAlert` host 回调为空实现，移动端更新提示 UI 未接入
+- SourceManager 的 status/declarations 仅存在内存，没有持久化；冷启动失败不可见
+- LX 自定义源主要提供 `musicUrl` / `lyric` / `pic`，通常不提供搜索；搜索层需要单独维护
+- 洛雪音源脚本属于第三方内容，不随应用分发；不同脚本的兼容性、可用性和版权风险需由用户自行承担
+- `reference/lx-music-mobile` 仅本地参考，不参与构建/发布；正式提交前必须确认其不进入仓库或发布包
+- 仓库根目录暂无 `LICENSE` / 第三方 `NOTICE`；发布前需确认 QuickJS/rquickjs、FFmpeg、opensubsonic 等依赖的分发合规
+- Flutter release 构建可能复用包含 `integration_test` 的旧 `GeneratedPluginRegistrant.java`；失败时删除该生成文件或 `flutter clean` 后重试
+- Dart 侧测试仅覆盖 form factor 等少量逻辑；播放队列、搜索聚合、缓存设置、LX UI 缺少回归测试
