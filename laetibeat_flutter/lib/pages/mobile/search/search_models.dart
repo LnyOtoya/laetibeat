@@ -12,10 +12,13 @@ class MobileSearchSuggestion {
     required this.query,
     required this.sourceLabel,
     required this.kindLabel,
+    this.sourceKey = 'local',
   });
 
   final String text;
   final String query;
   final String sourceLabel;
   final String kindLabel;
+  /// Color key: local / subsonic / navidrome / tx / wy / kg / kw / mg.
+  final String sourceKey;
 }

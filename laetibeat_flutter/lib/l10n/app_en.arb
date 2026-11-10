@@ -29,7 +29,9 @@
   "appThemeTitle": "App theme",
   "appThemeSupporting": "Switch between light and dark, or follow the system default",
   "coverShape": "Cover shape",
-  "coverShapeSupporting": "Choose the shape used for the now playing cover",
+
+  "searchCoverShape": "Search cover shape",
+  "searchCoverShapeSupporting": "M3E shape used by song covers in search results",  "coverShapeSupporting": "Choose the shape used for the now playing cover",
   "coverShapeDialogTitle": "Cover shape",
   "themeLight": "Light",
   "themeDark": "Dark",

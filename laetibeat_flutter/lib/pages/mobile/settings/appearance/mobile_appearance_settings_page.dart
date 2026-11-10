@@ -24,6 +24,18 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
     await ref.read(coverShapeProvider.notifier).setShape(picked);
   }
 
+  Future<void> _pickSearchCoverShape(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final picked = await showCoverShapeDialog(
+      context,
+      initial: ref.read(searchCoverShapeProvider),
+    );
+    if (!context.mounted || picked == null) return;
+    await ref.read(searchCoverShapeProvider.notifier).setShape(picked);
+  }
+
   Future<void> _pickSongSource(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
     final current = ref.read(defaultSongSourceProvider);
@@ -127,14 +139,16 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
                   case 1:
                     _pickCoverShape(context, ref);
                   case 2:
-                    _pickSongSource(context, ref);
+                    _pickSearchCoverShape(context, ref);
                   case 3:
-                    _pickSongSort(context, ref);
+                    _pickSongSource(context, ref);
                   case 4:
+                    _pickSongSort(context, ref);
+                  case 5:
                     _pickLanguage(context, ref);
                 }
               },
-              itemCount: 5,
+              itemCount: 6,
               itemBuilder: (BuildContext context, int index) {
                 return switch (index) {
                   0 => M3EListItem(
@@ -146,10 +160,14 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
                     supportingText: l10n.coverShapeSupporting,
                   ),
                   2 => M3EListItem(
+                    headline: l10n.searchCoverShape,
+                    supportingText: l10n.searchCoverShapeSupporting,
+                  ),
+                  3 => M3EListItem(
                     headline: l10n.songSource,
                     supportingText: l10n.songSourceSupporting,
                   ),
-                  3 => M3EListItem(
+                  4 => M3EListItem(
                     headline: l10n.songSort,
                     supportingText: l10n.songSortSupporting,
                   ),

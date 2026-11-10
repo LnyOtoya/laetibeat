@@ -4,6 +4,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'persistence.dart';
 
 const String kCoverShapeKey = 'appearance.cover_shape';
+const String kSearchCoverShapeKey = 'appearance.search_cover_shape';
 
 /// 播放页封面使用的 M3E shape，默认 square。
 class CoverShapeNotifier extends Notifier<M3EShapeKind> {
@@ -28,6 +29,33 @@ class CoverShapeNotifier extends Notifier<M3EShapeKind> {
 final coverShapeProvider = NotifierProvider<CoverShapeNotifier, M3EShapeKind>(
   CoverShapeNotifier.new,
 );
+
+/// Shape used by song covers in the full search-results page.
+class SearchCoverShapeNotifier extends Notifier<M3EShapeKind> {
+  @override
+  M3EShapeKind build() {
+    final saved = ref
+        .read(sharedPreferencesProvider)
+        .getString(kSearchCoverShapeKey);
+    return M3EShapeKind.values.firstWhere(
+      (kind) => kind.name == saved,
+      orElse: () => M3EShapeKind.square,
+    );
+  }
+
+  Future<void> setShape(M3EShapeKind kind) async {
+    if (kind == state) return;
+    state = kind;
+    await ref
+        .read(sharedPreferencesProvider)
+        .setString(kSearchCoverShapeKey, kind.name);
+  }
+}
+
+final searchCoverShapeProvider =
+    NotifierProvider<SearchCoverShapeNotifier, M3EShapeKind>(
+      SearchCoverShapeNotifier.new,
+    );
 
 /// 将 enum 名称转换成适合显示的名称，例如 cookie12Sided -> Cookie12 Sided。
 String coverShapeLabel(M3EShapeKind kind) {

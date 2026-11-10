@@ -272,6 +272,18 @@ abstract class AppLocalizations {
   /// **'Cover shape'**
   String get coverShape;
 
+  /// No description provided for @searchCoverShape.
+  ///
+  /// In en, this message translates to:
+  /// **'Search cover shape'**
+  String get searchCoverShape;
+
+  /// No description provided for @searchCoverShapeSupporting.
+  ///
+  /// In en, this message translates to:
+  /// **'M3E shape used by song covers in search results'**
+  String get searchCoverShapeSupporting;
+
   /// No description provided for @coverShapeSupporting.
   ///
   /// In en, this message translates to:

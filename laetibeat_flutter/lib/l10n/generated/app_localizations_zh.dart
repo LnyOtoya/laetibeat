@@ -96,6 +96,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get coverShape => '封面形状';
 
   @override
+  String get searchCoverShape => '搜索封面形状';
+
+  @override
+  String get searchCoverShapeSupporting => '搜索结果歌曲封面使用的 M3E 形状';
+
+  @override
   String get coverShapeSupporting => '选择播放页封面的形状';
 
   @override

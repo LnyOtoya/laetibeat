@@ -98,6 +98,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get coverShape => 'Cover shape';
 
   @override
+  String get searchCoverShape => 'Search cover shape';
+
+  @override
+  String get searchCoverShapeSupporting =>
+      'M3E shape used by song covers in search results';
+
+  @override
   String get coverShapeSupporting =>
       'Choose the shape used for the now playing cover';
 

@@ -10,6 +10,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../l10n/generated/app_localizations.dart';
 import 'search_models.dart';
+import 'search_source_chip.dart';
 
 /// Suggestions shown below the library search bar.
 ///
@@ -75,21 +76,23 @@ class LibrarySearchSuggestions extends ConsumerWidget {
 
     final platforms =
         ref.watch(lxEnabledPlatformsProvider).value ?? const <String>[];
-    for (final platform in platforms) {
+    // Predictions intentionally use QQ Music only.
+    if (platforms.contains('tx')) {
       final lx = ref
-          .watch(lxSearchProvider((platform: platform, query: trimmed)))
+          .watch(lxSearchProvider((platform: 'tx', query: trimmed)))
           .value;
-      if (lx == null) continue;
-      final source = '洛雪 · ${lxPlatformLabel(l10n, platform)}';
-      for (final track in lx.tracks.take(2)) {
-        add(
-          MobileSearchSuggestion(
-            text: '${track.name} ${track.singer.join('、')}',
-            query: '${track.name} ${track.singer.join(' ')}'.trim(),
-            sourceLabel: source,
-            kindLabel: l10n.librarySongs,
-          ),
-        );
+      if (lx != null) {
+        for (final track in lx.tracks.take(2)) {
+          add(
+            MobileSearchSuggestion(
+              text: '${track.name} ${track.singer.join('、')}',
+              query: '${track.name} ${track.singer.join(' ')}'.trim(),
+              sourceLabel: '洛雪',
+              sourceKey: 'tx',
+              kindLabel: l10n.librarySongs,
+            ),
+          );
+        }
       }
     }
 
@@ -106,21 +109,22 @@ class LibrarySearchSuggestions extends ConsumerWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          for (final suggestion in suggestions)
-            M3EListItem(
-              headline: suggestion.text,
-              supportingText: suggestion.kindLabel,
-              trailing: M3EChip(
-                label: suggestion.sourceLabel,
-                type: M3EChipType.assist,
-              ),
-              onTap: () => onSelected(suggestion),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      child: M3EList(
+        color: theme.colorScheme.surface,
+        variant: M3ECardVariant.filled,
+        itemCount: suggestions.length,
+        onTap: (index) => onSelected(suggestions[index]),
+        itemBuilder: (BuildContext context, int index) {
+          final suggestion = suggestions[index];
+          return M3EListItem(
+            headline: suggestion.text,
+            trailing: SearchSourceChip(
+              label: suggestion.sourceLabel,
+              sourceKey: suggestion.sourceKey,
             ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -190,12 +194,16 @@ class LibrarySearchSuggestions extends ConsumerWidget {
     AppLocalizations l10n,
     void Function(MobileSearchSuggestion) add,
   ) {
+    final sourceKey = source.toLowerCase().contains('navidrome')
+        ? 'navidrome'
+        : 'subsonic';
     for (final track in remote.tracks.take(2)) {
       add(
         MobileSearchSuggestion(
           text: '$query ${track.title} ${track.artist}',
           query: '${track.title} ${track.artist}',
           sourceLabel: source,
+          sourceKey: sourceKey,
           kindLabel: l10n.librarySongs,
         ),
       );
@@ -207,6 +215,7 @@ class LibrarySearchSuggestions extends ConsumerWidget {
             text: '$query ${album.title} ${album.artist}',
             query: '${album.title} ${album.artist}',
             sourceLabel: source,
+            sourceKey: sourceKey,
             kindLabel: l10n.libraryAlbums,
           ),
         );
@@ -217,6 +226,7 @@ class LibrarySearchSuggestions extends ConsumerWidget {
             text: '$query ${artist.name}',
             query: artist.name,
             sourceLabel: source,
+            sourceKey: sourceKey,
             kindLabel: l10n.libraryArtists,
           ),
         );

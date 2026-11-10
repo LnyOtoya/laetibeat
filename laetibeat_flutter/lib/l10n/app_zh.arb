@@ -29,7 +29,9 @@
   "appThemeTitle": "应用主题",
   "appThemeSupporting": "浅色、深色之间切换，或者跟随系统默认",
   "coverShape": "封面形状",
-  "coverShapeSupporting": "选择播放页封面的形状",
+
+  "searchCoverShape": "搜索封面形状",
+  "searchCoverShapeSupporting": "搜索结果歌曲封面使用的 M3E 形状",  "coverShapeSupporting": "选择播放页封面的形状",
   "coverShapeDialogTitle": "封面形状",
   "themeLight": "浅色",
   "themeDark": "深色",

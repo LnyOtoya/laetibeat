@@ -5,9 +5,11 @@ import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 import 'package:laetibeat/widgets/player/lx_search_provider.dart';
+import 'package:laetibeat/widgets/player/cover_provider.dart';
 import 'package:laetibeat/widgets/player/lx_track.dart';
 import 'package:laetibeat/widgets/player/player_provider.dart';
 import 'package:laetibeat/widgets/remote_browser_provider.dart';
+import 'package:laetibeat/widgets/settings/cover_shape_settings.dart';
 import 'package:laetibeat/widgets/settings/music_library_provider.dart';
 import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
@@ -20,6 +22,7 @@ import '../mobile_navigation.dart';
 import '../routes.dart';
 import 'library_search_suggestions.dart';
 import 'search_models.dart';
+import 'search_source_chip.dart';
 
 /// Full-screen query entry page. Its AppBar contains only the search field;
 /// suggestions are shown in the body.
@@ -132,12 +135,6 @@ class _MobileSearchResultsPageState
     _controller = TextEditingController(text: widget.initialQuery);
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
   void _playLxResults() {
     final l10n = AppLocalizations.of(context);
     final query = widget.initialQuery.trim();
@@ -147,12 +144,18 @@ class _MobileSearchResultsPageState
         .value;
     if (lx == null || lx.tracks.isEmpty) return;
     final tracks = lx.tracks
-        .take(2)
+        .take(10)
         .map(lxSearchTrackToUiTrack)
         .toList(growable: false);
     ref
         .read(playerProvider.notifier)
         .load(tracks, 0, source: '洛雪 · ${lxPlatformLabel(l10n, _lxPlatform)}');
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -313,7 +316,6 @@ class _LxPlatformBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final label = lxPlatformLabel(l10n, platform);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Row(
@@ -331,7 +333,7 @@ class _LxPlatformBar extends StatelessWidget {
             size: M3EButtonSize.sm,
             shape: M3EButtonShape.round,
             style: M3EButtonStyle.tonal,
-            label: label,
+            label: lxPlatformLabel(l10n, platform),
             leadingIcon: M3EIcons.music_note,
             selectedValue: platform,
             trailingTooltip: l10n.searchFilter,
@@ -465,7 +467,6 @@ class _SearchResults extends ConsumerWidget {
         remote,
         lxPages,
         server,
-        lxPlatform,
         l10n,
       ),
       MobileSearchCategory.playlists => _buildPlaylists(
@@ -504,7 +505,6 @@ class _SearchResults extends ConsumerWidget {
     rust_subsonic.UiRemoteSearchResult? remote,
     Map<String, rust_lx.UiLxSearchPage?> lxPages,
     SubsonicServerConfig? server,
-    String? lxPlatform,
     AppLocalizations l10n,
   ) {
     final entries = <_SongEntry>[];
@@ -513,7 +513,13 @@ class _SearchResults extends ConsumerWidget {
       for (final track in local.tracks.where(
         (track) => _matchesTrack(track, lower),
       )) {
-        entries.add(_SongEntry(track: track, source: l10n.searchSourceLocal));
+        entries.add(
+          _SongEntry(
+            track: track,
+            source: l10n.searchSourceLocal,
+            sourceKey: 'local',
+          ),
+        );
       }
     }
     if (remote != null && _includesSubsonic) {
@@ -522,19 +528,24 @@ class _SearchResults extends ConsumerWidget {
           _SongEntry(
             track: remoteTrackToUiTrack(track, server!.id),
             source: server.name,
+            sourceKey: server.name.toLowerCase().contains('navidrome')
+                ? 'navidrome'
+                : 'subsonic',
           ),
         );
       }
     }
     if (_includesLx) {
       for (final entry in lxPages.entries) {
-        if (lxPlatform != null && entry.key != lxPlatform) continue;
         final lx = entry.value;
         if (lx == null) continue;
-        final source = '洛雪 · ${lxPlatformLabel(l10n, entry.key)}';
         for (final track in lx.tracks) {
           entries.add(
-            _SongEntry(track: lxSearchTrackToUiTrack(track), source: source),
+            _SongEntry(
+              track: lxSearchTrackToUiTrack(track),
+              source: '洛雪',
+              sourceKey: entry.key,
+            ),
           );
         }
       }
@@ -551,12 +562,12 @@ class _SearchResults extends ConsumerWidget {
         itemBuilder: (BuildContext context, int index) {
           final entry = entries[index];
           return M3EListItem(
+            leading: _SearchResultCover(track: entry.track),
             headline: entry.track.title,
-            supportingText: <String>[
-              if (entry.track.artist.isNotEmpty) entry.track.artist,
-              if (entry.track.album.isNotEmpty) entry.track.album,
-            ].join(' · '),
-            trailing: _sourceChip(entry.source),
+            supportingText: entry.track.artist,
+            trailing: filter == MobileSearchSourceFilter.all
+                ? _sourceChip(entry.source, entry.sourceKey)
+                : null,
           );
         },
       ),
@@ -587,7 +598,14 @@ class _SearchResults extends ConsumerWidget {
           return M3EListItem(
             headline: playlist.name,
             supportingText: playlist.owner ?? '',
-            trailing: _sourceChip(server.name),
+            trailing: filter == MobileSearchSourceFilter.all
+                ? _sourceChip(
+                    server.name,
+                    server.name.toLowerCase().contains('navidrome')
+                        ? 'navidrome'
+                        : 'subsonic',
+                  )
+                : null,
           );
         },
       ),
@@ -637,7 +655,9 @@ class _SearchResults extends ConsumerWidget {
             return M3EListItem(
               headline: album.title,
               supportingText: album.artist,
-              trailing: _sourceChip(l10n.searchSourceLocal),
+              trailing: filter == MobileSearchSourceFilter.all
+                  ? _sourceChip(l10n.searchSourceLocal, 'local')
+                  : null,
             );
           },
         ),
@@ -660,7 +680,15 @@ class _SearchResults extends ConsumerWidget {
             return M3EListItem(
               headline: album.title,
               supportingText: album.artist,
-              trailing: _sourceChip(server?.name ?? 'Subsonic'),
+              trailing: filter == MobileSearchSourceFilter.all
+                  ? _sourceChip(
+                      server?.name ?? 'Subsonic',
+                      (server?.name.toLowerCase().contains('navidrome') ??
+                              false)
+                          ? 'navidrome'
+                          : 'subsonic',
+                    )
+                  : null,
             );
           },
         ),
@@ -701,7 +729,9 @@ class _SearchResults extends ConsumerWidget {
             final artist = localArtists[index];
             return M3EListItem(
               headline: artist.name,
-              trailing: _sourceChip(l10n.searchSourceLocal),
+              trailing: filter == MobileSearchSourceFilter.all
+                  ? _sourceChip(l10n.searchSourceLocal, 'local')
+                  : null,
             );
           },
         ),
@@ -726,7 +756,15 @@ class _SearchResults extends ConsumerWidget {
             final artist = remoteArtists[index];
             return M3EListItem(
               headline: artist.name,
-              trailing: _sourceChip(server?.name ?? 'Subsonic'),
+              trailing: filter == MobileSearchSourceFilter.all
+                  ? _sourceChip(
+                      server?.name ?? 'Subsonic',
+                      (server?.name.toLowerCase().contains('navidrome') ??
+                              false)
+                          ? 'navidrome'
+                          : 'subsonic',
+                    )
+                  : null,
             );
           },
         ),
@@ -816,9 +854,6 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
     }
   }
 
-  /// If the first page does not fill the viewport, the user cannot scroll.
-  /// Trigger the same delayed load-more path automatically until the list
-  /// becomes scrollable (or the source has no more pages).
   void _ensureViewportFilled() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _loading || _loadingMore || !_hasMore) return;
@@ -832,7 +867,6 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
   Future<void> _loadMore() async {
     if (_loading || _loadingMore || !_hasMore) return;
     setState(() => _loadingMore = true);
-    // Keep the bottom indicator visible before hitting the source API again.
     await Future<void>.delayed(_loadMoreDelay);
     if (!mounted) return;
     await _fetch(reset: false);
@@ -869,7 +903,6 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
               .where((track) => knownIds.add(track.id))
               .toList(growable: false);
           _tracks = <rust_lx.UiLxSearchTrack>[..._tracks, ...fresh];
-          // A repeated page must not create an endless load loop.
           _hasMore = result.hasMore && fresh.isNotEmpty;
         }
         _page = result.page;
@@ -889,7 +922,6 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
-    final source = '洛雪 · ${lxPlatformLabel(l10n, widget.platform)}';
 
     if (_loading && _tracks.isEmpty) {
       return Center(
@@ -934,21 +966,18 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: <Widget>[
         M3EList(
-          color: M3ETheme.of(context).colorScheme.surface,
+          color: theme.colorScheme.surface,
           variant: M3ECardVariant.filled,
           itemCount: _tracks.length,
           onTap: (index) => ref
               .read(playerProvider.notifier)
-              .load(tracks, index, source: source),
+              .load(tracks, index, source: '洛雪'),
           itemBuilder: (BuildContext context, int index) {
             final track = _tracks[index];
             return M3EListItem(
+              leading: _SearchResultCover(track: tracks[index]),
               headline: track.name,
-              supportingText: <String>[
-                if (track.singer.isNotEmpty) track.singer.join('、'),
-                if (track.album.isNotEmpty) track.album,
-              ].join(' · '),
-              trailing: _sourceChip(source),
+              supportingText: track.singer.join('、'),
             );
           },
         ),
@@ -956,16 +985,11 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 20),
             child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  M3ELoadingIndicator(
-                    variant: M3ELoadingIndicatorVariant.contained,
-                    size: 48,
-                    color: theme.colorScheme.primary,
-                    containerColor: theme.colorScheme.surfaceContainerHighest,
-                  ),
-                ],
+              child: M3ELoadingIndicator(
+                variant: M3ELoadingIndicatorVariant.contained,
+                size: 48,
+                color: theme.colorScheme.primary,
+                containerColor: theme.colorScheme.surfaceContainerHighest,
               ),
             ),
           ),
@@ -974,15 +998,50 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
   }
 }
 
+class _SearchResultCover extends ConsumerWidget {
+  const _SearchResultCover({required this.track});
+
+  final rust.UiTrack track;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final bytes = ref.watch(trackCoverProvider(track)).value;
+    final shape = ref.watch(searchCoverShapeProvider);
+    final hasArt = bytes != null && bytes.isNotEmpty;
+    return M3EShapeContainer(
+      kind: shape,
+      width: 44,
+      height: 44,
+      clipBehavior: Clip.antiAlias,
+      child: ColoredBox(
+        color: theme.colorScheme.secondaryContainer,
+        child: hasArt
+            ? Image.memory(bytes, fit: BoxFit.cover)
+            : Icon(
+                M3EIcons.music_note,
+                size: 20,
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+      ),
+    );
+  }
+}
+
 class _SongEntry {
-  const _SongEntry({required this.track, required this.source});
+  const _SongEntry({
+    required this.track,
+    required this.source,
+    required this.sourceKey,
+  });
 
   final rust.UiTrack track;
   final String source;
+  final String sourceKey;
 }
 
-Widget _sourceChip(String source) {
-  return M3EChip(label: source, type: M3EChipType.assist, onPressed: () {});
+Widget _sourceChip(String label, String sourceKey) {
+  return SearchSourceChip(label: label, sourceKey: sourceKey);
 }
 
 Widget _empty(AppLocalizations l10n) {
