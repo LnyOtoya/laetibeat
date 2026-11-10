@@ -11,6 +11,7 @@ import 'package:laetibeat/widgets/player/player_provider.dart';
 import 'package:laetibeat/widgets/remote_browser_provider.dart';
 import 'package:laetibeat/widgets/settings/cover_shape_settings.dart';
 import 'package:laetibeat/widgets/settings/music_library_provider.dart';
+import 'package:laetibeat/widgets/settings/persistence.dart';
 import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
@@ -36,14 +37,21 @@ class MobileSearchPage extends ConsumerStatefulWidget {
 }
 
 class _MobileSearchPageState extends ConsumerState<MobileSearchPage> {
+  static const String _recentSearchKey = 'search.recent_queries';
+  static const int _recentSearchLimit = 30;
+
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
+  List<String> _recentSearches = const <String>[];
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialQuery.trim());
     _focusNode = FocusNode();
+    _recentSearches =
+        ref.read(sharedPreferencesProvider).getStringList(_recentSearchKey) ??
+        const <String>[];
   }
 
   @override
@@ -53,9 +61,34 @@ class _MobileSearchPageState extends ConsumerState<MobileSearchPage> {
     super.dispose();
   }
 
-  void _openResults(String value) {
+  Future<void> _rememberSearch(String value) async {
     final query = value.trim();
     if (query.isEmpty) return;
+    final next = <String>[
+      query,
+      ..._recentSearches.where((item) => item != query),
+    ];
+    if (next.length > _recentSearchLimit) {
+      next.removeRange(_recentSearchLimit, next.length);
+    }
+    if (mounted) setState(() => _recentSearches = next);
+    await ref
+        .read(sharedPreferencesProvider)
+        .setStringList(_recentSearchKey, next);
+  }
+
+  Future<void> _clearRecentSearches() async {
+    setState(() => _recentSearches = const <String>[]);
+    await ref.read(sharedPreferencesProvider).remove(_recentSearchKey);
+  }
+
+  Future<void> _openResults(String value) async {
+    final query = value.trim();
+    if (query.isEmpty) return;
+    // Persist history before navigating so both submit (keyboard) and
+    // suggestion taps share the same guaranteed write path.
+    await _rememberSearch(query);
+    if (!mounted) return;
     _controller.value = TextEditingValue(
       text: query,
       selection: TextSelection.collapsed(offset: query.length),
@@ -65,6 +98,55 @@ class _MobileSearchPageState extends ConsumerState<MobileSearchPage> {
       context,
       MobileSearchResultsPage(initialQuery: query),
       name: MobileRoutes.searchResults,
+    );
+  }
+
+  Widget _buildHistory(M3EThemeData theme, AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                l10n.searchRecentTitle,
+                style: theme.typeScale.titleMedium,
+              ),
+            ),
+            if (_recentSearches.isNotEmpty)
+              M3EButton(
+                style: M3EButtonStyle.text,
+                size: M3EButtonSize.sm,
+                label: Text(l10n.searchRecentClear),
+                onPressed: _clearRecentSearches,
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_recentSearches.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              l10n.searchRecentEmpty,
+              style: theme.typeScale.bodyMedium.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          )
+        else
+          M3EList(
+            color: theme.colorScheme.surface,
+            variant: M3ECardVariant.filled,
+            itemCount: _recentSearches.length,
+            onTap: (index) => _openResults(_recentSearches[index]),
+            itemBuilder: (BuildContext context, int index) {
+              return M3EListItem(
+                leading: const Icon(M3EIcons.history),
+                headline: _recentSearches[index],
+              );
+            },
+          ),
+      ],
     );
   }
 
@@ -100,10 +182,12 @@ class _MobileSearchPageState extends ConsumerState<MobileSearchPage> {
         top: false,
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          child: LibrarySearchSuggestions(
-            query: _controller.text,
-            onSelected: (selection) => _openResults(selection.query),
-          ),
+          child: _controller.text.trim().isEmpty
+              ? _buildHistory(theme, l10n)
+              : LibrarySearchSuggestions(
+                  query: _controller.text,
+                  onSelected: (selection) => _openResults(selection.query),
+                ),
         ),
       ),
     );
