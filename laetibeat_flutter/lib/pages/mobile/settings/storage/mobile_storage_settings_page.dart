@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/library.dart' as rust_library;
 import 'package:laetibeat/widgets/cache/cover_cache.dart';
@@ -27,12 +29,16 @@ class MobileStorageSettingsPage extends ConsumerWidget {
       appBar: mobileLargeSubpageAppBar(
         context,
         title: l10n.cacheManagement,
-        titleStartPadding: 32,
       ),
       body: SafeArea(
         top: false,
         child: usageAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => Center(
+            child: M3ELoadingIndicator(
+              color: theme.colorScheme.primary,
+              containerColor: theme.colorScheme.surfaceContainerHighest,
+            ),
+          ),
           error: (error, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -52,13 +58,97 @@ class MobileStorageSettingsPage extends ConsumerWidget {
   }
 }
 
-class _CacheBody extends ConsumerWidget {
+class _CacheBody extends ConsumerStatefulWidget {
   const _CacheBody({required this.usage});
 
   final CacheUsageSnapshot usage;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CacheBody> createState() => _CacheBodyState();
+}
+
+class _CacheBodyState extends ConsumerState<_CacheBody>
+    with WidgetsBindingObserver {
+  static const Duration _autoRefreshInterval = Duration(seconds: 3);
+
+  Timer? _refreshTimer;
+  Future<void>? _refreshFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _startAutoRefresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refresh());
+      _startAutoRefresh();
+    } else {
+      _stopAutoRefresh();
+    }
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer ??= Timer.periodic(
+      _autoRefreshInterval,
+      (_) => unawaited(_refresh()),
+    );
+  }
+
+  void _stopAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+  }
+
+  Future<void> _refresh() {
+    final running = _refreshFuture;
+    if (running != null) return running;
+
+    final future = _doRefresh();
+    _refreshFuture = future;
+    return future.whenComplete(() {
+      if (identical(_refreshFuture, future)) {
+        _refreshFuture = null;
+      }
+    });
+  }
+
+  Future<void> _doRefresh() async {
+    if (!mounted) return;
+    try {
+      await ref
+          .refresh(cacheUsageProvider.future)
+          .then<void>((_) {});
+    } catch (error) {
+      debugPrint('刷新缓存占用失败: $error');
+    }
+  }
+
+  /// 下拉刷新时至少让 indicator 完整显示一小段时间；扫描本身通常很快，
+  /// 如果直接结束，视觉上会像“拉下来立刻弹回去”。
+  Future<void> _handlePullRefresh() async {
+    final started = DateTime.now();
+    await _refresh();
+    const minimumVisible = Duration(seconds: 3);
+    final elapsed = DateTime.now().difference(started);
+    if (elapsed < minimumVisible) {
+      await Future<void>.delayed(minimumVisible - elapsed);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final usage = widget.usage;
     final l10n = AppLocalizations.of(context);
     final limits = ref.watch(cacheLimitsProvider);
     final totalLimitBytes = limits.isUnlimited ? null : limits.totalBytes;
@@ -66,46 +156,51 @@ class _CacheBody extends ConsumerWidget {
         ? 0.0
         : (usage.totalBytes / totalLimitBytes).clamp(0.0, 1.0).toDouble();
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      children: <Widget>[
-        _StorageSummary(
-          usedBytes: usage.totalBytes,
-          totalLimitBytes: totalLimitBytes,
-          progress: progress,
-        ),
-        const SizedBox(height: 18),
-        _FreeSpaceCard(onTap: () => _clearAll(context, ref)),
-        const SizedBox(height: 28),
-        _CacheGroupSection(
-          title: l10n.cacheLocal,
-          usage: usage.local,
-        ),
-        const SizedBox(height: 20),
-        _CacheGroupSection(
-          title: l10n.cacheSubsonic,
-          usage: usage.subsonic,
-        ),
-        const SizedBox(height: 20),
-        _CacheGroupSection(
-          title: l10n.cacheLx,
-          usage: usage.lx,
-        ),
-        const SizedBox(height: 28),
-        _TotalCacheLimitCard(
-          selectedMb: limits.totalMb,
-          onSelected: (mb) => _applyTotalLimit(ref, mb),
-        ),
-      ],
+    return M3ERefreshIndicator.contained(
+      onRefresh: _handlePullRefresh,
+      elevation: 0,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        children: <Widget>[
+          _StorageSummary(
+            usedBytes: usage.totalBytes,
+            totalLimitBytes: totalLimitBytes,
+            progress: progress,
+          ),
+          const SizedBox(height: 18),
+          _FreeSpaceCard(onTap: () => _clearAll(context)),
+          const SizedBox(height: 28),
+          _CacheGroupSection(
+            title: l10n.cacheLocal,
+            usage: usage.local,
+          ),
+          const SizedBox(height: 20),
+          _CacheGroupSection(
+            title: l10n.cacheSubsonic,
+            usage: usage.subsonic,
+          ),
+          const SizedBox(height: 20),
+          _CacheGroupSection(
+            title: l10n.cacheLx,
+            usage: usage.lx,
+          ),
+          const SizedBox(height: 28),
+          _TotalCacheLimitCard(
+            selectedMb: limits.totalMb,
+            onSelected: _applyTotalLimit,
+          ),
+        ],
+      ),
     );
   }
 
-  Future<void> _applyTotalLimit(WidgetRef ref, int mb) async {
+  Future<void> _applyTotalLimit(int mb) async {
     await ref.read(cacheLimitsProvider.notifier).setTotalMb(mb);
-    await _applyCurrentLimits(ref);
+    await _applyCurrentLimits();
   }
 
-  Future<void> _applyCurrentLimits(WidgetRef ref) async {
+  Future<void> _applyCurrentLimits() async {
     try {
       await applyCacheLimitsToCovers(
         limits: ref.read(cacheLimitsProvider),
@@ -118,7 +213,7 @@ class _CacheBody extends ConsumerWidget {
     }
   }
 
-  Future<void> _clearAll(BuildContext context, WidgetRef ref) async {
+  Future<void> _clearAll(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
     final servers =
         ref.read(subsonicServersProvider).value ??
@@ -135,9 +230,9 @@ class _CacheBody extends ConsumerWidget {
       ref.invalidate(lxCoverSourceProvider);
       ref.invalidate(lxSearchProvider);
       ref.invalidate(musicLibraryProvider);
-      ref.invalidate(cacheUsageProvider);
       // Invalidate 会创建新的缓存实例；重新套用用户配置的总上限。
-      await _applyCurrentLimits(ref);
+      await _applyCurrentLimits();
+      await _refresh();
       if (context.mounted) _showMessage(context, l10n.cacheCleared);
     } catch (error) {
       if (context.mounted) _showMessage(context, error.toString());
@@ -238,45 +333,43 @@ class _FreeSpaceCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final scheme = theme.colorScheme;
 
-    return Material(
+    return M3ECard(
+      variant: M3ECardVariant.filled,
       color: scheme.primaryContainer,
       borderRadius: BorderRadius.circular(28),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: <Widget>[
-              Icon(
-                M3EIcons.delete_outline,
-                size: 24,
-                color: scheme.onPrimaryContainer,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      l10n.cacheFreeSpace,
-                      style: theme.typeScale.titleMedium.copyWith(
-                        color: scheme.onPrimaryContainer,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      l10n.clearAllCaches,
-                      style: theme.typeScale.bodySmall.copyWith(
-                        color: scheme.onPrimaryContainer.withValues(alpha: 0.8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      expanded: true,
+      elevation: 0,
+      onPressed: onTap,
+      child: Row(
+        children: <Widget>[
+          Icon(
+            M3EIcons.delete_outline,
+            size: 24,
+            color: scheme.onPrimaryContainer,
           ),
-        ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  l10n.cacheFreeSpace,
+                  style: theme.typeScale.titleMedium.copyWith(
+                    color: scheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  l10n.clearAllCaches,
+                  style: theme.typeScale.bodySmall.copyWith(
+                    color: scheme.onPrimaryContainer.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -328,18 +421,18 @@ class _CacheGroupSection extends StatelessWidget {
             ),
           ),
         ),
-        Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: scheme.surface,
-            borderRadius: BorderRadius.circular(20),
-          ),
+        M3ECard(
+          variant: M3ECardVariant.filled,
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          padding: EdgeInsets.zero,
+          expanded: true,
+          elevation: 0,
           child: Column(
             children: <Widget>[
               for (var index = 0; index < metrics.length; index++) ...[
                 if (index > 0)
-                  Divider(
-                    height: 1,
+                  M3EDivider(
                     thickness: 1,
                     indent: 56,
                     endIndent: 16,
@@ -402,32 +495,37 @@ class _CacheMetricRow extends StatelessWidget {
                   Row(
                     children: <Widget>[
                       Expanded(
-                        child: Text(
-                          metric.label,
-                          style: theme.typeScale.bodyMedium,
+                        child: Padding(
+                          // M3E linear progress starts at a 4dp inset, then
+                          // the round 6dp cap extends 3dp left of that point.
+                          // The visible edge is therefore 1dp inside the
+                          // widget; shift the text to the same edge.
+                          padding: const EdgeInsetsDirectional.only(start: 1),
+                          child: Text(
+                            metric.label,
+                            style: theme.typeScale.bodyMedium,
+                          ),
                         ),
                       ),
-                      Text(
-                        formatCacheBytes(metric.bytes),
-                        style: theme.typeScale.labelMedium.copyWith(
-                          color: scheme.onSurfaceVariant,
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(end: 1),
+                        child: Text(
+                          formatCacheBytes(metric.bytes),
+                          style: theme.typeScale.labelMedium.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
-                  // Flutter's LinearProgressIndicator draws from x=0. The M3E
-                  // variant paints with a 4dp inset and a round cap, so its
-                  // visible left edge sits 1dp inside the text edge; using the
-                  // standard bar keeps both edges pixel-aligned.
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: LinearProgressIndicator(
-                      value: fraction.clamp(0.0, 1.0).toDouble(),
-                      minHeight: 6,
-                      backgroundColor: scheme.surfaceContainerHighest,
-                      valueColor: AlwaysStoppedAnimation<Color>(metric.color),
-                    ),
+                  M3EProgressIndicator.linear(
+                    value: fraction.clamp(0.0, 1.0).toDouble(),
+                    linearSize: M3EProgressIndicatorSize.s,
+                    strokeWidth: 6,
+                    trackStrokeWidth: 6,
+                    color: metric.color,
+                    trackColor: scheme.surfaceContainerHighest,
                   ),
                 ],
               ),
@@ -454,12 +552,13 @@ class _TotalCacheLimitCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final scheme = theme.colorScheme;
 
-    return Container(
+    return M3ECard(
+      variant: M3ECardVariant.filled,
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(20),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      expanded: true,
+      elevation: 0,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[

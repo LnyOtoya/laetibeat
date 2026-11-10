@@ -221,7 +221,9 @@ final cacheUsageServiceProvider = Provider<CacheUsageService>((ref) {
   return CacheUsageService();
 });
 
-final cacheUsageProvider = FutureProvider<CacheUsageSnapshot>((ref) {
+final cacheUsageProvider = FutureProvider.autoDispose<CacheUsageSnapshot>((
+  ref,
+) {
   return ref.watch(cacheUsageServiceProvider).scan();
 });
 

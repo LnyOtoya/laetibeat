@@ -29,7 +29,7 @@
 - [ ] 搜索建议增加 300ms 防抖：`LibrarySearchSuggestions` 当前每次按键都会触发 LX 网络搜索
 - [ ] LX 源导入/启用/禁用/删除/改优先级后刷新 `lxEnabledPlatformsProvider` 与 `lxSearchProvider`
 - [ ] LX 冷启动改为懒加载：`init_lx_source_store` 不再同步 `load_enabled_sources()`，避免 bootstrap 被脚本初始化/网络阻塞
-- [x] 缓存管理重做：总缓存上限滑块、启动时套用、UI 默认值与实际分配对齐、清理缓存时同步清理内存缓存（`flutter analyze` / `flutter test` 通过）
+- [x] 缓存管理重做：总缓存上限滑块、启动时套用、UI 默认值与实际分配对齐、清理缓存时同步清理内存缓存；页面进入自动重扫、可见期间 3 秒刷新、支持下拉刷新（`flutter analyze` / `flutter test` 通过）
 - [ ] 为 QuickJS 增加执行超时、内存上限、中断与死循环保护
 - [ ] Android 接入 SAF / file_picker 目录选择，修复 `MobileDirectoryPicker` 返回 null
 - [ ] `PlaybackBackend` 增加 buffering / error / processing phase，`LaetibeatAudioHandler` 不再固定 `processingState=ready`
@@ -134,7 +134,7 @@
 - [x] 6.5 歌词缓存 20MB 上限与过期负缓存清理
 - [x] 6.6 搜索歌词：LRCLIB + LiriQo、逐字/逐行/静态、翻译、应用覆盖
 - [ ] 6.7 搜索歌词持久化：写入本地 .lrc / 标签，或保存覆盖记录
-- [x] 6.8 移动端缓存管理：总用量/上限、粗细进度条、释放空间、三源歌词/封面/其他明细、总缓存上限滑块
+- [x] 6.8 移动端缓存管理：总用量/上限、粗细进度条、释放空间、三源歌词/封面/其他明细、总缓存上限滑块、自动与下拉刷新
 
 ## 阶段7：跨平台与系统集成
 
