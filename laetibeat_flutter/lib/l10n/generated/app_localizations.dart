@@ -392,6 +392,84 @@ abstract class AppLocalizations {
   /// **'Storage'**
   String get settingsStorage;
 
+  /// No description provided for @cacheManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache management'**
+  String get cacheManagement;
+
+  /// No description provided for @cacheOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache overview'**
+  String get cacheOverview;
+
+  /// No description provided for @cacheLyrics.
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics cache'**
+  String get cacheLyrics;
+
+  /// No description provided for @cacheCovers.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover cache'**
+  String get cacheCovers;
+
+  /// No description provided for @cacheOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other cache'**
+  String get cacheOther;
+
+  /// No description provided for @clearAllCaches.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all caches'**
+  String get clearAllCaches;
+
+  /// No description provided for @cacheLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Local'**
+  String get cacheLocal;
+
+  /// No description provided for @cacheSubsonic.
+  ///
+  /// In en, this message translates to:
+  /// **'Subsonic'**
+  String get cacheSubsonic;
+
+  /// No description provided for @cacheLx.
+  ///
+  /// In en, this message translates to:
+  /// **'LX'**
+  String get cacheLx;
+
+  /// No description provided for @cacheLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache limit'**
+  String get cacheLimit;
+
+  /// No description provided for @clearGroupCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear group cache'**
+  String get clearGroupCache;
+
+  /// No description provided for @cacheCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache cleared'**
+  String get cacheCleared;
+
+  /// No description provided for @cacheScanFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to read cache information'**
+  String get cacheScanFailed;
+
   /// No description provided for @settingsStorageSupporting.
   ///
   /// In en, this message translates to:

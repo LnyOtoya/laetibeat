@@ -12,7 +12,7 @@ class RemoteCoverDiskCache {
   static const String _rootName = 'remote_covers';
 
   /// 磁盘缓存总上限,默认 256MB
-  final int maxBytes;
+  int maxBytes;
 
   Directory? _root;
   final Map<String, _CacheEntry> _index = {};
@@ -74,6 +74,28 @@ class RemoteCoverDiskCache {
       _index.removeWhere((path, _) => path.startsWith(prefix));
     } catch (e) {
       debugPrint('清理封面缓存失败: $e');
+    }
+  }
+
+  /// Apply a new cache limit immediately and evict the least recently used
+  /// files if necessary.
+  Future<void> setMaxBytes(int bytes) async {
+    maxBytes = bytes;
+    await _evictIfNeeded();
+  }
+
+  /// Clear every cached cover while leaving source configuration intact.
+  Future<void> clearAll() async {
+    try {
+      final root = await _rootDir();
+      if (await root.exists()) {
+        await root.delete(recursive: true);
+      }
+      _root = null;
+      _index.clear();
+      _loaded = false;
+    } catch (e) {
+      debugPrint('清理全部封面缓存失败: $e');
     }
   }
 

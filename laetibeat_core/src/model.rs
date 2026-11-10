@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 // 总结构体
@@ -68,19 +68,21 @@ impl MusicLibrary {
 
         // 专辑内排序:碟号 -> 音轨号 -> 标题(缺省按 0 处理,最后按标题兜底)
         for album in albums.values_mut() {
-            album.track_ids.sort_by(|a, b| match (by_id.get(a), by_id.get(b)) {
-                (Some(ta), Some(tb)) => ta
-                    .disc_number
-                    .unwrap_or(0)
-                    .cmp(&tb.disc_number.unwrap_or(0))
-                    .then_with(|| {
-                        ta.track_number
-                            .unwrap_or(0)
-                            .cmp(&tb.track_number.unwrap_or(0))
-                    })
-                    .then_with(|| ta.title.to_lowercase().cmp(&tb.title.to_lowercase())),
-                _ => std::cmp::Ordering::Equal,
-            });
+            album
+                .track_ids
+                .sort_by(|a, b| match (by_id.get(a), by_id.get(b)) {
+                    (Some(ta), Some(tb)) => ta
+                        .disc_number
+                        .unwrap_or(0)
+                        .cmp(&tb.disc_number.unwrap_or(0))
+                        .then_with(|| {
+                            ta.track_number
+                                .unwrap_or(0)
+                                .cmp(&tb.track_number.unwrap_or(0))
+                        })
+                        .then_with(|| ta.title.to_lowercase().cmp(&tb.title.to_lowercase())),
+                    _ => std::cmp::Ordering::Equal,
+                });
             if let Some(first) = album.track_ids.first() {
                 album.cover_track_id = first.clone();
             }
@@ -101,7 +103,6 @@ impl MusicLibrary {
         self.artists = artists;
     }
 }
-
 
 // 单曲结构体
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -179,7 +180,6 @@ fn normalize_key(value: &str) -> String {
     value.trim().to_lowercase()
 }
 
-
 // 播放状态枚举
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PlayState {
@@ -191,7 +191,7 @@ pub enum PlayState {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SourceType {
     LocalFile(PathBuf),
-    Opensubsonic { id: String},
+    Opensubsonic { id: String },
 }
 
 // 统一音源抽象接口

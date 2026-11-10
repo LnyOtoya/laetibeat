@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use std::sync::{Mutex, OnceLock};
 
 /// 统计库结构版本;后续变更通过 PRAGMA user_version 迁移
@@ -243,9 +243,7 @@ fn query_all_track_stats_on(conn: &Connection) -> Result<Vec<TrackStat>, String>
         )
         .map_err(map_err)?;
 
-    let rows = stmt
-        .query_map([], map_track_stat_row)
-        .map_err(map_err)?;
+    let rows = stmt.query_map([], map_track_stat_row).map_err(map_err)?;
 
     let mut stats = Vec::new();
     for row in rows {
@@ -387,10 +385,7 @@ fn query_history_summary_on(
 }
 
 /// 跨所有音源的时间段汇总(首页历史/统计使用)。
-pub fn query_history_summary_all(
-    start_ms: i64,
-    end_ms: i64,
-) -> Result<HistorySummary, String> {
+pub fn query_history_summary_all(start_ms: i64, end_ms: i64) -> Result<HistorySummary, String> {
     let conn = db()?;
     query_history_summary_all_on(&conn, start_ms, end_ms)
 }
@@ -489,9 +484,7 @@ mod tests {
             completed: false,
             skipped: true,
             queue_source: Some("搜索".to_string()),
-            metadata_json: Some(
-                r#"{"artist":"A","album":"Alb","albumId":"aid"}"#.to_string(),
-            ),
+            metadata_json: Some(r#"{"artist":"A","album":"Alb","albumId":"aid"}"#.to_string()),
         };
         record_event_on(&conn, &event).unwrap();
 
@@ -538,9 +531,7 @@ mod tests {
             completed: true,
             skipped: false,
             queue_source: None,
-            metadata_json: Some(
-                r#"{"artist":"Local","album":"LA","albumId":"la"}"#.to_string(),
-            ),
+            metadata_json: Some(r#"{"artist":"Local","album":"LA","albumId":"la"}"#.to_string()),
         };
         let remote = PlayEvent {
             source: "opensubsonic".to_string(),
@@ -552,9 +543,7 @@ mod tests {
             completed: true,
             skipped: false,
             queue_source: Some("Navidrome".to_string()),
-            metadata_json: Some(
-                r#"{"artist":"Remote","album":"RA","albumId":"ra"}"#.to_string(),
-            ),
+            metadata_json: Some(r#"{"artist":"Remote","album":"RA","albumId":"ra"}"#.to_string()),
         };
         record_event_on(&conn, &local).unwrap();
         record_event_on(&conn, &remote).unwrap();

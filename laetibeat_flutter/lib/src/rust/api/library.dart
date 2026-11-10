@@ -74,6 +74,32 @@ Future<void> clearRemoteLyricsCache({required String sourceId}) => RustLib
     .api
     .crateApiLibraryClearRemoteLyricsCache(sourceId: sourceId);
 
+/// 统计歌词缓存；prefix 可为 local: / opensubsonic: / lx:。
+Future<UiLyricsCacheStats> lyricsCacheStats({String? prefix}) =>
+    RustLib.instance.api.crateApiLibraryLyricsCacheStats(prefix: prefix);
+
+/// 清空歌词缓存；prefix 为空时清空全部。
+Future<void> clearLyricsCache({String? prefix}) =>
+    RustLib.instance.api.crateApiLibraryClearLyricsCache(prefix: prefix);
+
+class UiLyricsCacheStats {
+  final PlatformInt64 entries;
+  final PlatformInt64 bytes;
+
+  const UiLyricsCacheStats({required this.entries, required this.bytes});
+
+  @override
+  int get hashCode => entries.hashCode ^ bytes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiLyricsCacheStats &&
+          runtimeType == other.runtimeType &&
+          entries == other.entries &&
+          bytes == other.bytes;
+}
+
 /// 远端音乐库同步摘要
 class UiRemoteSyncMeta {
   final String sourceId;

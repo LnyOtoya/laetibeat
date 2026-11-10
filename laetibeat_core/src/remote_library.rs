@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -255,9 +255,7 @@ fn begin_sync_on(conn: &Connection, source_id: &str) -> Result<i64, String> {
         Some(generation) => {
             for table in ["remote_artists", "remote_albums", "remote_tracks"] {
                 conn.execute(
-                    &format!(
-                        "DELETE FROM {table} WHERE source_id = ?1 AND generation <> ?2"
-                    ),
+                    &format!("DELETE FROM {table} WHERE source_id = ?1 AND generation <> ?2"),
                     params![source_id, generation],
                 )
                 .map_err(map_err)?;
@@ -442,12 +440,7 @@ pub fn commit_sync(
 ) -> Result<SyncMeta, String> {
     let conn = db()?;
     commit_sync_on(
-        &conn,
-        source_id,
-        generation,
-        base_url,
-        synced_at,
-        elapsed_ms,
+        &conn, source_id, generation, base_url, synced_at, elapsed_ms,
     )
 }
 
@@ -754,6 +747,52 @@ fn file_modified_ms(metadata: &std::fs::Metadata) -> Option<u64> {
         .map(|duration| duration.as_millis() as u64)
 }
 
+/// 统计歌词缓存条目数与原始文本字节数。`prefix` 为 `local:` /
+/// `opensubsonic:` / `lx:` 时只统计对应来源。
+pub fn lyrics_cache_stats(prefix: Option<&str>) -> Result<(i64, i64), String> {
+    let conn = db()?;
+    match prefix {
+        Some(prefix) => {
+            let pattern = format!("{prefix}%");
+            conn.query_row(
+                "SELECT COUNT(*), COALESCE(SUM(LENGTH(raw_text)), 0)
+                 FROM lyrics_cache WHERE cache_key LIKE ?1",
+                params![pattern],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(map_err)
+        }
+        None => conn
+            .query_row(
+                "SELECT COUNT(*), COALESCE(SUM(LENGTH(raw_text)), 0)
+                 FROM lyrics_cache",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(map_err),
+    }
+}
+
+/// 清空全部或某一来源前缀的歌词缓存。
+pub fn clear_lyrics_cache(prefix: Option<&str>) -> Result<(), String> {
+    let conn = db()?;
+    match prefix {
+        Some(prefix) => {
+            let pattern = format!("{prefix}%");
+            conn.execute(
+                "DELETE FROM lyrics_cache WHERE cache_key LIKE ?1",
+                params![pattern],
+            )
+            .map_err(map_err)?;
+        }
+        None => {
+            conn.execute("DELETE FROM lyrics_cache", [])
+                .map_err(map_err)?;
+        }
+    }
+    Ok(())
+}
+
 /// 清空某个远端音源的全部歌词缓存(服务器地址变更/删除时使用)。
 pub fn clear_remote_lyrics_cache(source_id: &str) -> Result<(), String> {
     let conn = db()?;
@@ -801,10 +840,7 @@ pub fn query_artists(source_id: &str) -> Result<Vec<RemoteArtistRow>, String> {
     query_artists_on(&conn, source_id)
 }
 
-fn query_artists_on(
-    conn: &Connection,
-    source_id: &str,
-) -> Result<Vec<RemoteArtistRow>, String> {
+fn query_artists_on(conn: &Connection, source_id: &str) -> Result<Vec<RemoteArtistRow>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT a.id, a.name, a.cover_id, a.album_count
@@ -920,10 +956,7 @@ pub fn query_all_tracks(source_id: &str) -> Result<Vec<RemoteTrackRow>, String> 
     query_all_tracks_on(&conn, source_id)
 }
 
-fn query_all_tracks_on(
-    conn: &Connection,
-    source_id: &str,
-) -> Result<Vec<RemoteTrackRow>, String> {
+fn query_all_tracks_on(conn: &Connection, source_id: &str) -> Result<Vec<RemoteTrackRow>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT t.id, t.album_id, t.artist_id, t.title, t.artist, t.album,
@@ -1008,17 +1041,14 @@ fn search_on(
             )
             .map_err(map_err)?;
         let rows = stmt
-            .query_map(
-                params![source_id, &pattern, artist_count as i64],
-                |row| {
-                    Ok(RemoteArtistRow {
-                        id: row.get(0)?,
-                        name: row.get(1)?,
-                        cover_id: row.get(2)?,
-                        album_count: row.get(3)?,
-                    })
-                },
-            )
+            .query_map(params![source_id, &pattern, artist_count as i64], |row| {
+                Ok(RemoteArtistRow {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    cover_id: row.get(2)?,
+                    album_count: row.get(3)?,
+                })
+            })
             .map_err(map_err)?;
         collect_rows(rows)?
     } else {
@@ -1270,9 +1300,11 @@ mod tests {
             Some(0),
         )
         .unwrap();
-        assert!(get_lyrics_cache_on(&conn, "opensubsonic:s:t")
-            .unwrap()
-            .is_none());
+        assert!(
+            get_lyrics_cache_on(&conn, "opensubsonic:s:t")
+                .unwrap()
+                .is_none()
+        );
 
         // 未过期负缓存:返回条目,raw_text 为 None
         put_lyrics_cache_on(

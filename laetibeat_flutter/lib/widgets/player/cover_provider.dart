@@ -48,12 +48,25 @@ class FileCoverProvider implements CoverProvider {
   FileCoverProvider();
 
   /// 封面缓存上限(字节)。原图通常几百 KB,限制总量避免整库浏览后内存膨胀。
-  static const int _maxCacheBytes = 64 * 1024 * 1024;
+  int _maxCacheBytes = 64 * 1024 * 1024;
 
   /// Dart Map 保持插入顺序:命中时删掉再插回末尾即为"最近使用",
   /// 超限时从头部淘汰最久未使用的条目。
   final Map<String, Uint8List> _cache = <String, Uint8List>{};
   int _cachedBytes = 0;
+
+  void setMaxBytes(int bytes) {
+    _maxCacheBytes = bytes;
+    _trim();
+  }
+
+  void _trim() {
+    while (_cachedBytes > _maxCacheBytes && _cache.isNotEmpty) {
+      final oldestKey = _cache.keys.first;
+      final removed = _cache.remove(oldestKey);
+      _cachedBytes -= removed?.length ?? 0;
+    }
+  }
 
   @override
   Future<Uint8List?> cover(rust.UiTrack track) async {
@@ -69,11 +82,7 @@ class FileCoverProvider implements CoverProvider {
 
     _cache[track.id] = bytes;
     _cachedBytes += bytes.length;
-    while (_cachedBytes > _maxCacheBytes && _cache.isNotEmpty) {
-      final oldestKey = _cache.keys.first;
-      final removed = _cache.remove(oldestKey);
-      _cachedBytes -= removed?.length ?? 0;
-    }
+    _trim();
     return bytes;
   }
 }
@@ -87,9 +96,22 @@ Future<Uint8List?> _readEmbeddedArt(String path) =>
 class LxCoverProvider {
   LxCoverProvider();
 
-  static const int _maxCacheBytes = 32 * 1024 * 1024;
+  int _maxCacheBytes = 32 * 1024 * 1024;
   final Map<String, Uint8List> _cache = <String, Uint8List>{};
   int _cachedBytes = 0;
+
+  void setMaxBytes(int bytes) {
+    _maxCacheBytes = bytes;
+    _trim();
+  }
+
+  void _trim() {
+    while (_cachedBytes > _maxCacheBytes && _cache.isNotEmpty) {
+      final oldestKey = _cache.keys.first;
+      final removed = _cache.remove(oldestKey);
+      _cachedBytes -= removed?.length ?? 0;
+    }
+  }
 
   Future<Uint8List?> cover(rust.UiTrack track) async {
     if (track.sourceId.isEmpty) return null;
@@ -134,11 +156,7 @@ class LxCoverProvider {
       if (bytes.isEmpty) return null;
       _cache[url] = bytes;
       _cachedBytes += bytes.length;
-      while (_cachedBytes > _maxCacheBytes && _cache.isNotEmpty) {
-        final oldestKey = _cache.keys.first;
-        final removed = _cache.remove(oldestKey);
-        _cachedBytes -= removed?.length ?? 0;
-      }
+      _trim();
       return bytes;
     } catch (_) {
       return null;
@@ -152,9 +170,22 @@ class LxCoverProvider {
 class RemoteCoverProvider {
   RemoteCoverProvider();
 
-  static const int _maxCacheBytes = 64 * 1024 * 1024;
+  int _maxCacheBytes = 64 * 1024 * 1024;
   final Map<String, Uint8List> _cache = <String, Uint8List>{};
   int _cachedBytes = 0;
+
+  void setMaxBytes(int bytes) {
+    _maxCacheBytes = bytes;
+    _trim();
+  }
+
+  void _trim() {
+    while (_cachedBytes > _maxCacheBytes && _cache.isNotEmpty) {
+      final oldestKey = _cache.keys.first;
+      final removed = _cache.remove(oldestKey);
+      _cachedBytes -= removed?.length ?? 0;
+    }
+  }
 
   Future<Uint8List?> cover(String sourceId, String coverId) async {
     final key = '$sourceId:$coverId';
@@ -186,11 +217,7 @@ class RemoteCoverProvider {
   void _putMemory(String key, Uint8List bytes) {
     _cache[key] = bytes;
     _cachedBytes += bytes.length;
-    while (_cachedBytes > _maxCacheBytes && _cache.isNotEmpty) {
-      final oldestKey = _cache.keys.first;
-      final removed = _cache.remove(oldestKey);
-      _cachedBytes -= removed?.length ?? 0;
-    }
+    _trim();
   }
 }
 

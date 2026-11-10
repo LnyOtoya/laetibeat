@@ -8,6 +8,7 @@ import '../routes.dart';
 import 'appearance/mobile_appearance_settings_page.dart';
 import 'audio/mobile_audio_settings_page.dart';
 import 'content/mobile_content_settings_page.dart';
+import 'storage/mobile_storage_settings_page.dart';
 import '../widgets/mobile_search_bar.dart';
 
 /// 移动端设置页面。
@@ -93,6 +94,15 @@ class MobileSettingsPage extends StatelessWidget {
                   ),
                   SizedBox(height: 12),
                   _SettingsGroup(
+                    onTap: (int index) {
+                      if (index == 0) {
+                        pushMobileRootPage(
+                          context,
+                          const MobileStorageSettingsPage(),
+                          name: MobileRoutes.storageSettings,
+                        );
+                      }
+                    },
                     items: [
                       M3EListItem(
                         headline: l10n.settingsStorage,

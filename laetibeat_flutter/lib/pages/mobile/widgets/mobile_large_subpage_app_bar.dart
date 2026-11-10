@@ -9,6 +9,7 @@ M3EAppBar mobileLargeSubpageAppBar(
   Color? backgroundColor,
   List<Widget> actions = const <Widget>[],
   M3EAppBarVariant variant = M3EAppBarVariant.large,
+  double titleStartPadding = 12,
 }) {
   final theme = M3ETheme.of(context);
 
@@ -22,7 +23,9 @@ M3EAppBar mobileLargeSubpageAppBar(
     title: title == null
         ? null
         : Padding(
-            padding: EdgeInsetsDirectional.only(start: centerTitle ? 0 : 12),
+            padding: EdgeInsetsDirectional.only(
+              start: centerTitle ? 0 : titleStartPadding,
+            ),
             child: Text(
               title,
               maxLines: 1,

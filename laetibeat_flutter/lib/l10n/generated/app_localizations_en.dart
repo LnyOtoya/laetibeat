@@ -161,6 +161,45 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsStorage => 'Storage';
 
   @override
+  String get cacheManagement => 'Cache management';
+
+  @override
+  String get cacheOverview => 'Cache overview';
+
+  @override
+  String get cacheLyrics => 'Lyrics cache';
+
+  @override
+  String get cacheCovers => 'Cover cache';
+
+  @override
+  String get cacheOther => 'Other cache';
+
+  @override
+  String get clearAllCaches => 'Clear all caches';
+
+  @override
+  String get cacheLocal => 'Local';
+
+  @override
+  String get cacheSubsonic => 'Subsonic';
+
+  @override
+  String get cacheLx => 'LX';
+
+  @override
+  String get cacheLimit => 'Cache limit';
+
+  @override
+  String get clearGroupCache => 'Clear group cache';
+
+  @override
+  String get cacheCleared => 'Cache cleared';
+
+  @override
+  String get cacheScanFailed => 'Failed to read cache information';
+
+  @override
   String get settingsStorageSupporting => 'Cache management';
 
   @override

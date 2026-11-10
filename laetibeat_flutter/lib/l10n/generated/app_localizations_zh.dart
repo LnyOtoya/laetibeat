@@ -156,6 +156,45 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsStorage => '储存';
 
   @override
+  String get cacheManagement => '缓存管理';
+
+  @override
+  String get cacheOverview => '缓存概览';
+
+  @override
+  String get cacheLyrics => '歌词缓存';
+
+  @override
+  String get cacheCovers => '封面缓存';
+
+  @override
+  String get cacheOther => '其他缓存';
+
+  @override
+  String get clearAllCaches => '清除所有缓存';
+
+  @override
+  String get cacheLocal => '本地';
+
+  @override
+  String get cacheSubsonic => 'Subsonic';
+
+  @override
+  String get cacheLx => '洛雪';
+
+  @override
+  String get cacheLimit => '缓存上限';
+
+  @override
+  String get clearGroupCache => '清除该组缓存';
+
+  @override
+  String get cacheCleared => '缓存已清除';
+
+  @override
+  String get cacheScanFailed => '读取缓存信息失败';
+
+  @override
   String get settingsStorageSupporting => '缓存管理';
 
   @override

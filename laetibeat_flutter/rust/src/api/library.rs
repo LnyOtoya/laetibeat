@@ -88,6 +88,23 @@ pub fn clear_remote_lyrics_cache(source_id: String) -> Result<(), String> {
     core_lib::clear_remote_lyrics_cache(&source_id)
 }
 
+#[frb(non_opaque)]
+pub struct UiLyricsCacheStats {
+    pub entries: i64,
+    pub bytes: i64,
+}
+
+/// 统计歌词缓存；prefix 可为 local: / opensubsonic: / lx:。
+pub fn lyrics_cache_stats(prefix: Option<String>) -> Result<UiLyricsCacheStats, String> {
+    let (entries, bytes) = core_lib::lyrics_cache_stats(prefix.as_deref())?;
+    Ok(UiLyricsCacheStats { entries, bytes })
+}
+
+/// 清空歌词缓存；prefix 为空时清空全部。
+pub fn clear_lyrics_cache(prefix: Option<String>) -> Result<(), String> {
+    core_lib::clear_lyrics_cache(prefix.as_deref())
+}
+
 fn map_sync_meta(meta: core_lib::SyncMeta) -> UiRemoteSyncMeta {
     UiRemoteSyncMeta {
         source_id: meta.source_id,

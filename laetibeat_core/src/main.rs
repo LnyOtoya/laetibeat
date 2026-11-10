@@ -1,6 +1,6 @@
-use std::io::{self, Write};
-use laetibeat_core::scanner::scan_directory;
 use laetibeat_core::model::MusicLibrary;
+use laetibeat_core::scanner::scan_directory;
+use std::io::{self, Write};
 
 fn main() {
     let mut library = MusicLibrary::new();
@@ -34,8 +34,9 @@ fn main() {
                 for track in &library.tracks {
                     let time_str = format_duration(track.duration);
                     println!(
-                        " 歌名: {} | 艺术家: {} | 专辑: {} | 时长: {}", 
-                        track.title, track.artist, track.album, time_str);
+                        " 歌名: {} | 艺术家: {} | 专辑: {} | 时长: {}",
+                        track.title, track.artist, track.album, time_str
+                    );
                 }
             }
             Err(e) => {
@@ -44,8 +45,6 @@ fn main() {
         }
 
         println!("----------------------------------------------")
-
-
     }
 }
 
@@ -53,5 +52,5 @@ fn main() {
 fn format_duration(seconds: u64) -> String {
     let mins = seconds / 60;
     let secs = seconds % 60;
-    format!("{:02}:{:02}", mins,secs)
+    format!("{:02}:{:02}", mins, secs)
 }

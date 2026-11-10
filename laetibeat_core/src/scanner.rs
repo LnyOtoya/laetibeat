@@ -1,11 +1,11 @@
-use crate::model::{make_album_id, make_artist_id, MusicLibrary, SourceType, Track};
+use crate::model::{MusicLibrary, SourceType, Track, make_album_id, make_artist_id};
+use lofty::file::{AudioFile, TaggedFileExt};
+use lofty::read_from_path;
+use lofty::tag::{Accessor, ItemKey};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::{Instant, UNIX_EPOCH};
-use lofty::tag::{Accessor, ItemKey};
 use walkdir::WalkDir;
-use lofty::read_from_path;
-use lofty::file::{AudioFile, TaggedFileExt};
 
 /// 一次扫描的统计结果
 #[derive(Debug, Clone, Default)]
@@ -23,7 +23,10 @@ pub struct ScanStats {
 }
 
 /// 全量扫描(保留给命令行/测试使用)
-pub fn scan_directory<P: AsRef<Path>>(library: &mut MusicLibrary, dir_path: P) -> Result<(), String> {
+pub fn scan_directory<P: AsRef<Path>>(
+    library: &mut MusicLibrary,
+    dir_path: P,
+) -> Result<(), String> {
     scan_directory_incremental(library, dir_path, &[]).map(|_| ())
 }
 
@@ -124,7 +127,10 @@ pub fn scan_directory_incremental<P: AsRef<Path>>(
             channels = properties.channels();
 
             // 获取标签
-            if let Some(tag) = tagged_file.primary_tag().or_else(|| tagged_file.first_tag()) {
+            if let Some(tag) = tagged_file
+                .primary_tag()
+                .or_else(|| tagged_file.first_tag())
+            {
                 if let Some(track_title) = tag.title() {
                     title = track_title.to_string();
                 }
@@ -138,9 +144,7 @@ pub fn scan_directory_incremental<P: AsRef<Path>>(
                 disc_number = tag.disk();
                 year = tag.date().map(|d| d.year as u32);
                 genre = tag.genre().map(|g| g.to_string());
-                album_artist = tag
-                    .get_string(ItemKey::AlbumArtist)
-                    .map(str::to_string);
+                album_artist = tag.get_string(ItemKey::AlbumArtist).map(str::to_string);
             }
         }
 
@@ -200,11 +204,8 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!(
-            "laetibeat_scan_{}_{}",
-            std::process::id(),
-            stamp
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("laetibeat_scan_{}_{}", std::process::id(), stamp));
         fs::create_dir_all(&dir).unwrap();
         dir
     }

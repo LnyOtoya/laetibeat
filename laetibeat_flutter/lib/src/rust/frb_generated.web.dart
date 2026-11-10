@@ -198,6 +198,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UiLxSourceEntry dco_decode_ui_lx_source_entry(dynamic raw);
 
   @protected
+  UiLyricsCacheStats dco_decode_ui_lyrics_cache_stats(dynamic raw);
+
+  @protected
   UiLyricsSearchResult dco_decode_ui_lyrics_search_result(dynamic raw);
 
   @protected
@@ -443,6 +446,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiLxSourceEntry sse_decode_ui_lx_source_entry(SseDeserializer deserializer);
+
+  @protected
+  UiLyricsCacheStats sse_decode_ui_lyrics_cache_stats(
+    SseDeserializer deserializer,
+  );
 
   @protected
   UiLyricsSearchResult sse_decode_ui_lyrics_search_result(
@@ -753,6 +761,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_ui_lx_source_entry(
     UiLxSourceEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_lyrics_cache_stats(
+    UiLyricsCacheStats self,
     SseSerializer serializer,
   );
 
