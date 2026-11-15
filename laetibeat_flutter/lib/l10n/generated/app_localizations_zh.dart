@@ -95,6 +95,67 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get playlistNew => '新建歌单';
+
+  @override
+  String get playlistName => '歌单名';
+
+  @override
+  String get playlistRename => '重命名歌单';
+
+  @override
+  String get playlistDelete => '删除歌单';
+
+  @override
+  String playlistDeleteConfirm(String name) {
+    return '确定删除歌单“$name”？';
+  }
+
+  @override
+  String get playlistEmpty => '暂无歌单';
+
+  @override
+  String get playlistEmptySubtitle => '新建一个歌单开始整理音乐';
+
+  @override
+  String get playlistChooseSource => '选择歌单类型';
+
+  @override
+  String get playlistCreateLocal => '本地歌单';
+
+  @override
+  String get playlistCreateSubsonic => 'Subsonic 歌单';
+
+  @override
+  String get playlistRemoveTrack => '从歌单移除';
+
+  @override
+  String get playlistAddTracks => '添加歌曲';
+
+  @override
+  String get playlistNoTracks => '歌单还没有歌曲';
+
+  @override
+  String get playlistAlreadyContains => '歌曲已在歌单中';
+
+  @override
+  String playlistAddedCount(int count) {
+    return '已添加 $count 首';
+  }
+
+  @override
+  String get actionSave => '保存';
+
+  @override
+  String get actionCancel => '取消';
+
+  @override
+  String get actionDelete => '删除';
+
+  @override
+  String get actionRename => '重命名';
+
+  @override
   String get appearanceTitle => '外观';
 
   @override

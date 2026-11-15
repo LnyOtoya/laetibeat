@@ -1,3 +1,4 @@
+pub mod local_playlists;
 pub mod metadata;
 pub mod model;
 pub mod remote_library;

@@ -54,6 +54,39 @@
       }
     }
   },
+  "playlistNew": "新建歌单",
+  "playlistName": "歌单名",
+  "playlistRename": "重命名歌单",
+  "playlistDelete": "删除歌单",
+  "playlistDeleteConfirm": "确定删除歌单“{name}”？",
+  "@playlistDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "playlistEmpty": "暂无歌单",
+  "playlistEmptySubtitle": "新建一个歌单开始整理音乐",
+  "playlistChooseSource": "选择歌单类型",
+  "playlistCreateLocal": "本地歌单",
+  "playlistCreateSubsonic": "Subsonic 歌单",
+  "playlistRemoveTrack": "从歌单移除",
+  "playlistAddTracks": "添加歌曲",
+  "playlistNoTracks": "歌单还没有歌曲",
+  "playlistAlreadyContains": "歌曲已在歌单中",
+  "playlistAddedCount": "已添加 {count} 首",
+  "@playlistAddedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "actionSave": "保存",
+  "actionCancel": "取消",
+  "actionDelete": "删除",
+  "actionRename": "重命名",
   "appearanceTitle": "外观",
   "displayGroup": "显示",
   "songSource": "歌曲来源",

@@ -254,6 +254,120 @@ abstract class AppLocalizations {
   /// **'{count} playlists'**
   String libraryPlaylistsCount(int count);
 
+  /// No description provided for @playlistNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New playlist'**
+  String get playlistNew;
+
+  /// No description provided for @playlistName.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist name'**
+  String get playlistName;
+
+  /// No description provided for @playlistRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename playlist'**
+  String get playlistRename;
+
+  /// No description provided for @playlistDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete playlist'**
+  String get playlistDelete;
+
+  /// No description provided for @playlistDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete playlist \"{name}\"?'**
+  String playlistDeleteConfirm(String name);
+
+  /// No description provided for @playlistEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No playlists'**
+  String get playlistEmpty;
+
+  /// No description provided for @playlistEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a playlist to start organizing your music'**
+  String get playlistEmptySubtitle;
+
+  /// No description provided for @playlistChooseSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose playlist type'**
+  String get playlistChooseSource;
+
+  /// No description provided for @playlistCreateLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Local playlist'**
+  String get playlistCreateLocal;
+
+  /// No description provided for @playlistCreateSubsonic.
+  ///
+  /// In en, this message translates to:
+  /// **'Subsonic playlist'**
+  String get playlistCreateSubsonic;
+
+  /// No description provided for @playlistRemoveTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from playlist'**
+  String get playlistRemoveTrack;
+
+  /// No description provided for @playlistAddTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'Add songs'**
+  String get playlistAddTracks;
+
+  /// No description provided for @playlistNoTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'This playlist has no songs'**
+  String get playlistNoTracks;
+
+  /// No description provided for @playlistAlreadyContains.
+  ///
+  /// In en, this message translates to:
+  /// **'Song is already in the playlist'**
+  String get playlistAlreadyContains;
+
+  /// No description provided for @playlistAddedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count} songs'**
+  String playlistAddedCount(int count);
+
+  /// No description provided for @actionSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get actionSave;
+
+  /// No description provided for @actionCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get actionCancel;
+
+  /// No description provided for @actionDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get actionDelete;
+
+  /// No description provided for @actionRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get actionRename;
+
   /// No description provided for @appearanceTitle.
   ///
   /// In en, this message translates to:

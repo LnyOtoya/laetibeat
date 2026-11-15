@@ -146,6 +146,54 @@ Future<List<UiRemotePlaylist>> subsonicGetPlaylists({
   sourceId: sourceId,
 );
 
+/// 获取单个歌单及曲目
+Future<UiRemotePlaylistDetail> subsonicGetPlaylist({
+  required String sourceId,
+  required String playlistId,
+}) => RustLib.instance.api.crateApiSubsonicSubsonicGetPlaylist(
+  sourceId: sourceId,
+  playlistId: playlistId,
+);
+
+/// 新建歌单，可同时加入歌曲
+Future<UiRemotePlaylistDetail> subsonicCreatePlaylist({
+  required String sourceId,
+  required String name,
+  required List<String> songIds,
+}) => RustLib.instance.api.crateApiSubsonicSubsonicCreatePlaylist(
+  sourceId: sourceId,
+  name: name,
+  songIds: songIds,
+);
+
+/// 更新歌单：改名、公开状态、加歌、按索引移歌
+Future<UiRemotePlaylistDetail> subsonicUpdatePlaylist({
+  required String sourceId,
+  required String playlistId,
+  String? name,
+  String? comment,
+  bool? public,
+  required List<String> addSongIds,
+  required List<int> removeIndexes,
+}) => RustLib.instance.api.crateApiSubsonicSubsonicUpdatePlaylist(
+  sourceId: sourceId,
+  playlistId: playlistId,
+  name: name,
+  comment: comment,
+  public: public,
+  addSongIds: addSongIds,
+  removeIndexes: removeIndexes,
+);
+
+/// 删除歌单
+Future<void> subsonicDeletePlaylist({
+  required String sourceId,
+  required String playlistId,
+}) => RustLib.instance.api.crateApiSubsonicSubsonicDeletePlaylist(
+  sourceId: sourceId,
+  playlistId: playlistId,
+);
+
 /// 获取艺术家详情与专辑列表
 Future<UiRemoteArtistDetail> subsonicGetArtist({
   required String sourceId,
@@ -359,6 +407,24 @@ class UiRemotePlaylist {
           coverId == other.coverId &&
           created == other.created &&
           changed == other.changed;
+}
+
+class UiRemotePlaylistDetail {
+  final UiRemotePlaylist playlist;
+  final List<UiRemoteTrack> tracks;
+
+  const UiRemotePlaylistDetail({required this.playlist, required this.tracks});
+
+  @override
+  int get hashCode => playlist.hashCode ^ tracks.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiRemotePlaylistDetail &&
+          runtimeType == other.runtimeType &&
+          playlist == other.playlist &&
+          tracks == other.tracks;
 }
 
 /// 远端搜索结果(艺术家/专辑/曲目三类)

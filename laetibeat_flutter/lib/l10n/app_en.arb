@@ -54,6 +54,39 @@
       }
     }
   },
+  "playlistNew": "New playlist",
+  "playlistName": "Playlist name",
+  "playlistRename": "Rename playlist",
+  "playlistDelete": "Delete playlist",
+  "playlistDeleteConfirm": "Delete playlist \"{name}\"?",
+  "@playlistDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "playlistEmpty": "No playlists",
+  "playlistEmptySubtitle": "Create a playlist to start organizing your music",
+  "playlistChooseSource": "Choose playlist type",
+  "playlistCreateLocal": "Local playlist",
+  "playlistCreateSubsonic": "Subsonic playlist",
+  "playlistRemoveTrack": "Remove from playlist",
+  "playlistAddTracks": "Add songs",
+  "playlistNoTracks": "This playlist has no songs",
+  "playlistAlreadyContains": "Song is already in the playlist",
+  "playlistAddedCount": "Added {count} songs",
+  "@playlistAddedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "actionSave": "Save",
+  "actionCancel": "Cancel",
+  "actionDelete": "Delete",
+  "actionRename": "Rename",
   "appearanceTitle": "Appearance",
   "displayGroup": "Display",
   "songSource": "Song source",

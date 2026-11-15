@@ -70,6 +70,12 @@ pub struct UiRemotePlaylist {
 }
 
 #[frb(non_opaque)]
+pub struct UiRemotePlaylistDetail {
+    pub playlist: UiRemotePlaylist,
+    pub tracks: Vec<UiRemoteTrack>,
+}
+
+#[frb(non_opaque)]
 pub struct UiRemoteArtistDetail {
     pub artist: UiRemoteArtist,
     pub albums: Vec<UiRemoteAlbum>,
@@ -272,6 +278,61 @@ pub fn subsonic_get_user_name(source_id: String, username: String) -> Result<Str
 pub fn subsonic_get_playlists(source_id: String) -> Result<Vec<UiRemotePlaylist>, String> {
     let playlists = remote::get_playlists(&source_id)?;
     Ok(playlists.into_iter().map(map_playlist).collect())
+}
+
+/// 获取单个歌单及曲目
+pub fn subsonic_get_playlist(
+    source_id: String,
+    playlist_id: String,
+) -> Result<UiRemotePlaylistDetail, String> {
+    let detail = remote::get_playlist(&source_id, &playlist_id)?;
+    Ok(UiRemotePlaylistDetail {
+        playlist: map_playlist(detail.playlist),
+        tracks: detail.tracks.into_iter().map(map_track).collect(),
+    })
+}
+
+/// 新建歌单，可同时加入歌曲
+pub fn subsonic_create_playlist(
+    source_id: String,
+    name: String,
+    song_ids: Vec<String>,
+) -> Result<UiRemotePlaylistDetail, String> {
+    let detail = remote::create_playlist(&source_id, &name, &song_ids)?;
+    Ok(UiRemotePlaylistDetail {
+        playlist: map_playlist(detail.playlist),
+        tracks: detail.tracks.into_iter().map(map_track).collect(),
+    })
+}
+
+/// 更新歌单：改名、公开状态、加歌、按索引移歌
+pub fn subsonic_update_playlist(
+    source_id: String,
+    playlist_id: String,
+    name: Option<String>,
+    comment: Option<String>,
+    public: Option<bool>,
+    add_song_ids: Vec<String>,
+    remove_indexes: Vec<i32>,
+) -> Result<UiRemotePlaylistDetail, String> {
+    let detail = remote::update_playlist(
+        &source_id,
+        &playlist_id,
+        name,
+        comment,
+        public,
+        &add_song_ids,
+        &remove_indexes,
+    )?;
+    Ok(UiRemotePlaylistDetail {
+        playlist: map_playlist(detail.playlist),
+        tracks: detail.tracks.into_iter().map(map_track).collect(),
+    })
+}
+
+/// 删除歌单
+pub fn subsonic_delete_playlist(source_id: String, playlist_id: String) -> Result<(), String> {
+    remote::delete_playlist(&source_id, &playlist_id)
 }
 
 /// 获取艺术家详情与专辑列表

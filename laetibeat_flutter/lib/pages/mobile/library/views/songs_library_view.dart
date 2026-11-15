@@ -12,6 +12,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../l10n/generated/app_localizations.dart';
+import '../playlists/playlist_actions.dart';
 
 /// 歌曲分类内容。
 class SongsLibraryView extends ConsumerStatefulWidget {
@@ -285,7 +286,11 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
                   M3EToolbarAction(
                     icon: M3EIcons.playlist_add,
                     tooltip: l10n.addToPlaylist,
-                    onPressed: () {},
+                    onPressed: () => showAddToPlaylistSheet(
+                      context,
+                      ref,
+                      _selectedTracksInOrder(),
+                    ),
                   ),
                   M3EToolbarWidget(
                     child: M3EIconButton(

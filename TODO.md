@@ -46,7 +46,7 @@
 - [ ] 远端同步支持增量、取消与进度节流；推荐避免全量加载远端曲目
 - [ ] 统一 `source` 类型（local / opensubsonic / lx）为常量或枚举，清理字符串字面量
 - [x] 媒体库首页入口化：现有歌曲/专辑/艺术家/歌单内容保留为子页面，首页只做入口导航
-- [ ] 媒体库详情页来源筛选：歌曲/专辑/艺术家页已完成“全部/本地/Navidrome”chips 与来源 badge；歌单页待本地歌单实现后再统一
+- [x] 媒体库详情页来源筛选：歌曲/专辑/艺术家/歌单页已完成“全部/本地/Navidrome”chips 与来源 badge
 - [ ] 清理死代码：`AudioSource`、`PlayState`、`SourceType::Opensubsonic`、`linux_mpris.dart`、`tmp.dart.bak`、未引用的移动首页组件
 - [ ] 更新 `ARCHITECTURE.md`：当前移动端播放后端、单 Navigator、audio_service 状态
 - [x] 在可用 Flutter 环境复验 `flutter analyze` / `flutter test`（2026-11-10；analyze 仍有 4 个既有 warning/info）
@@ -57,7 +57,7 @@
 ### P2 功能补齐
 
 - [ ] 收藏/喜欢（本地 + OpenSubsonic star/unstar）
-- [ ] 本地歌单 CRUD 与加入歌单
+- [x] 本地歌单 CRUD 与加入歌单（新建/重命名/删除/加歌/移歌/排序/详情播放）
 - [ ] 队列编辑（加入队列、下一首播放、删除、拖动排序、清空）
 - [ ] 下载
 - [ ] 移动端首页推荐/历史接入，或删除孤立组件
@@ -113,7 +113,7 @@
 - [x] 2. 将现有四个内容视图包装为独立子页面，保留现有布局与操作
 - [x] 3. 歌曲页接入来源 chips + 来源 badge + 本地/OpenSubsonic 统一来源筛选
 - [x] 4. 专辑/艺术家页接入来源筛选；新增本地专辑详情页与本地艺术家详情页
-- [ ] 5. 歌单页先接入 OpenSubsonic 歌单并标记来源；本地歌单后续补
+- [x] 5. 歌单页统一本地/OpenSubsonic 歌单；本地 CRUD、Subsonic 歌单详情/新建/更新/删除/加歌/移歌已接入
 - [ ] 6. 预留收藏/最近播放/下载入口，未实现前不显示死入口
 - [x] 7. 清理旧分类路由切换逻辑；`defaultSongSourceProvider` 改为“默认来源筛选”，默认全部
 
@@ -522,7 +522,7 @@
 - [x] 验证 RSA 无效公钥错误路径
 - [x] 验证 SourceManager 启用、加载、优先级、解析、移除
 - [x] `flutter analyze` / `flutter test` 通过（2026-11-10；analyze 仍有 4 个既有 warning/info，本次无新增问题）
-- [x] `cargo test --workspace` 通过（34 tests：core 5 / lx 26 / remote 3）
+- [x] `cargo test --workspace` 通过（36 tests：core 7 / lx 26 / remote 3）
 - [x] Android armv7/aarch64/x86_64 release Rust 编译通过（含 LX/QuickJS/FRB）
 - [x] `flutter build apk --release` 通过（150.3MB；不要用 `--no-pub` 跳过插件注册表重生成）
 - [x] 验证 `setTimeout` 延迟后解析 musicUrl
@@ -587,8 +587,9 @@
 - 缓存占用只统计“清除所有缓存”会释放的内容；LX 源脚本、播放统计库和播放队列不计入缓存大小
 - `SourceType` 只有 `LocalFile` 和 `Opensubsonic`，LX 不在数据模型中；`source` 字段仍是字符串字面量，容易拼错
 - 移动端首页只挂载播放器主视图，`mobile_welcome_section.dart` / `mobile_daily_section.dart` / `mobile_home_constants.dart` 当前无引用
-- 本地歌单尚未实现；移动端歌单页只显示 OpenSubsonic 歌单
-- 媒体库首页已入口化；歌曲/专辑/艺术家页已统一本地/OpenSubsonic 并接入来源 chips 与 badge；歌单页仍只接 OpenSubsonic
+- 本地歌单已实现：SQLite 持久化、CRUD、跨源条目快照、详情播放、移除与排序；本地歌单封面目前使用占位图标
+- 媒体库首页已入口化；歌曲/专辑/艺术家/歌单页已统一本地/OpenSubsonic 并接入来源 chips 与 badge
+- OpenSubsonic 歌单已接入 get/create/update/delete：详情、改名、删除、按索引移歌、加歌；暂未做 comment/public 编辑 UI
 - 本地专辑/艺术家详情页已接入：专辑曲目按 `track_ids`、艺术家专辑按专辑艺术家/曲目关联聚合；跨源同名专辑/艺术家暂不自动合并
 - 媒体库首页的远端数量只读已缓存 Provider；首次进入且未打开过对应详情页时显示 `—`，不主动触发全量远端加载
 - 移动端内容设置已接通“选择本地媒体库”与“扫描”；真机上 SAF 目录持久授权与 Rust 扫描结果仍需验证

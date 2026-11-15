@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/library.dart' as rust_library;
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
+import 'package:laetibeat/src/rust/api/playlists.dart' as rust_playlists;
 import 'package:laetibeat/src/rust/api/stats.dart' as rust_stats;
 import 'package:laetibeat/src/rust/frb_generated.dart';
 import 'package:path_provider/path_provider.dart';
@@ -51,6 +52,17 @@ Future<void> bootstrap() async {
     await rust_stats.initStatsDb(path: '${supportDir.path}/laetibeat_stats.db');
   } catch (e) {
     debugPrint('初始化播放统计库失败: $e');
+  }
+
+  // 初始化本地歌单库(失败不阻塞应用启动)
+  try {
+    final supportDir = await getApplicationSupportDirectory();
+    await supportDir.create(recursive: true);
+    await rust_playlists.initPlaylistDb(
+      path: '${supportDir.path}/laetibeat_playlists.db',
+    );
+  } catch (e) {
+    debugPrint('初始化本地歌单库失败: $e');
   }
 
   // 初始化远端音乐库数据库(失败不阻塞应用启动)

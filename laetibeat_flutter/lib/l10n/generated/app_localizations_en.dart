@@ -95,6 +95,68 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get playlistNew => 'New playlist';
+
+  @override
+  String get playlistName => 'Playlist name';
+
+  @override
+  String get playlistRename => 'Rename playlist';
+
+  @override
+  String get playlistDelete => 'Delete playlist';
+
+  @override
+  String playlistDeleteConfirm(String name) {
+    return 'Delete playlist \"$name\"?';
+  }
+
+  @override
+  String get playlistEmpty => 'No playlists';
+
+  @override
+  String get playlistEmptySubtitle =>
+      'Create a playlist to start organizing your music';
+
+  @override
+  String get playlistChooseSource => 'Choose playlist type';
+
+  @override
+  String get playlistCreateLocal => 'Local playlist';
+
+  @override
+  String get playlistCreateSubsonic => 'Subsonic playlist';
+
+  @override
+  String get playlistRemoveTrack => 'Remove from playlist';
+
+  @override
+  String get playlistAddTracks => 'Add songs';
+
+  @override
+  String get playlistNoTracks => 'This playlist has no songs';
+
+  @override
+  String get playlistAlreadyContains => 'Song is already in the playlist';
+
+  @override
+  String playlistAddedCount(int count) {
+    return 'Added $count songs';
+  }
+
+  @override
+  String get actionSave => 'Save';
+
+  @override
+  String get actionCancel => 'Cancel';
+
+  @override
+  String get actionDelete => 'Delete';
+
+  @override
+  String get actionRename => 'Rename';
+
+  @override
   String get appearanceTitle => 'Appearance';
 
   @override

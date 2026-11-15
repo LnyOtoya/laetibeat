@@ -10,6 +10,7 @@ import 'api/library.dart';
 import 'api/lx.dart';
 import 'api/lyrics.dart';
 import 'api/metadata.dart';
+import 'api/playlists.dart';
 import 'api/simple.dart';
 import 'api/stats.dart';
 import 'api/subsonic.dart';
@@ -59,6 +60,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_box_autoadd_u_8(dynamic raw);
 
   @protected
+  UiLocalPlaylistDetail dco_decode_box_autoadd_ui_local_playlist_detail(
+    dynamic raw,
+  );
+
+  @protected
   UiLxLyric dco_decode_box_autoadd_ui_lx_lyric(dynamic raw);
 
   @protected
@@ -83,6 +89,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
+  List<int> dco_decode_list_prim_i_32_loose(dynamic raw);
+
+  @protected
+  Int32List dco_decode_list_prim_i_32_strict(dynamic raw);
+
+  @protected
+  Int64List dco_decode_list_prim_i_64_strict(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
@@ -90,6 +105,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<UiArtist> dco_decode_list_ui_artist(dynamic raw);
+
+  @protected
+  List<UiLocalPlaylistItem> dco_decode_list_ui_local_playlist_item(dynamic raw);
+
+  @protected
+  List<UiLocalPlaylistSummary> dco_decode_list_ui_local_playlist_summary(
+    dynamic raw,
+  );
 
   @protected
   List<UiLxSearchTrack> dco_decode_list_ui_lx_search_track(dynamic raw);
@@ -109,6 +132,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<UiPlayEvent> dco_decode_list_ui_play_event(dynamic raw);
+
+  @protected
+  List<UiPlaylistTrackInput> dco_decode_list_ui_playlist_track_input(
+    dynamic raw,
+  );
 
   @protected
   List<UiRemoteAlbum> dco_decode_list_ui_remote_album(dynamic raw);
@@ -150,6 +178,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? dco_decode_opt_box_autoadd_u_8(dynamic raw);
 
   @protected
+  UiLocalPlaylistDetail? dco_decode_opt_box_autoadd_ui_local_playlist_detail(
+    dynamic raw,
+  );
+
+  @protected
   UiLxLyric? dco_decode_opt_box_autoadd_ui_lx_lyric(dynamic raw);
 
   @protected
@@ -180,6 +213,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UiLibrary dco_decode_ui_library(dynamic raw);
 
   @protected
+  UiLocalPlaylistDetail dco_decode_ui_local_playlist_detail(dynamic raw);
+
+  @protected
+  UiLocalPlaylistItem dco_decode_ui_local_playlist_item(dynamic raw);
+
+  @protected
+  UiLocalPlaylistSummary dco_decode_ui_local_playlist_summary(dynamic raw);
+
+  @protected
   UiLxLyric dco_decode_ui_lx_lyric(dynamic raw);
 
   @protected
@@ -207,6 +249,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UiPlayEvent dco_decode_ui_play_event(dynamic raw);
 
   @protected
+  UiPlaylistTrackInput dco_decode_ui_playlist_track_input(dynamic raw);
+
+  @protected
   UiRemoteAlbum dco_decode_ui_remote_album(dynamic raw);
 
   @protected
@@ -220,6 +265,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiRemotePlaylist dco_decode_ui_remote_playlist(dynamic raw);
+
+  @protected
+  UiRemotePlaylistDetail dco_decode_ui_remote_playlist_detail(dynamic raw);
 
   @protected
   UiRemoteSearchResult dco_decode_ui_remote_search_result(dynamic raw);
@@ -250,6 +298,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void dco_decode_unit(dynamic raw);
+
+  @protected
+  BigInt dco_decode_usize(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -285,6 +336,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_box_autoadd_u_8(SseDeserializer deserializer);
 
   @protected
+  UiLocalPlaylistDetail sse_decode_box_autoadd_ui_local_playlist_detail(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   UiLxLyric sse_decode_box_autoadd_ui_lx_lyric(SseDeserializer deserializer);
 
   @protected
@@ -315,6 +371,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<int> sse_decode_list_prim_i_32_loose(SseDeserializer deserializer);
+
+  @protected
+  Int32List sse_decode_list_prim_i_32_strict(SseDeserializer deserializer);
+
+  @protected
+  Int64List sse_decode_list_prim_i_64_strict(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
@@ -322,6 +387,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<UiArtist> sse_decode_list_ui_artist(SseDeserializer deserializer);
+
+  @protected
+  List<UiLocalPlaylistItem> sse_decode_list_ui_local_playlist_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<UiLocalPlaylistSummary> sse_decode_list_ui_local_playlist_summary(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<UiLxSearchTrack> sse_decode_list_ui_lx_search_track(
@@ -345,6 +420,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<UiPlayEvent> sse_decode_list_ui_play_event(SseDeserializer deserializer);
+
+  @protected
+  List<UiPlaylistTrackInput> sse_decode_list_ui_playlist_track_input(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<UiRemoteAlbum> sse_decode_list_ui_remote_album(
@@ -394,6 +474,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? sse_decode_opt_box_autoadd_u_8(SseDeserializer deserializer);
 
   @protected
+  UiLocalPlaylistDetail? sse_decode_opt_box_autoadd_ui_local_playlist_detail(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   UiLxLyric? sse_decode_opt_box_autoadd_ui_lx_lyric(
     SseDeserializer deserializer,
   );
@@ -426,6 +511,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiLibrary sse_decode_ui_library(SseDeserializer deserializer);
+
+  @protected
+  UiLocalPlaylistDetail sse_decode_ui_local_playlist_detail(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  UiLocalPlaylistItem sse_decode_ui_local_playlist_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  UiLocalPlaylistSummary sse_decode_ui_local_playlist_summary(
+    SseDeserializer deserializer,
+  );
 
   @protected
   UiLxLyric sse_decode_ui_lx_lyric(SseDeserializer deserializer);
@@ -461,6 +561,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UiPlayEvent sse_decode_ui_play_event(SseDeserializer deserializer);
 
   @protected
+  UiPlaylistTrackInput sse_decode_ui_playlist_track_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   UiRemoteAlbum sse_decode_ui_remote_album(SseDeserializer deserializer);
 
   @protected
@@ -478,6 +583,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiRemotePlaylist sse_decode_ui_remote_playlist(SseDeserializer deserializer);
+
+  @protected
+  UiRemotePlaylistDetail sse_decode_ui_remote_playlist_detail(
+    SseDeserializer deserializer,
+  );
 
   @protected
   UiRemoteSearchResult sse_decode_ui_remote_search_result(
@@ -514,6 +624,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -555,6 +668,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_8(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_ui_local_playlist_detail(
+    UiLocalPlaylistDetail self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_ui_lx_lyric(
     UiLxLyric self,
     SseSerializer serializer,
@@ -591,6 +710,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_prim_i_32_loose(
+    List<int> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_i_32_strict(
+    Int32List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_i_64_strict(
+    Int64List self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -601,6 +738,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_ui_artist(List<UiArtist> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_ui_local_playlist_item(
+    List<UiLocalPlaylistItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_ui_local_playlist_summary(
+    List<UiLocalPlaylistSummary> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_ui_lx_search_track(
@@ -629,6 +778,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_ui_play_event(
     List<UiPlayEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_ui_playlist_track_input(
+    List<UiPlaylistTrackInput> self,
     SseSerializer serializer,
   );
 
@@ -690,6 +845,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_u_8(int? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_ui_local_playlist_detail(
+    UiLocalPlaylistDetail? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_ui_lx_lyric(
     UiLxLyric? self,
     SseSerializer serializer,
@@ -730,6 +891,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_ui_library(UiLibrary self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ui_local_playlist_detail(
+    UiLocalPlaylistDetail self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_local_playlist_item(
+    UiLocalPlaylistItem self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_local_playlist_summary(
+    UiLocalPlaylistSummary self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_ui_lx_lyric(UiLxLyric self, SseSerializer serializer);
@@ -780,6 +959,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_ui_play_event(UiPlayEvent self, SseSerializer serializer);
 
   @protected
+  void sse_encode_ui_playlist_track_input(
+    UiPlaylistTrackInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_ui_remote_album(UiRemoteAlbum self, SseSerializer serializer);
 
   @protected
@@ -803,6 +988,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_ui_remote_playlist(
     UiRemotePlaylist self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_remote_playlist_detail(
+    UiRemotePlaylistDetail self,
     SseSerializer serializer,
   );
 
@@ -847,6 +1038,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer);
 }
 
 // Section: wire_class

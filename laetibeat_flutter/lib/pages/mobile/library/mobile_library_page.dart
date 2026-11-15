@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/shared/layout/app_bottom_inset.dart';
+import 'package:laetibeat/widgets/playlist_provider.dart';
 import 'package:laetibeat/widgets/remote_browser_provider.dart';
 import 'package:laetibeat/widgets/settings/music_library_provider.dart';
 import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
@@ -55,6 +56,7 @@ class MobileLibraryPage extends ConsumerWidget {
     final remotePlaylists = server == null
         ? 0
         : _cachedPlaylistCount(ref, server.id);
+    final localPlaylists = ref.watch(localPlaylistsProvider).value?.length ?? 0;
 
     final songsCount = !localReady
         ? null
@@ -71,7 +73,11 @@ class MobileLibraryPage extends ConsumerWidget {
         : server != null && remoteArtists == null
         ? null
         : (local.artists.length) + (remoteArtists ?? 0);
-    final playlistsCount = server == null ? null : remotePlaylists;
+    final playlistsCount = server == null
+        ? localPlaylists
+        : remotePlaylists == null
+        ? null
+        : localPlaylists + remotePlaylists;
 
     final sourceParts = <String>[
       if (local?.directory != null) l10n.librarySourceLocal,

@@ -2,10 +2,12 @@
 
 use opensubsonic::data::{
     AlbumId3, AlbumWithSongsId3, ArtistId3, ArtistWithAlbumsId3, Child, LyricsList,
-    Playlist as OsPlaylist, ServerInfo as OsServerInfo, StructuredLyrics,
+    Playlist as OsPlaylist, PlaylistWithSongs as OsPlaylistWithSongs,
+    ServerInfo as OsServerInfo, StructuredLyrics,
 };
 use opensubsonic::{
     AlbumListOptions, AlbumListType, Auth, Client, Search3Options, StreamOptions,
+    UpdatePlaylistOptions,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -96,6 +98,12 @@ pub struct RemotePlaylist {
     pub cover_id: Option<String>,
     pub created: Option<String>,
     pub changed: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RemotePlaylistDetail {
+    pub playlist: RemotePlaylist,
+    pub tracks: Vec<RemoteTrack>,
 }
 
 #[derive(Debug, Clone)]
@@ -371,6 +379,60 @@ pub fn get_playlists(source_id: &str) -> Result<Vec<RemotePlaylist>, String> {
     Ok(playlists.into_iter().map(map_playlist).collect())
 }
 
+/// 获取单个歌单及其曲目。
+pub fn get_playlist(source_id: &str, playlist_id: &str) -> Result<RemotePlaylistDetail, String> {
+    let client = client(source_id)?;
+    let playlist = runtime()?
+        .block_on(client.get_playlist(playlist_id))
+        .map_err(map_err)?;
+    Ok(map_playlist_detail(playlist))
+}
+
+/// 新建歌单，可同时加入歌曲。
+pub fn create_playlist(
+    source_id: &str,
+    name: &str,
+    song_ids: &[String],
+) -> Result<RemotePlaylistDetail, String> {
+    let client = client(source_id)?;
+    let song_refs = song_ids.iter().map(String::as_str).collect::<Vec<_>>();
+    let playlist = runtime()?
+        .block_on(client.create_playlist(None, Some(name), &song_refs))
+        .map_err(map_err)?;
+    Ok(map_playlist_detail(playlist))
+}
+
+/// 更新歌单：重命名、修改公开状态、加歌、按索引移歌。
+pub fn update_playlist(
+    source_id: &str,
+    playlist_id: &str,
+    name: Option<String>,
+    comment: Option<String>,
+    public: Option<bool>,
+    add_song_ids: &[String],
+    remove_indexes: &[i32],
+) -> Result<RemotePlaylistDetail, String> {
+    let client = client(source_id)?;
+    let mut options = UpdatePlaylistOptions::new();
+    options.name = name;
+    options.comment = comment;
+    options.public = public;
+    options.song_ids_to_add = add_song_ids.to_vec();
+    options.song_indexes_to_remove = remove_indexes.to_vec();
+    runtime()?
+        .block_on(client.update_playlist(playlist_id, &options))
+        .map_err(map_err)?;
+    get_playlist(source_id, playlist_id)
+}
+
+/// 删除歌单。
+pub fn delete_playlist(source_id: &str, playlist_id: &str) -> Result<(), String> {
+    let client = client(source_id)?;
+    runtime()?
+        .block_on(client.delete_playlist(playlist_id))
+        .map_err(map_err)
+}
+
 /// 分页获取专辑列表(ID3)。offset 从 0 开始,limit 为每页数量。
 pub fn get_album_list2(
     source_id: &str,
@@ -512,6 +574,25 @@ fn map_playlist(playlist: OsPlaylist) -> RemotePlaylist {
         cover_id: playlist.cover_art,
         created: playlist.created,
         changed: playlist.changed,
+    }
+}
+
+fn map_playlist_detail(playlist: OsPlaylistWithSongs) -> RemotePlaylistDetail {
+    let tracks = playlist.entry.into_iter().map(map_track).collect();
+    RemotePlaylistDetail {
+        playlist: RemotePlaylist {
+            id: playlist.id,
+            name: playlist.name,
+            comment: playlist.comment,
+            owner: playlist.owner,
+            public: playlist.public,
+            song_count: playlist.song_count,
+            duration_seconds: playlist.duration,
+            cover_id: playlist.cover_art,
+            created: playlist.created,
+            changed: playlist.changed,
+        },
+        tracks,
     }
 }
 
