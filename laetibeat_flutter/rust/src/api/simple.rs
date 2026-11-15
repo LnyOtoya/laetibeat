@@ -1,6 +1,9 @@
 use flutter_rust_bridge::frb;
 use laetibeat_core::model::{MusicLibrary, SourceType, Track};
-use laetibeat_core::scanner::scan_directory_incremental;
+use laetibeat_core::metadata::file_from_fd;
+use laetibeat_core::scanner::{
+    parse_audio_track_from_file, scan_directory_incremental,
+};
 use std::path::PathBuf;
 
 // 桌面弹出系统原生文件夹选择框；移动端由 Flutter 原生选择器处理
@@ -156,6 +159,94 @@ pub fn scan_local_music_folder(
     // 由 Rust 侧完成专辑/艺术家聚合与曲目排序
     library.rebuild_aggregates();
 
+    Ok(UiScanResult {
+        library: library_to_ui(library),
+        stats: UiScanStats {
+            total_files: stats.total_files,
+            parsed_files: stats.parsed_files,
+            reused_files: stats.reused_files,
+            removed_files: stats.removed_files,
+            elapsed_ms: stats.elapsed_ms,
+        },
+    })
+}
+
+/// 解析 Android SAF 单个音频文件。
+///
+/// `fd_path` 是 `/proc/self/fd/N`，只在 `withFileDescriptor` 回调期间有效；
+/// `document_uri` 才是持久化的曲目 id / 播放 URI。
+pub fn parse_saf_track(
+    fd: i32,
+    document_uri: String,
+    relative_path: String,
+    display_name: String,
+    modified_ms: u64,
+    file_size: u64,
+) -> Result<UiTrack, String> {
+    let fallback_title = display_name
+        .rsplit_once('.')
+        .map(|(stem, _)| stem)
+        .unwrap_or(&display_name)
+        .to_string();
+    let file = file_from_fd(fd).ok_or_else(|| "无法复制 SAF 文件描述符".to_string())?;
+    let track = parse_audio_track_from_file(
+        file,
+        document_uri.clone(),
+        Some(relative_path),
+        Some(&fallback_title),
+        Some(modified_ms),
+        Some(file_size),
+    );
+    let ui = track_to_ui_track(track, document_uri);
+    eprintln!(
+        "saf.meta name={} title={} artist={} album={} duration={}",
+        display_name, ui.title, ui.artist, ui.album, ui.duration
+    );
+    Ok(ui)
+}
+
+/// 把一批 Android SAF 曲目重新聚合为专辑/艺术家。
+pub fn aggregate_local_tracks(tracks: Vec<UiTrack>) -> UiLibrary {
+    let mut library = MusicLibrary::new();
+    for track in tracks {
+        if let Some(track) = ui_track_to_track(track) {
+            library.add_track(track);
+        }
+    }
+    library.rebuild_aggregates();
+    library_to_ui(library)
+}
+
+fn track_to_ui_track(track: Track, path: String) -> UiTrack {
+    UiTrack {
+        id: track.id,
+        relative_path: track.relative_path,
+        title: track.title,
+        artist: track.artist,
+        album: track.album,
+        album_artist: track.album_artist,
+        album_id: track.album_id,
+        artist_id: track.artist_id,
+        track_number: track.track_number,
+        disc_number: track.disc_number,
+        year: track.year,
+        genre: track.genre,
+        duration: format_duration(track.duration),
+        duration_seconds: track.duration,
+        path,
+        source: "local".to_string(),
+        source_id: String::new(),
+        cover_id: None,
+        source_extra_json: None,
+        bitrate: track.bitrate,
+        sample_rate: track.sample_rate,
+        channels: track.channels,
+        modified_ms: track.modified_ms,
+        file_size: track.file_size,
+    }
+}
+
+fn library_to_ui(library: MusicLibrary) -> UiLibrary {
     let tracks = library
         .tracks
         .into_iter()
@@ -165,32 +256,7 @@ pub fn scan_local_music_folder(
                 SourceType::LocalFile(p) => p.to_string_lossy().to_string(),
                 SourceType::Opensubsonic { .. } => String::new(),
             };
-            UiTrack {
-                id: track.id,
-                relative_path: track.relative_path,
-                title: track.title,
-                artist: track.artist,
-                album: track.album,
-                album_artist: track.album_artist,
-                album_id: track.album_id,
-                artist_id: track.artist_id,
-                track_number: track.track_number,
-                disc_number: track.disc_number,
-                year: track.year,
-                genre: track.genre,
-                duration: format_duration(track.duration),
-                duration_seconds: track.duration,
-                path,
-                source: "local".to_string(),
-                source_id: String::new(),
-                cover_id: None,
-                source_extra_json: None,
-                bitrate: track.bitrate,
-                sample_rate: track.sample_rate,
-                channels: track.channels,
-                modified_ms: track.modified_ms,
-                file_size: track.file_size,
-            }
+            track_to_ui_track(track, path)
         })
         .collect();
 
@@ -219,20 +285,11 @@ pub fn scan_local_music_folder(
         })
         .collect();
 
-    Ok(UiScanResult {
-        library: UiLibrary {
-            tracks,
-            albums,
-            artists,
-        },
-        stats: UiScanStats {
-            total_files: stats.total_files,
-            parsed_files: stats.parsed_files,
-            reused_files: stats.reused_files,
-            removed_files: stats.removed_files,
-            elapsed_ms: stats.elapsed_ms,
-        },
-    })
+    UiLibrary {
+        tracks,
+        albums,
+        artists,
+    }
 }
 
 #[flutter_rust_bridge::frb(init)]

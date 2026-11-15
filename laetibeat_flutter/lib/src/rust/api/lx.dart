@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `format_error`, `init_lx_logging`, `manager_slot`, `map_entry`, `parse_lyric`, `with_manager`
+// These functions are ignored because they are not marked as `pub`: `format_error`, `init_lx_logging`, `manager_slot`, `map_entry`, `parse_cached_lyric`, `parse_lyric`, `with_manager`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`
 
 /// Initialize the filesystem-backed source store.

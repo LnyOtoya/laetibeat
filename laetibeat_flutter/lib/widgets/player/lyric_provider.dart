@@ -1,11 +1,17 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/library.dart' as rust_library;
+import 'package:laetibeat/src/rust/api/metadata.dart' as rust_meta;
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/lyrics.dart' as rust_lyrics;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
+import 'package:saf/saf.dart';
 
+import '../../core/services/saf_uri.dart';
 import '../settings/lyrics_settings.dart';
 import 'lx_track.dart';
 import 'player_provider.dart';
@@ -47,8 +53,47 @@ class FileLyricProvider implements LyricProvider {
   @override
   Future<Lyrics?> lyrics(rust.UiTrack track) async {
     if (track.path.isEmpty) return null;
+    if (track.path.startsWith('content://')) {
+      if (!Platform.isAndroid) return null;
+      try {
+        final text = await Saf().withFileDescriptor(
+          track.path,
+          'r',
+          (descriptor) => rust_meta.readLyricsFd(fd: descriptor.fd),
+        );
+        if (text != null && text.trim().isNotEmpty) return _toLyrics(text);
+        final sidecar = await _readSafSidecarLyrics(track);
+        if (sidecar == null) debugPrint('SAF 歌词为空: ${track.path}');
+        return _toLyrics(sidecar);
+      } catch (error) {
+        debugPrint('读取 SAF 歌词失败: $error');
+        return null;
+      }
+    }
     final text = await rust_library.resolveLocalLyricsCached(path: track.path);
     return _toLyrics(text);
+  }
+
+  Future<String?> _readSafSidecarLyrics(rust.UiTrack track) async {
+    final parentUri = safParentDocumentUri(track.path);
+    if (parentUri == null) return null;
+
+    final stem = safDocumentStem(track.path).toLowerCase();
+    try {
+      final files = await Saf().list(parentUri);
+      for (final extension in const <String>['lrc', 'txt']) {
+        final expected = '$stem.$extension';
+        for (final file in files) {
+          if (file.isDir || file.name.toLowerCase() != expected) continue;
+          final bytes = await Saf().readFileBytes(file.uri);
+          final text = utf8.decode(bytes, allowMalformed: true).trim();
+          if (text.isNotEmpty) return text;
+        }
+      }
+    } catch (error) {
+      debugPrint('读取 SAF 外挂歌词失败: $error');
+    }
+    return null;
   }
 }
 

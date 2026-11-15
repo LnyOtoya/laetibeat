@@ -801,7 +801,11 @@ class PlayerNotifier extends Notifier<PlayerState> {
       }
       return PlaybackTrack(uri: url, fallbackDuration: _durationOf(t));
     }
-    final uri = t.path.isEmpty ? t.id : Uri.file(t.path).toString();
+    final uri = t.path.isEmpty
+        ? t.id
+        : t.path.startsWith('content://')
+        ? t.path
+        : Uri.file(t.path).toString();
     return PlaybackTrack(uri: uri, fallbackDuration: _durationOf(t));
   }
 

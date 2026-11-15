@@ -10,6 +10,14 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<Uint8List?> readCover({required String path}) =>
     RustLib.instance.api.crateApiMetadataReadCover(path: path);
 
+/// 从 Android SAF fd 读取内嵌封面。
+Future<Uint8List?> readCoverFd({required int fd}) =>
+    RustLib.instance.api.crateApiMetadataReadCoverFd(fd: fd);
+
 /// 读取歌词文本(内嵌标签优先,其次同目录 .lrc/.txt)。
 Future<String?> readLyrics({required String path}) =>
     RustLib.instance.api.crateApiMetadataReadLyrics(path: path);
+
+/// 从 Android SAF fd 读取内嵌歌词。
+Future<String?> readLyricsFd({required int fd}) =>
+    RustLib.instance.api.crateApiMetadataReadLyricsFd(fd: fd);

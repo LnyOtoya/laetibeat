@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `format_duration`, `ui_track_to_track`
+// These functions are ignored because they are not marked as `pub`: `format_duration`, `library_to_ui`, `track_to_ui_track`, `ui_track_to_track`
 
 Future<String?> pickDirectory() =>
     RustLib.instance.api.crateApiSimplePickDirectory();
@@ -18,6 +18,30 @@ Future<UiScanResult> scanLocalMusicFolder({
   dirPath: dirPath,
   knownTracks: knownTracks,
 );
+
+/// 解析 Android SAF 单个音频文件。
+///
+/// `fd_path` 是 `/proc/self/fd/N`，只在 `withFileDescriptor` 回调期间有效；
+/// `document_uri` 才是持久化的曲目 id / 播放 URI。
+Future<UiTrack> parseSafTrack({
+  required int fd,
+  required String documentUri,
+  required String relativePath,
+  required String displayName,
+  required BigInt modifiedMs,
+  required BigInt fileSize,
+}) => RustLib.instance.api.crateApiSimpleParseSafTrack(
+  fd: fd,
+  documentUri: documentUri,
+  relativePath: relativePath,
+  displayName: displayName,
+  modifiedMs: modifiedMs,
+  fileSize: fileSize,
+);
+
+/// 把一批 Android SAF 曲目重新聚合为专辑/艺术家。
+Future<UiLibrary> aggregateLocalTracks({required List<UiTrack> tracks}) =>
+    RustLib.instance.api.crateApiSimpleAggregateLocalTracks(tracks: tracks);
 
 class UiAlbum {
   final String id;

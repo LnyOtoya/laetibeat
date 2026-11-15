@@ -3,7 +3,9 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../l10n/generated/app_localizations.dart';
+import '../../../../widgets/settings/download_settings.dart';
 import '../../../../widgets/settings/lyrics_settings.dart';
+import '../../../../widgets/settings/music_library_provider.dart';
 import '../../widgets/mobile_large_subpage_app_bar.dart';
 
 /// 内容设置子页面。
@@ -14,6 +16,8 @@ class MobileContentSettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
+    final library = ref.watch(musicLibraryProvider).value;
+    final download = ref.watch(downloadLocationProvider);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surfaceContainer,
@@ -60,11 +64,16 @@ class MobileContentSettingsPage extends ConsumerWidget {
             M3EList(
               color: theme.colorScheme.surface,
               variant: M3ECardVariant.filled,
+              onTap: (int index) {
+                if (index == 0) _chooseLocalLibrary(ref);
+              },
               itemCount: 1,
               itemBuilder: (BuildContext context, int index) {
                 return M3EListItem(
                   headline: l10n.chooseLocalLibrary,
-                  supportingText: l10n.chooseLocalLibrarySupporting,
+                  supportingText:
+                      library?.directoryName ??
+                      l10n.chooseLocalLibrarySupporting,
                 );
               },
             ),
@@ -73,18 +82,84 @@ class MobileContentSettingsPage extends ConsumerWidget {
               spacing: 12,
               runSpacing: 8,
               children: [
-                M3EButton(label: Text(l10n.chooseLibrary), onPressed: () {}),
+                M3EButton(
+                  label: Text(l10n.chooseLibrary),
+                  onPressed: () => _chooseLocalLibrary(ref),
+                ),
                 M3EButton(
                   style: M3EButtonStyle.tonal,
-                  label: Text(l10n.syncDatabase),
-                  onPressed: () {},
+                  enabled:
+                      library?.directory != null &&
+                      library?.isLoading != true,
+                  label: Text(
+                    library?.isLoading == true
+                        ? l10n.scanningButton
+                        : l10n.scanButton,
+                  ),
+                  onPressed: () =>
+                      ref.read(musicLibraryProvider.notifier).rescan(),
                 ),
               ],
             ),
+            if (library?.isLoading == true) ...[
+              const SizedBox(height: 12),
+              _LibraryStatusCard(
+                icon: M3EIcons.sync,
+                text: l10n.syncScanning,
+              ),
+            ] else if (library?.error != null) ...[
+              const SizedBox(height: 12),
+              _LibraryStatusCard(
+                icon: M3EIcons.error,
+                text: l10n.syncFailed(library!.error!),
+                isError: true,
+              ),
+            ] else if (library?.hasScanned == true) ...[
+              const SizedBox(height: 12),
+              _LibraryStatusCard(
+                icon: M3EIcons.check_circle,
+                text: l10n.syncComplete(library!.tracks.length),
+              ),
+            ],
+            const SizedBox(height: 24),
+            _ContentGroupTitle(l10n.downloadDirectory),
+            const SizedBox(height: 8),
+            M3EList(
+              color: theme.colorScheme.surface,
+              variant: M3ECardVariant.filled,
+              onTap: (int index) {
+                if (index == 0) {
+                  ref.read(downloadLocationProvider.notifier).pickDirectory();
+                }
+              },
+              itemCount: 1,
+              itemBuilder: (BuildContext context, int index) {
+                return M3EListItem(
+                  headline: l10n.downloadDirectory,
+                  supportingText:
+                      download.displayName ??
+                      l10n.downloadDirectorySupporting,
+                );
+              },
+            ),
+            if (download.isSet &&
+                library?.directory != null &&
+                !_isInsideLibrary(library!.directory!, download.locator!)) ...[
+              const SizedBox(height: 12),
+              _LibraryStatusCard(
+                icon: M3EIcons.info,
+                text: l10n.downloadDirectoryOutsideLibrary,
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _chooseLocalLibrary(WidgetRef ref) async {
+    // 只选择目录，不自动扫描；用户点击“扫描”后才开始。
+    await ref.read(musicLibraryProvider.notifier).pickDirectory();
   }
 
   Future<void> _showLyricsSources(BuildContext context, WidgetRef ref) async {
@@ -259,6 +334,72 @@ class _LyricsPrioritySheetState extends State<_LyricsPrioritySheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+bool _isInsideLibrary(String library, String download) {
+  if (library == download) return true;
+
+  if (library.startsWith('content://') && download.startsWith('content://')) {
+    final libraryTree = _safTreeId(library);
+    final downloadTree = _safTreeId(download);
+    if (libraryTree == null || downloadTree == null) return false;
+    return downloadTree == libraryTree ||
+        downloadTree.startsWith('$libraryTree/');
+  }
+
+  String normalize(String value) {
+    var result = value.replaceAll('\\', '/');
+    while (result.endsWith('/')) {
+      result = result.substring(0, result.length - 1);
+    }
+    return result;
+  }
+
+  final root = normalize(library);
+  final target = normalize(download);
+  return target == root || target.startsWith('$root/');
+}
+
+String? _safTreeId(String uri) {
+  final parsed = Uri.tryParse(uri);
+  if (parsed == null) return null;
+  final segments = parsed.pathSegments;
+  final index = segments.indexOf('tree');
+  if (index < 0 || index + 1 >= segments.length) return null;
+  return Uri.decodeComponent(segments[index + 1]);
+}
+
+class _LibraryStatusCard extends StatelessWidget {
+  const _LibraryStatusCard({
+    required this.icon,
+    required this.text,
+    this.isError = false,
+  });
+
+  final IconData icon;
+  final String text;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+
+    return M3EList(
+      color: scheme.surface,
+      variant: M3ECardVariant.filled,
+      itemCount: 1,
+      itemBuilder: (BuildContext context, int index) {
+        return M3EListItem(
+          leading: Icon(
+            icon,
+            color: isError ? scheme.error : scheme.primary,
+          ),
+          headline: text,
+        );
+      },
     );
   }
 }

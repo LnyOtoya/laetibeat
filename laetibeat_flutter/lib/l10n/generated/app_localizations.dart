@@ -770,6 +770,30 @@ abstract class AppLocalizations {
   /// **'Sync database'**
   String get syncDatabase;
 
+  /// No description provided for @downloadDirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'Download folder'**
+  String get downloadDirectory;
+
+  /// No description provided for @downloadDirectorySupporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose where downloaded songs are saved'**
+  String get downloadDirectorySupporting;
+
+  /// No description provided for @downloadDirectoryNotSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not selected'**
+  String get downloadDirectoryNotSelected;
+
+  /// No description provided for @downloadDirectoryOutsideLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'This folder is outside the current music library'**
+  String get downloadDirectoryOutsideLibrary;
+
   /// No description provided for @musicSourcesTitle.
   ///
   /// In en, this message translates to:

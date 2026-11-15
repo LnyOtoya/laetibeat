@@ -1,14 +1,16 @@
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/metadata.dart' as rust_meta;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
+import 'package:saf/saf.dart';
 
+import '../../core/services/saf_uri.dart';
 import '../cache/cover_cache.dart';
 import 'lx_track.dart';
 import 'player_provider.dart';
@@ -77,7 +79,7 @@ class FileCoverProvider implements CoverProvider {
     }
     if (track.path.isEmpty) return null; // 未来网络源:url 分支
 
-    final bytes = await _readEmbeddedArt(track.path);
+    final bytes = await _readEmbeddedArtForTrack(track.path);
     if (bytes == null || bytes.isEmpty) return null;
 
     _cache[track.id] = bytes;
@@ -85,6 +87,68 @@ class FileCoverProvider implements CoverProvider {
     _trim();
     return bytes;
   }
+}
+
+/// SAF 曲目没有普通文件路径，需要先打开 fd 再交给 Rust。
+Future<Uint8List?> _readEmbeddedArtForTrack(String path) async {
+  if (!path.startsWith('content://')) {
+    return _readEmbeddedArt(path);
+  }
+  if (!Platform.isAndroid) return null;
+
+  try {
+    final embedded = await Saf().withFileDescriptor(
+      path,
+      'r',
+      (descriptor) => rust_meta.readCoverFd(fd: descriptor.fd),
+    );
+    if (embedded != null && embedded.isNotEmpty) {
+      debugPrint('SAF 内嵌封面: ${embedded.length} bytes');
+      return embedded;
+    }
+    final folder = await _readSafFolderCover(path);
+    if (folder == null) {
+      debugPrint('SAF 封面为空: $path');
+    } else {
+      debugPrint('SAF 文件夹封面: ${folder.length} bytes');
+    }
+    return folder;
+  } catch (error) {
+    debugPrint('读取 SAF 封面失败: $error');
+    return null;
+  }
+}
+
+const List<String> _folderCoverNames = <String>[
+  'cover.jpg',
+  'cover.jpeg',
+  'cover.png',
+  'folder.jpg',
+  'folder.jpeg',
+  'folder.png',
+  'front.jpg',
+  'front.png',
+  'albumart.jpg',
+  'albumart.png',
+];
+
+Future<Uint8List?> _readSafFolderCover(String trackUri) async {
+  final parentUri = safParentDocumentUri(trackUri);
+  if (parentUri == null) return null;
+
+  try {
+    final files = await Saf().list(parentUri);
+    for (final candidate in _folderCoverNames) {
+      for (final file in files) {
+        if (file.isDir || file.name.toLowerCase() != candidate) continue;
+        final bytes = await Saf().readFileBytes(file.uri);
+        if (bytes.isNotEmpty) return bytes;
+      }
+    }
+  } catch (error) {
+    debugPrint('读取 SAF 文件夹封面失败: $error');
+  }
+  return null;
 }
 
 /// 从本地文件读内嵌封面字节。

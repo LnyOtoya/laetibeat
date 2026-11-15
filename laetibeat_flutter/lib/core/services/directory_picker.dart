@@ -1,15 +1,29 @@
 import 'dart:io';
 
-import 'package:android_file_picker/android_file_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
-import 'package:permission_handler/permission_handler.dart';
+import 'package:saf/saf.dart';
+
+/// 用户选择的音乐目录。
+///
+/// [locator] 在桌面是真实路径，在 Android 是 SAF tree URI。
+/// [displayName] 只用于 UI 展示。
+class PickedMusicDirectory {
+  const PickedMusicDirectory({
+    required this.locator,
+    required this.displayName,
+    required this.isSaf,
+  });
+
+  final String locator;
+  final String displayName;
+  final bool isSaf;
+}
 
 /// 音乐目录选择能力。业务层只依赖该接口。
 abstract interface class DirectoryPicker {
-  Future<String?> pickMusicDirectory();
+  Future<PickedMusicDirectory?> pickMusicDirectory();
 }
 
 /// 桌面端：走 Rust 侧 rfd 原生目录选择框。
@@ -17,47 +31,43 @@ class DesktopDirectoryPicker implements DirectoryPicker {
   const DesktopDirectoryPicker();
 
   @override
-  Future<String?> pickMusicDirectory() => rust.pickDirectory();
+  Future<PickedMusicDirectory?> pickMusicDirectory() async {
+    final path = await rust.pickDirectory();
+    if (path == null || path.isEmpty) return null;
+    return PickedMusicDirectory(
+      locator: path,
+      displayName: path,
+      isSaf: false,
+    );
+  }
 }
 
-/// 移动端：Android 走 SAF 目录选择，iOS 走 file_picker。
-///
-/// Android 侧使用 lifetime SAF grant 并请求音频读取权限，这样 Rust 扫描器
-/// 至少能在当前授权目录内读取音频文件；取消/拒绝权限时返回 null。
+/// 移动端：Android 使用 SAF tree，其他平台回退 file_picker 路径。
 class MobileDirectoryPicker implements DirectoryPicker {
   const MobileDirectoryPicker();
 
   @override
-  Future<String?> pickMusicDirectory() async {
+  Future<PickedMusicDirectory?> pickMusicDirectory() async {
     if (Platform.isAndroid) {
-      final hasPermission = await _ensureAudioPermission();
-      if (!hasPermission) {
-        debugPrint('未获得音频读取权限，无法选择本地音乐目录');
-        return null;
-      }
+      final picked = await Saf().pickDirectory(
+        writePermission: false,
+        persistablePermission: true,
+      );
+      if (picked == null) return null;
+      return PickedMusicDirectory(
+        locator: picked.uri,
+        displayName: picked.name,
+        isSaf: true,
+      );
     }
 
-    final path = await FilePicker.getDirectoryPath(
-      androidOptions: Platform.isAndroid
-          ? const FilePickerAndroidOptions(
-              safOptions: AndroidSAFOptions(
-                grant: AndroidSAFGrant.lifetime,
-                accessMode: AndroidSAFAccessMode.readOnly,
-                persistGrant: true,
-              ),
-            )
-          : const AndroidOptions(),
-    );
+    final path = await FilePicker.getDirectoryPath();
     if (path == null || path.trim().isEmpty) return null;
-    return path;
-  }
-
-  Future<bool> _ensureAudioPermission() async {
-    final audio = await Permission.audio.request();
-    if (audio.isGranted) return true;
-    // Android 12 及以下没有 READ_MEDIA_AUDIO，回退到存储权限。
-    final storage = await Permission.storage.request();
-    return storage.isGranted;
+    return PickedMusicDirectory(
+      locator: path,
+      displayName: path,
+      isSaf: false,
+    );
   }
 }
 

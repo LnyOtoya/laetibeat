@@ -345,6 +345,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get syncDatabase => '同步数据库';
 
   @override
+  String get downloadDirectory => '下载目录';
+
+  @override
+  String get downloadDirectorySupporting => '选择下载歌曲保存的目录';
+
+  @override
+  String get downloadDirectoryNotSelected => '未选择';
+
+  @override
+  String get downloadDirectoryOutsideLibrary => '该目录不在当前音乐库中';
+
+  @override
   String get musicSourcesTitle => '音乐源配置';
 
   @override

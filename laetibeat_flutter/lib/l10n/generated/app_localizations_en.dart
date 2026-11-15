@@ -356,6 +356,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncDatabase => 'Sync database';
 
   @override
+  String get downloadDirectory => 'Download folder';
+
+  @override
+  String get downloadDirectorySupporting =>
+      'Choose where downloaded songs are saved';
+
+  @override
+  String get downloadDirectoryNotSelected => 'Not selected';
+
+  @override
+  String get downloadDirectoryOutsideLibrary =>
+      'This folder is outside the current music library';
+
+  @override
   String get musicSourcesTitle => 'Music sources';
 
   @override

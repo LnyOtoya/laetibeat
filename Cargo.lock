@@ -1524,6 +1524,7 @@ dependencies = [
 name = "laetibeat_core"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "lofty",
  "rusqlite",
  "serde",

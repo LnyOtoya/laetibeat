@@ -31,8 +31,12 @@
 - [x] LX 冷启动改为懒加载：`init_lx_source_store` 只打开 store，list/search 首次需要能力时再加载启用源
 - [x] 缓存管理重做：总缓存上限滑块、启动时套用、UI 默认值与实际分配对齐、清理缓存时同步清理内存缓存；页面进入自动重扫、可见期间 3 秒刷新、支持下拉刷新（`flutter analyze` / `flutter test` 通过）
 - [x] 为 QuickJS 增加执行超时、内存上限、中断与死循环保护（新增死循环中断测试）
-- [x] Android 接入 SAF / file_picker 目录选择与 `READ_MEDIA_AUDIO` 权限（debug APK 构建通过；真机目录扫描与持久授权待验证）
+- [x] 本地音乐库改为单 SAF tree 目录：`saf.walk` 发现文件，`withFileDescriptor` 把 fd 交给 Rust；移除 `content://` 转普通路径的兼容层
+- [x] 设置页增加“下载目录”（独立 SAF tree + 持久授权）与“是否在音乐库内”判断
+- [ ] 下载写入 SAF、目录结构模板、下载后增量扫描
 - [x] `PlaybackBackend` 增加 buffering / error / processing phase，`LaetibeatAudioHandler` 映射真实 `processingState` 与 `bufferedPosition`
+
+> Android 本地音乐定稿（2026-11-10）：只允许一个音乐库目录；用户选择哪个 SAF 目录就扫描哪个，不做多根合并。下载目录单独在设置中选择，可等于音乐库目录、音乐库子目录或独立目录；独立目录不自动进入音乐库。首次启动引导页后续复用同一套设置。
 
 ### P1 稳定性与架构债
 
@@ -521,7 +525,7 @@
 - `SourceType` 只有 `LocalFile` 和 `Opensubsonic`，LX 不在数据模型中；`source` 字段仍是字符串字面量，容易拼错
 - 移动端首页只挂载播放器主视图，`mobile_welcome_section.dart` / `mobile_daily_section.dart` / `mobile_home_constants.dart` 当前无引用
 - 本地歌单尚未实现；移动端歌单页只显示 OpenSubsonic 歌单
-- 移动端内容设置中的“选择本地音乐库”“同步数据库”按钮仍是空实现
+- 移动端内容设置已接通“选择本地媒体库”与“扫描”；真机上 SAF 目录持久授权与 Rust 扫描结果仍需验证
 
 ### 播放、音频服务与平台
 
@@ -531,7 +535,8 @@
 - `PlaybackBackend` 已接入 buffering / error / processing phase；媒体通知的加载/缓冲/错误状态仍需在 Android 真机上验证
 - audio_service 只在 Android 初始化；iOS 目前没有后台媒体会话接入
 - media_kit 在 Android 上出现过原生 SIGSEGV；Android 已改用 just_audio，桌面风险另论
-- `MobileDirectoryPicker` 已接 SAF 目录选择、lifetime 持久授权与 `READ_MEDIA_AUDIO` 权限；真机上目录路径解析、重启后授权与 Rust 扫描仍需验证
+- Android 本地音乐库已改为单 SAF tree：`saf.walk` 发现文件、`withFileDescriptor` 把原始 fd 交给 Rust；Rust 用 `dup(fd)` 构造 File 后交给 `lofty::read_from`，避免经 `/proc/self/fd` 重新打开时被 scoped storage 拒绝
+- SAF 已支持同目录 `.lrc`/`.txt` 外挂歌词与 `cover.jpg`/`folder.jpg` 等文件夹封面；扫描暂无进度/取消/并发控制
 - Android `usesCleartextTraffic="true"` 全局放开；LX 的 kw/wy 等接口需要 HTTP，但建议改为按域名白名单的 network security config
 - 通知点击回到播放页/当前页面尚未验证
 - 导航 Favorite/History/Daily Recommend 目前只改变选中态，不切换页面

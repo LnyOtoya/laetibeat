@@ -11,6 +11,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// 设置项持久化键
 const String kThemeModeKey = 'settings.theme_mode';
 const String kMusicDirectoryKey = 'library.directory';
+const String kMusicDirectoryNameKey = 'library.directory_name';
+const String kDownloadDirectoryKey = 'download.directory';
+const String kDownloadDirectoryNameKey = 'download.directory_name';
+
+/// 本地元数据解析版本。解析逻辑变化时递增，强制 SAF 曲库下次扫描全量重解析。
+const int kLocalScanVersion = 3;
+const String kLocalScanVersionKey = 'library.scan_version';
 
 /// 由 main() 预加载后通过 overrideWithValue 注入。
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {

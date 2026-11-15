@@ -1,9 +1,9 @@
 use crate::model::{MusicLibrary, SourceType, Track, make_album_id, make_artist_id};
-use lofty::file::{AudioFile, TaggedFileExt};
-use lofty::read_from_path;
+use lofty::file::{AudioFile, TaggedFile, TaggedFileExt};
+use lofty::read_from;
 use lofty::tag::{Accessor, ItemKey};
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{Instant, UNIX_EPOCH};
 use walkdir::WalkDir;
 
@@ -20,6 +20,167 @@ pub struct ScanStats {
     pub removed_files: u32,
     /// 扫描耗时(毫秒)
     pub elapsed_ms: u64,
+}
+
+/// 解析单个音频文件（普通路径）。
+pub fn parse_audio_track(
+    file_path: &Path,
+    id: String,
+    relative_path: Option<String>,
+    fallback_title: Option<&str>,
+    modified_ms: Option<u64>,
+    file_size: Option<u64>,
+) -> Track {
+    let tagged_file = std::fs::File::open(file_path)
+        .ok()
+        .and_then(|mut file| read_from(&mut file).ok());
+    parse_audio_track_with_tagged(
+        tagged_file,
+        Some(file_path),
+        id,
+        relative_path,
+        fallback_title,
+        modified_ms,
+        file_size,
+    )
+}
+
+/// 解析已打开的音频文件（Android SAF fd）。
+pub fn parse_audio_track_from_file(
+    file: std::fs::File,
+    id: String,
+    relative_path: Option<String>,
+    fallback_title: Option<&str>,
+    modified_ms: Option<u64>,
+    file_size: Option<u64>,
+) -> Track {
+    let mut file = file;
+    let tagged_file = read_from(&mut file).ok();
+    parse_audio_track_with_tagged(
+        tagged_file,
+        None,
+        id,
+        relative_path,
+        fallback_title,
+        modified_ms,
+        file_size,
+    )
+}
+
+fn parse_audio_track_with_tagged(
+    tagged_file: Option<TaggedFile>,
+    file_path: Option<&Path>,
+    id: String,
+    relative_path: Option<String>,
+    fallback_title: Option<&str>,
+    modified_ms: Option<u64>,
+    file_size: Option<u64>,
+) -> Track {
+    let fallback_title = fallback_title
+        .map(str::to_string)
+        .or_else(|| {
+            file_path
+                .and_then(|path| path.file_stem())
+                .and_then(|s| s.to_str())
+                .map(str::to_string)
+        })
+        .unwrap_or_else(|| "未知歌曲".to_string());
+
+    let fallback_title = clean_fallback_title(&fallback_title);
+    let mut title = fallback_title.clone();
+    let mut artist = "未知艺术家".to_string();
+    let mut album = "本地音乐".to_string();
+    let mut duration = 0;
+
+    let mut track_number = None;
+    let mut disc_number = None;
+    let mut album_artist: Option<String> = None;
+    let mut year = None;
+    let mut genre = None;
+    let mut bitrate = None;
+    let mut sample_rate = None;
+    let mut channels = None;
+
+    if let Some(tagged_file) = tagged_file {
+        let properties = tagged_file.properties();
+        duration = properties.duration().as_secs();
+        bitrate = properties.audio_bitrate();
+        sample_rate = properties.sample_rate();
+        channels = properties.channels();
+
+        // 同一文件可能同时有 ID3v2 与 Vorbis Comments；不能只看 primary_tag，
+        // 否则艺术家/专辑等字段可能落在另一个 tag 里而显示为未知。
+        for tag in tagged_file.tags() {
+            if title == fallback_title {
+                if let Some(track_title) = tag.title() {
+                    let value = track_title.trim();
+                    if !value.is_empty() {
+                        title = value.to_string();
+                    }
+                }
+            }
+            if artist == "未知艺术家" {
+                if let Some(track_artist) = tag.artist() {
+                    let value = track_artist.trim();
+                    if !value.is_empty() {
+                        artist = value.to_string();
+                    }
+                }
+            }
+            if album == "本地音乐" {
+                if let Some(track_album) = tag.album() {
+                    let value = track_album.trim();
+                    if !value.is_empty() {
+                        album = value.to_string();
+                    }
+                }
+            }
+            if track_number.is_none() {
+                track_number = tag.track();
+            }
+            if disc_number.is_none() {
+                disc_number = tag.disk();
+            }
+            if year.is_none() {
+                year = tag.date().map(|d| d.year as u32);
+            }
+            if genre.is_none() {
+                genre = tag.genre().map(|g| g.to_string());
+            }
+            if album_artist.is_none() {
+                album_artist = tag.get_string(ItemKey::AlbumArtist).map(str::to_string);
+            }
+        }
+    }
+
+    let album_artist = album_artist.unwrap_or_else(|| artist.clone());
+    let album_id = make_album_id(&album_artist, &album);
+    let artist_id = make_artist_id(&artist);
+    let source_path = file_path
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from(&id));
+
+    Track {
+        id,
+        relative_path,
+        title,
+        artist,
+        album,
+        album_artist,
+        album_id,
+        artist_id,
+        track_number,
+        disc_number,
+        year,
+        genre,
+        duration,
+        bitrate,
+        sample_rate,
+        channels,
+        modified_ms,
+        file_size,
+        source_type: SourceType::LocalFile(source_path),
+    }
 }
 
 /// 全量扫描(保留给命令行/测试使用)
@@ -91,105 +252,46 @@ pub fn scan_directory_incremental<P: AsRef<Path>>(
             }
         }
 
-        // 保底标题
-        let fallback_title = file_path
-            // 直接把读取到的路径的文件名剔除多余部分当成歌曲名存入title
-            .file_stem()
-            // 防止不同系统编码不同，所以转换为普通字符串
-            .and_then(|s| s.to_str())
-            // 保底
-            .unwrap_or("未知歌曲")
-            // 转换为真正的String
-            .to_string();
-
-        let mut title = fallback_title;
-        let mut artist = "未知艺术家".to_string();
-        let mut album = "本地音乐".to_string();
-        let mut duration = 0;
-
-        // 扩展标签字段
-        let mut track_number = None;
-        let mut disc_number = None;
-        let mut album_artist: Option<String> = None;
-        let mut year = None;
-        let mut genre = None;
-        let mut bitrate = None;
-        let mut sample_rate = None;
-        let mut channels = None;
-
-        // 用lofty读取文件数据
-        if let Ok(tagged_file) = read_from_path(file_path) {
-            // 获取时长与音频属性
-            let properties = tagged_file.properties();
-            duration = properties.duration().as_secs();
-            bitrate = properties.audio_bitrate();
-            sample_rate = properties.sample_rate();
-            channels = properties.channels();
-
-            // 获取标签
-            if let Some(tag) = tagged_file
-                .primary_tag()
-                .or_else(|| tagged_file.first_tag())
-            {
-                if let Some(track_title) = tag.title() {
-                    title = track_title.to_string();
-                }
-                if let Some(track_artist) = tag.artist() {
-                    artist = track_artist.to_string();
-                }
-                if let Some(track_album) = tag.album() {
-                    album = track_album.to_string();
-                }
-                track_number = tag.track();
-                disc_number = tag.disk();
-                year = tag.date().map(|d| d.year as u32);
-                genre = tag.genre().map(|g| g.to_string());
-                album_artist = tag.get_string(ItemKey::AlbumArtist).map(str::to_string);
-            }
-        }
-
-        // 专辑艺术家缺失时回退到曲目艺术家,避免专辑因 feat. 被拆开
-        let album_artist = album_artist.unwrap_or_else(|| artist.clone());
-        // 聚合 id 需在字段移动前算好
-        let album_id = make_album_id(&album_artist, &album);
-        let artist_id = make_artist_id(&artist);
-        // 相对音乐库根目录的路径,作为跨音源/跨目录的稳定 track_id
         let relative_path = file_path
             .strip_prefix(path)
             .ok()
             .map(|p| p.to_string_lossy().to_string());
-
-        let track = Track {
-            // 直接把路径转换强行为标准的文本字符串
-            id: path_str,
+        library.add_track(parse_audio_track(
+            file_path,
+            path_str,
             relative_path,
-            //把刚才存入的title作为单曲的title
-            title,
-            artist,
-            album,
-            album_artist,
-            album_id,
-            artist_id,
-            track_number,
-            disc_number,
-            year,
-            genre,
-            duration,
-            bitrate,
-            sample_rate,
-            channels,
+            None,
             modified_ms,
             file_size,
-            source_type: SourceType::LocalFile(file_path.to_path_buf()),
-        };
-
-        library.add_track(track);
+        ));
         stats.parsed_files += 1;
     }
 
     stats.removed_files = known.keys().filter(|id| !seen.contains(*id)).count() as u32;
     stats.elapsed_ms = started.elapsed().as_millis() as u64;
     Ok(stats)
+}
+
+/// 标签缺失时从文件名推导标题，尽量去掉音轨号前缀。
+fn clean_fallback_title(value: &str) -> String {
+    let trimmed = value.trim();
+    let digit_end = trimmed
+        .find(|character: char| !character.is_ascii_digit())
+        .unwrap_or(trimmed.len());
+    if digit_end > 0 && digit_end < trimmed.len() {
+        let rest = trimmed[digit_end..].trim_start_matches(|character: char| {
+            character == '.' ||
+                character == '-' ||
+                character == '_' ||
+                character == ' ' ||
+                character == '、' ||
+                character == '　'
+        });
+        if !rest.is_empty() {
+            return rest.trim().to_string();
+        }
+    }
+    trimmed.to_string()
 }
 
 #[cfg(test)]
