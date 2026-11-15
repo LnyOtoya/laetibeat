@@ -9,6 +9,9 @@ pub struct UiLocalPlaylistSummary {
     pub duration_seconds: i64,
     pub created_at: i64,
     pub updated_at: i64,
+    pub source: Option<String>,
+    pub source_list_id: Option<String>,
+    pub last_synced_at: Option<i64>,
     pub cover_source: Option<String>,
     pub cover_source_id: Option<String>,
     pub cover_track_id: Option<String>,
@@ -24,6 +27,7 @@ pub struct UiLocalPlaylistItem {
     pub track_id: String,
     pub relative_path: Option<String>,
     pub cover_id: Option<String>,
+    pub source_extra_json: Option<String>,
     pub title: String,
     pub artist: String,
     pub album: String,
@@ -43,6 +47,7 @@ pub struct UiPlaylistTrackInput {
     pub track_id: String,
     pub relative_path: Option<String>,
     pub cover_id: Option<String>,
+    pub source_extra_json: Option<String>,
     pub title: String,
     pub artist: String,
     pub album: String,
@@ -93,6 +98,22 @@ pub fn reorder_local_playlist_items(
     core_playlists::reorder(playlist_id, &item_ids)
 }
 
+pub fn mark_local_playlist_subscribed(
+    id: i64,
+    source: String,
+    source_list_id: String,
+) -> Result<(), String> {
+    core_playlists::mark_subscribed(id, &source, &source_list_id)
+}
+
+pub fn replace_local_playlist_tracks(
+    playlist_id: i64,
+    tracks: Vec<UiPlaylistTrackInput>,
+) -> Result<usize, String> {
+    let tracks = tracks.into_iter().map(map_input).collect::<Vec<_>>();
+    core_playlists::replace_tracks(playlist_id, &tracks)
+}
+
 fn map_summary(summary: core_playlists::LocalPlaylistSummary) -> UiLocalPlaylistSummary {
     UiLocalPlaylistSummary {
         id: summary.id,
@@ -101,6 +122,9 @@ fn map_summary(summary: core_playlists::LocalPlaylistSummary) -> UiLocalPlaylist
         duration_seconds: summary.duration_seconds,
         created_at: summary.created_at,
         updated_at: summary.updated_at,
+        source: summary.source,
+        source_list_id: summary.source_list_id,
+        last_synced_at: summary.last_synced_at,
         cover_source: summary.cover_source,
         cover_source_id: summary.cover_source_id,
         cover_track_id: summary.cover_track_id,
@@ -117,6 +141,7 @@ fn map_item(item: core_playlists::LocalPlaylistItem) -> UiLocalPlaylistItem {
         track_id: item.track_id,
         relative_path: item.relative_path,
         cover_id: item.cover_id,
+        source_extra_json: item.source_extra_json,
         title: item.title,
         artist: item.artist,
         album: item.album,
@@ -138,6 +163,7 @@ fn map_input(input: UiPlaylistTrackInput) -> core_playlists::PlaylistTrackInput 
         track_id: input.track_id,
         relative_path: input.relative_path,
         cover_id: input.cover_id,
+        source_extra_json: input.source_extra_json,
         title: input.title,
         artist: input.artist,
         album: input.album,

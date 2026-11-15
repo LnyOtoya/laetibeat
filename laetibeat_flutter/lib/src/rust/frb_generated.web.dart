@@ -115,6 +115,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UiLxPlaylistSummary> dco_decode_list_ui_lx_playlist_summary(dynamic raw);
+
+  @protected
   List<UiLxSearchTrack> dco_decode_list_ui_lx_search_track(dynamic raw);
 
   @protected
@@ -226,6 +229,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiLxMusicInfo dco_decode_ui_lx_music_info(dynamic raw);
+
+  @protected
+  UiLxPlaylistDetail dco_decode_ui_lx_playlist_detail(dynamic raw);
+
+  @protected
+  UiLxPlaylistSummary dco_decode_ui_lx_playlist_summary(dynamic raw);
 
   @protected
   UiLxSearchPage dco_decode_ui_lx_search_page(dynamic raw);
@@ -399,6 +408,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UiLxPlaylistSummary> sse_decode_list_ui_lx_playlist_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<UiLxSearchTrack> sse_decode_list_ui_lx_search_track(
     SseDeserializer deserializer,
   );
@@ -532,6 +546,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiLxMusicInfo sse_decode_ui_lx_music_info(SseDeserializer deserializer);
+
+  @protected
+  UiLxPlaylistDetail sse_decode_ui_lx_playlist_detail(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  UiLxPlaylistSummary sse_decode_ui_lx_playlist_summary(
+    SseDeserializer deserializer,
+  );
 
   @protected
   UiLxSearchPage sse_decode_ui_lx_search_page(SseDeserializer deserializer);
@@ -752,6 +776,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_ui_lx_playlist_summary(
+    List<UiLxPlaylistSummary> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_ui_lx_search_track(
     List<UiLxSearchTrack> self,
     SseSerializer serializer,
@@ -916,6 +946,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_ui_lx_music_info(
     UiLxMusicInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_lx_playlist_detail(
+    UiLxPlaylistDetail self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_lx_playlist_summary(
+    UiLxPlaylistSummary self,
     SseSerializer serializer,
   );
 

@@ -55,6 +55,12 @@
     }
   },
   "playlistNew": "新建歌单",
+  "playlistSubscribe": "订阅",
+  "playlistSubscribed": "已订阅",
+  "playlistSync": "同步",
+  "playlistSyncConfirm": "同步会用平台最新内容覆盖本地修改，是否继续？",
+  "playlistSyncSuccess": "同步完成",
+  "playlistSubscribeSuccess": "订阅成功",
   "playlistName": "歌单名",
   "playlistRename": "重命名歌单",
   "playlistDelete": "删除歌单",

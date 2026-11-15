@@ -18,6 +18,7 @@ pub mod models;
 pub mod picture;
 pub mod runtime;
 pub mod search;
+pub mod songlist;
 pub mod store;
 pub mod utils;
 
@@ -28,4 +29,5 @@ pub use manager::{LxSourceEntry, LxSourceManager, LxSourceStatus};
 pub use models::{LxMusicInfo, LxSourceCapability, LxSourceDeclaration, LxSourceManifest};
 pub use runtime::LxRuntime;
 pub use search::{LxSearchPage, LxSearchTrack, SUPPORTED_PLATFORMS};
+pub use songlist::{LxPlaylistDetail, LxPlaylistSummary};
 pub use store::{LxSourceRecord, LxSourceStore};

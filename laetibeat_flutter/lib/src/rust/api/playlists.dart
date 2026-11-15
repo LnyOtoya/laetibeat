@@ -56,6 +56,24 @@ Future<void> reorderLocalPlaylistItems({
   itemIds: itemIds,
 );
 
+Future<void> markLocalPlaylistSubscribed({
+  required PlatformInt64 id,
+  required String source,
+  required String sourceListId,
+}) => RustLib.instance.api.crateApiPlaylistsMarkLocalPlaylistSubscribed(
+  id: id,
+  source: source,
+  sourceListId: sourceListId,
+);
+
+Future<BigInt> replaceLocalPlaylistTracks({
+  required PlatformInt64 playlistId,
+  required List<UiPlaylistTrackInput> tracks,
+}) => RustLib.instance.api.crateApiPlaylistsReplaceLocalPlaylistTracks(
+  playlistId: playlistId,
+  tracks: tracks,
+);
+
 class UiLocalPlaylistDetail {
   final UiLocalPlaylistSummary playlist;
   final List<UiLocalPlaylistItem> items;
@@ -82,6 +100,7 @@ class UiLocalPlaylistItem {
   final String trackId;
   final String? relativePath;
   final String? coverId;
+  final String? sourceExtraJson;
   final String title;
   final String artist;
   final String album;
@@ -95,6 +114,7 @@ class UiLocalPlaylistItem {
     required this.trackId,
     this.relativePath,
     this.coverId,
+    this.sourceExtraJson,
     required this.title,
     required this.artist,
     required this.album,
@@ -110,6 +130,7 @@ class UiLocalPlaylistItem {
       trackId.hashCode ^
       relativePath.hashCode ^
       coverId.hashCode ^
+      sourceExtraJson.hashCode ^
       title.hashCode ^
       artist.hashCode ^
       album.hashCode ^
@@ -127,6 +148,7 @@ class UiLocalPlaylistItem {
           trackId == other.trackId &&
           relativePath == other.relativePath &&
           coverId == other.coverId &&
+          sourceExtraJson == other.sourceExtraJson &&
           title == other.title &&
           artist == other.artist &&
           album == other.album &&
@@ -140,6 +162,9 @@ class UiLocalPlaylistSummary {
   final PlatformInt64 durationSeconds;
   final PlatformInt64 createdAt;
   final PlatformInt64 updatedAt;
+  final String? source;
+  final String? sourceListId;
+  final PlatformInt64? lastSyncedAt;
   final String? coverSource;
   final String? coverSourceId;
   final String? coverTrackId;
@@ -152,6 +177,9 @@ class UiLocalPlaylistSummary {
     required this.durationSeconds,
     required this.createdAt,
     required this.updatedAt,
+    this.source,
+    this.sourceListId,
+    this.lastSyncedAt,
     this.coverSource,
     this.coverSourceId,
     this.coverTrackId,
@@ -166,6 +194,9 @@ class UiLocalPlaylistSummary {
       durationSeconds.hashCode ^
       createdAt.hashCode ^
       updatedAt.hashCode ^
+      source.hashCode ^
+      sourceListId.hashCode ^
+      lastSyncedAt.hashCode ^
       coverSource.hashCode ^
       coverSourceId.hashCode ^
       coverTrackId.hashCode ^
@@ -182,6 +213,9 @@ class UiLocalPlaylistSummary {
           durationSeconds == other.durationSeconds &&
           createdAt == other.createdAt &&
           updatedAt == other.updatedAt &&
+          source == other.source &&
+          sourceListId == other.sourceListId &&
+          lastSyncedAt == other.lastSyncedAt &&
           coverSource == other.coverSource &&
           coverSourceId == other.coverSourceId &&
           coverTrackId == other.coverTrackId &&
@@ -194,6 +228,7 @@ class UiPlaylistTrackInput {
   final String trackId;
   final String? relativePath;
   final String? coverId;
+  final String? sourceExtraJson;
   final String title;
   final String artist;
   final String album;
@@ -205,6 +240,7 @@ class UiPlaylistTrackInput {
     required this.trackId,
     this.relativePath,
     this.coverId,
+    this.sourceExtraJson,
     required this.title,
     required this.artist,
     required this.album,
@@ -218,6 +254,7 @@ class UiPlaylistTrackInput {
       trackId.hashCode ^
       relativePath.hashCode ^
       coverId.hashCode ^
+      sourceExtraJson.hashCode ^
       title.hashCode ^
       artist.hashCode ^
       album.hashCode ^
@@ -233,6 +270,7 @@ class UiPlaylistTrackInput {
           trackId == other.trackId &&
           relativePath == other.relativePath &&
           coverId == other.coverId &&
+          sourceExtraJson == other.sourceExtraJson &&
           title == other.title &&
           artist == other.artist &&
           album == other.album &&

@@ -8,6 +8,7 @@ import 'package:laetibeat/widgets/player/lx_search_provider.dart';
 import 'package:laetibeat/widgets/player/cover_provider.dart';
 import 'package:laetibeat/widgets/player/lx_track.dart';
 import 'package:laetibeat/widgets/player/player_provider.dart';
+import 'package:laetibeat/widgets/playlist_provider.dart';
 import 'package:laetibeat/widgets/remote_browser_provider.dart';
 import 'package:laetibeat/widgets/settings/cover_shape_settings.dart';
 import 'package:laetibeat/widgets/settings/music_library_provider.dart';
@@ -20,6 +21,9 @@ import 'package:material_ui/material_ui.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../library/albums/album_detail_page.dart';
 import '../library/artists/artist_detail_page.dart';
+import '../library/playlists/lx_playlist_preview_page.dart';
+import '../library/playlists/playlist_actions.dart';
+import '../library/playlists/remote_playlist_detail_page.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
 import 'library_search_suggestions.dart';
@@ -212,7 +216,7 @@ class _MobileSearchResultsPageState
   late final TextEditingController _controller;
   MobileSearchCategory _category = MobileSearchCategory.songs;
   late MobileSearchSourceFilter _filter;
-  String _lxPlatform = 'tx';
+  String _lxPlatform = 'kw';
 
   @override
   void initState() {
@@ -319,10 +323,14 @@ class _MobileSearchResultsPageState
                   ),
                 );
               },
-              child: _filter == MobileSearchSourceFilter.lx
+              child:
+                  (_filter == MobileSearchSourceFilter.lx ||
+                      (_category == MobileSearchCategory.playlists &&
+                          _filter == MobileSearchSourceFilter.all))
                   ? _LxPlatformBar(
                       key: const ValueKey<String>('lx-platform-bar'),
                       platform: _lxPlatform,
+                      showPlay: _category == MobileSearchCategory.songs,
                       onPlay: _playLxResults,
                       onChanged: (platform) =>
                           setState(() => _lxPlatform = platform),
@@ -336,7 +344,9 @@ class _MobileSearchResultsPageState
                 query: widget.initialQuery,
                 category: _category,
                 filter: _filter,
-                lxPlatform: _filter == MobileSearchSourceFilter.lx
+                lxPlatform:
+                    _filter == MobileSearchSourceFilter.lx ||
+                        _category == MobileSearchCategory.playlists
                     ? _lxPlatform
                     : null,
               ),
@@ -391,6 +401,7 @@ class _LxPlatformBar extends StatelessWidget {
     required this.platform,
     required this.onChanged,
     required this.onPlay,
+    required this.showPlay,
   });
 
   static const List<String> _platforms = <String>['tx', 'wy', 'mg', 'kg', 'kw'];
@@ -398,6 +409,7 @@ class _LxPlatformBar extends StatelessWidget {
   final String platform;
   final ValueChanged<String> onChanged;
   final VoidCallback onPlay;
+  final bool showPlay;
 
   @override
   Widget build(BuildContext context) {
@@ -406,14 +418,15 @@ class _LxPlatformBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Row(
         children: <Widget>[
-          M3EButton.icon(
-            icon: const Icon(M3EIcons.play_arrow),
-            label: Text(l10n.play),
-            style: M3EButtonStyle.filled,
-            size: M3EButtonSize.sm,
-            shape: M3EButtonShape.round,
-            onPressed: onPlay,
-          ),
+          if (showPlay)
+            M3EButton.icon(
+              icon: const Icon(M3EIcons.play_arrow),
+              label: Text(l10n.play),
+              style: M3EButtonStyle.filled,
+              size: M3EButtonSize.sm,
+              shape: M3EButtonShape.round,
+              onPressed: onPlay,
+            ),
           const Spacer(),
           M3ESplitButton<String>(
             size: M3EButtonSize.sm,
@@ -570,6 +583,7 @@ class _SearchResults extends ConsumerWidget {
         ref,
         server,
         l10n,
+        lxPlatform,
       ),
       MobileSearchCategory.albums => _buildAlbums(
         context,
@@ -675,37 +689,104 @@ class _SearchResults extends ConsumerWidget {
     WidgetRef ref,
     SubsonicServerConfig? server,
     AppLocalizations l10n,
+    String? lxPlatform,
   ) {
-    if (server == null || !_includesSubsonic) return <Widget>[_empty(l10n)];
-    final playlists = ref.watch(remotePlaylistsProvider(server.id)).value;
-    if (playlists == null) return <Widget>[_loading()];
-    final lower = query.toLowerCase();
-    final matches = playlists
-        .where((playlist) => playlist.name.toLowerCase().contains(lower))
-        .toList(growable: false);
-    if (matches.isEmpty) return <Widget>[_empty(l10n)];
-    return <Widget>[
-      M3EList(
-        color: M3ETheme.of(context).colorScheme.surface,
-        variant: M3ECardVariant.filled,
-        itemCount: matches.length,
-        itemBuilder: (BuildContext context, int index) {
-          final playlist = matches[index];
-          return M3EListItem(
-            headline: playlist.name,
-            supportingText: playlist.owner ?? '',
-            trailing: filter == MobileSearchSourceFilter.all
-                ? _sourceChip(
+    final widgets = <Widget>[];
+    if (server != null && _includesSubsonic) {
+      final playlists = ref.watch(remotePlaylistsProvider(server.id)).value;
+      if (playlists != null) {
+        final lower = query.toLowerCase();
+        final matches = playlists
+            .where((playlist) => playlist.name.toLowerCase().contains(lower))
+            .toList(growable: false);
+        if (matches.isNotEmpty) {
+          widgets.add(
+            M3EList(
+              color: M3ETheme.of(context).colorScheme.surface,
+              variant: M3ECardVariant.filled,
+              itemCount: matches.length,
+              onTap: (int index) {
+                final playlist = matches[index];
+                pushMobileRootPage(
+                  context,
+                  RemotePlaylistDetailPage(
+                    sourceId: server.id,
+                    playlist: playlist,
+                  ),
+                  name: MobileRoutes.libraryPlaylists,
+                );
+              },
+              itemBuilder: (BuildContext context, int index) {
+                final playlist = matches[index];
+                return M3EListItem(
+                  headline: playlist.name,
+                  supportingText: playlist.owner ?? '',
+                  trailing: _sourceChip(
                     server.name,
                     server.name.toLowerCase().contains('navidrome')
                         ? 'navidrome'
                         : 'subsonic',
-                  )
-                : null,
+                  ),
+                );
+              },
+            ),
           );
-        },
-      ),
-    ];
+        }
+      } else {
+        widgets.add(_loading());
+      }
+    }
+    if (_includesLx) {
+      final platform = lxPlatform ?? 'kw';
+      final lxAsync = ref.watch(
+        lxPlaylistSearchProvider((platform: platform, query: query)),
+      );
+      final lx = lxAsync.value;
+      if (lx == null) {
+        if (lxAsync.isLoading) {
+          widgets.add(_loading());
+        } else if (lxAsync.hasError) {
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Text(
+                lxAsync.error.toString(),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+      } else if (lx.isNotEmpty) {
+        widgets.add(
+          M3EList(
+            color: M3ETheme.of(context).colorScheme.surface,
+            variant: M3ECardVariant.filled,
+            itemCount: lx.length,
+            onTap: (int index) {
+              final playlist = lx[index];
+              pushMobileRootPage(
+                context,
+                LxPlaylistPreviewPage(platform: platform, playlist: playlist),
+                name: MobileRoutes.libraryPlaylists,
+              );
+            },
+            itemBuilder: (BuildContext context, int index) {
+              final playlist = lx[index];
+              return M3EListItem(
+                headline: playlist.name,
+                supportingText: playlist.author,
+                trailing: _sourceChip(
+                  'LX · ${lxPlatformLabel(l10n, platform)}',
+                  platform,
+                ),
+              );
+            },
+          ),
+        );
+      }
+    }
+    if (widgets.isEmpty) return <Widget>[_empty(l10n)];
+    return widgets;
   }
 
   List<Widget> _buildAlbums(
@@ -1269,6 +1350,16 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
               leading: _SearchResultCover(track: tracks[index]),
               headline: track.name,
               supportingText: track.singer.join('、'),
+              trailing: M3EIconButton(
+                size: M3EIconButtonSize.xs,
+                icon: const Icon(M3EIcons.playlist_add),
+                tooltip: l10n.addToPlaylist,
+                onPressed: () => showAddToPlaylistSheet(
+                  context,
+                  ref,
+                  <rust.UiTrack>[tracks[index]],
+                ),
+              ),
             );
           },
         ),

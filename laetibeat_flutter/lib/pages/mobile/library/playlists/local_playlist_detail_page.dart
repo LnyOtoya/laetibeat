@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/playlists.dart' as rust_playlists;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/shared/layout/app_bottom_inset.dart';
 import 'package:laetibeat/widgets/player/cover_provider.dart';
+import 'package:laetibeat/widgets/player/lx_search_provider.dart';
+import 'package:laetibeat/widgets/player/lx_track.dart';
 import 'package:laetibeat/widgets/player/player_provider.dart';
 import 'package:laetibeat/widgets/playlist_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
@@ -59,12 +62,67 @@ class LocalPlaylistDetailPage extends ConsumerWidget {
     }
   }
 
+  Future<void> _sync(
+    BuildContext context,
+    WidgetRef ref,
+    rust_playlists.UiLocalPlaylistSummary playlist,
+  ) async {
+    final source = playlist.source;
+    final sourceListId = playlist.sourceListId;
+    if (source == null || sourceListId == null) return;
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await M3EDialog.show<bool>(
+      context,
+      dialog: M3EDialog(
+        title: l10n.playlistSync,
+        icon: const Icon(M3EIcons.sync),
+        content: Text(l10n.playlistSyncConfirm),
+        actions: <Widget>[
+          M3EButton(
+            label: Text(l10n.actionCancel),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          M3EButton(
+            label: Text(l10n.playlistSync),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      final detail = await rust_lx.getLxPlaylistAll(
+        platform: source,
+        playlistId: sourceListId,
+      );
+      final inputs = detail.tracks
+          .map(lxSearchTrackToUiTrack)
+          .map(playlistTrackInputFromTrack)
+          .toList(growable: false);
+      await rust_playlists.replaceLocalPlaylistTracks(
+        playlistId: playlistId,
+        tracks: inputs,
+      );
+      ref.invalidate(localPlaylistDetailProvider(playlistId));
+      ref.invalidate(localPlaylistsProvider);
+      if (context.mounted) _message(context, l10n.playlistSyncSuccess);
+    } catch (error) {
+      if (context.mounted) _message(context, error.toString());
+    }
+  }
+
   Future<void> _showActions(
     BuildContext context,
     WidgetRef ref,
     rust_playlists.UiLocalPlaylistSummary playlist,
   ) async {
     final l10n = AppLocalizations.of(context);
+    final canSync = playlist.source != null && playlist.sourceListId != null;
+    final actions = <String>[
+      l10n.actionRename,
+      if (canSync) l10n.playlistSync,
+      l10n.actionDelete,
+    ];
     await showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
@@ -74,22 +132,32 @@ class LocalPlaylistDetailPage extends ConsumerWidget {
         return SafeArea(
           top: false,
           child: M3EList(
-            itemCount: 2,
+            itemCount: actions.length,
             color: theme.colorScheme.surfaceContainerHigh,
             variant: M3ECardVariant.filled,
             onTap: (int index) {
               Navigator.of(sheetContext).pop();
               if (index == 0) {
                 _rename(context, ref, playlist);
+              } else if (canSync && index == 1) {
+                _sync(context, ref, playlist);
               } else {
                 _delete(context, ref, playlist);
               }
             },
             itemBuilder: (BuildContext context, int index) {
+              final isDelete = index == actions.length - 1;
+              final isSync = canSync && index == 1;
               return M3EListItem(
-                leading: Icon(index == 0 ? M3EIcons.edit : M3EIcons.delete),
-                headline: index == 0 ? l10n.actionRename : l10n.actionDelete,
-                showDivider: index == 0,
+                leading: Icon(
+                  isDelete
+                      ? M3EIcons.delete
+                      : isSync
+                      ? M3EIcons.sync
+                      : M3EIcons.edit,
+                ),
+                headline: actions[index],
+                showDivider: index < actions.length - 1,
               );
             },
           ),
@@ -157,194 +225,206 @@ class LocalPlaylistDetailPage extends ConsumerWidget {
                 .load(playable, playIndex, source: detail.playlist.name);
           }
 
-          return ListView(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + bottomInset),
-            children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: 88,
-                    height: 88,
-                    child: LocalPlaylistCover(
-                      playlist: detail.playlist,
-                      radius: 20,
+          return RefreshIndicator(
+            onRefresh: () => _sync(context, ref, detail.playlist),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + bottomInset),
+              children: [
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 88,
+                      height: 88,
+                      child: LocalPlaylistCover(
+                        playlist: detail.playlist,
+                        radius: 20,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          detail.playlist.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.typeScale.titleLarge,
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            detail.playlist.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.typeScale.titleLarge,
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              LibrarySourceBadge(
+                                label:
+                                    detail.playlist.source != null ||
+                                        detail.playlist.coverSource == 'lx'
+                                    ? 'LX · ${lxPlatformLabel(l10n, detail.playlist.source ?? detail.playlist.coverSourceId ?? 'kw')}'
+                                    : l10n.librarySourceLocal,
+                                remote:
+                                    detail.playlist.source != null ||
+                                    detail.playlist.coverSource == 'lx',
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                l10n.librarySongsCount(
+                                  detail.playlist.itemCount.toInt(),
+                                ),
+                                style: theme.typeScale.bodyMedium.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: M3EButton.icon(
+                        icon: const Icon(M3EIcons.play_arrow),
+                        label: Text(l10n.playNow),
+                        style: M3EButtonStyle.filled,
+                        onPressed: playable.isEmpty
+                            ? null
+                            : () => ref
+                                  .read(playerProvider.notifier)
+                                  .load(
+                                    playable,
+                                    0,
+                                    source: detail.playlist.name,
+                                  ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: M3EButton.icon(
+                        icon: const Icon(M3EIcons.shuffle),
+                        label: Text(l10n.shufflePlay),
+                        style: M3EButtonStyle.tonal,
+                        onPressed: playable.isEmpty
+                            ? null
+                            : () => ref
+                                  .read(playerProvider.notifier)
+                                  .playShuffled(
+                                    playable,
+                                    source: detail.playlist.name,
+                                  ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                if (detail.items.isEmpty)
+                  M3ECard(
+                    variant: M3ECardVariant.filled,
+                    color: theme.colorScheme.surfaceContainerHigh,
+                    expanded: true,
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          Icon(
+                            M3EIcons.queue_music,
+                            size: 40,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            l10n.playlistNoTracks,
+                            style: theme.typeScale.titleMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  M3EList.scrollable(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    color: theme.colorScheme.surface,
+                    variant: M3ECardVariant.filled,
+                    itemCount: detail.items.length,
+                    reorder: true,
+                    onReorder: (int oldIndex, int newIndex) {
+                      final ids = detail.items.map((item) => item.id).toList();
+                      final item = ids.removeAt(oldIndex);
+                      ids.insert(
+                        newIndex > oldIndex ? newIndex - 1 : newIndex,
+                        item,
+                      );
+                      rust_playlists
+                          .reorderLocalPlaylistItems(
+                            playlistId: playlistId,
+                            itemIds: Int64List.fromList(ids),
+                          )
+                          .then((_) {
+                            ref.invalidate(
+                              localPlaylistDetailProvider(playlistId),
+                            );
+                            ref.invalidate(localPlaylistsProvider);
+                          })
+                          .catchError((Object error) {
+                            if (context.mounted) {
+                              _message(context, error.toString());
+                            }
+                          });
+                    },
+                    onTap: playItem,
+                    itemBuilder: (BuildContext context, int index) {
+                      final item = detail.items[index];
+                      final track = resolved[index];
+                      return M3EListItem(
+                        leading: _PlaylistTrackCover(track: track),
+                        headline: item.title,
+                        supportingText: [
+                          item.artist,
+                          item.album,
+                        ].where((value) => value.isNotEmpty).join(' · '),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const LibrarySourceBadge(
-                              label: '本地',
-                              remote: false,
+                            LibrarySourceBadge(
+                              label: item.source == 'local'
+                                  ? l10n.librarySourceLocal
+                                  : item.source == 'lx'
+                                  ? 'LX · ${lxPlatformLabel(l10n, item.sourceId)}'
+                                  : 'Subsonic',
+                              remote: item.source != 'local',
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              l10n.librarySongsCount(
-                                detail.playlist.itemCount.toInt(),
-                              ),
-                              style: theme.typeScale.bodyMedium.copyWith(
+                              _formatDuration(item.durationSeconds.toInt()),
+                              style: theme.typeScale.labelMedium.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: M3EButton.icon(
-                      icon: const Icon(M3EIcons.play_arrow),
-                      label: Text(l10n.playNow),
-                      style: M3EButtonStyle.filled,
-                      onPressed: playable.isEmpty
-                          ? null
-                          : () => ref
-                                .read(playerProvider.notifier)
-                                .load(
-                                  playable,
-                                  0,
-                                  source: detail.playlist.name,
-                                ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: M3EButton.icon(
-                      icon: const Icon(M3EIcons.shuffle),
-                      label: Text(l10n.shufflePlay),
-                      style: M3EButtonStyle.tonal,
-                      onPressed: playable.isEmpty
-                          ? null
-                          : () => ref
-                                .read(playerProvider.notifier)
-                                .playShuffled(
-                                  playable,
-                                  source: detail.playlist.name,
-                                ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              if (detail.items.isEmpty)
-                M3ECard(
-                  variant: M3ECardVariant.filled,
-                  color: theme.colorScheme.surfaceContainerHigh,
-                  expanded: true,
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        Icon(
-                          M3EIcons.queue_music,
-                          size: 40,
-                          color: theme.colorScheme.onSurfaceVariant,
+                        swipe: M3EListItemSwipe(
+                          mode: M3EListSwipeMode.dismiss,
+                          edge: M3EListSwipeEdge.end,
+                          onDismiss: (DismissDirection direction) async {
+                            await rust_playlists.removeLocalPlaylistItem(
+                              playlistId: playlistId,
+                              itemId: item.id,
+                            );
+                            ref.invalidate(
+                              localPlaylistDetailProvider(playlistId),
+                            );
+                            ref.invalidate(localPlaylistsProvider);
+                            return true;
+                          },
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          l10n.playlistNoTracks,
-                          style: theme.typeScale.titleMedium,
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-                )
-              else
-                M3EList.scrollable(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  color: theme.colorScheme.surface,
-                  variant: M3ECardVariant.filled,
-                  itemCount: detail.items.length,
-                  reorder: true,
-                  onReorder: (int oldIndex, int newIndex) {
-                    final ids = detail.items.map((item) => item.id).toList();
-                    final item = ids.removeAt(oldIndex);
-                    ids.insert(
-                      newIndex > oldIndex ? newIndex - 1 : newIndex,
-                      item,
-                    );
-                    rust_playlists
-                        .reorderLocalPlaylistItems(
-                          playlistId: playlistId,
-                          itemIds: Int64List.fromList(ids),
-                        )
-                        .then((_) {
-                          ref.invalidate(
-                            localPlaylistDetailProvider(playlistId),
-                          );
-                          ref.invalidate(localPlaylistsProvider);
-                        })
-                        .catchError((Object error) {
-                          if (context.mounted) {
-                            _message(context, error.toString());
-                          }
-                        });
-                  },
-                  onTap: playItem,
-                  itemBuilder: (BuildContext context, int index) {
-                    final item = detail.items[index];
-                    final track = resolved[index];
-                    return M3EListItem(
-                      leading: _PlaylistTrackCover(track: track),
-                      headline: item.title,
-                      supportingText: [
-                        item.artist,
-                        item.album,
-                      ].where((value) => value.isNotEmpty).join(' · '),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          LibrarySourceBadge(
-                            label: item.source == 'local'
-                                ? l10n.librarySourceLocal
-                                : 'Subsonic',
-                            remote: item.source != 'local',
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatDuration(item.durationSeconds.toInt()),
-                            style: theme.typeScale.labelMedium.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                      swipe: M3EListItemSwipe(
-                        mode: M3EListSwipeMode.dismiss,
-                        edge: M3EListSwipeEdge.end,
-                        onDismiss: (DismissDirection direction) async {
-                          await rust_playlists.removeLocalPlaylistItem(
-                            playlistId: playlistId,
-                            itemId: item.id,
-                          );
-                          ref.invalidate(
-                            localPlaylistDetailProvider(playlistId),
-                          );
-                          ref.invalidate(localPlaylistsProvider);
-                          return true;
-                        },
-                      ),
-                    );
-                  },
-                ),
-            ],
+              ],
+            ),
           );
         },
       ),

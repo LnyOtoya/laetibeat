@@ -98,6 +98,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playlistNew => 'New playlist';
 
   @override
+  String get playlistSubscribe => 'Subscribe';
+
+  @override
+  String get playlistSubscribed => 'Subscribed';
+
+  @override
+  String get playlistSync => 'Sync';
+
+  @override
+  String get playlistSyncConfirm =>
+      'Syncing will overwrite local changes with the latest platform content. Continue?';
+
+  @override
+  String get playlistSyncSuccess => 'Sync complete';
+
+  @override
+  String get playlistSubscribeSuccess => 'Subscribed';
+
+  @override
   String get playlistName => 'Playlist name';
 
   @override

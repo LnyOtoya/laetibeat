@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/playlists.dart' as rust_playlists;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
@@ -41,6 +42,7 @@ rust_playlists.UiPlaylistTrackInput playlistTrackInputFromTrack(
     trackId: track.id,
     relativePath: track.relativePath,
     coverId: track.coverId,
+    sourceExtraJson: track.sourceExtraJson,
     title: track.title,
     artist: track.artist,
     album: track.album,
@@ -92,7 +94,7 @@ rust.UiTrack? _trackFromPlaylistItem(rust_playlists.UiLocalPlaylistItem item) {
     source: item.source,
     sourceId: item.sourceId,
     coverId: item.coverId,
-    sourceExtraJson: null,
+    sourceExtraJson: item.sourceExtraJson,
     bitrate: null,
     sampleRate: null,
     channels: null,
@@ -100,3 +102,30 @@ rust.UiTrack? _trackFromPlaylistItem(rust_playlists.UiLocalPlaylistItem item) {
     fileSize: null,
   );
 }
+
+/// LX 在线歌单搜索。
+typedef LxPlaylistSearchKey = ({String platform, String query});
+
+final lxPlaylistSearchProvider = FutureProvider.autoDispose
+    .family<List<rust_lx.UiLxPlaylistSummary>, LxPlaylistSearchKey>((
+      ref,
+      key,
+    ) {
+      return rust_lx.searchLxPlaylists(
+        platform: key.platform,
+        keyword: key.query,
+        page: 1,
+        limit: 30,
+      );
+    });
+
+/// LX 在线歌单全量详情（预览与订阅使用）。
+typedef LxPlaylistKey = ({String platform, String playlistId});
+
+final lxPlaylistAllProvider = FutureProvider.autoDispose
+    .family<rust_lx.UiLxPlaylistDetail, LxPlaylistKey>((ref, key) {
+      return rust_lx.getLxPlaylistAll(
+        platform: key.platform,
+        playlistId: key.playlistId,
+      );
+    });

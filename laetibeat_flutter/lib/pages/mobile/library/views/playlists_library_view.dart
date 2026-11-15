@@ -15,6 +15,7 @@ import '../../routes.dart';
 import '../playlists/local_playlist_detail_page.dart';
 import '../playlists/playlist_cover.dart';
 import '../playlists/playlist_dialogs.dart';
+import 'package:laetibeat/widgets/player/lx_search_provider.dart';
 import '../playlists/remote_playlist_detail_page.dart';
 import '../widgets/library_layout_control_bar.dart';
 import '../widgets/library_source_badge.dart';
@@ -139,6 +140,9 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
     final localEntries = (localAsync.value ?? const [])
         .map((playlist) => _PlaylistEntry(local: playlist, sourceId: ''))
         .toList(growable: false);
+    final lxSources =
+        localEntries.map(_lxSourceOf).whereType<String>().toSet().toList()
+          ..sort();
     final remoteEntries =
         remoteAsync?.value
             ?.map(
@@ -148,9 +152,24 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
             .toList(growable: false) ??
         const <_PlaylistEntry>[];
 
+    final filteredLocal = switch (_selectedSource) {
+      _ when _selectedSource == _allSource => localEntries,
+      _ when _selectedSource == _localSource =>
+        localEntries
+            .where((entry) => _lxSourceOf(entry) == null)
+            .toList(growable: false),
+      _ when _selectedSource == _remoteSource => const <_PlaylistEntry>[],
+      _ when _selectedSource.startsWith('lx:') =>
+        localEntries
+            .where(
+              (entry) =>
+                  _lxSourceOf(entry) == _selectedSource.substring('lx:'.length),
+            )
+            .toList(growable: false),
+      _ => const <_PlaylistEntry>[],
+    };
     final entries = <_PlaylistEntry>[
-      if (_selectedSource == _allSource || _selectedSource == _localSource)
-        ...localEntries,
+      ...filteredLocal,
       if ((_selectedSource == _allSource || _selectedSource == _remoteSource) &&
           server != null)
         ...remoteEntries,
@@ -223,6 +242,15 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
                             onPressed: () => _selectSource(_remoteSource),
                           ),
                         ],
+                        for (final source in lxSources) ...[
+                          const SizedBox(width: 8),
+                          M3EChip(
+                            type: M3EChipType.filter,
+                            label: 'LX · ${lxPlatformLabel(l10n, source)}',
+                            selected: _selectedSource == 'lx:$source',
+                            onPressed: () => _selectSource('lx:$source'),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -246,6 +274,14 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
         Expanded(child: content),
       ],
     );
+  }
+
+  String? _lxSourceOf(_PlaylistEntry entry) {
+    final local = entry.local;
+    if (local == null) return null;
+    if (local.source != null) return local.source;
+    if (local.coverSource == 'lx') return local.coverSourceId;
+    return null;
   }
 
   void _selectSource(String source) {
@@ -421,6 +457,15 @@ class _EntryBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final local = entry.local;
+    if (local?.source != null ||
+        (local?.source == null && local?.coverSource == 'lx')) {
+      final platform = local!.source ?? local.coverSourceId ?? 'kw';
+      return LibrarySourceBadge(
+        label: 'LX · ${lxPlatformLabel(l10n, platform)}',
+        remote: true,
+      );
+    }
     return LibrarySourceBadge(
       label: entry.isRemote ? 'Subsonic' : l10n.librarySourceLocal,
       remote: entry.isRemote,

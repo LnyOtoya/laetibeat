@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `format_error`, `init_lx_logging`, `manager_slot`, `map_entry`, `parse_cached_lyric`, `parse_lyric`, `with_manager`
+// These functions are ignored because they are not marked as `pub`: `format_error`, `init_lx_logging`, `manager_slot`, `map_entry`, `map_lx_playlist_detail`, `map_lx_playlist`, `map_lx_search_track`, `parse_cached_lyric`, `parse_lyric`, `with_manager`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`
 
 /// Initialize the filesystem-backed source store.
@@ -83,6 +83,38 @@ Future<UiLxSearchPage> searchLxMusic({
   keyword: keyword,
   page: page,
   limit: limit,
+);
+
+Future<List<UiLxPlaylistSummary>> searchLxPlaylists({
+  required String platform,
+  required String keyword,
+  required int page,
+  required int limit,
+}) => RustLib.instance.api.crateApiLxSearchLxPlaylists(
+  platform: platform,
+  keyword: keyword,
+  page: page,
+  limit: limit,
+);
+
+Future<UiLxPlaylistDetail> getLxPlaylist({
+  required String platform,
+  required String playlistId,
+  required int page,
+  required int limit,
+}) => RustLib.instance.api.crateApiLxGetLxPlaylist(
+  platform: platform,
+  playlistId: playlistId,
+  page: page,
+  limit: limit,
+);
+
+Future<UiLxPlaylistDetail> getLxPlaylistAll({
+  required String platform,
+  required String playlistId,
+}) => RustLib.instance.api.crateApiLxGetLxPlaylistAll(
+  platform: platform,
+  playlistId: playlistId,
 );
 
 class UiLxLyric {
@@ -165,6 +197,92 @@ class UiLxMusicInfo {
           interval == other.interval &&
           img == other.img &&
           extraJson == other.extraJson;
+}
+
+class UiLxPlaylistDetail {
+  final UiLxPlaylistSummary info;
+  final List<UiLxSearchTrack> tracks;
+  final int page;
+  final int limit;
+  final BigInt total;
+  final bool hasMore;
+
+  const UiLxPlaylistDetail({
+    required this.info,
+    required this.tracks,
+    required this.page,
+    required this.limit,
+    required this.total,
+    required this.hasMore,
+  });
+
+  @override
+  int get hashCode =>
+      info.hashCode ^
+      tracks.hashCode ^
+      page.hashCode ^
+      limit.hashCode ^
+      total.hashCode ^
+      hasMore.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiLxPlaylistDetail &&
+          runtimeType == other.runtimeType &&
+          info == other.info &&
+          tracks == other.tracks &&
+          page == other.page &&
+          limit == other.limit &&
+          total == other.total &&
+          hasMore == other.hasMore;
+}
+
+class UiLxPlaylistSummary {
+  final String source;
+  final String id;
+  final String name;
+  final String author;
+  final String? coverUrl;
+  final String playCount;
+  final BigInt total;
+  final String description;
+
+  const UiLxPlaylistSummary({
+    required this.source,
+    required this.id,
+    required this.name,
+    required this.author,
+    this.coverUrl,
+    required this.playCount,
+    required this.total,
+    required this.description,
+  });
+
+  @override
+  int get hashCode =>
+      source.hashCode ^
+      id.hashCode ^
+      name.hashCode ^
+      author.hashCode ^
+      coverUrl.hashCode ^
+      playCount.hashCode ^
+      total.hashCode ^
+      description.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiLxPlaylistSummary &&
+          runtimeType == other.runtimeType &&
+          source == other.source &&
+          id == other.id &&
+          name == other.name &&
+          author == other.author &&
+          coverUrl == other.coverUrl &&
+          playCount == other.playCount &&
+          total == other.total &&
+          description == other.description;
 }
 
 class UiLxSearchPage {

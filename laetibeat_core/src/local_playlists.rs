@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{params, Connection, OptionalExtension};
 
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
 
 const SCHEMA_V1: &str = r#"
 CREATE TABLE IF NOT EXISTS local_playlists (
@@ -43,6 +43,9 @@ pub struct LocalPlaylistSummary {
     pub duration_seconds: i64,
     pub created_at: i64,
     pub updated_at: i64,
+    pub source: Option<String>,
+    pub source_list_id: Option<String>,
+    pub last_synced_at: Option<i64>,
     pub cover_source: Option<String>,
     pub cover_source_id: Option<String>,
     pub cover_track_id: Option<String>,
@@ -58,6 +61,7 @@ pub struct LocalPlaylistItem {
     pub track_id: String,
     pub relative_path: Option<String>,
     pub cover_id: Option<String>,
+    pub source_extra_json: Option<String>,
     pub title: String,
     pub artist: String,
     pub album: String,
@@ -77,6 +81,7 @@ pub struct PlaylistTrackInput {
     pub track_id: String,
     pub relative_path: Option<String>,
     pub cover_id: Option<String>,
+    pub source_extra_json: Option<String>,
     pub title: String,
     pub artist: String,
     pub album: String,
@@ -118,6 +123,17 @@ impl LocalPlaylistStore {
                 [],
             )
             .map_err(map_err)?;
+            conn.pragma_update(None, "user_version", 2)
+                .map_err(map_err)?;
+        }
+        if version < 3 {
+            conn.execute_batch(
+                "ALTER TABLE local_playlists ADD COLUMN source TEXT;
+                 ALTER TABLE local_playlists ADD COLUMN source_list_id TEXT;
+                 ALTER TABLE local_playlists ADD COLUMN last_synced_at INTEGER;
+                 ALTER TABLE local_playlist_items ADD COLUMN source_extra_json TEXT;",
+            )
+            .map_err(map_err)?;
             conn.pragma_update(None, "user_version", SCHEMA_VERSION)
                 .map_err(map_err)?;
         }
@@ -128,7 +144,7 @@ impl LocalPlaylistStore {
         let mut stmt = self
             .conn
             .prepare(
-                "SELECT id, name, created_at, updated_at
+                "SELECT id, name, created_at, updated_at, source, source_list_id, last_synced_at
                  FROM local_playlists
                  ORDER BY updated_at DESC, id DESC",
             )
@@ -140,13 +156,25 @@ impl LocalPlaylistStore {
                     row.get::<_, String>(1)?,
                     row.get::<_, i64>(2)?,
                     row.get::<_, i64>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, Option<i64>>(6)?,
                 ))
             })
             .map_err(map_err)?;
         let mut result = Vec::new();
         for row in rows {
-            let (id, name, created_at, updated_at) = row.map_err(map_err)?;
-            result.push(self.summary_basic(id, name, created_at, updated_at)?);
+            let (id, name, created_at, updated_at, source, source_list_id, last_synced_at) =
+                row.map_err(map_err)?;
+            result.push(self.summary_basic(
+                id,
+                name,
+                created_at,
+                updated_at,
+                source,
+                source_list_id,
+                last_synced_at,
+            )?);
         }
         Ok(result)
     }
@@ -159,7 +187,7 @@ impl LocalPlaylistStore {
             .conn
             .prepare(
                 "SELECT id, position, source, source_id, track_id, relative_path,
-                        cover_id, title, artist, album, duration_seconds
+                        cover_id, source_extra_json, title, artist, album, duration_seconds
                  FROM local_playlist_items
                  WHERE playlist_id = ?1
                  ORDER BY position, id",
@@ -175,10 +203,11 @@ impl LocalPlaylistStore {
                     track_id: row.get(4)?,
                     relative_path: row.get(5)?,
                     cover_id: row.get(6)?,
-                    title: row.get(7)?,
-                    artist: row.get(8)?,
-                    album: row.get(9)?,
-                    duration_seconds: row.get(10)?,
+                    source_extra_json: row.get(7)?,
+                    title: row.get(8)?,
+                    artist: row.get(9)?,
+                    album: row.get(10)?,
+                    duration_seconds: row.get(11)?,
                 })
             })
             .map_err(map_err)?;
@@ -261,9 +290,9 @@ impl LocalPlaylistStore {
                 .execute(
                     "INSERT OR IGNORE INTO local_playlist_items(
                         playlist_id, position, source, source_id, track_id,
-                        relative_path, cover_id, title, artist, album,
-                        duration_seconds, added_at
-                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                        relative_path, cover_id, source_extra_json, title, artist,
+                        album, duration_seconds, added_at
+                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
                     params![
                         playlist_id,
                         position,
@@ -272,6 +301,7 @@ impl LocalPlaylistStore {
                         track.track_id,
                         track.relative_path,
                         track.cover_id,
+                        track.source_extra_json,
                         track.title,
                         track.artist,
                         track.album,
@@ -322,11 +352,54 @@ impl LocalPlaylistStore {
         tx.commit().map_err(map_err)
     }
 
+    pub fn mark_subscribed(
+        &mut self,
+        playlist_id: i64,
+        source: &str,
+        source_list_id: &str,
+    ) -> Result<(), String> {
+        let now = now_ms();
+        let changed = self
+            .conn
+            .execute(
+                "UPDATE local_playlists
+                 SET source = ?1, source_list_id = ?2, last_synced_at = ?3, updated_at = ?3
+                 WHERE id = ?4",
+                params![source, source_list_id, now, playlist_id],
+            )
+            .map_err(map_err)?;
+        if changed == 0 {
+            return Err("歌单不存在".to_string());
+        }
+        Ok(())
+    }
+
+    pub fn replace_tracks(
+        &mut self,
+        playlist_id: i64,
+        tracks: &[PlaylistTrackInput],
+    ) -> Result<usize, String> {
+        self.conn
+            .execute(
+                "DELETE FROM local_playlist_items WHERE playlist_id = ?1",
+                params![playlist_id],
+            )
+            .map_err(map_err)?;
+        let added = self.add_tracks(playlist_id, tracks)?;
+        self.conn
+            .execute(
+                "UPDATE local_playlists SET last_synced_at = ?1, updated_at = ?1 WHERE id = ?2",
+                params![now_ms(), playlist_id],
+            )
+            .map_err(map_err)?;
+        Ok(added)
+    }
+
     fn summary_by_id(&self, id: i64) -> Result<Option<LocalPlaylistSummary>, String> {
         let row = self
             .conn
             .query_row(
-                "SELECT id, name, created_at, updated_at FROM local_playlists WHERE id = ?1",
+                "SELECT id, name, created_at, updated_at, source, source_list_id, last_synced_at FROM local_playlists WHERE id = ?1",
                 params![id],
                 |row| {
                     Ok((
@@ -334,13 +407,24 @@ impl LocalPlaylistStore {
                         row.get::<_, String>(1)?,
                         row.get::<_, i64>(2)?,
                         row.get::<_, i64>(3)?,
+                        row.get::<_, Option<String>>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                        row.get::<_, Option<i64>>(6)?,
                     ))
                 },
             )
             .optional()
             .map_err(map_err)?;
-        row.map(|(id, name, created_at, updated_at)| {
-            self.summary_basic(id, name, created_at, updated_at)
+        row.map(|(id, name, created_at, updated_at, source, source_list_id, last_synced_at)| {
+            self.summary_basic(
+                id,
+                name,
+                created_at,
+                updated_at,
+                source,
+                source_list_id,
+                last_synced_at,
+            )
         })
         .transpose()
     }
@@ -351,6 +435,9 @@ impl LocalPlaylistStore {
         name: String,
         created_at: i64,
         updated_at: i64,
+        source: Option<String>,
+        source_list_id: Option<String>,
+        last_synced_at: Option<i64>,
     ) -> Result<LocalPlaylistSummary, String> {
         let (item_count, duration_seconds): (i64, i64) = self
             .conn
@@ -387,6 +474,9 @@ impl LocalPlaylistStore {
             duration_seconds,
             created_at,
             updated_at,
+            source,
+            source_list_id,
+            last_synced_at,
             cover_source: cover.as_ref().map(|item| item.0.clone()),
             cover_source_id: cover.as_ref().map(|item| item.1.clone()),
             cover_track_id: cover.as_ref().map(|item| item.2.clone()),
@@ -445,6 +535,14 @@ pub fn remove_item(playlist_id: i64, item_id: i64) -> Result<bool, String> {
 
 pub fn reorder(playlist_id: i64, item_ids: &[i64]) -> Result<(), String> {
     with_store(|store| store.reorder(playlist_id, item_ids))
+}
+
+pub fn mark_subscribed(playlist_id: i64, source: &str, source_list_id: &str) -> Result<(), String> {
+    with_store(|store| store.mark_subscribed(playlist_id, source, source_list_id))
+}
+
+pub fn replace_tracks(playlist_id: i64, tracks: &[PlaylistTrackInput]) -> Result<usize, String> {
+    with_store(|store| store.replace_tracks(playlist_id, tracks))
 }
 
 fn clean_name(name: &str) -> Result<String, String> {
@@ -520,6 +618,7 @@ mod tests {
             track_id: id.to_string(),
             relative_path: Some(format!("{id}.flac")),
             cover_id: Some(format!("cover-{id}")),
+            source_extra_json: None,
             title: format!("Track {id}"),
             artist: "Artist".to_string(),
             album: "Album".to_string(),

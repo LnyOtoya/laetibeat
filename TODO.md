@@ -64,6 +64,64 @@
 - [ ] MPRIS 迁移到 audio_service，或彻底移除旧实现
 - [ ] 高级 DSP / ReplayGain / 响度归一
 
+## LX 在线歌单与订阅（2026-11-15 定稿方向）
+
+> 参考项目只作为逻辑参考，不复制其代码、素材或第三方音源脚本。
+
+### 目标流程
+
+```text
+搜索页
+├─ 歌曲
+├─ 歌单
+├─ 专辑
+└─ 艺术家
+```
+
+歌单分类支持：
+
+```text
+[全部] [本地] [Subsonic] [LX]
+LX 平台：酷我 / QQ / 网易 / 咪咕 / 酷狗
+```
+
+点击 LX 歌单进入预览页：
+
+```text
+封面 / 名称 / 作者 / 播放量 / 描述
+[播放全部] [订阅]
+歌曲列表
+```
+
+订阅后出现在媒体库歌单页，带 `[LX · 平台]` badge，可像本地歌单一样增删改查；下拉刷新重新拉取平台歌单并覆盖本地快照。
+
+### 数据原则
+
+- 歌单与音源解耦：歌单只保存歌曲身份与元数据，播放时再由 LX 源解析 URL/歌词/封面
+- 本地歌单增加订阅元数据：`source`、`source_list_id`、`last_synced_at`
+- 歌单条目增加 `source_extra_json`，保留 TX/KG 等平台播放所需字段
+- LX 曲目统一映射：`source=lx`、`source_id=平台`、`track_id=平台歌曲 ID`
+- 订阅歌单是本地快照；同步会覆盖本地修改，需要提示用户
+
+### 实施顺序
+
+- [x] 1. 本地歌单 schema v3：订阅字段 + `source_extra_json`
+- [x] 2. Rust LX 歌单底座：平台参数、搜索/详情/全量接口
+- [x] 3. 先接酷我 KW 歌单搜索与详情
+- [x] 4. FRB facade 与代码生成
+- [x] 5. 搜索页歌单分类接入 LX，复用现有平台切换
+- [x] 6. 在线歌单预览页：播放全部、订阅
+- [x] 7. 媒体库歌单页显示订阅来源 badge
+- [x] 8. 订阅歌单下拉同步，同步前确认覆盖
+- [x] 9. 自己创建 LX 歌单并从 LX 搜索结果添加歌曲
+- [ ] 10. 依次补 TX / WY / MG / KG
+
+### 待确认
+
+- [x] 订阅歌单同步采用“全量覆盖”，同步前确认
+- [x] 订阅歌单允许与本地/Subsonic 歌曲混合（条目均带 source 身份）
+- [x] 平台歌单搜索默认当前平台；后续可增加“全部平台”聚合
+
 ## 媒体库信息架构重构（2026-11-10 定稿方向）
 
 ### 目标
@@ -522,7 +580,7 @@
 - [x] 验证 RSA 无效公钥错误路径
 - [x] 验证 SourceManager 启用、加载、优先级、解析、移除
 - [x] `flutter analyze` / `flutter test` 通过（2026-11-10；analyze 仍有 4 个既有 warning/info，本次无新增问题）
-- [x] `cargo test --workspace` 通过（36 tests：core 7 / lx 26 / remote 3）
+- [x] `cargo test --workspace` 通过（37 tests：core 7 / lx 27 / remote 3）
 - [x] Android armv7/aarch64/x86_64 release Rust 编译通过（含 LX/QuickJS/FRB）
 - [x] `flutter build apk --release` 通过（150.3MB；不要用 `--no-pub` 跳过插件注册表重生成）
 - [x] 验证 `setTimeout` 延迟后解析 musicUrl
@@ -587,10 +645,11 @@
 - 缓存占用只统计“清除所有缓存”会释放的内容；LX 源脚本、播放统计库和播放队列不计入缓存大小
 - `SourceType` 只有 `LocalFile` 和 `Opensubsonic`，LX 不在数据模型中；`source` 字段仍是字符串字面量，容易拼错
 - 移动端首页只挂载播放器主视图，`mobile_welcome_section.dart` / `mobile_daily_section.dart` / `mobile_home_constants.dart` 当前无引用
-- 本地歌单已实现：SQLite 持久化、CRUD、跨源条目快照、详情播放、移除与排序；封面复用首曲封面（本地 `trackCoverProvider` / 远端 `remoteCoverProvider`），schema v2 为条目新增 `cover_id`
+- 本地歌单已实现：SQLite 持久化、CRUD、跨源条目快照、详情播放、移除与排序；封面复用首曲封面（本地 `trackCoverProvider` / 远端 `remoteCoverProvider`），schema v3 为条目新增 `cover_id` / `source_extra_json`，为歌单新增订阅元数据
 - 媒体库首页已入口化；歌曲/专辑/艺术家/歌单页已统一本地/OpenSubsonic 并接入来源 chips 与 badge
 - OpenSubsonic 歌单已接入 get/create/update/delete：详情、改名、删除、按索引移歌、加歌；暂未做 comment/public 编辑 UI
 - 本地专辑/艺术家详情页已接入：专辑曲目按 `track_ids`、艺术家专辑按专辑艺术家/曲目关联聚合；跨源同名专辑/艺术家暂不自动合并
+- LX 在线歌单当前只接入酷我 KW；搜索页可切换其他平台，但接口尚未实现，下一步依次补 TX / WY / MG / KG
 - 媒体库首页的远端数量只读已缓存 Provider；首次进入且未打开过对应详情页时显示 `—`，不主动触发全量远端加载
 - 移动端内容设置已接通“选择本地媒体库”与“扫描”；真机上 SAF 目录持久授权与 Rust 扫描结果仍需验证
 

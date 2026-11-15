@@ -3,6 +3,7 @@ use std::sync::{Mutex, OnceLock};
 use flutter_rust_bridge::frb;
 use laetibeat_core::remote_library as core_lib;
 use laetibeat_lx::search as lx_search;
+use laetibeat_lx::songlist as lx_songlist;
 use laetibeat_lx::{LxError, LxMusicInfo, LxSourceEntry, LxSourceManager, LxSourceStatus};
 
 /// A source capability declared by `inited`.
@@ -364,6 +365,28 @@ pub struct UiLxSearchPage {
     pub has_more: bool,
 }
 
+#[frb(non_opaque)]
+pub struct UiLxPlaylistSummary {
+    pub source: String,
+    pub id: String,
+    pub name: String,
+    pub author: String,
+    pub cover_url: Option<String>,
+    pub play_count: String,
+    pub total: u64,
+    pub description: String,
+}
+
+#[frb(non_opaque)]
+pub struct UiLxPlaylistDetail {
+    pub info: UiLxPlaylistSummary,
+    pub tracks: Vec<UiLxSearchTrack>,
+    pub page: u32,
+    pub limit: u32,
+    pub total: u64,
+    pub has_more: bool,
+}
+
 pub fn supported_lx_search_platforms() -> Vec<String> {
     lx_search::SUPPORTED_PLATFORMS
         .iter()
@@ -400,4 +423,73 @@ pub fn search_lx_music(
         limit: result.limit,
         has_more: result.has_more,
     })
+}
+
+pub fn search_lx_playlists(
+    platform: String,
+    keyword: String,
+    page: u32,
+    limit: u32,
+) -> Result<Vec<UiLxPlaylistSummary>, String> {
+    lx_songlist::search_playlists(&platform, &keyword, page, limit)
+        .map(|items| items.into_iter().map(map_lx_playlist).collect())
+        .map_err(format_error)
+}
+
+pub fn get_lx_playlist(
+    platform: String,
+    playlist_id: String,
+    page: u32,
+    limit: u32,
+) -> Result<UiLxPlaylistDetail, String> {
+    lx_songlist::get_playlist_detail(&platform, &playlist_id, page, limit)
+        .map(map_lx_playlist_detail)
+        .map_err(format_error)
+}
+
+pub fn get_lx_playlist_all(
+    platform: String,
+    playlist_id: String,
+) -> Result<UiLxPlaylistDetail, String> {
+    lx_songlist::get_playlist_all(&platform, &playlist_id)
+        .map(map_lx_playlist_detail)
+        .map_err(format_error)
+}
+
+fn map_lx_playlist(item: lx_songlist::LxPlaylistSummary) -> UiLxPlaylistSummary {
+    UiLxPlaylistSummary {
+        source: item.source,
+        id: item.id,
+        name: item.name,
+        author: item.author,
+        cover_url: item.cover_url,
+        play_count: item.play_count,
+        total: item.total,
+        description: item.description,
+    }
+}
+
+fn map_lx_playlist_detail(detail: lx_songlist::LxPlaylistDetail) -> UiLxPlaylistDetail {
+    UiLxPlaylistDetail {
+        info: map_lx_playlist(detail.info),
+        tracks: detail.tracks.into_iter().map(map_lx_search_track).collect(),
+        page: detail.page,
+        limit: detail.limit,
+        total: detail.total,
+        has_more: detail.has_more,
+    }
+}
+
+fn map_lx_search_track(track: lx_search::LxSearchTrack) -> UiLxSearchTrack {
+    UiLxSearchTrack {
+        source: track.source,
+        id: track.id,
+        name: track.name,
+        singer: track.singer,
+        album: track.album,
+        album_id: track.album_id,
+        interval: track.interval,
+        img: track.img,
+        extra_json: serde_json::to_string(&track.extra).unwrap_or_default(),
+    }
 }

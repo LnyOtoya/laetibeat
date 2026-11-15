@@ -98,6 +98,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playlistNew => '新建歌单';
 
   @override
+  String get playlistSubscribe => '订阅';
+
+  @override
+  String get playlistSubscribed => '已订阅';
+
+  @override
+  String get playlistSync => '同步';
+
+  @override
+  String get playlistSyncConfirm => '同步会用平台最新内容覆盖本地修改，是否继续？';
+
+  @override
+  String get playlistSyncSuccess => '同步完成';
+
+  @override
+  String get playlistSubscribeSuccess => '订阅成功';
+
+  @override
   String get playlistName => '歌单名';
 
   @override

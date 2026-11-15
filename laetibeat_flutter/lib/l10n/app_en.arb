@@ -55,6 +55,12 @@
     }
   },
   "playlistNew": "New playlist",
+  "playlistSubscribe": "Subscribe",
+  "playlistSubscribed": "Subscribed",
+  "playlistSync": "Sync",
+  "playlistSyncConfirm": "Syncing will overwrite local changes with the latest platform content. Continue?",
+  "playlistSyncSuccess": "Sync complete",
+  "playlistSubscribeSuccess": "Subscribed",
   "playlistName": "Playlist name",
   "playlistRename": "Rename playlist",
   "playlistDelete": "Delete playlist",

@@ -260,6 +260,42 @@ abstract class AppLocalizations {
   /// **'New playlist'**
   String get playlistNew;
 
+  /// No description provided for @playlistSubscribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscribe'**
+  String get playlistSubscribe;
+
+  /// No description provided for @playlistSubscribed.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscribed'**
+  String get playlistSubscribed;
+
+  /// No description provided for @playlistSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get playlistSync;
+
+  /// No description provided for @playlistSyncConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing will overwrite local changes with the latest platform content. Continue?'**
+  String get playlistSyncConfirm;
+
+  /// No description provided for @playlistSyncSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync complete'**
+  String get playlistSyncSuccess;
+
+  /// No description provided for @playlistSubscribeSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscribed'**
+  String get playlistSubscribeSuccess;
+
   /// No description provided for @playlistName.
   ///
   /// In en, this message translates to:

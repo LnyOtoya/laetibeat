@@ -31,6 +31,18 @@ class LocalPlaylistCover extends ConsumerWidget {
     final coverId = playlist.coverId;
 
     Uint8List? bytes;
+    if (source == 'lx' && coverId != null && coverId.startsWith('http')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.network(
+          coverId,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, _, _) => _fallback(theme),
+        ),
+      );
+    }
     if (source == 'local' && trackId != null) {
       final track = _findLocalTrack(ref, trackId);
       if (track != null) {
@@ -53,16 +65,20 @@ class LocalPlaylistCover extends ConsumerWidget {
               height: double.infinity,
               gaplessPlayback: true,
             )
-          : ColoredBox(
-              color: theme.colorScheme.secondaryContainer,
-              child: Center(
-                child: Icon(
-                  M3EIcons.queue_music,
-                  size: 28,
-                  color: theme.colorScheme.onSecondaryContainer,
-                ),
-              ),
-            ),
+          : _fallback(theme),
+    );
+  }
+
+  Widget _fallback(M3EThemeData theme) {
+    return ColoredBox(
+      color: theme.colorScheme.secondaryContainer,
+      child: Center(
+        child: Icon(
+          M3EIcons.queue_music,
+          size: 28,
+          color: theme.colorScheme.onSecondaryContainer,
+        ),
+      ),
     );
   }
 }
