@@ -81,6 +81,7 @@ class UiLocalPlaylistItem {
   final String sourceId;
   final String trackId;
   final String? relativePath;
+  final String? coverId;
   final String title;
   final String artist;
   final String album;
@@ -93,6 +94,7 @@ class UiLocalPlaylistItem {
     required this.sourceId,
     required this.trackId,
     this.relativePath,
+    this.coverId,
     required this.title,
     required this.artist,
     required this.album,
@@ -107,6 +109,7 @@ class UiLocalPlaylistItem {
       sourceId.hashCode ^
       trackId.hashCode ^
       relativePath.hashCode ^
+      coverId.hashCode ^
       title.hashCode ^
       artist.hashCode ^
       album.hashCode ^
@@ -123,6 +126,7 @@ class UiLocalPlaylistItem {
           sourceId == other.sourceId &&
           trackId == other.trackId &&
           relativePath == other.relativePath &&
+          coverId == other.coverId &&
           title == other.title &&
           artist == other.artist &&
           album == other.album &&
@@ -139,6 +143,7 @@ class UiLocalPlaylistSummary {
   final String? coverSource;
   final String? coverSourceId;
   final String? coverTrackId;
+  final String? coverId;
 
   const UiLocalPlaylistSummary({
     required this.id,
@@ -150,6 +155,7 @@ class UiLocalPlaylistSummary {
     this.coverSource,
     this.coverSourceId,
     this.coverTrackId,
+    this.coverId,
   });
 
   @override
@@ -162,7 +168,8 @@ class UiLocalPlaylistSummary {
       updatedAt.hashCode ^
       coverSource.hashCode ^
       coverSourceId.hashCode ^
-      coverTrackId.hashCode;
+      coverTrackId.hashCode ^
+      coverId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -177,7 +184,8 @@ class UiLocalPlaylistSummary {
           updatedAt == other.updatedAt &&
           coverSource == other.coverSource &&
           coverSourceId == other.coverSourceId &&
-          coverTrackId == other.coverTrackId;
+          coverTrackId == other.coverTrackId &&
+          coverId == other.coverId;
 }
 
 class UiPlaylistTrackInput {
@@ -185,6 +193,7 @@ class UiPlaylistTrackInput {
   final String sourceId;
   final String trackId;
   final String? relativePath;
+  final String? coverId;
   final String title;
   final String artist;
   final String album;
@@ -195,6 +204,7 @@ class UiPlaylistTrackInput {
     required this.sourceId,
     required this.trackId,
     this.relativePath,
+    this.coverId,
     required this.title,
     required this.artist,
     required this.album,
@@ -207,6 +217,7 @@ class UiPlaylistTrackInput {
       sourceId.hashCode ^
       trackId.hashCode ^
       relativePath.hashCode ^
+      coverId.hashCode ^
       title.hashCode ^
       artist.hashCode ^
       album.hashCode ^
@@ -221,6 +232,7 @@ class UiPlaylistTrackInput {
           sourceId == other.sourceId &&
           trackId == other.trackId &&
           relativePath == other.relativePath &&
+          coverId == other.coverId &&
           title == other.title &&
           artist == other.artist &&
           album == other.album &&

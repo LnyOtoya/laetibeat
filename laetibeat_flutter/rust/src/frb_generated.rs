@@ -3366,6 +3366,7 @@ impl SseDecode for crate::api::playlists::UiLocalPlaylistItem {
         let mut var_sourceId = <String>::sse_decode(deserializer);
         let mut var_trackId = <String>::sse_decode(deserializer);
         let mut var_relativePath = <Option<String>>::sse_decode(deserializer);
+        let mut var_coverId = <Option<String>>::sse_decode(deserializer);
         let mut var_title = <String>::sse_decode(deserializer);
         let mut var_artist = <String>::sse_decode(deserializer);
         let mut var_album = <String>::sse_decode(deserializer);
@@ -3377,6 +3378,7 @@ impl SseDecode for crate::api::playlists::UiLocalPlaylistItem {
             source_id: var_sourceId,
             track_id: var_trackId,
             relative_path: var_relativePath,
+            cover_id: var_coverId,
             title: var_title,
             artist: var_artist,
             album: var_album,
@@ -3397,6 +3399,7 @@ impl SseDecode for crate::api::playlists::UiLocalPlaylistSummary {
         let mut var_coverSource = <Option<String>>::sse_decode(deserializer);
         let mut var_coverSourceId = <Option<String>>::sse_decode(deserializer);
         let mut var_coverTrackId = <Option<String>>::sse_decode(deserializer);
+        let mut var_coverId = <Option<String>>::sse_decode(deserializer);
         return crate::api::playlists::UiLocalPlaylistSummary {
             id: var_id,
             name: var_name,
@@ -3407,6 +3410,7 @@ impl SseDecode for crate::api::playlists::UiLocalPlaylistSummary {
             cover_source: var_coverSource,
             cover_source_id: var_coverSourceId,
             cover_track_id: var_coverTrackId,
+            cover_id: var_coverId,
         };
     }
 }
@@ -3627,6 +3631,7 @@ impl SseDecode for crate::api::playlists::UiPlaylistTrackInput {
         let mut var_sourceId = <String>::sse_decode(deserializer);
         let mut var_trackId = <String>::sse_decode(deserializer);
         let mut var_relativePath = <Option<String>>::sse_decode(deserializer);
+        let mut var_coverId = <Option<String>>::sse_decode(deserializer);
         let mut var_title = <String>::sse_decode(deserializer);
         let mut var_artist = <String>::sse_decode(deserializer);
         let mut var_album = <String>::sse_decode(deserializer);
@@ -3636,6 +3641,7 @@ impl SseDecode for crate::api::playlists::UiPlaylistTrackInput {
             source_id: var_sourceId,
             track_id: var_trackId,
             relative_path: var_relativePath,
+            cover_id: var_coverId,
             title: var_title,
             artist: var_artist,
             album: var_album,
@@ -4371,6 +4377,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::playlists::UiLocalPlaylistIte
             self.source_id.into_into_dart().into_dart(),
             self.track_id.into_into_dart().into_dart(),
             self.relative_path.into_into_dart().into_dart(),
+            self.cover_id.into_into_dart().into_dart(),
             self.title.into_into_dart().into_dart(),
             self.artist.into_into_dart().into_dart(),
             self.album.into_into_dart().into_dart(),
@@ -4403,6 +4410,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::playlists::UiLocalPlaylistSum
             self.cover_source.into_into_dart().into_dart(),
             self.cover_source_id.into_into_dart().into_dart(),
             self.cover_track_id.into_into_dart().into_dart(),
+            self.cover_id.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4657,6 +4665,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::playlists::UiPlaylistTrackInp
             self.source_id.into_into_dart().into_dart(),
             self.track_id.into_into_dart().into_dart(),
             self.relative_path.into_into_dart().into_dart(),
+            self.cover_id.into_into_dart().into_dart(),
             self.title.into_into_dart().into_dart(),
             self.artist.into_into_dart().into_dart(),
             self.album.into_into_dart().into_dart(),
@@ -5514,6 +5523,7 @@ impl SseEncode for crate::api::playlists::UiLocalPlaylistItem {
         <String>::sse_encode(self.source_id, serializer);
         <String>::sse_encode(self.track_id, serializer);
         <Option<String>>::sse_encode(self.relative_path, serializer);
+        <Option<String>>::sse_encode(self.cover_id, serializer);
         <String>::sse_encode(self.title, serializer);
         <String>::sse_encode(self.artist, serializer);
         <String>::sse_encode(self.album, serializer);
@@ -5533,6 +5543,7 @@ impl SseEncode for crate::api::playlists::UiLocalPlaylistSummary {
         <Option<String>>::sse_encode(self.cover_source, serializer);
         <Option<String>>::sse_encode(self.cover_source_id, serializer);
         <Option<String>>::sse_encode(self.cover_track_id, serializer);
+        <Option<String>>::sse_encode(self.cover_id, serializer);
     }
 }
 
@@ -5665,6 +5676,7 @@ impl SseEncode for crate::api::playlists::UiPlaylistTrackInput {
         <String>::sse_encode(self.source_id, serializer);
         <String>::sse_encode(self.track_id, serializer);
         <Option<String>>::sse_encode(self.relative_path, serializer);
+        <Option<String>>::sse_encode(self.cover_id, serializer);
         <String>::sse_encode(self.title, serializer);
         <String>::sse_encode(self.artist, serializer);
         <String>::sse_encode(self.album, serializer);

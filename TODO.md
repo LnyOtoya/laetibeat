@@ -587,7 +587,7 @@
 - 缓存占用只统计“清除所有缓存”会释放的内容；LX 源脚本、播放统计库和播放队列不计入缓存大小
 - `SourceType` 只有 `LocalFile` 和 `Opensubsonic`，LX 不在数据模型中；`source` 字段仍是字符串字面量，容易拼错
 - 移动端首页只挂载播放器主视图，`mobile_welcome_section.dart` / `mobile_daily_section.dart` / `mobile_home_constants.dart` 当前无引用
-- 本地歌单已实现：SQLite 持久化、CRUD、跨源条目快照、详情播放、移除与排序；本地歌单封面目前使用占位图标
+- 本地歌单已实现：SQLite 持久化、CRUD、跨源条目快照、详情播放、移除与排序；封面复用首曲封面（本地 `trackCoverProvider` / 远端 `remoteCoverProvider`），schema v2 为条目新增 `cover_id`
 - 媒体库首页已入口化；歌曲/专辑/艺术家/歌单页已统一本地/OpenSubsonic 并接入来源 chips 与 badge
 - OpenSubsonic 歌单已接入 get/create/update/delete：详情、改名、删除、按索引移歌、加歌；暂未做 comment/public 编辑 UI
 - 本地专辑/艺术家详情页已接入：专辑曲目按 `track_ids`、艺术家专辑按专辑艺术家/曲目关联聚合；跨源同名专辑/艺术家暂不自动合并

@@ -3520,8 +3520,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   UiLocalPlaylistItem dco_decode_ui_local_playlist_item(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return UiLocalPlaylistItem(
       id: dco_decode_i_64(arr[0]),
       position: dco_decode_i_64(arr[1]),
@@ -3529,10 +3529,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sourceId: dco_decode_String(arr[3]),
       trackId: dco_decode_String(arr[4]),
       relativePath: dco_decode_opt_String(arr[5]),
-      title: dco_decode_String(arr[6]),
-      artist: dco_decode_String(arr[7]),
-      album: dco_decode_String(arr[8]),
-      durationSeconds: dco_decode_i_64(arr[9]),
+      coverId: dco_decode_opt_String(arr[6]),
+      title: dco_decode_String(arr[7]),
+      artist: dco_decode_String(arr[8]),
+      album: dco_decode_String(arr[9]),
+      durationSeconds: dco_decode_i_64(arr[10]),
     );
   }
 
@@ -3540,8 +3541,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   UiLocalPlaylistSummary dco_decode_ui_local_playlist_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return UiLocalPlaylistSummary(
       id: dco_decode_i_64(arr[0]),
       name: dco_decode_String(arr[1]),
@@ -3552,6 +3553,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       coverSource: dco_decode_opt_String(arr[6]),
       coverSourceId: dco_decode_opt_String(arr[7]),
       coverTrackId: dco_decode_opt_String(arr[8]),
+      coverId: dco_decode_opt_String(arr[9]),
     );
   }
 
@@ -3717,17 +3719,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   UiPlaylistTrackInput dco_decode_ui_playlist_track_input(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return UiPlaylistTrackInput(
       source: dco_decode_String(arr[0]),
       sourceId: dco_decode_String(arr[1]),
       trackId: dco_decode_String(arr[2]),
       relativePath: dco_decode_opt_String(arr[3]),
-      title: dco_decode_String(arr[4]),
-      artist: dco_decode_String(arr[5]),
-      album: dco_decode_String(arr[6]),
-      durationSeconds: dco_decode_i_64(arr[7]),
+      coverId: dco_decode_opt_String(arr[4]),
+      title: dco_decode_String(arr[5]),
+      artist: dco_decode_String(arr[6]),
+      album: dco_decode_String(arr[7]),
+      durationSeconds: dco_decode_i_64(arr[8]),
     );
   }
 
@@ -4617,6 +4620,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_sourceId = sse_decode_String(deserializer);
     var var_trackId = sse_decode_String(deserializer);
     var var_relativePath = sse_decode_opt_String(deserializer);
+    var var_coverId = sse_decode_opt_String(deserializer);
     var var_title = sse_decode_String(deserializer);
     var var_artist = sse_decode_String(deserializer);
     var var_album = sse_decode_String(deserializer);
@@ -4628,6 +4632,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sourceId: var_sourceId,
       trackId: var_trackId,
       relativePath: var_relativePath,
+      coverId: var_coverId,
       title: var_title,
       artist: var_artist,
       album: var_album,
@@ -4649,6 +4654,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_coverSource = sse_decode_opt_String(deserializer);
     var var_coverSourceId = sse_decode_opt_String(deserializer);
     var var_coverTrackId = sse_decode_opt_String(deserializer);
+    var var_coverId = sse_decode_opt_String(deserializer);
     return UiLocalPlaylistSummary(
       id: var_id,
       name: var_name,
@@ -4659,6 +4665,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       coverSource: var_coverSource,
       coverSourceId: var_coverSourceId,
       coverTrackId: var_coverTrackId,
+      coverId: var_coverId,
     );
   }
 
@@ -4875,6 +4882,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_sourceId = sse_decode_String(deserializer);
     var var_trackId = sse_decode_String(deserializer);
     var var_relativePath = sse_decode_opt_String(deserializer);
+    var var_coverId = sse_decode_opt_String(deserializer);
     var var_title = sse_decode_String(deserializer);
     var var_artist = sse_decode_String(deserializer);
     var var_album = sse_decode_String(deserializer);
@@ -4884,6 +4892,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sourceId: var_sourceId,
       trackId: var_trackId,
       relativePath: var_relativePath,
+      coverId: var_coverId,
       title: var_title,
       artist: var_artist,
       album: var_album,
@@ -5810,6 +5819,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.sourceId, serializer);
     sse_encode_String(self.trackId, serializer);
     sse_encode_opt_String(self.relativePath, serializer);
+    sse_encode_opt_String(self.coverId, serializer);
     sse_encode_String(self.title, serializer);
     sse_encode_String(self.artist, serializer);
     sse_encode_String(self.album, serializer);
@@ -5831,6 +5841,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.coverSource, serializer);
     sse_encode_opt_String(self.coverSourceId, serializer);
     sse_encode_opt_String(self.coverTrackId, serializer);
+    sse_encode_opt_String(self.coverId, serializer);
   }
 
   @protected
@@ -5977,6 +5988,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.sourceId, serializer);
     sse_encode_String(self.trackId, serializer);
     sse_encode_opt_String(self.relativePath, serializer);
+    sse_encode_opt_String(self.coverId, serializer);
     sse_encode_String(self.title, serializer);
     sse_encode_String(self.artist, serializer);
     sse_encode_String(self.album, serializer);

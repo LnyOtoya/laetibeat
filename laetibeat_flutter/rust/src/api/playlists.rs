@@ -12,6 +12,7 @@ pub struct UiLocalPlaylistSummary {
     pub cover_source: Option<String>,
     pub cover_source_id: Option<String>,
     pub cover_track_id: Option<String>,
+    pub cover_id: Option<String>,
 }
 
 #[frb(non_opaque)]
@@ -22,6 +23,7 @@ pub struct UiLocalPlaylistItem {
     pub source_id: String,
     pub track_id: String,
     pub relative_path: Option<String>,
+    pub cover_id: Option<String>,
     pub title: String,
     pub artist: String,
     pub album: String,
@@ -40,6 +42,7 @@ pub struct UiPlaylistTrackInput {
     pub source_id: String,
     pub track_id: String,
     pub relative_path: Option<String>,
+    pub cover_id: Option<String>,
     pub title: String,
     pub artist: String,
     pub album: String,
@@ -101,6 +104,7 @@ fn map_summary(summary: core_playlists::LocalPlaylistSummary) -> UiLocalPlaylist
         cover_source: summary.cover_source,
         cover_source_id: summary.cover_source_id,
         cover_track_id: summary.cover_track_id,
+        cover_id: summary.cover_id,
     }
 }
 
@@ -112,6 +116,7 @@ fn map_item(item: core_playlists::LocalPlaylistItem) -> UiLocalPlaylistItem {
         source_id: item.source_id,
         track_id: item.track_id,
         relative_path: item.relative_path,
+        cover_id: item.cover_id,
         title: item.title,
         artist: item.artist,
         album: item.album,
@@ -132,6 +137,7 @@ fn map_input(input: UiPlaylistTrackInput) -> core_playlists::PlaylistTrackInput 
         source_id: input.source_id,
         track_id: input.track_id,
         relative_path: input.relative_path,
+        cover_id: input.cover_id,
         title: input.title,
         artist: input.artist,
         album: input.album,

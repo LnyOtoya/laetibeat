@@ -12,6 +12,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../widgets/mobile_large_subpage_app_bar.dart';
 import '../widgets/library_source_badge.dart';
+import 'playlist_cover.dart';
 import 'playlist_dialogs.dart';
 
 class LocalPlaylistDetailPage extends ConsumerWidget {
@@ -161,17 +162,12 @@ class LocalPlaylistDetailPage extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Container(
+                  SizedBox(
                     width: 88,
                     height: 88,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.secondaryContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      M3EIcons.queue_music,
-                      size: 38,
-                      color: theme.colorScheme.onSecondaryContainer,
+                    child: LocalPlaylistCover(
+                      playlist: detail.playlist,
+                      radius: 20,
                     ),
                   ),
                   const SizedBox(width: 16),

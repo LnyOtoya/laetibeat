@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{params, Connection, OptionalExtension};
 
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 
 const SCHEMA_V1: &str = r#"
 CREATE TABLE IF NOT EXISTS local_playlists (
@@ -46,6 +46,7 @@ pub struct LocalPlaylistSummary {
     pub cover_source: Option<String>,
     pub cover_source_id: Option<String>,
     pub cover_track_id: Option<String>,
+    pub cover_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,6 +57,7 @@ pub struct LocalPlaylistItem {
     pub source_id: String,
     pub track_id: String,
     pub relative_path: Option<String>,
+    pub cover_id: Option<String>,
     pub title: String,
     pub artist: String,
     pub album: String,
@@ -74,6 +76,7 @@ pub struct PlaylistTrackInput {
     pub source_id: String,
     pub track_id: String,
     pub relative_path: Option<String>,
+    pub cover_id: Option<String>,
     pub title: String,
     pub artist: String,
     pub album: String,
@@ -104,8 +107,17 @@ impl LocalPlaylistStore {
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(map_err)?;
-        if version < SCHEMA_VERSION {
+        if version < 1 {
             conn.execute_batch(SCHEMA_V1).map_err(map_err)?;
+            conn.pragma_update(None, "user_version", 1)
+                .map_err(map_err)?;
+        }
+        if version < 2 {
+            conn.execute(
+                "ALTER TABLE local_playlist_items ADD COLUMN cover_id TEXT",
+                [],
+            )
+            .map_err(map_err)?;
             conn.pragma_update(None, "user_version", SCHEMA_VERSION)
                 .map_err(map_err)?;
         }
@@ -147,7 +159,7 @@ impl LocalPlaylistStore {
             .conn
             .prepare(
                 "SELECT id, position, source, source_id, track_id, relative_path,
-                        title, artist, album, duration_seconds
+                        cover_id, title, artist, album, duration_seconds
                  FROM local_playlist_items
                  WHERE playlist_id = ?1
                  ORDER BY position, id",
@@ -162,10 +174,11 @@ impl LocalPlaylistStore {
                     source_id: row.get(3)?,
                     track_id: row.get(4)?,
                     relative_path: row.get(5)?,
-                    title: row.get(6)?,
-                    artist: row.get(7)?,
-                    album: row.get(8)?,
-                    duration_seconds: row.get(9)?,
+                    cover_id: row.get(6)?,
+                    title: row.get(7)?,
+                    artist: row.get(8)?,
+                    album: row.get(9)?,
+                    duration_seconds: row.get(10)?,
                 })
             })
             .map_err(map_err)?;
@@ -248,8 +261,9 @@ impl LocalPlaylistStore {
                 .execute(
                     "INSERT OR IGNORE INTO local_playlist_items(
                         playlist_id, position, source, source_id, track_id,
-                        relative_path, title, artist, album, duration_seconds, added_at
-                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                        relative_path, cover_id, title, artist, album,
+                        duration_seconds, added_at
+                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                     params![
                         playlist_id,
                         position,
@@ -257,6 +271,7 @@ impl LocalPlaylistStore {
                         track.source_id,
                         track.track_id,
                         track.relative_path,
+                        track.cover_id,
                         track.title,
                         track.artist,
                         track.album,
@@ -349,7 +364,7 @@ impl LocalPlaylistStore {
         let cover = self
             .conn
             .query_row(
-                "SELECT source, source_id, track_id
+                "SELECT source, source_id, track_id, cover_id
                  FROM local_playlist_items
                  WHERE playlist_id = ?1
                  ORDER BY position, id LIMIT 1",
@@ -359,6 +374,7 @@ impl LocalPlaylistStore {
                         row.get::<_, String>(0)?,
                         row.get::<_, String>(1)?,
                         row.get::<_, String>(2)?,
+                        row.get::<_, Option<String>>(3)?,
                     ))
                 },
             )
@@ -374,6 +390,7 @@ impl LocalPlaylistStore {
             cover_source: cover.as_ref().map(|item| item.0.clone()),
             cover_source_id: cover.as_ref().map(|item| item.1.clone()),
             cover_track_id: cover.as_ref().map(|item| item.2.clone()),
+            cover_id: cover.as_ref().and_then(|item| item.3.clone()),
         })
     }
 }
@@ -502,6 +519,7 @@ mod tests {
             source_id: String::new(),
             track_id: id.to_string(),
             relative_path: Some(format!("{id}.flac")),
+            cover_id: Some(format!("cover-{id}")),
             title: format!("Track {id}"),
             artist: "Artist".to_string(),
             album: "Album".to_string(),
@@ -542,6 +560,7 @@ mod tests {
         assert_eq!(detail.playlist.item_count, 2);
         assert_eq!(detail.playlist.duration_seconds, 360);
         assert_eq!(detail.playlist.cover_track_id.as_deref(), Some("a"));
+        assert_eq!(detail.playlist.cover_id.as_deref(), Some("cover-a"));
 
         let first = detail.items[0].id;
         let second = detail.items[1].id;

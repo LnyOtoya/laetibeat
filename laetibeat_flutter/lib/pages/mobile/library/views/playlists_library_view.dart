@@ -13,6 +13,7 @@ import '../../../../l10n/generated/app_localizations.dart';
 import '../../mobile_navigation.dart';
 import '../../routes.dart';
 import '../playlists/local_playlist_detail_page.dart';
+import '../playlists/playlist_cover.dart';
 import '../playlists/playlist_dialogs.dart';
 import '../playlists/remote_playlist_detail_page.dart';
 import '../widgets/library_layout_control_bar.dart';
@@ -442,17 +443,18 @@ class _PlaylistCoverForEntry extends StatelessWidget {
         radius: 12,
       );
     }
+    final local = entry.local;
+    if (local != null) {
+      return LocalPlaylistCover(playlist: local);
+    }
     final theme = M3ETheme.of(context);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: ColoredBox(
-        color: theme.colorScheme.secondaryContainer,
-        child: Center(
-          child: Icon(
-            M3EIcons.queue_music,
-            size: 28,
-            color: theme.colorScheme.onSecondaryContainer,
-          ),
+    return ColoredBox(
+      color: theme.colorScheme.secondaryContainer,
+      child: Center(
+        child: Icon(
+          M3EIcons.queue_music,
+          size: 28,
+          color: theme.colorScheme.onSecondaryContainer,
         ),
       ),
     );
