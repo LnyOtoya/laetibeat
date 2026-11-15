@@ -6,19 +6,15 @@ import 'persistence.dart';
 
 /// 歌曲来源名称。当前只有本地音乐和 Subsonic 有实际数据源。
 abstract final class SongSources {
+  static const String allSources = '全部来源';
   static const String local = '本地音乐';
   static const String subsonic = 'Subsonic';
   static const String jellyfin = 'Jellyfin';
   static const String emby = 'Emby音乐';
   static const String lx = '洛雪音源';
 
-  static const List<String> all = <String>[
-    local,
-    subsonic,
-    jellyfin,
-    emby,
-    lx,
-  ];
+  /// 当前真正可筛选的来源。未实现来源不放入设置，避免死选项。
+  static const List<String> all = <String>[allSources, local, subsonic];
 }
 
 const String kDefaultSongSourceKey = 'mobile.defaultSongSource';
@@ -30,7 +26,7 @@ class DefaultSongSourceNotifier extends Notifier<String> {
     final saved = ref
         .read(sharedPreferencesProvider)
         .getString(kDefaultSongSourceKey);
-    return SongSources.all.contains(saved) ? saved! : SongSources.local;
+    return SongSources.all.contains(saved) ? saved! : SongSources.allSources;
   }
 
   void setSource(String source) {

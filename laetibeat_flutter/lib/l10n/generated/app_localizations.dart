@@ -200,6 +200,60 @@ abstract class AppLocalizations {
   /// **'Podcasts'**
   String get libraryPodcasts;
 
+  /// No description provided for @libraryAllSongs.
+  ///
+  /// In en, this message translates to:
+  /// **'All songs'**
+  String get libraryAllSongs;
+
+  /// No description provided for @libraryBrowse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse'**
+  String get libraryBrowse;
+
+  /// No description provided for @librarySourceAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get librarySourceAll;
+
+  /// No description provided for @librarySourceLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Local'**
+  String get librarySourceLocal;
+
+  /// No description provided for @libraryNoSources.
+  ///
+  /// In en, this message translates to:
+  /// **'No music sources configured'**
+  String get libraryNoSources;
+
+  /// No description provided for @librarySongsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} songs'**
+  String librarySongsCount(int count);
+
+  /// No description provided for @libraryAlbumsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} albums'**
+  String libraryAlbumsCount(int count);
+
+  /// No description provided for @libraryArtistsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} artists'**
+  String libraryArtistsCount(int count);
+
+  /// No description provided for @libraryPlaylistsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} playlists'**
+  String libraryPlaylistsCount(int count);
+
   /// No description provided for @appearanceTitle.
   ///
   /// In en, this message translates to:
@@ -221,7 +275,7 @@ abstract class AppLocalizations {
   /// No description provided for @songSourceSupporting.
   ///
   /// In en, this message translates to:
-  /// **'Choose the default source shown in song lists'**
+  /// **'Choose the default source filter for song lists'**
   String get songSourceSupporting;
 
   /// No description provided for @songSort.

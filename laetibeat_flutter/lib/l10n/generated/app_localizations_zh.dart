@@ -60,6 +60,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get libraryPodcasts => '播客';
 
   @override
+  String get libraryAllSongs => '全部歌曲';
+
+  @override
+  String get libraryBrowse => '浏览';
+
+  @override
+  String get librarySourceAll => '全部';
+
+  @override
+  String get librarySourceLocal => '本地';
+
+  @override
+  String get libraryNoSources => '尚未配置音乐源';
+
+  @override
+  String librarySongsCount(int count) {
+    return '$count 首';
+  }
+
+  @override
+  String libraryAlbumsCount(int count) {
+    return '$count 张';
+  }
+
+  @override
+  String libraryArtistsCount(int count) {
+    return '$count 位';
+  }
+
+  @override
+  String libraryPlaylistsCount(int count) {
+    return '$count 个';
+  }
+
+  @override
   String get appearanceTitle => '外观';
 
   @override
@@ -69,7 +104,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get songSource => '歌曲来源';
 
   @override
-  String get songSourceSupporting => '选择在歌曲列表默认显示的歌曲来源';
+  String get songSourceSupporting => '选择歌曲列表默认使用的来源筛选';
 
   @override
   String get songSort => '歌曲排序';

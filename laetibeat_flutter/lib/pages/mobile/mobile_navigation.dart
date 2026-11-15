@@ -17,7 +17,10 @@ final ValueNotifier<String?> mobileCurrentRouteName = ValueNotifier<String?>(
 class MobileNavigatorObserver extends NavigatorObserver {
   void _setRoute(Route<dynamic>? route) {
     final String? name = route?.settings.name;
-    mobileCurrentRouteName.value = name ?? MobileRoutes.home;
+    // M3ECard 的 container transform 会 push 一个无 route name 的页面；
+    // 此时保留上一个命名路由，避免底部导航误切回首页。
+    if (name == null) return;
+    mobileCurrentRouteName.value = name;
   }
 
   // Dialog / ModalBottomSheet / PopupMenu 等覆盖层不应改变当前页面。

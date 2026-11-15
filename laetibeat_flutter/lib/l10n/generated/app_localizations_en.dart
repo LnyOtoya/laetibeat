@@ -60,6 +60,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get libraryPodcasts => 'Podcasts';
 
   @override
+  String get libraryAllSongs => 'All songs';
+
+  @override
+  String get libraryBrowse => 'Browse';
+
+  @override
+  String get librarySourceAll => 'All';
+
+  @override
+  String get librarySourceLocal => 'Local';
+
+  @override
+  String get libraryNoSources => 'No music sources configured';
+
+  @override
+  String librarySongsCount(int count) {
+    return '$count songs';
+  }
+
+  @override
+  String libraryAlbumsCount(int count) {
+    return '$count albums';
+  }
+
+  @override
+  String libraryArtistsCount(int count) {
+    return '$count artists';
+  }
+
+  @override
+  String libraryPlaylistsCount(int count) {
+    return '$count playlists';
+  }
+
+  @override
   String get appearanceTitle => 'Appearance';
 
   @override
@@ -70,7 +105,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get songSourceSupporting =>
-      'Choose the default source shown in song lists';
+      'Choose the default source filter for song lists';
 
   @override
   String get songSort => 'Song sorting';

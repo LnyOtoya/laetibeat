@@ -17,10 +17,47 @@
   "libraryArtists": "艺术家",
   "libraryAlbums": "专辑",
   "libraryPodcasts": "播客",
+  "libraryAllSongs": "全部歌曲",
+  "libraryBrowse": "浏览",
+  "librarySourceAll": "全部",
+  "librarySourceLocal": "本地",
+  "libraryNoSources": "尚未配置音乐源",
+  "librarySongsCount": "{count} 首",
+  "@librarySongsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryAlbumsCount": "{count} 张",
+  "@libraryAlbumsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryArtistsCount": "{count} 位",
+  "@libraryArtistsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryPlaylistsCount": "{count} 个",
+  "@libraryPlaylistsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "appearanceTitle": "外观",
   "displayGroup": "显示",
   "songSource": "歌曲来源",
-  "songSourceSupporting": "选择在歌曲列表默认显示的歌曲来源",
+  "songSourceSupporting": "选择歌曲列表默认使用的来源筛选",
   "songSort": "歌曲排序",
   "songSortSupporting": "选择默认的歌曲排序方式",
   "language": "语言",

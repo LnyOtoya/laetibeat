@@ -9,6 +9,7 @@ import '../../shared/layout/app_bottom_inset.dart';
 import '../../widgets/player/player_provider.dart';
 import 'home/mobile_home_page.dart';
 import 'library/mobile_library_page.dart';
+import 'library/mobile_library_subpages.dart';
 import 'mobile_navigation.dart';
 import 'player/mini_player.dart';
 import 'routes.dart';
@@ -62,7 +63,6 @@ class MobileShell extends ConsumerWidget {
       MobileRoutes.libraryPlaylists,
       MobileRoutes.libraryArtists,
       MobileRoutes.libraryAlbums,
-      MobileRoutes.libraryPodcasts,
     };
     return visible.contains(route);
   }
@@ -164,20 +164,12 @@ class MobileShell extends ConsumerWidget {
 Route<dynamic>? mobileOnGenerateRoute(RouteSettings settings) {
   final Widget page = switch (settings.name) {
     MobileRoutes.home => const MobileHomePage(),
-    MobileRoutes.library || MobileRoutes.librarySongs =>
-      const MobileLibraryPage(section: LibrarySection.songs),
-    MobileRoutes.libraryPlaylists => const MobileLibraryPage(
-      section: LibrarySection.playlists,
-    ),
-    MobileRoutes.libraryArtists => const MobileLibraryPage(
-      section: LibrarySection.artists,
-    ),
-    MobileRoutes.libraryAlbums => const MobileLibraryPage(
-      section: LibrarySection.albums,
-    ),
-    MobileRoutes.libraryPodcasts => const MobileLibraryPage(
-      section: LibrarySection.podcasts,
-    ),
+    MobileRoutes.library => const MobileLibraryPage(),
+    MobileRoutes.librarySongs => const MobileLibrarySongsPage(),
+    MobileRoutes.libraryPlaylists => const MobileLibraryPlaylistsPage(),
+    MobileRoutes.libraryArtists => const MobileLibraryArtistsPage(),
+    MobileRoutes.libraryAlbums => const MobileLibraryAlbumsPage(),
+    MobileRoutes.libraryPodcasts => const MobileLibraryPage(),
     MobileRoutes.search => const MobileSearchPage(),
     MobileRoutes.stats => const MobileStatsPage(),
     MobileRoutes.settings => const MobileSettingsPage(),

@@ -17,10 +17,47 @@
   "libraryArtists": "Artists",
   "libraryAlbums": "Albums",
   "libraryPodcasts": "Podcasts",
+  "libraryAllSongs": "All songs",
+  "libraryBrowse": "Browse",
+  "librarySourceAll": "All",
+  "librarySourceLocal": "Local",
+  "libraryNoSources": "No music sources configured",
+  "librarySongsCount": "{count} songs",
+  "@librarySongsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryAlbumsCount": "{count} albums",
+  "@libraryAlbumsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryArtistsCount": "{count} artists",
+  "@libraryArtistsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryPlaylistsCount": "{count} playlists",
+  "@libraryPlaylistsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "appearanceTitle": "Appearance",
   "displayGroup": "Display",
   "songSource": "Song source",
-  "songSourceSupporting": "Choose the default source shown in song lists",
+  "songSourceSupporting": "Choose the default source filter for song lists",
   "songSort": "Song sorting",
   "songSortSupporting": "Choose the default song sorting method",
   "language": "Language",

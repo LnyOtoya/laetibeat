@@ -22,6 +22,7 @@ class SongsLibraryView extends ConsumerStatefulWidget {
 }
 
 class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
+  static const String _allSource = '__all__';
   static const String _localSource = SongSources.local;
   static const String _subsonicSource = SongSources.subsonic;
 
@@ -34,7 +35,11 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
   @override
   void initState() {
     super.initState();
-    _selectedSource = ref.read(defaultSongSourceProvider);
+    _selectedSource = switch (ref.read(defaultSongSourceProvider)) {
+      SongSources.local => _localSource,
+      SongSources.subsonic => _subsonicSource,
+      _ => _allSource,
+    };
     _toolbarVisibilityController = M3EToolbarVisibilityController();
     _toolbarScrollBehavior = M3EToolbarScrollBehavior.exitAlways(
       exitDirection: M3EToolbarExitDirection.top,
@@ -72,33 +77,45 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
   }
 
   List<rust.UiTrack> _currentTracks() {
-    if (_selectedSource == _localSource) {
-      final tracks =
-          (ref.read(musicLibraryProvider).value?.tracks ??
-                  const <rust.UiTrack>[])
-              .where((track) => !_dismissedTrackIds.contains(track.id))
-              .toList(growable: false);
-      return sortTracksByMode(tracks, ref.read(defaultSongSortProvider));
+    final tracks = <rust.UiTrack>[];
+    final includeLocal =
+        _selectedSource == _allSource || _selectedSource == _localSource;
+    final includeRemote =
+        _selectedSource == _allSource || _selectedSource == _subsonicSource;
+
+    if (includeLocal) {
+      tracks.addAll(
+        (ref.read(musicLibraryProvider).value?.tracks ?? const <rust.UiTrack>[])
+            .where((track) => !_dismissedTrackIds.contains(track.id)),
+      );
     }
-    if (_selectedSource == _subsonicSource) {
+
+    if (includeRemote) {
       final servers =
           ref.read(subsonicServersProvider).value ??
           const <SubsonicServerConfig>[];
-      if (servers.isEmpty) return const <rust.UiTrack>[];
-      final server = servers.first;
-      final remote =
-          ref.read(remoteAllTracksProvider(server.id)).value ?? const [];
-      final tracks = remote
-          .map((track) => remoteTrackToUiTrack(track, server.id))
-          .where((track) => !_dismissedTrackIds.contains(track.id))
-          .toList(growable: false);
-      return sortTracksByMode(tracks, ref.read(defaultSongSortProvider));
+      if (servers.isNotEmpty) {
+        final server = servers.first;
+        final remote =
+            ref.read(remoteAllTracksProvider(server.id)).value ?? const [];
+        tracks.addAll(
+          remote
+              .map((track) => remoteTrackToUiTrack(track, server.id))
+              .where((track) => !_dismissedTrackIds.contains(track.id)),
+        );
+      }
     }
-    return const <rust.UiTrack>[];
+
+    return sortTracksByMode(tracks, ref.read(defaultSongSortProvider));
   }
 
   String get _playbackSourceName {
-    if (_selectedSource != _subsonicSource) return _selectedSource;
+    if (_selectedSource == _allSource) {
+      return AppLocalizations.of(context).libraryAllSongs;
+    }
+    if (_selectedSource == _localSource) {
+      return AppLocalizations.of(context).librarySourceLocal;
+    }
     final servers =
         ref.read(subsonicServersProvider).value ??
         const <SubsonicServerConfig>[];
@@ -154,18 +171,6 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<String>(defaultSongSourceProvider, (
-      String? previous,
-      String next,
-    ) {
-      if (next == _selectedSource) return;
-      setState(() {
-        _selectedSource = next;
-        _selectedTrackIds.clear();
-        _dismissedTrackIds.clear();
-      });
-    });
-
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
     ref.watch(defaultSongSortProvider);
@@ -183,6 +188,40 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: M3EChipGroup(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      M3EChip(
+                        type: M3EChipType.filter,
+                        label: l10n.librarySourceAll,
+                        selected: _selectedSource == _allSource,
+                        onPressed: () => _selectSource(_allSource),
+                      ),
+                      const SizedBox(width: 8),
+                      M3EChip(
+                        type: M3EChipType.filter,
+                        label: l10n.librarySourceLocal,
+                        selected: _selectedSource == _localSource,
+                        onPressed: () => _selectSource(_localSource),
+                      ),
+                      if (server != null) ...[
+                        const SizedBox(width: 8),
+                        M3EChip(
+                          type: M3EChipType.filter,
+                          label: server.name,
+                          selected: _selectedSource == _subsonicSource,
+                          onPressed: () => _selectSource(_subsonicSource),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(
                 children: [
                   M3EButton.icon(
@@ -194,48 +233,13 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
                     onPressed: _playRandom,
                   ),
                   const Spacer(),
-                  M3ESplitButton<String>(
-                    items: const [],
-                    label: l10n.sortLabel,
-                    leadingIcon: M3EIcons.sort,
+                  M3EButton.icon(
+                    icon: const Icon(M3EIcons.sort),
+                    label: Text(l10n.sortLabel),
                     style: M3EButtonStyle.tonal,
                     size: M3EButtonSize.sm,
                     shape: M3EButtonShape.round,
-                    trailingTooltip: '${l10n.currentSource}$_selectedSource',
-                    selectedValue: _selectedSource,
-                    decoration: const M3ESplitButtonDecoration(
-                      menuStyle: M3ESplitButtonMenuStyle.popup,
-                    ),
                     onPressed: _showSortSheet,
-                    m3eMenuBuilder: (BuildContext context) {
-                      return [
-                        M3EMenuSelectable(
-                          label: _localSource,
-                          value: _localSource,
-                          selected: _selectedSource == _localSource,
-                        ),
-                        M3EMenuSelectable(
-                          label: _subsonicSource,
-                          value: _subsonicSource,
-                          selected: _selectedSource == _subsonicSource,
-                          enabled: server != null,
-                          supportingText: server?.baseUrl ?? l10n.notConfigured,
-                        ),
-                        for (final source in const [
-                          SongSources.jellyfin,
-                          SongSources.emby,
-                          SongSources.lx,
-                        ])
-                          M3EMenuSelectable(
-                            label: source,
-                            value: source,
-                            selected: _selectedSource == source,
-                            enabled: false,
-                            supportingText: l10n.notAvailable,
-                          ),
-                      ];
-                    },
-                    onSelected: _selectSource,
                   ),
                 ],
               ),
@@ -245,7 +249,7 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
         ),
         if (selectionActive)
           Positioned(
-            top: 56,
+            top: 96,
             left: 0,
             right: 0,
             child: Align(
@@ -381,59 +385,80 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
     MusicLibraryState? localState,
     SubsonicServerConfig? server,
   ) {
-    if (_selectedSource == _localSource) {
-      final tracks = (localState?.tracks ?? const <rust.UiTrack>[])
-          .where((track) => !_dismissedTrackIds.contains(track.id))
-          .toList(growable: false);
-      return _buildTrackList(
-        theme,
-        tracks,
-        AppLocalizations.of(context).noSongs,
-      );
+    final l10n = AppLocalizations.of(context);
+    final includeLocal =
+        _selectedSource == _allSource || _selectedSource == _localSource;
+    final includeRemote =
+        _selectedSource == _allSource || _selectedSource == _subsonicSource;
+
+    final localTracks = includeLocal
+        ? (localState?.tracks ?? const <rust.UiTrack>[])
+              .where((track) => !_dismissedTrackIds.contains(track.id))
+              .toList(growable: false)
+        : const <rust.UiTrack>[];
+
+    if (!includeRemote) {
+      return _buildTrackList(theme, localTracks, l10n.noSongs);
     }
 
-    if (_selectedSource == _subsonicSource) {
-      if (server == null) {
-        return Center(
-          child: Text(AppLocalizations.of(context).configureSubsonicFirst),
-        );
+    if (server == null) {
+      if (includeLocal) {
+        return _buildTrackList(theme, localTracks, l10n.noSongs);
       }
+      return Center(child: Text(l10n.configureSubsonicFirst));
+    }
 
-      final remote = ref.watch(remoteAllTracksProvider(server.id));
-      return remote.when(
-        loading: () => Center(
+    final remote = ref.watch(remoteAllTracksProvider(server.id));
+    return remote.when(
+      loading: () {
+        if (localTracks.isNotEmpty) {
+          return Column(
+            children: [
+              M3EProgressIndicator.linear(
+                value: null,
+                linearSize: M3EProgressIndicatorSize.s,
+                strokeWidth: 4,
+                trackStrokeWidth: 4,
+              ),
+              Expanded(
+                child: _buildTrackList(theme, localTracks, l10n.noSongs),
+              ),
+            ],
+          );
+        }
+        return Center(
           child: M3ELoadingIndicator(
             color: theme.colorScheme.primary,
             containerColor: theme.colorScheme.surfaceContainerHighest,
           ),
-        ),
-        error: (Object error, StackTrace stackTrace) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              '${AppLocalizations.of(context).loadRemoteSongsFailed}\n$error',
-              textAlign: TextAlign.center,
-              style: theme.typeScale.bodyMedium.copyWith(
-                color: theme.colorScheme.error,
-              ),
+        );
+      },
+      error: (Object error, StackTrace stackTrace) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            '${l10n.loadRemoteSongsFailed}\n$error',
+            textAlign: TextAlign.center,
+            style: theme.typeScale.bodyMedium.copyWith(
+              color: theme.colorScheme.error,
             ),
           ),
         ),
-        data: (remoteTracks) {
-          final tracks = remoteTracks
-              .map((track) => remoteTrackToUiTrack(track, server.id))
-              .where((track) => !_dismissedTrackIds.contains(track.id))
-              .toList(growable: false);
-          return _buildTrackList(
-            theme,
-            tracks,
-            AppLocalizations.of(context).noRemoteSongsScan,
-          );
-        },
-      );
-    }
-
-    return Center(child: Text(AppLocalizations.of(context).sourceUnavailable));
+      ),
+      data: (remoteTracks) {
+        final remoteUi = remoteTracks
+            .map((track) => remoteTrackToUiTrack(track, server.id))
+            .where((track) => !_dismissedTrackIds.contains(track.id));
+        final tracks = <rust.UiTrack>[...localTracks, ...remoteUi];
+        return _buildTrackList(
+          theme,
+          tracks,
+          _selectedSource == _subsonicSource
+              ? l10n.noRemoteSongsScan
+              : l10n.noSongs,
+        );
+      },
+    );
   }
 
   Widget _buildTrackList(
@@ -484,7 +509,24 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
                   headline: track.title,
                   supportingText: track.artist,
                   leading: _TrackCover(track: track),
-                  trailingText: track.duration,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _SourcePill(
+                        label: track.source == 'opensubsonic'
+                            ? 'Subsonic'
+                            : AppLocalizations.of(context).librarySourceLocal,
+                        remote: track.source == 'opensubsonic',
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        track.duration,
+                        style: theme.typeScale.labelMedium.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                   swipe: M3EListItemSwipe(
                     mode: M3EListSwipeMode.dismiss,
                     edge: M3EListSwipeEdge.end,
@@ -509,6 +551,37 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _SourcePill extends StatelessWidget {
+  const _SourcePill({required this.label, required this.remote});
+
+  final String label;
+  final bool remote;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    final background = remote
+        ? scheme.tertiaryContainer
+        : scheme.secondaryContainer;
+    final foreground = remote
+        ? scheme.onTertiaryContainer
+        : scheme.onSecondaryContainer;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Text(
+        label,
+        style: theme.typeScale.labelSmall.copyWith(color: foreground),
       ),
     );
   }
