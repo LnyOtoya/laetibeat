@@ -103,9 +103,10 @@ class MobileContentSettingsPage extends ConsumerWidget {
             ),
             if (library?.isLoading == true) ...[
               const SizedBox(height: 12),
-              _LibraryStatusCard(
-                icon: M3EIcons.sync,
-                text: l10n.syncScanning,
+              _LibraryScanCard(
+                state: library!,
+                onCancel: () =>
+                    ref.read(musicLibraryProvider.notifier).cancelScan(),
               ),
             ] else if (library?.error != null) ...[
               const SizedBox(height: 12),
@@ -369,6 +370,91 @@ String? _safTreeId(String uri) {
   final index = segments.indexOf('tree');
   if (index < 0 || index + 1 >= segments.length) return null;
   return Uri.decodeComponent(segments[index + 1]);
+}
+
+class _LibraryScanCard extends StatelessWidget {
+  const _LibraryScanCard({
+    required this.state,
+    required this.onCancel,
+  });
+
+  final MusicLibraryState state;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
+    final total = state.scanTotal;
+    final progress = total != null && total > 0
+        ? (state.scanProcessed / total).clamp(0.0, 1.0)
+        : null;
+    final countText = total == null
+        ? '${state.scanProcessed} / ?'
+        : '${state.scanProcessed} / $total';
+
+    return M3ECard(
+      variant: M3ECardVariant.filled,
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(20),
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 14),
+      expanded: true,
+      elevation: 0,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(M3EIcons.sync, color: scheme.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  l10n.syncScanning,
+                  style: theme.typeScale.titleSmall,
+                ),
+              ),
+              M3EButton(
+                style: M3EButtonStyle.text,
+                size: M3EButtonSize.sm,
+                label: Text(l10n.lyricsSearchCancel),
+                onPressed: onCancel,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          M3EProgressIndicator.linear(
+            value: progress,
+            linearSize: M3EProgressIndicatorSize.s,
+            strokeWidth: 6,
+            trackStrokeWidth: 6,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  state.scanCurrentName ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.typeScale.bodySmall.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                countText,
+                style: theme.typeScale.labelSmall.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _LibraryStatusCard extends StatelessWidget {

@@ -28,6 +28,11 @@ class MusicLibraryState {
   /// 最近一次扫描的统计(复用/解析/移除/耗时)
   final LibraryScanStats? scanStats;
 
+  /// 当前扫描进度：已处理数量 / 总数（目录遍历阶段总数未知）。
+  final int scanProcessed;
+  final int? scanTotal;
+  final String? scanCurrentName;
+
   const MusicLibraryState({
     this.directory,
     this.directoryName,
@@ -38,6 +43,9 @@ class MusicLibraryState {
     this.error,
     this.hasScanned = false,
     this.scanStats,
+    this.scanProcessed = 0,
+    this.scanTotal,
+    this.scanCurrentName,
   });
 
   bool get isSaf => directory?.startsWith('content://') ?? false;
@@ -55,6 +63,9 @@ class MusicLibraryState {
     Object? error = _unset,
     bool? hasScanned,
     Object? scanStats = _unset,
+    int? scanProcessed,
+    Object? scanTotal = _unset,
+    Object? scanCurrentName = _unset,
   }) {
     return MusicLibraryState(
       directory: identical(directory, _unset)
@@ -72,11 +83,41 @@ class MusicLibraryState {
       scanStats: identical(scanStats, _unset)
           ? this.scanStats
           : scanStats as LibraryScanStats?,
+      scanProcessed: scanProcessed ?? this.scanProcessed,
+      scanTotal: identical(scanTotal, _unset)
+          ? this.scanTotal
+          : scanTotal as int?,
+      scanCurrentName: identical(scanCurrentName, _unset)
+          ? this.scanCurrentName
+          : scanCurrentName as String?,
     );
   }
 }
 
 class MusicLibraryNotifier extends AsyncNotifier<MusicLibraryState> {
+  int _scanGeneration = 0;
+  bool _scanCancelRequested = false;
+
+  bool _isScanCancelled(int generation) =>
+      _scanCancelRequested || generation != _scanGeneration;
+
+  void cancelScan() {
+    _scanCancelRequested = true;
+    _scanGeneration += 1;
+    final current = state.value;
+    if (current == null || !current.isLoading) return;
+    state = AsyncValue.data(
+      current.copyWith(
+        isLoading: false,
+        hasScanned: current.tracks.isNotEmpty,
+        scanProcessed: 0,
+        scanTotal: null,
+        scanCurrentName: null,
+        error: null,
+      ),
+    );
+  }
+
   @override
   Future<MusicLibraryState> build() async {
     final prefs = ref.read(sharedPreferencesProvider);
@@ -165,20 +206,30 @@ class MusicLibraryNotifier extends AsyncNotifier<MusicLibraryState> {
       return;
     }
 
+    final generation = ++_scanGeneration;
+    _scanCancelRequested = false;
     state = AsyncValue.data(
-      current!.copyWith(isLoading: true, error: null, hasScanned: true),
+      current!.copyWith(
+        isLoading: true,
+        error: null,
+        hasScanned: true,
+        scanProcessed: 0,
+        scanTotal: null,
+        scanCurrentName: null,
+      ),
     );
 
     if (current.isSaf) {
-      await _rescanSaf(current, dir);
+      await _rescanSaf(current, dir, generation);
     } else {
-      await _rescanDesktop(current, dir);
+      await _rescanDesktop(current, dir, generation);
     }
   }
 
   Future<void> _rescanDesktop(
     MusicLibraryState current,
     String dir,
+    int generation,
   ) async {
     debugPrint('开始扫描本地音乐目录: $dir');
     try {
@@ -187,6 +238,7 @@ class MusicLibraryNotifier extends AsyncNotifier<MusicLibraryState> {
         dirPath: dir,
         knownTracks: current.tracks,
       );
+      if (_isScanCancelled(generation)) return;
       final library = result.library_;
       debugPrint(
         '本地音乐扫描完成: tracks=${library.tracks.length} '
@@ -212,6 +264,7 @@ class MusicLibraryNotifier extends AsyncNotifier<MusicLibraryState> {
       state = AsyncValue.data(next);
       await _saveSnapshot(dir, next, stats);
     } catch (e, stack) {
+      if (_isScanCancelled(generation)) return;
       debugPrint('本地音乐扫描失败: $e\n$stack');
       state = AsyncValue.data(
         state.value!.copyWith(
@@ -222,7 +275,11 @@ class MusicLibraryNotifier extends AsyncNotifier<MusicLibraryState> {
     }
   }
 
-  Future<void> _rescanSaf(MusicLibraryState current, String treeUri) async {
+  Future<void> _rescanSaf(
+    MusicLibraryState current,
+    String treeUri,
+    int generation,
+  ) async {
     debugPrint('开始扫描 SAF 音乐库: $treeUri');
     final prefs = ref.read(sharedPreferencesProvider);
     final allowReuse =
@@ -232,55 +289,83 @@ class MusicLibraryNotifier extends AsyncNotifier<MusicLibraryState> {
     final knownById = <String, rust.UiTrack>{
       for (final track in current.tracks) track.id: track,
     };
-    final seen = <String>{};
-    final tracks = <rust.UiTrack>[];
-    var totalFiles = 0;
-    var parsedFiles = 0;
-    var reusedFiles = 0;
-    var failedFiles = 0;
+    final entries = <SafWalkEntry>[];
+    var lastWalkUpdate = DateTime.fromMillisecondsSinceEpoch(0);
 
     try {
+      // 先遍历目录，拿到总数后再并发解析，进度条才能显示确定比例。
       await for (final entry in saf.walk(treeUri)) {
+        if (_isScanCancelled(generation)) return;
         final file = entry.file;
-        if (file.isDir) continue;
-        if (!_isAudioFile(file)) continue;
-
-        totalFiles += 1;
-        seen.add(file.uri);
-
-        final cached = knownById[file.uri];
-        final unchanged =
-            allowReuse &&
-            cached?.modifiedMs?.toInt() == file.lastModified &&
-            cached?.fileSize?.toInt() == file.length;
-        if (unchanged) {
-          tracks.add(cached!);
-          reusedFiles += 1;
-          continue;
-        }
-
-        try {
-          final track = await saf.withFileDescriptor(
-            file.uri,
-            'r',
-            (descriptor) => rust.parseSafTrack(
-              fd: descriptor.fd,
-              documentUri: file.uri,
-              relativePath: entry.relativePath,
-              displayName: file.name,
-              modifiedMs: BigInt.from(file.lastModified),
-              fileSize: BigInt.from(file.length),
-            ),
+        if (file.isDir || !_isAudioFile(file)) continue;
+        entries.add(entry);
+        final now = DateTime.now();
+        if (now.difference(lastWalkUpdate) >=
+            const Duration(milliseconds: 200)) {
+          lastWalkUpdate = now;
+          _setScanProgress(
+            generation: generation,
+            processed: entries.length,
+            total: null,
+            currentName: file.name,
           );
-          tracks.add(track);
-          parsedFiles += 1;
-        } catch (e) {
-          failedFiles += 1;
-          debugPrint('解析 SAF 音频失败: ${file.name} $e');
+        }
+      }
+      if (_isScanCancelled(generation)) return;
+
+      final totalFiles = entries.length;
+      final seen = entries.map((entry) => entry.file.uri).toSet();
+      final tracks = <rust.UiTrack>[];
+      var processed = 0;
+      var parsedFiles = 0;
+      var reusedFiles = 0;
+      var failedFiles = 0;
+      var lastParseUpdate = DateTime.fromMillisecondsSinceEpoch(0);
+      const batchSize = 6;
+
+      for (var offset = 0; offset < entries.length; offset += batchSize) {
+        if (_isScanCancelled(generation)) return;
+        final end = offset + batchSize < entries.length
+            ? offset + batchSize
+            : entries.length;
+        final batch = entries.sublist(offset, end);
+        final results = await Future.wait(
+          batch.map(
+            (entry) => _parseSafEntry(
+              saf,
+              entry,
+              knownById,
+              allowReuse,
+            ),
+          ),
+        );
+        if (_isScanCancelled(generation)) return;
+
+        for (final result in results) {
+          if (result.track != null) tracks.add(result.track!);
+          if (result.parsed) parsedFiles += 1;
+          if (result.reused) reusedFiles += 1;
+          if (result.failed) failedFiles += 1;
+        }
+        processed += batch.length;
+        final now = DateTime.now();
+        if (now.difference(lastParseUpdate) >=
+                const Duration(milliseconds: 100) ||
+            processed == totalFiles) {
+          lastParseUpdate = now;
+          _setScanProgress(
+            generation: generation,
+            processed: processed,
+            total: totalFiles,
+            currentName: batch.last.file.name,
+          );
         }
       }
 
+      if (_isScanCancelled(generation)) return;
       final library = await rust.aggregateLocalTracks(tracks: tracks);
+      if (_isScanCancelled(generation)) return;
+
       final removedFiles = knownById.keys.where((id) => !seen.contains(id)).length;
       final stats = LibraryScanStats(
         totalFiles: totalFiles,
@@ -300,6 +385,9 @@ class MusicLibraryNotifier extends AsyncNotifier<MusicLibraryState> {
         isLoading: false,
         error: error,
         scanStats: stats,
+        scanProcessed: totalFiles,
+        scanTotal: totalFiles,
+        scanCurrentName: null,
       );
       state = AsyncValue.data(next);
       debugPrint(
@@ -309,6 +397,7 @@ class MusicLibraryNotifier extends AsyncNotifier<MusicLibraryState> {
       await prefs.setInt(kLocalScanVersionKey, kLocalScanVersion);
       await _saveSnapshot(treeUri, next, stats);
     } catch (e, stack) {
+      if (_isScanCancelled(generation)) return;
       debugPrint('SAF 音乐库扫描失败: $e\n$stack');
       state = AsyncValue.data(
         state.value!.copyWith(
@@ -316,6 +405,66 @@ class MusicLibraryNotifier extends AsyncNotifier<MusicLibraryState> {
           error: e.toString(),
         ),
       );
+    }
+  }
+
+  void _setScanProgress({
+    required int generation,
+    required int processed,
+    required int? total,
+    required String? currentName,
+  }) {
+    if (_isScanCancelled(generation)) return;
+    final current = state.value;
+    if (current == null || !current.isLoading) return;
+    state = AsyncValue.data(
+      current.copyWith(
+        scanProcessed: processed,
+        scanTotal: total,
+        scanCurrentName: currentName,
+      ),
+    );
+  }
+
+  Future<_SafParseResult> _parseSafEntry(
+    Saf saf,
+    SafWalkEntry entry,
+    Map<String, rust.UiTrack> knownById,
+    bool allowReuse,
+  ) async {
+    final file = entry.file;
+    final cached = knownById[file.uri];
+    if (allowReuse &&
+        cached?.modifiedMs?.toInt() == file.lastModified &&
+        cached?.fileSize?.toInt() == file.length) {
+      return _SafParseResult(
+        documentUri: file.uri,
+        track: cached,
+        reused: true,
+      );
+    }
+
+    try {
+      final track = await saf.withFileDescriptor(
+        file.uri,
+        'r',
+        (descriptor) => rust.parseSafTrack(
+          fd: descriptor.fd,
+          documentUri: file.uri,
+          relativePath: entry.relativePath,
+          displayName: file.name,
+          modifiedMs: BigInt.from(file.lastModified),
+          fileSize: BigInt.from(file.length),
+        ),
+      );
+      return _SafParseResult(
+        documentUri: file.uri,
+        track: track,
+        parsed: true,
+      );
+    } catch (e) {
+      debugPrint('解析 SAF 音频失败: ${file.name} $e');
+      return _SafParseResult(documentUri: file.uri, failed: true);
     }
   }
 
@@ -363,6 +512,22 @@ String? _fallbackDirectoryName(String? directory) {
   }
   // 桌面端保留完整路径展示，和改造前一致。
   return directory;
+}
+
+class _SafParseResult {
+  const _SafParseResult({
+    required this.documentUri,
+    this.track,
+    this.parsed = false,
+    this.reused = false,
+    this.failed = false,
+  });
+
+  final String documentUri;
+  final rust.UiTrack? track;
+  final bool parsed;
+  final bool reused;
+  final bool failed;
 }
 
 //当前本地音乐库

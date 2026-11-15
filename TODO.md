@@ -536,7 +536,7 @@
 - audio_service 只在 Android 初始化；iOS 目前没有后台媒体会话接入
 - media_kit 在 Android 上出现过原生 SIGSEGV；Android 已改用 just_audio，桌面风险另论
 - Android 本地音乐库已改为单 SAF tree：`saf.walk` 发现文件、`withFileDescriptor` 把原始 fd 交给 Rust；Rust 用 `dup(fd)` 构造 File 后交给 `lofty::read_from`，避免经 `/proc/self/fd` 重新打开时被 scoped storage 拒绝
-- SAF 同目录 `.lrc`/`.txt` 外挂歌词与 `cover.jpg`/`folder.jpg` 等文件夹封面已接入（真机验证内嵌封面/歌词读取正常）；扫描暂无进度/取消/并发控制
+- SAF 同目录 `.lrc`/`.txt` 外挂歌词与 `cover.jpg`/`folder.jpg` 等文件夹封面已接入；扫描已加入目录/解析进度、取消和批量并发，封面读取限制 3 路并发，仍需大曲库真机压力验证
 - Android `usesCleartextTraffic="true"` 全局放开；LX 的 kw/wy 等接口需要 HTTP，但建议改为按域名白名单的 network security config
 - 通知点击回到播放页/当前页面尚未验证
 - 导航 Favorite/History/Daily Recommend 目前只改变选中态，不切换页面

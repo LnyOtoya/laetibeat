@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -57,6 +58,27 @@ class FileCoverProvider implements CoverProvider {
   final Map<String, Uint8List> _cache = <String, Uint8List>{};
   int _cachedBytes = 0;
 
+  static const int _maxConcurrentReads = 3;
+  int _activeReads = 0;
+  final List<Completer<void>> _readWaiters = <Completer<void>>[];
+
+  Future<T> _withReadSlot<T>(Future<T> Function() action) async {
+    if (_activeReads >= _maxConcurrentReads) {
+      final waiter = Completer<void>();
+      _readWaiters.add(waiter);
+      await waiter.future;
+    }
+    _activeReads += 1;
+    try {
+      return await action();
+    } finally {
+      _activeReads -= 1;
+      if (_readWaiters.isNotEmpty) {
+        _readWaiters.removeAt(0).complete();
+      }
+    }
+  }
+
   void setMaxBytes(int bytes) {
     _maxCacheBytes = bytes;
     _trim();
@@ -79,13 +101,15 @@ class FileCoverProvider implements CoverProvider {
     }
     if (track.path.isEmpty) return null; // 未来网络源:url 分支
 
-    final bytes = await _readEmbeddedArtForTrack(track.path);
-    if (bytes == null || bytes.isEmpty) return null;
+    return _withReadSlot(() async {
+      final bytes = await _readEmbeddedArtForTrack(track.path);
+      if (bytes == null || bytes.isEmpty) return null;
 
-    _cache[track.id] = bytes;
-    _cachedBytes += bytes.length;
-    _trim();
-    return bytes;
+      _cache[track.id] = bytes;
+      _cachedBytes += bytes.length;
+      _trim();
+      return bytes;
+    });
   }
 }
 
