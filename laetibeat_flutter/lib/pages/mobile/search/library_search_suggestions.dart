@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
@@ -16,7 +18,7 @@ import 'search_source_chip.dart';
 ///
 /// Sources are intentionally mixed here: the chip tells the user whether a
 /// prediction comes from the local library, OpenSubsonic, or LX.
-class LibrarySearchSuggestions extends ConsumerWidget {
+class LibrarySearchSuggestions extends ConsumerStatefulWidget {
   const LibrarySearchSuggestions({
     super.key,
     required this.query,
@@ -27,10 +29,48 @@ class LibrarySearchSuggestions extends ConsumerWidget {
   final ValueChanged<MobileSearchSuggestion> onSelected;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LibrarySearchSuggestions> createState() =>
+      _LibrarySearchSuggestionsState();
+}
+
+class _LibrarySearchSuggestionsState
+    extends ConsumerState<LibrarySearchSuggestions> {
+  static const Duration _debounceDuration = Duration(milliseconds: 300);
+
+  Timer? _debounce;
+  late String _query;
+
+  @override
+  void initState() {
+    super.initState();
+    _query = widget.query.trim();
+  }
+
+  @override
+  void didUpdateWidget(LibrarySearchSuggestions oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.query == widget.query) return;
+
+    _debounce?.cancel();
+    final next = widget.query.trim();
+    if (next == _query) return;
+    _debounce = Timer(_debounceDuration, () {
+      if (!mounted) return;
+      setState(() => _query = next);
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
-    final trimmed = query.trim();
+    final trimmed = _query;
     if (trimmed.isEmpty) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -114,7 +154,7 @@ class LibrarySearchSuggestions extends ConsumerWidget {
         color: theme.colorScheme.surface,
         variant: M3ECardVariant.filled,
         itemCount: suggestions.length,
-        onTap: (index) => onSelected(suggestions[index]),
+        onTap: (index) => widget.onSelected(suggestions[index]),
         itemBuilder: (BuildContext context, int index) {
           final suggestion = suggestions[index];
           return M3EListItem(

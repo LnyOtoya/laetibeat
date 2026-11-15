@@ -127,6 +127,26 @@ class JustAudioBackend implements PlaybackBackend, AudioEffectsController {
       .map((_) {});
 
   @override
+  Stream<PlaybackPhase> get phaseStream => _player.processingStateStream.map(
+    (state) => switch (state) {
+      ja.ProcessingState.idle => PlaybackPhase.idle,
+      ja.ProcessingState.loading => PlaybackPhase.loading,
+      ja.ProcessingState.buffering => PlaybackPhase.buffering,
+      ja.ProcessingState.ready => PlaybackPhase.ready,
+      ja.ProcessingState.completed => PlaybackPhase.completed,
+    },
+  );
+
+  @override
+  Stream<Duration> get bufferedPositionStream =>
+      _player.bufferedPositionStream;
+
+  @override
+  Stream<String> get errorStream => _player.errorStream.map(
+    (error) => error.message ?? '播放失败',
+  );
+
+  @override
   Stream<AudioDeviceInfo> get audioDeviceStream =>
       const Stream<AudioDeviceInfo>.empty();
 

@@ -119,12 +119,15 @@ impl LxSourceManager {
             .insert(id.to_string(), LxSourceStatus::Uninitialized);
     }
 
+    /// Load only enabled sources that do not already have a live runtime.
+    /// This is called lazily from list/search paths instead of startup, so a
+    /// slow script or network request cannot block bootstrap.
     pub fn load_enabled_sources(&mut self) {
         let ids = self
             .store
             .list()
             .iter()
-            .filter(|record| record.enabled)
+            .filter(|record| record.enabled && !self.runtimes.contains_key(&record.id))
             .map(|record| record.id.clone())
             .collect::<Vec<_>>();
         for id in ids {

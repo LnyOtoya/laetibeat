@@ -23,6 +23,8 @@ class PlayerState {
   final bool isPlaying;
   final Duration position;
   final Duration duration;
+  final Duration bufferedPosition;
+  final PlaybackPhase phase;
   final String source; //播放来源(如'曲目'/'recently add'),由启动播放处设置
 
   /// 当前音频输出设备
@@ -52,6 +54,8 @@ class PlayerState {
     this.isPlaying = false,
     this.position = Duration.zero,
     this.duration = Duration.zero,
+    this.bufferedPosition = Duration.zero,
+    this.phase = PlaybackPhase.idle,
     this.source = '曲目',
     this.audioDevice,
     this.audioDevices = const <AudioDeviceInfo>[],
@@ -75,6 +79,8 @@ class PlayerState {
     bool? isPlaying,
     Duration? position,
     Duration? duration,
+    Duration? bufferedPosition,
+    PlaybackPhase? phase,
     String? source,
     Object? audioDevice = _unset,
     List<AudioDeviceInfo>? audioDevices,
@@ -90,6 +96,8 @@ class PlayerState {
       isPlaying: isPlaying ?? this.isPlaying,
       position: position ?? this.position,
       duration: duration ?? this.duration,
+      bufferedPosition: bufferedPosition ?? this.bufferedPosition,
+      phase: phase ?? this.phase,
       source: source ?? this.source,
       audioDevice: identical(audioDevice, _unset)
           ? this.audioDevice
@@ -204,6 +212,31 @@ class PlayerNotifier extends Notifier<PlayerState> {
     _subs.add(
       _backend.audioBitrateStream.listen((b) {
         state = state.copyWith(audioBitrate: b);
+      }),
+    );
+    _subs.add(
+      _backend.phaseStream.listen((phase) {
+        // 错误后引擎可能紧接着发 idle；不要让通知栏状态把错误吞掉。
+        if (state.phase == PlaybackPhase.error &&
+            phase == PlaybackPhase.idle) {
+          return;
+        }
+        state = state.copyWith(phase: phase);
+      }),
+    );
+    _subs.add(
+      _backend.bufferedPositionStream.listen((position) {
+        state = state.copyWith(bufferedPosition: position);
+      }),
+    );
+    _subs.add(
+      _backend.errorStream.listen((message) {
+        final trimmed = message.trim();
+        if (trimmed.isEmpty) return;
+        state = state.copyWith(
+          phase: PlaybackPhase.error,
+          errorMessage: _playbackErrorMessage(trimmed),
+        );
       }),
     );
 
@@ -340,7 +373,12 @@ class PlayerNotifier extends Notifier<PlayerState> {
     _pendingPosition = Duration.zero;
     _currentVolume = 1;
     unawaited(_backend.setVolume(1));
-    state = state.copyWith(isPlaying: false, position: Duration.zero);
+    state = state.copyWith(
+      isPlaying: false,
+      position: Duration.zero,
+      bufferedPosition: Duration.zero,
+      phase: PlaybackPhase.idle,
+    );
   }
 
   //切换音频输出设备
@@ -402,6 +440,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
         _mediaLoaded = false;
         state = state.copyWith(
           isPlaying: false,
+          phase: PlaybackPhase.error,
           errorMessage: _playbackErrorMessage(e),
         );
         try {
@@ -540,6 +579,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
       _mediaLoaded = false;
       state = state.copyWith(
         isPlaying: false,
+        phase: PlaybackPhase.error,
         errorMessage: _playbackErrorMessage(e),
       );
       try {

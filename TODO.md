@@ -25,14 +25,14 @@
 
 ### P0 正确性与用户可见问题
 
-- [ ] 修复 LX 播放统计来源：`PlaybackSessionTracker` 当前把 `source=lx` 记成 `local`，污染本地统计与推荐
-- [ ] 搜索建议增加 300ms 防抖：`LibrarySearchSuggestions` 当前每次按键都会触发 LX 网络搜索
-- [ ] LX 源导入/启用/禁用/删除/改优先级后刷新 `lxEnabledPlatformsProvider` 与 `lxSearchProvider`
-- [ ] LX 冷启动改为懒加载：`init_lx_source_store` 不再同步 `load_enabled_sources()`，避免 bootstrap 被脚本初始化/网络阻塞
+- [x] 修复 LX 播放统计来源：`PlaybackSessionTracker` 使用 `source=lx` + 平台 `sourceId`
+- [x] 搜索建议增加 300ms 防抖：`LibrarySearchSuggestions` 改为 debounce 后再触发网络搜索
+- [x] LX 源导入/启用/禁用/删除/改优先级后刷新 `lxEnabledPlatformsProvider` 与 `lxSearchProvider`
+- [x] LX 冷启动改为懒加载：`init_lx_source_store` 只打开 store，list/search 首次需要能力时再加载启用源
 - [x] 缓存管理重做：总缓存上限滑块、启动时套用、UI 默认值与实际分配对齐、清理缓存时同步清理内存缓存；页面进入自动重扫、可见期间 3 秒刷新、支持下拉刷新（`flutter analyze` / `flutter test` 通过）
-- [ ] 为 QuickJS 增加执行超时、内存上限、中断与死循环保护
-- [ ] Android 接入 SAF / file_picker 目录选择，修复 `MobileDirectoryPicker` 返回 null
-- [ ] `PlaybackBackend` 增加 buffering / error / processing phase，`LaetibeatAudioHandler` 不再固定 `processingState=ready`
+- [x] 为 QuickJS 增加执行超时、内存上限、中断与死循环保护（新增死循环中断测试）
+- [x] Android 接入 SAF / file_picker 目录选择与 `READ_MEDIA_AUDIO` 权限（debug APK 构建通过；真机目录扫描与持久授权待验证）
+- [x] `PlaybackBackend` 增加 buffering / error / processing phase，`LaetibeatAudioHandler` 映射真实 `processingState` 与 `bufferedPosition`
 
 ### P1 稳定性与架构债
 
@@ -352,15 +352,15 @@
 - [x] 实现基础 `setTimeout` / `clearTimeout`（Rust 有界 timer pump）
 - [ ] 替换为长期异步 JS 事件循环，支持超过 5 秒的定时任务
 - [x] 基础 Promise / microtask 调度（`execute_pending_job`）
-- [ ] 初始化超时、请求超时、脚本执行超时
-- [ ] 为 QuickJS 设置内存上限与 interrupt handler，死循环可被中断
+- [x] 初始化超时、请求超时、脚本执行超时
+- [x] 为 QuickJS 设置内存上限与 interrupt handler，死循环可被中断
 - [ ] 请求取消与 Context 销毁
 - [x] 基础 JS 异常/结果回传
 - [x] 禁止 `eval`
 - [x] 脚本大小、inited 载荷、结果大小基础限制
 - [ ] 禁止动态 `Function`、文件系统和宿主内部对象（当前只禁用了 `eval`）
 - [ ] 完整输入/输出长度限制与 JSON 序列化校验
-- [ ] 脚本内存/CPU 占用限制和崩溃隔离
+- [ ] 脚本崩溃隔离（内存上限与 CPU 中断已完成，尚未做独立进程/线程崩溃隔离）
 - [ ] 避免启动时同步加载全部启用源：拆分 store 初始化与 runtime 懒加载
 
 ### 10.4 HTTP 请求代理
@@ -441,8 +441,8 @@
 - [ ] 播放失败时自动换源/手动换源 UI（当前只有当前曲目重试）
 - [x] 歌词/封面来源与现有缓存策略衔接（基础实现）
 - [x] LX 歌词/封面持久化缓存，避免每次重新解析/下载
-- [ ] 修复 LX 播放统计来源：统计键使用 `source=lx` + 平台 `sourceId`
-- [ ] 搜索建议 300ms 防抖，避免每次按键触发 LX 网络搜索
+- [x] 修复 LX 播放统计来源：统计键使用 `source=lx` + 平台 `sourceId`
+- [x] 搜索建议 300ms 防抖，避免每次按键触发 LX 网络搜索
 
 ### 10.9 测试与安全
 
@@ -455,7 +455,7 @@
 - [x] 验证 RSA 无效公钥错误路径
 - [x] 验证 SourceManager 启用、加载、优先级、解析、移除
 - [x] `flutter analyze` / `flutter test` 通过（2026-11-10；analyze 仍有 4 个既有 warning/info，本次无新增问题）
-- [x] `cargo test --workspace` 通过（30 tests：core 5 / lx 22 / remote 3）
+- [x] `cargo test --workspace` 通过（31 tests：core 5 / lx 23 / remote 3）
 - [x] Android armv7/aarch64/x86_64 release Rust 编译通过（含 LX/QuickJS/FRB）
 - [x] `flutter build apk --release` 通过（150.3MB；不要用 `--no-pub` 跳过插件注册表重生成）
 - [x] 验证 `setTimeout` 延迟后解析 musicUrl
@@ -464,7 +464,7 @@
 - [ ] 验证歌词/封面返回格式与长度限制
 - [ ] 验证恶意脚本无法访问文件/网络/宿主对象
 - [ ] 验证 `eval` / 动态 Function 被阻止
-- [ ] 验证脚本死循环能被中断
+- [x] 验证脚本死循环能被中断
 - [ ] 验证多个源之间上下文隔离
 - [ ] 验证独立平台搜索的分页、空结果、网络失败
 - [ ] Android 真机验证 QuickJS `.so` 打包、加载与启动
@@ -512,11 +512,9 @@
 
 ### 正确性与状态一致性
 
-- `PlaybackSessionTracker` 只区分 `opensubsonic` 和 `local`，LX 播放会被记成 `local`，污染本地统计、Top 歌手/专辑与推荐；应使用 `source=lx` + 平台 `sourceId`
-- 搜索建议未做 300ms 防抖，`LibrarySearchSuggestions` 每次按键都会触发 LX 网络搜索
-- `lxEnabledPlatformsProvider` 没有 autoDispose 且从未 invalidate；启用/删除/禁用 LX 源后，搜索页能力列表可能一直保持旧值直到重启
-- `init_lx_source_store` 在 bootstrap 中同步执行 `load_enabled_sources()`，每个源都会 eval 脚本、执行 inited、pump timer（最长 5 秒），并可能同步发 HTTP 请求；源多时冷启动会被阻塞
 - LX source id 基于脚本全文 MD5，脚本一更新就变成新 source，旧记录残留并产生重复条目
+- `lxEnabledPlatformsProvider` 仍不是 autoDispose；目前依赖源管理操作后主动 invalidate，后续可考虑 autoDispose 减少常驻缓存
+- `load_enabled_sources` 会在首次 list/search 时同步初始化所有启用源；已避免阻塞 bootstrap，但首次搜索仍可能等待脚本初始化
 - LX 歌词正缓存长期保留、未命中负缓存 1 天；封面磁盘缓存按平台 + 歌曲 id，URL 变化时需等待缓存清理
 - 全局缓存上限目前按历史默认比例（本地 1GB : Subsonic 2GB : 洛雪 512MB）分配到三组，暂不支持独立分组配额
 - 缓存占用只统计“清除所有缓存”会释放的内容；LX 源脚本、播放统计库和播放队列不计入缓存大小
@@ -530,10 +528,10 @@
 - 自研 MPRIS 会卡死 waybar，已停用；`linux_mpris.dart` 仍留在仓库但没有引用，后续应迁移 audio_service 或删除
 - Android 已接入 just_audio + audio_service；后台、锁屏、通知、划掉 App、scrobble 已完成真机验证
 - `MediaSessionService` 仍是 Noop，`MediaIntegrationHost` 仅做简单状态同步；当前真正生效的是 `LaetibeatAudioHandler` 直连 PlayerNotifier
-- `PlaybackBackend` 没有 buffering / error / processing phase；`LaetibeatAudioHandler` 固定 `processingState=ready`，`bufferedPosition` 直接等于 `position`
+- `PlaybackBackend` 已接入 buffering / error / processing phase；媒体通知的加载/缓冲/错误状态仍需在 Android 真机上验证
 - audio_service 只在 Android 初始化；iOS 目前没有后台媒体会话接入
 - media_kit 在 Android 上出现过原生 SIGSEGV；Android 已改用 just_audio，桌面风险另论
-- `MobileDirectoryPicker` 仍返回 null，Android 无法配置本地音乐目录，需接 SAF / `file_picker.getDirectoryPath` / `READ_MEDIA_AUDIO`
+- `MobileDirectoryPicker` 已接 SAF 目录选择、lifetime 持久授权与 `READ_MEDIA_AUDIO` 权限；真机上目录路径解析、重启后授权与 Rust 扫描仍需验证
 - Android `usesCleartextTraffic="true"` 全局放开；LX 的 kw/wy 等接口需要 HTTP，但建议改为按域名白名单的 network security config
 - 通知点击回到播放页/当前页面尚未验证
 - 导航 Favorite/History/Daily Recommend 目前只改变选中态，不切换页面
@@ -559,7 +557,7 @@
 
 ### LX 运行时与安全
 
-- QuickJS 没有内存上限、执行超时和 interrupt handler；恶意/错误脚本的 `while(true)` 会长期占用 manager mutex
+- QuickJS 已设置 64MB 内存上限、512KB 栈限制和 init/action 执行超时/中断；独立进程级崩溃隔离仍未实现
 - `eval` 已禁用，但动态 `Function` 仍可用；文件系统/宿主内部对象隔离仍需验证
 - LX HTTP 当前使用同步 `reqwest::blocking`，请求会阻塞对应 JS 执行线程；后续改为异步 request broker
 - 每个请求没有 requestKey，无法完成/失败/取消回写 JS

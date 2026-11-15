@@ -41,6 +41,9 @@ class AudioParamsInfo {
   const AudioParamsInfo({this.format, this.sampleRate, this.channelCount});
 }
 
+/// 引擎处理阶段，用于媒体通知、锁屏和播放页状态。
+enum PlaybackPhase { idle, loading, buffering, ready, completed, error }
+
 /// 播放后端最低能力集合
 abstract class PlaybackBackend {
   /// 播放进度流(毫秒级实时)
@@ -54,6 +57,15 @@ abstract class PlaybackBackend {
 
   /// 单曲播完事件流(用于自动切下一首)
   Stream<void> get completedStream;
+
+  /// 引擎处理阶段流(idle/loading/buffering/ready/completed)
+  Stream<PlaybackPhase> get phaseStream;
+
+  /// 已缓冲到的位置
+  Stream<Duration> get bufferedPositionStream;
+
+  /// 引擎级错误流；可恢复错误不应直接中断播放。
+  Stream<String> get errorStream;
 
   /// 当前音频输出设备流(切换/被系统改用时通知)
   Stream<AudioDeviceInfo> get audioDeviceStream;
@@ -116,6 +128,18 @@ class MediaKitBackend implements PlaybackBackend {
   @override
   Stream<void> get completedStream =>
       _player.stream.completed.where((done) => done).map((_) {});
+
+  @override
+  Stream<PlaybackPhase> get phaseStream => _player.stream.buffering.map(
+    (buffering) =>
+        buffering ? PlaybackPhase.buffering : PlaybackPhase.ready,
+  );
+
+  @override
+  Stream<Duration> get bufferedPositionStream => _player.stream.buffer;
+
+  @override
+  Stream<String> get errorStream => _player.stream.error;
 
   @override
   Stream<AudioDeviceInfo> get audioDeviceStream => _player.stream.audioDevice

@@ -5,6 +5,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/widgets/player/cover_provider.dart';
+import 'package:laetibeat/widgets/player/playback_backend.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:laetibeat/widgets/player/player_provider.dart';
 
@@ -65,6 +66,7 @@ class LaetibeatAudioHandler extends BaseAudioHandler {
       state.currentIndex,
       state.shuffle,
       state.repeatMode.name,
+      state.phase.name,
     ].join('\u0000');
     final now = DateTime.now();
     final positionChanged =
@@ -87,16 +89,21 @@ class LaetibeatAudioHandler extends BaseAudioHandler {
           androidCompactActionIndices: const <int>[0, 1, 2],
           processingState: track == null
               ? AudioProcessingState.idle
-              : AudioProcessingState.ready,
+              : _processingState(state.phase),
           playing: state.isPlaying,
           updatePosition: state.position,
-          bufferedPosition: state.position,
+          bufferedPosition: state.bufferedPosition > state.position
+              ? state.bufferedPosition
+              : state.position,
           speed: 1.0,
           queueIndex: state.queue.isEmpty ? null : state.currentIndex,
           repeatMode: _repeatMode(state.repeatMode),
           shuffleMode: state.shuffle
               ? AudioServiceShuffleMode.all
               : AudioServiceShuffleMode.none,
+          errorMessage: state.phase == PlaybackPhase.error
+              ? state.errorMessage
+              : null,
         ),
       );
     }
@@ -151,6 +158,17 @@ class LaetibeatAudioHandler extends BaseAudioHandler {
       }
     }
     return Duration.zero;
+  }
+
+  static AudioProcessingState _processingState(PlaybackPhase phase) {
+    return switch (phase) {
+      PlaybackPhase.idle => AudioProcessingState.idle,
+      PlaybackPhase.loading => AudioProcessingState.loading,
+      PlaybackPhase.buffering => AudioProcessingState.buffering,
+      PlaybackPhase.ready => AudioProcessingState.ready,
+      PlaybackPhase.completed => AudioProcessingState.completed,
+      PlaybackPhase.error => AudioProcessingState.error,
+    };
   }
 
   static AudioServiceRepeatMode _repeatMode(PlaybackRepeatMode mode) {

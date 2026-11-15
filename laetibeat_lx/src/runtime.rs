@@ -10,8 +10,16 @@ use crate::models::{LxMusicInfo, LxSourceDeclaration, LxSourceManifest};
 use crate::utils;
 
 const PRELOAD: &str = include_str!("preload.js");
+const MAX_SCRIPT_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESULT_BYTES: usize = 2 * 1024 * 1024;
+const MAX_RUNTIME_MEMORY_BYTES: usize = 64 * 1024 * 1024;
+const MAX_STACK_SIZE: usize = 512 * 1024;
 const TIMER_PUMP_LIMIT: Duration = Duration::from_secs(5);
+const INIT_TIMEOUT: Duration = Duration::from_secs(5);
+#[cfg(not(test))]
+const ACTION_TIMEOUT: Duration = Duration::from_secs(10);
+#[cfg(test)]
+const ACTION_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// A loaded LX source script and the capabilities it declared.
 ///
@@ -22,6 +30,7 @@ pub struct LxRuntime {
     context: Context,
     manifest: LxSourceManifest,
     declaration: LxSourceDeclaration,
+    deadline: Arc<Mutex<Option<Instant>>>,
 }
 
 impl LxRuntime {
@@ -30,39 +39,50 @@ impl LxRuntime {
     pub fn load(script: &str) -> Result<Self> {
         let manifest = parse_source_manifest(script)
             .ok_or_else(|| LxError::InvalidSource("missing metadata header".to_string()))?;
-        if script.len() > 4 * 1024 * 1024 {
+        if script.len() > MAX_SCRIPT_BYTES {
             return Err(LxError::InvalidSource("script is too large".to_string()));
         }
 
         let runtime = Runtime::new().map_err(|error| LxError::Js(error.to_string()))?;
+        runtime.set_memory_limit(MAX_RUNTIME_MEMORY_BYTES);
+        runtime.set_max_stack_size(MAX_STACK_SIZE);
+        let deadline = Arc::new(Mutex::new(None::<Instant>));
+        install_interrupt_handler(&runtime, deadline.clone());
+
         let context = Context::full(&runtime)?;
         let declaration_slot = Arc::new(Mutex::new(None::<String>));
         let declaration = context.with(|ctx| {
             install_host(&ctx, declaration_slot.clone())?;
             let started = Instant::now();
-            ctx.eval::<(), _>(PRELOAD)?;
-            ctx.eval::<(), _>(script)?;
-            // Source scripts normally call send(inited) synchronously, but
-            // allow promise jobs and short timers queued during init.
-            drain_jobs(&ctx);
-            pump_timers(&ctx);
-            log::info!(
-                "lx.runtime init source={} elapsed={}ms",
-                manifest.name,
-                started.elapsed().as_millis()
-            );
-            let raw = declaration_slot
-                .lock()
-                .map_err(|_| LxError::Init("declaration lock poisoned".to_string()))?
-                .clone()
-                .ok_or_else(|| LxError::Init("source did not send inited".to_string()))?;
-            parse_declaration(&raw)
+            begin_deadline(&deadline, INIT_TIMEOUT);
+            let result: Result<LxSourceDeclaration> = (|| {
+                ctx.eval::<(), _>(PRELOAD)?;
+                ctx.eval::<(), _>(script)?;
+                // Source scripts normally call send(inited) synchronously, but
+                // allow promise jobs and short timers queued during init.
+                drain_jobs(&ctx);
+                pump_timers(&ctx);
+                log::info!(
+                    "lx.runtime init source={} elapsed={}ms",
+                    manifest.name,
+                    started.elapsed().as_millis()
+                );
+                let raw = declaration_slot
+                    .lock()
+                    .map_err(|_| LxError::Init("declaration lock poisoned".to_string()))?
+                    .clone()
+                    .ok_or_else(|| LxError::Init("source did not send inited".to_string()))?;
+                parse_declaration(&raw)
+            })();
+            clear_deadline(&deadline);
+            result
         })?;
 
         Ok(Self {
             context,
             manifest,
             declaration,
+            deadline,
         })
     }
 
@@ -117,56 +137,90 @@ impl LxRuntime {
             )?;
             globals.set("__lx_quality", quality.to_string())?;
             globals.set("__lx_result", rquickjs::Undefined)?;
-            let dispatch_started = Instant::now();
-            ctx.eval::<(), _>(
-                "__lx_dispatch(globalThis.__lx_source, globalThis.__lx_action, globalThis.__lx_info_json)",
-            )?;
-            drain_jobs(&ctx);
-            log::debug!(
-                "lx.js action={action} source={} dispatch={}ms",
-                info.source,
-                dispatch_started.elapsed().as_millis()
-            );
-            let raw: Option<String> = ctx.eval("globalThis.__lx_result")?;
-            if raw.is_some() {
+            begin_deadline(&self.deadline, ACTION_TIMEOUT);
+            let result: Result<serde_json::Value> = (|| {
+                let dispatch_started = Instant::now();
+                ctx.eval::<(), _>(
+                    "__lx_dispatch(globalThis.__lx_source, globalThis.__lx_action, globalThis.__lx_info_json)",
+                )?;
+                drain_jobs(&ctx);
                 log::debug!(
-                    "lx.js action={action} source={} timers=skipped (result ready)",
-                    info.source
-                );
-            } else {
-                let timer_started = Instant::now();
-                pump_timers(&ctx);
-                log::debug!(
-                    "lx.js action={action} source={} timers={}ms",
+                    "lx.js action={action} source={} dispatch={}ms",
                     info.source,
-                    timer_started.elapsed().as_millis()
+                    dispatch_started.elapsed().as_millis()
                 );
-            }
+                let raw: Option<String> = ctx.eval("globalThis.__lx_result")?;
+                if raw.is_some() {
+                    log::debug!(
+                        "lx.js action={action} source={} timers=skipped (result ready)",
+                        info.source
+                    );
+                } else {
+                    let timer_started = Instant::now();
+                    pump_timers(&ctx);
+                    log::debug!(
+                        "lx.js action={action} source={} timers={}ms",
+                        info.source,
+                        timer_started.elapsed().as_millis()
+                    );
+                }
 
-            let raw: Option<String> = ctx.eval("globalThis.__lx_result")?;
-            let raw = raw.ok_or_else(|| {
-                LxError::InvalidResponse("source did not produce a result".to_string())
-            })?;
-            if raw.len() > MAX_RESULT_BYTES {
-                return Err(LxError::InvalidResponse("source result is too large".to_string()));
-            }
-            let parsed: serde_json::Value = serde_json::from_str(&raw)
-                .map_err(|error| LxError::InvalidResponse(error.to_string()))?;
-            if parsed.get("ok").and_then(|value| value.as_bool()) != Some(true) {
-                let message = parsed
-                    .get("error")
-                    .and_then(|value| value.as_str())
-                    .unwrap_or("source rejected request");
-                return Err(LxError::Request(message.to_string()));
-            }
-            let value = parsed.get("value").cloned().unwrap_or(serde_json::Value::Null);
-            log::debug!(
-                "lx.js action={action} source={} total={}ms",
-                info.source,
-                total_started.elapsed().as_millis()
-            );
-            Ok(value)
+                let raw: Option<String> = ctx.eval("globalThis.__lx_result")?;
+                let raw = raw.ok_or_else(|| {
+                    LxError::InvalidResponse("source did not produce a result".to_string())
+                })?;
+                if raw.len() > MAX_RESULT_BYTES {
+                    return Err(LxError::InvalidResponse(
+                        "source result is too large".to_string(),
+                    ));
+                }
+                let parsed: serde_json::Value = serde_json::from_str(&raw)
+                    .map_err(|error| LxError::InvalidResponse(error.to_string()))?;
+                if parsed.get("ok").and_then(|value| value.as_bool()) != Some(true) {
+                    let message = parsed
+                        .get("error")
+                        .and_then(|value| value.as_str())
+                        .unwrap_or("source rejected request");
+                    return Err(LxError::Request(message.to_string()));
+                }
+                let value = parsed
+                    .get("value")
+                    .cloned()
+                    .unwrap_or(serde_json::Value::Null);
+                log::debug!(
+                    "lx.js action={action} source={} total={}ms",
+                    info.source,
+                    total_started.elapsed().as_millis()
+                );
+                Ok(value)
+            })();
+            clear_deadline(&self.deadline);
+            result
         })
+    }
+}
+
+fn install_interrupt_handler(
+    runtime: &Runtime,
+    deadline: Arc<Mutex<Option<Instant>>>,
+) {
+    runtime.set_interrupt_handler(Some(Box::new(move || {
+        match deadline.lock() {
+            Ok(slot) => slot.map_or(false, |deadline| Instant::now() >= deadline),
+            Err(_) => true,
+        }
+    })));
+}
+
+fn begin_deadline(deadline: &Arc<Mutex<Option<Instant>>>, timeout: Duration) {
+    if let Ok(mut slot) = deadline.lock() {
+        *slot = Some(Instant::now() + timeout);
+    }
+}
+
+fn clear_deadline(deadline: &Arc<Mutex<Option<Instant>>>) {
+    if let Ok(mut slot) = deadline.lock() {
+        *slot = None;
     }
 }
 
@@ -502,6 +556,39 @@ send(EVENT_NAMES.inited, {
             runtime.resolve_music_url(&info, "128k").unwrap(),
             "https://example.com/timer.mp3"
         );
+    }
+
+    #[test]
+    fn interrupts_infinite_loop() {
+        let source = r#"/**
+ * @name Loop Test
+ * @description Infinite loop source
+ * @version 1.0.0
+ * @author laetibeat
+ */
+const { EVENT_NAMES, on, send } = globalThis.lx;
+on(EVENT_NAMES.request, () => {
+  while (true) {}
+});
+send(EVENT_NAMES.inited, {
+  sources: {
+    kw: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] }
+  }
+});
+"#;
+        let runtime = LxRuntime::load(source).unwrap();
+        let info = LxMusicInfo {
+            source: "kw".to_string(),
+            id: "loop".to_string(),
+            name: "Loop".to_string(),
+            singer: String::new(),
+            album: String::new(),
+            album_id: String::new(),
+            interval: 0,
+            img: None,
+            extra: Default::default(),
+        };
+        assert!(runtime.resolve_music_url(&info, "128k").is_err());
     }
 
     #[test]

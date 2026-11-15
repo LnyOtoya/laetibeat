@@ -8,6 +8,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../l10n/generated/app_localizations.dart';
+import '../../../../../widgets/player/lx_search_provider.dart';
 import '../../../../../widgets/settings/lx_settings.dart';
 import '../../../widgets/mobile_large_subpage_app_bar.dart';
 
@@ -54,6 +55,11 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
         _error = error.toString();
       });
     }
+  }
+
+  void _invalidateSearchProviders() {
+    ref.invalidate(lxEnabledPlatformsProvider);
+    ref.invalidate(lxSearchProvider);
   }
 
   Future<void> _importSource() async {
@@ -141,6 +147,7 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
     try {
       await rust_lx.importLxSource(script: script);
       await _reload();
+      _invalidateSearchProviders();
       if (mounted) _showMessage(successMessage);
     } finally {
       if (mounted) setState(() => _importing = false);
@@ -157,7 +164,10 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
       await _reload();
       if (mounted) _showMessage(error.toString());
     } finally {
-      if (mounted) setState(() => _busy.remove(source.id));
+      if (mounted) {
+        setState(() => _busy.remove(source.id));
+        _invalidateSearchProviders();
+      }
     }
   }
 
@@ -201,7 +211,10 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
       await _reload();
       if (mounted) _showMessage(error.toString());
     } finally {
-      if (mounted) setState(() => _busy.remove(source.id));
+      if (mounted) {
+        setState(() => _busy.remove(source.id));
+        _invalidateSearchProviders();
+      }
     }
   }
 
@@ -219,7 +232,10 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
     } catch (error) {
       if (mounted) _showMessage(error.toString());
     } finally {
-      if (mounted) setState(() => _busy.remove(source.id));
+      if (mounted) {
+        setState(() => _busy.remove(source.id));
+        _invalidateSearchProviders();
+      }
     }
   }
 
@@ -252,7 +268,10 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
     } catch (error) {
       if (mounted) _showMessage(error.toString());
     } finally {
-      if (mounted) setState(() => _busy.remove(source.id));
+      if (mounted) {
+        setState(() => _busy.remove(source.id));
+        _invalidateSearchProviders();
+      }
     }
   }
 

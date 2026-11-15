@@ -79,10 +79,10 @@ fn manager_slot() -> &'static Mutex<Option<LxSourceManager>> {
 /// `<application support>/laetibeat_lx`.
 pub fn init_lx_source_store(root: String) -> Result<(), String> {
     init_lx_logging();
-    let mut manager = LxSourceManager::open(root).map_err(format_error)?;
-    // Restore previously enabled sources so independent LX search works after
-    // a cold start even when no local/Subsonic source is configured.
-    manager.load_enabled_sources();
+    let manager = LxSourceManager::open(root).map_err(format_error)?;
+    // Do not load scripts here. Enabled sources are restored lazily the first
+    // time the list/search path asks for capabilities, so QuickJS init or a
+    // slow source HTTP request cannot block app bootstrap.
     *manager_slot()
         .lock()
         .map_err(|_| "LX manager lock poisoned".to_string())? = Some(manager);
@@ -111,7 +111,13 @@ pub fn import_lx_source(script: String) -> Result<UiLxSourceEntry, String> {
 }
 
 pub fn list_lx_sources() -> Result<Vec<UiLxSourceEntry>, String> {
-    with_manager(|manager| Ok(manager.list().into_iter().map(map_entry).collect()))
+    with_manager(|manager| {
+        // Lazy restore: only enabled sources whose runtime was not already
+        // created are loaded here. This is the first UI-facing path that needs
+        // the capabilities declared by `inited`.
+        manager.load_enabled_sources();
+        Ok(manager.list().into_iter().map(map_entry).collect())
+    })
 }
 
 pub fn load_lx_source(id: String) -> Result<UiLxSourceEntry, String> {

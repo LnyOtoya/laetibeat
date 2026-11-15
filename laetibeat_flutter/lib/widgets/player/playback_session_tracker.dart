@@ -57,12 +57,19 @@ class PlaybackSessionTracker {
   void onTrackChanged(rust.UiTrack? track) {
     _finalize(completed: false);
     if (track == null) return;
-    final isRemote = track.source == 'opensubsonic';
+    final isOpenSubsonic = track.source == 'opensubsonic';
+    final isLx = track.source == 'lx';
     _session = _Session(
       track: track,
-      source: isRemote ? track.source : 'local',
-      sourceId: isRemote ? track.sourceId : sourceId(),
-      trackId: isRemote ? track.id : (track.relativePath ?? track.id),
+      source: isLx
+          ? 'lx'
+          : isOpenSubsonic
+          ? 'opensubsonic'
+          : 'local',
+      sourceId: isOpenSubsonic || isLx ? track.sourceId : sourceId(),
+      trackId: isOpenSubsonic || isLx
+          ? track.id
+          : (track.relativePath ?? track.id),
       queueSource: queueSource(),
       startedAt: DateTime.now().millisecondsSinceEpoch,
       durationMs: track.durationSeconds.toInt() * 1000,
