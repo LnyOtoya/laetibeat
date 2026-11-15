@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -57,9 +57,26 @@ impl LxSourceManager {
 
     pub fn import_script(&mut self, script: &str) -> Result<LxSourceRecord> {
         let record = self.store.import_script(script)?;
+        self.prune_orphan_runtime_state();
+        // Same-id updates must unload the old runtime so the next use loads
+        // the new script instead of continuing with stale declarations.
+        self.runtimes.remove(&record.id);
+        self.declarations.remove(&record.id);
         self.statuses
             .insert(record.id.clone(), LxSourceStatus::Uninitialized);
         Ok(record)
+    }
+
+    fn prune_orphan_runtime_state(&mut self) {
+        let known: HashSet<String> = self
+            .store
+            .list()
+            .iter()
+            .map(|record| record.id.clone())
+            .collect();
+        self.runtimes.retain(|id, _| known.contains(id));
+        self.statuses.retain(|id, _| known.contains(id));
+        self.declarations.retain(|id, _| known.contains(id));
     }
 
     pub fn list(&self) -> Vec<LxSourceEntry> {
@@ -439,6 +456,44 @@ send(EVENT_NAMES.inited, {
         assert_eq!(manager.get(&record.id).unwrap().record.priority, 99);
         manager.remove(&record.id).unwrap();
         assert!(manager.list().is_empty());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn reimport_keeps_id_and_reloads_runtime() {
+        let root = temp_root();
+        let mut manager = LxSourceManager::open(&root).unwrap();
+        let first = manager.import_script(SCRIPT).unwrap();
+        manager.set_enabled(&first.id, true).unwrap();
+
+        let info = LxMusicInfo {
+            source: "kw".to_string(),
+            id: "123".to_string(),
+            name: "Song".to_string(),
+            singer: "Artist".to_string(),
+            album: String::new(),
+            album_id: String::new(),
+            interval: 0,
+            img: None,
+            extra: Default::default(),
+        };
+        assert_eq!(
+            manager.resolve_music_url("kw", &info, "128k").unwrap(),
+            "https://example.com/manager.mp3"
+        );
+
+        let updated = SCRIPT.replace("manager.mp3", "manager-v2.mp3");
+        let second = manager.import_script(&updated).unwrap();
+        assert_eq!(first.id, second.id);
+        assert_eq!(
+            manager.get(&second.id).unwrap().status,
+            LxSourceStatus::Uninitialized
+        );
+        assert!(manager.get(&second.id).unwrap().declaration.is_none());
+        assert_eq!(
+            manager.resolve_music_url("kw", &info, "128k").unwrap(),
+            "https://example.com/manager-v2.mp3"
+        );
         let _ = fs::remove_dir_all(root);
     }
 }

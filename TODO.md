@@ -14,7 +14,7 @@
 - 歌词：已接入 LRCLIB、LiriQo 搜索，支持逐字/逐行/静态标记、翻译与临时应用
 - 跨平台：Linux 桌面可用；Android UI 已解耦，audio_service 后台/锁屏/通知已验证；Windows/macOS 打包未开始
 - LX 音源：QuickJS、inited、HTTP、AES/RSA、setTimeout、SourceStore、SourceManager、FRB facade、移动端管理 UI、五平台独立搜索、`musicUrl` / `lyric` / `pic` 播放链路已打通
-- LX 剩余重点：脚本执行安全与中断、源生命周期与懒加载、稳定 source id、歌词/封面持久缓存、真实源联调
+- LX 剩余重点：脚本执行安全与中断、源生命周期与懒加载、异步 request broker、真实源联调
 - 主要功能缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 
@@ -40,7 +40,7 @@
 
 ### P1 稳定性与架构债
 
-- [ ] LX 源 id 改为基于 manifest 身份的稳定 id，脚本 hash 仅作版本字段
+- [x] LX 源 id 改为基于 manifest 身份的稳定 id，脚本 hash 仅作版本字段（含旧记录迁移与重复合并）
 - [ ] `lx.request` 从同步 `reqwest::blocking` 改为异步 request broker，支持取消
 - [x] LX 歌词/封面持久化缓存，并与缓存分组统计对齐
 - [ ] 远端同步支持增量、取消与进度节流；推荐避免全量加载远端曲目
@@ -383,7 +383,7 @@
 ### 10.5 音源导入与存储
 
 - [x] 解析脚本头部 `/* @name @description @author @homepage @version */`
-- [ ] 生成稳定 source id：当前基于脚本全文 MD5，脚本一更新就会变成新源；应改为基于 manifest 身份，脚本 hash 仅作版本字段
+- [x] 生成稳定 source id：基于 manifest 身份生成，脚本 hash 仅作版本字段；旧 content-hash id 在 store 打开时自动迁移并合并重复源
 - [x] 保存脚本正文和元数据
 - [x] 支持删除、启用、禁用、优先级排序
 - [x] 保存 `allowShowUpdateAlert`
@@ -459,7 +459,7 @@
 - [x] 验证 RSA 无效公钥错误路径
 - [x] 验证 SourceManager 启用、加载、优先级、解析、移除
 - [x] `flutter analyze` / `flutter test` 通过（2026-11-10；analyze 仍有 4 个既有 warning/info，本次无新增问题）
-- [x] `cargo test --workspace` 通过（31 tests：core 5 / lx 23 / remote 3）
+- [x] `cargo test --workspace` 通过（34 tests：core 5 / lx 26 / remote 3）
 - [x] Android armv7/aarch64/x86_64 release Rust 编译通过（含 LX/QuickJS/FRB）
 - [x] `flutter build apk --release` 通过（150.3MB；不要用 `--no-pub` 跳过插件注册表重生成）
 - [x] 验证 `setTimeout` 延迟后解析 musicUrl
@@ -516,7 +516,7 @@
 
 ### 正确性与状态一致性
 
-- LX source id 基于脚本全文 MD5，脚本一更新就变成新 source，旧记录残留并产生重复条目
+- LX source id 已改为 manifest 身份稳定 id，脚本更新复用同一记录；旧 content-hash 记录会在 store 打开时迁移并清理重复脚本
 - `lxEnabledPlatformsProvider` 仍不是 autoDispose；目前依赖源管理操作后主动 invalidate，后续可考虑 autoDispose 减少常驻缓存
 - `load_enabled_sources` 会在首次 list/search 时同步初始化所有启用源；已避免阻塞 bootstrap，但首次搜索仍可能等待脚本初始化
 - LX 歌词正缓存长期保留、未命中负缓存 1 天；封面磁盘缓存按平台 + 歌曲 id，URL 变化时需等待缓存清理

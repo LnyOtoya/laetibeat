@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -19,12 +20,37 @@ pub struct LxSourceRecord {
     pub id: String,
     pub manifest: LxSourceManifest,
     pub script_file: String,
+    /// Full script hash. This is a version field only; the id is derived from
+    /// the manifest identity so updating a script keeps the same source id.
+    #[serde(default)]
+    pub script_hash: String,
     pub enabled: bool,
     /// User-selected source. At most one record should be active.
     #[serde(default)]
     pub active: bool,
     pub priority: i32,
     pub allow_update_alert: bool,
+}
+
+fn normalized(value: &str) -> String {
+    value.trim().to_lowercase()
+}
+
+/// Stable identity for a source. Version and script body are intentionally
+/// excluded, so updating a script does not create a new source.
+fn manifest_identity(manifest: &LxSourceManifest) -> String {
+    let name = normalized(&manifest.name);
+    let author = normalized(&manifest.author);
+    if author.is_empty() {
+        format!("{name}\u{0}{}", normalized(&manifest.homepage))
+    } else {
+        format!("{name}\u{0}{author}")
+    }
+}
+
+fn stable_source_id(manifest: &LxSourceManifest) -> String {
+    let digest = md5_hex(&manifest_identity(manifest));
+    format!("lx_{}", &digest[..16])
 }
 
 /// Filesystem-backed source store. The caller supplies an application-private
@@ -48,7 +74,9 @@ impl LxSourceStore {
         } else {
             Vec::new()
         };
-        Ok(Self { root, records })
+        let mut store = Self { root, records };
+        store.migrate_legacy_ids()?;
+        Ok(store)
     }
 
     pub fn list(&self) -> &[LxSourceRecord] {
@@ -59,26 +87,53 @@ impl LxSourceStore {
         self.records.iter().find(|record| record.id == id)
     }
 
-    /// Import or replace a source. The id is derived from the script content,
-    /// so importing the same script again updates it instead of duplicating it.
+    /// Import or replace a source. The id comes from the manifest identity, so
+    /// updating the script body/version keeps the same source id.
     pub fn import_script(&mut self, script: &str) -> Result<LxSourceRecord> {
         if script.len() > MAX_SCRIPT_BYTES {
             return Err(LxError::InvalidSource("script is too large".to_string()));
         }
         let manifest = parse_source_manifest(script)
             .ok_or_else(|| LxError::InvalidSource("missing metadata header".to_string()))?;
-        let id = format!("lx_{}", &md5_hex(script)[..16]);
+        let id = stable_source_id(&manifest);
+        let identity = manifest_identity(&manifest);
+        let script_hash = md5_hex(script);
         let script_file = format!("{id}.js");
         let script_path = self.root.join(SCRIPTS_DIR).join(&script_file);
 
         write_atomic(&script_path, script.as_bytes())?;
 
-        if let Some(existing) = self.records.iter_mut().find(|record| record.id == id) {
+        let existing_index = self.records.iter().position(|record| {
+            record.id == id || manifest_identity(&record.manifest) == identity
+        });
+        if let Some(index) = existing_index {
+            let mut existing = self.records.remove(index);
+            // If a previous import already used the stable id, merge the stale
+            // duplicate into the record we keep.
+            if let Some(duplicate_index) =
+                self.records.iter().position(|record| record.id == id)
+            {
+                let duplicate = self.records.remove(duplicate_index);
+                existing.enabled |= duplicate.enabled;
+                existing.active |= duplicate.active;
+                existing.allow_update_alert |= duplicate.allow_update_alert;
+                if duplicate.priority > existing.priority {
+                    existing.priority = duplicate.priority;
+                }
+                self.remove_script_file(&duplicate.script_file);
+            }
+
+            let old_script_file = existing.script_file.clone();
+            existing.id = id;
             existing.manifest = manifest;
             existing.script_file = script_file;
-            let record = existing.clone();
+            existing.script_hash = script_hash;
+            self.records.push(existing.clone());
+            if old_script_file != existing.script_file {
+                self.remove_script_file(&old_script_file);
+            }
             self.save_index()?;
-            return Ok(record);
+            return Ok(existing);
         }
 
         let priority = self
@@ -92,6 +147,7 @@ impl LxSourceStore {
             id,
             manifest,
             script_file,
+            script_hash,
             enabled: false,
             active: false,
             priority,
@@ -170,6 +226,101 @@ impl LxSourceStore {
             .ok_or_else(|| LxError::InvalidSource(format!("source not found: {id}")))?;
         record.allow_update_alert = allow;
         self.save_index()
+    }
+
+    /// Migrate legacy content-hash ids to manifest-identity ids, fill script
+    /// hashes, and merge duplicates that now share the same stable id.
+    fn migrate_legacy_ids(&mut self) -> Result<()> {
+        let mut changed = false;
+        let mut migrated: Vec<(LxSourceRecord, Option<String>)> =
+            Vec::with_capacity(self.records.len());
+        for mut record in std::mem::take(&mut self.records) {
+            let script = self
+                .safe_script_path(&record)
+                .ok()
+                .and_then(|path| fs::read_to_string(path).ok());
+            let Some(script) = script else {
+                migrated.push((record, None));
+                continue;
+            };
+            let Some(manifest) = parse_source_manifest(&script) else {
+                migrated.push((record, Some(script)));
+                continue;
+            };
+
+            let stable_id = stable_source_id(&manifest);
+            let script_hash = md5_hex(&script);
+            let script_file = format!("{stable_id}.js");
+            if record.id != stable_id
+                || record.script_file != script_file
+                || record.script_hash != script_hash
+            {
+                changed = true;
+            }
+            record.id = stable_id;
+            record.script_file = script_file;
+            record.manifest = manifest;
+            record.script_hash = script_hash;
+            migrated.push((record, Some(script)));
+        }
+
+        let mut by_id: HashMap<String, (LxSourceRecord, Option<String>)> = HashMap::new();
+        for (record, script) in migrated {
+            if let Some((existing, existing_script)) = by_id.get_mut(&record.id) {
+                changed = true;
+                existing.enabled |= record.enabled;
+                existing.active |= record.active;
+                existing.allow_update_alert |= record.allow_update_alert;
+                if record.priority >= existing.priority {
+                    *existing = record;
+                    *existing_script = script;
+                }
+            } else {
+                by_id.insert(record.id.clone(), (record, script));
+            }
+        }
+
+        // Write the winning script back to its stable filename after merging,
+        // so a lower-priority duplicate cannot overwrite the chosen content.
+        for (record, script) in by_id.values() {
+            if let Some(script) = script {
+                let path = self.root.join(SCRIPTS_DIR).join(&record.script_file);
+                write_atomic(&path, script.as_bytes())?;
+            }
+        }
+        let kept_files: std::collections::HashSet<String> = by_id
+            .values()
+            .map(|(record, _)| record.script_file.clone())
+            .collect();
+
+        // Best-effort cleanup for script files belonging to discarded records.
+        if let Ok(entries) = fs::read_dir(self.root.join(SCRIPTS_DIR)) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.ends_with(".js") && !kept_files.contains(&name) {
+                    // Only delete files whose records are gone; avoid touching
+                    // unrelated files by only considering .js files.
+                    let _ = fs::remove_file(entry.path());
+                }
+            }
+        }
+
+        self.records = by_id.into_values().map(|(record, _)| record).collect();
+        if changed {
+            self.save_index()?;
+        }
+        Ok(())
+    }
+
+    fn remove_script_file(&self, script_file: &str) {
+        let path = Path::new(script_file);
+        if path.components().count() != 1 {
+            return;
+        }
+        let path = self.root.join(SCRIPTS_DIR).join(path);
+        if path.exists() {
+            let _ = fs::remove_file(path);
+        }
     }
 
     fn safe_script_path(&self, record: &LxSourceRecord) -> Result<PathBuf> {
@@ -260,6 +411,61 @@ send({}, { sources: {} });
         let second = store.import_script(SCRIPT).unwrap();
         assert_eq!(first.id, second.id);
         assert_eq!(store.list().len(), 1);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn script_update_keeps_stable_id() {
+        let root = temp_root();
+        let mut store = LxSourceStore::open(&root).unwrap();
+        let first = store.import_script(SCRIPT).unwrap();
+        let updated = SCRIPT.replace("Stored source", "Stored source updated");
+        assert_ne!(SCRIPT, updated);
+
+        let second = store.import_script(&updated).unwrap();
+        assert_eq!(first.id, second.id);
+        assert_ne!(first.script_hash, second.script_hash);
+        assert_eq!(store.list().len(), 1);
+        assert_eq!(store.load_script(&second.id).unwrap(), updated);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn migrates_legacy_content_id() {
+        let root = temp_root();
+        let scripts = root.join(SCRIPTS_DIR);
+        fs::create_dir_all(&scripts).unwrap();
+        fs::write(scripts.join("legacy.js"), SCRIPT).unwrap();
+
+        let manifest = parse_source_manifest(SCRIPT).unwrap();
+        let legacy = LxSourceRecord {
+            id: "lx_legacy_content_hash".to_string(),
+            manifest,
+            script_file: "legacy.js".to_string(),
+            script_hash: String::new(),
+            enabled: true,
+            active: true,
+            priority: 7,
+            allow_update_alert: true,
+        };
+        fs::write(
+            root.join(INDEX_FILE),
+            serde_json::to_vec_pretty(&vec![legacy]).unwrap(),
+        )
+        .unwrap();
+
+        let store = LxSourceStore::open(&root).unwrap();
+        assert_eq!(store.list().len(), 1);
+        let record = &store.list()[0];
+        assert_ne!(record.id, "lx_legacy_content_hash");
+        assert_eq!(record.id, stable_source_id(&record.manifest));
+        assert_eq!(record.script_file, format!("{}.js", record.id));
+        assert!(!record.script_hash.is_empty());
+        assert!(record.enabled);
+        assert!(record.active);
+        assert_eq!(record.priority, 7);
+        assert!(!scripts.join("legacy.js").exists());
+        assert!(scripts.join(&record.script_file).exists());
         let _ = fs::remove_dir_all(root);
     }
 }
