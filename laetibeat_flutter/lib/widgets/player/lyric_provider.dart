@@ -62,9 +62,7 @@ class FileLyricProvider implements LyricProvider {
           (descriptor) => rust_meta.readLyricsFd(fd: descriptor.fd),
         );
         if (text != null && text.trim().isNotEmpty) return _toLyrics(text);
-        final sidecar = await _readSafSidecarLyrics(track);
-        if (sidecar == null) debugPrint('SAF 歌词为空: ${track.path}');
-        return _toLyrics(sidecar);
+        return _toLyrics(await _readSafSidecarLyrics(track));
       } catch (error) {
         debugPrint('读取 SAF 歌词失败: $error');
         return null;

@@ -281,13 +281,6 @@ class MusicLibraryNotifier extends AsyncNotifier<MusicLibraryState> {
       }
 
       final library = await rust.aggregateLocalTracks(tracks: tracks);
-      if (library.tracks.isNotEmpty) {
-        final sample = library.tracks.first;
-        debugPrint(
-          'SAF 样例: title=${sample.title} artist=${sample.artist} '
-          'album=${sample.album} duration=${sample.duration}',
-        );
-      }
       final removedFiles = knownById.keys.where((id) => !seen.contains(id)).length;
       final stats = LibraryScanStats(
         totalFiles: totalFiles,

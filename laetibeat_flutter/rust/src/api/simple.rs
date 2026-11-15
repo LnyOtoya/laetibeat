@@ -197,12 +197,7 @@ pub fn parse_saf_track(
         Some(modified_ms),
         Some(file_size),
     );
-    let ui = track_to_ui_track(track, document_uri);
-    eprintln!(
-        "saf.meta name={} title={} artist={} album={} duration={}",
-        display_name, ui.title, ui.artist, ui.album, ui.duration
-    );
-    Ok(ui)
+    Ok(track_to_ui_track(track, document_uri))
 }
 
 /// 把一批 Android SAF 曲目重新聚合为专辑/艺术家。

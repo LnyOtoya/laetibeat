@@ -64,7 +64,7 @@ fn init_lx_logging() {
     #[cfg(target_os = "android")]
     android_logger::init_once(
         android_logger::Config::default()
-            .with_max_level(log::LevelFilter::Debug)
+            .with_max_level(log::LevelFilter::Info)
             .with_tag("LaetibeatLx"),
     );
 }

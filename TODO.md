@@ -31,7 +31,7 @@
 - [x] LX 冷启动改为懒加载：`init_lx_source_store` 只打开 store，list/search 首次需要能力时再加载启用源
 - [x] 缓存管理重做：总缓存上限滑块、启动时套用、UI 默认值与实际分配对齐、清理缓存时同步清理内存缓存；页面进入自动重扫、可见期间 3 秒刷新、支持下拉刷新（`flutter analyze` / `flutter test` 通过）
 - [x] 为 QuickJS 增加执行超时、内存上限、中断与死循环保护（新增死循环中断测试）
-- [x] 本地音乐库改为单 SAF tree 目录：`saf.walk` 发现文件，`withFileDescriptor` 把 fd 交给 Rust；移除 `content://` 转普通路径的兼容层
+- [x] 本地音乐库改为单 SAF tree 目录：`saf.walk` 发现文件，原始 fd 经 `dup` 交给 Rust；标签/内嵌封面/内嵌歌词真机验证通过
 - [x] 设置页增加“下载目录”（独立 SAF tree + 持久授权）与“是否在音乐库内”判断
 - [ ] 下载写入 SAF、目录结构模板、下载后增量扫描
 - [x] `PlaybackBackend` 增加 buffering / error / processing phase，`LaetibeatAudioHandler` 映射真实 `processingState` 与 `bufferedPosition`
@@ -536,7 +536,7 @@
 - audio_service 只在 Android 初始化；iOS 目前没有后台媒体会话接入
 - media_kit 在 Android 上出现过原生 SIGSEGV；Android 已改用 just_audio，桌面风险另论
 - Android 本地音乐库已改为单 SAF tree：`saf.walk` 发现文件、`withFileDescriptor` 把原始 fd 交给 Rust；Rust 用 `dup(fd)` 构造 File 后交给 `lofty::read_from`，避免经 `/proc/self/fd` 重新打开时被 scoped storage 拒绝
-- SAF 已支持同目录 `.lrc`/`.txt` 外挂歌词与 `cover.jpg`/`folder.jpg` 等文件夹封面；扫描暂无进度/取消/并发控制
+- SAF 同目录 `.lrc`/`.txt` 外挂歌词与 `cover.jpg`/`folder.jpg` 等文件夹封面已接入（真机验证内嵌封面/歌词读取正常）；扫描暂无进度/取消/并发控制
 - Android `usesCleartextTraffic="true"` 全局放开；LX 的 kw/wy 等接口需要 HTTP，但建议改为按域名白名单的 network security config
 - 通知点击回到播放页/当前页面尚未验证
 - 导航 Favorite/History/Daily Recommend 目前只改变选中态，不切换页面

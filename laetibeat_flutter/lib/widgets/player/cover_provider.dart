@@ -102,17 +102,8 @@ Future<Uint8List?> _readEmbeddedArtForTrack(String path) async {
       'r',
       (descriptor) => rust_meta.readCoverFd(fd: descriptor.fd),
     );
-    if (embedded != null && embedded.isNotEmpty) {
-      debugPrint('SAF 内嵌封面: ${embedded.length} bytes');
-      return embedded;
-    }
-    final folder = await _readSafFolderCover(path);
-    if (folder == null) {
-      debugPrint('SAF 封面为空: $path');
-    } else {
-      debugPrint('SAF 文件夹封面: ${folder.length} bytes');
-    }
-    return folder;
+    if (embedded != null && embedded.isNotEmpty) return embedded;
+    return await _readSafFolderCover(path);
   } catch (error) {
     debugPrint('读取 SAF 封面失败: $error');
     return null;
