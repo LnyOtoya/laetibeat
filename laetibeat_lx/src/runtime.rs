@@ -14,10 +14,10 @@ const MAX_SCRIPT_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESULT_BYTES: usize = 2 * 1024 * 1024;
 const MAX_RUNTIME_MEMORY_BYTES: usize = 64 * 1024 * 1024;
 const MAX_STACK_SIZE: usize = 512 * 1024;
-const TIMER_PUMP_LIMIT: Duration = Duration::from_secs(5);
-const INIT_TIMEOUT: Duration = Duration::from_secs(5);
+const TIMER_PUMP_LIMIT: Duration = Duration::from_secs(20);
+const INIT_TIMEOUT: Duration = Duration::from_secs(20);
 #[cfg(not(test))]
-const ACTION_TIMEOUT: Duration = Duration::from_secs(10);
+const ACTION_TIMEOUT: Duration = Duration::from_secs(30);
 #[cfg(test)]
 const ACTION_TIMEOUT: Duration = Duration::from_secs(1);
 

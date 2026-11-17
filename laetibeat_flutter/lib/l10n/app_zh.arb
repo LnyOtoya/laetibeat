@@ -21,6 +21,7 @@
   "libraryBrowse": "浏览",
   "librarySourceAll": "全部",
   "librarySourceLocal": "本地",
+  "librarySourceLx": "洛雪",
   "libraryNoSources": "尚未配置音乐源",
   "librarySongsCount": "{count} 首",
   "@librarySongsCount": {
@@ -246,6 +247,9 @@
   "lxSearchTitle": "洛雪平台搜索",
   "lxSearchEnableHint": "先启用一个洛雪音源后即可搜索",
   "lxSearchNoResults": "没有找到歌曲",
+  "lxSearchSourceRequired": "播放前需先导入并启用支持该平台的洛雪音源",
+  "lxPlaylistSearchUnsupported": "该平台暂不支持歌单搜索，可切换到其他平台",
+  "lxPlatformNoSource": "未启用音源",
 
   "lxSearchLoadMore": "加载更多",
   "lxSearchLoadingMore": "加载中…",  "lxSearchFailed": "洛雪平台搜索失败",

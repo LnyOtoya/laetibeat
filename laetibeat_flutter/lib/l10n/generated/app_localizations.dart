@@ -224,6 +224,12 @@ abstract class AppLocalizations {
   /// **'Local'**
   String get librarySourceLocal;
 
+  /// No description provided for @librarySourceLx.
+  ///
+  /// In en, this message translates to:
+  /// **'LX'**
+  String get librarySourceLx;
+
   /// No description provided for @libraryNoSources.
   ///
   /// In en, this message translates to:
@@ -1309,6 +1315,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No songs found'**
   String get lxSearchNoResults;
+
+  /// No description provided for @lxSearchSourceRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Import and enable an LX source that supports this platform to play'**
+  String get lxSearchSourceRequired;
+
+  /// No description provided for @lxPlaylistSearchUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist search is not supported on this platform yet. Try another platform.'**
+  String get lxPlaylistSearchUnsupported;
+
+  /// No description provided for @lxPlatformNoSource.
+  ///
+  /// In en, this message translates to:
+  /// **'No source'**
+  String get lxPlatformNoSource;
 
   /// No description provided for @lxSearchLoadMore.
   ///

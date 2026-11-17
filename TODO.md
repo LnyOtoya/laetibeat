@@ -1,7 +1,7 @@
 # Laetibeat 项目蓝图
 
-> 最后更新：2026-11-10
-> 当前阶段：本地 / OpenSubsonic / LX 三源搜索与播放链路已打通，进入正确性、稳定性与工程债收尾
+> 最后更新：2026-11-18
+> 当前阶段：搜索与 LX 音源解耦中；本地 / OpenSubsonic / LX 三源播放链路已打通，进入正确性、稳定性与工程债收尾
 
 ## 当前状态速览
 
@@ -27,7 +27,7 @@
 
 - [x] 修复 LX 播放统计来源：`PlaybackSessionTracker` 使用 `source=lx` + 平台 `sourceId`
 - [x] 搜索建议增加 300ms 防抖：`LibrarySearchSuggestions` 改为 debounce 后再触发网络搜索
-- [x] LX 源导入/启用/禁用/删除/改优先级后刷新 `lxEnabledPlatformsProvider` 与 `lxSearchProvider`
+- [x] LX 源导入/启用/禁用/删除/改优先级后刷新播放能力（现为 `lxPlayablePlatformsProvider`）与 `lxSearchProvider`
 - [x] LX 冷启动改为懒加载：`init_lx_source_store` 只打开 store，list/search 首次需要能力时再加载启用源
 - [x] 缓存管理重做：总缓存上限滑块、启动时套用、UI 默认值与实际分配对齐、清理缓存时同步清理内存缓存；页面进入自动重扫、可见期间 3 秒刷新、支持下拉刷新（`flutter analyze` / `flutter test` 通过）
 - [x] 为 QuickJS 增加执行超时、内存上限、中断与死循环保护（新增死循环中断测试）
@@ -63,6 +63,88 @@
 - [ ] 移动端首页推荐/历史接入，或删除孤立组件
 - [ ] MPRIS 迁移到 audio_service，或彻底移除旧实现
 - [ ] 高级 DSP / ReplayGain / 响度归一
+
+## 搜索页 LX 单平台分类路由重构（2026-11-17）
+
+### 目标
+
+- 搜索结果页默认来源仍为本地；只有用户选择“洛雪”后才走 LX。
+- 选择洛雪后，默认平台必须是**第一个已启用的洛雪源**（当前为 QQ 音乐），不是写死酷我。
+- LX 一次只查询一个平台，绝不聚合所有洛雪源。
+- 分类决定只搜索对应内容：
+  - 歌曲 → 当前平台歌曲
+  - 歌单 → 当前平台歌单
+  - 专辑 → 当前平台专辑
+  - 艺术家 → 当前平台艺术家
+- 切换平台（QQ/酷我/网易等）后，当前分类结果只来自该平台。
+- “全部”来源不包含 LX；LX 仅在明确选择洛雪来源时启用。
+
+### 实施
+
+- [x] TODO 记录
+- [x] `_lxPlatform` 改为可空，并从已启用源顺序取第一个作为默认
+- [x] 平台选择器只展示已启用平台，顺序与源列表一致
+- [x] 移除歌曲“全部”分类中的全 LX 平台聚合
+- [x] 移除 `_SearchResults` 中无条件监听所有 LX 平台的逻辑
+- [x] 歌单分类只使用当前 LX 平台
+- [x] 专辑分类接入当前 LX 平台结果
+- [x] 艺术家分类接入当前 LX 平台结果
+- [x] 验证切换平台后不会触发其他平台请求
+- [ ] 专辑/艺术家目前由当前平台歌曲结果聚合，后续补平台原生专辑/艺术家搜索接口
+
+## 搜索与 LX 音源解耦（2026-11-18 已实施，待真机复验）
+
+> 结论：**搜索能力是内置的，和用户导入的音源脚本无关**。只有"解析播放地址"才需要已启用源。
+> 参考项目的对应实现：`src/core/search/music.ts` 直接调用内置 `musicSdk[source].musicSearch`，
+> 与 `inited` 声明的自定义源完全无关；自定义源只在 `musicUrl` 阶段介入。
+
+### 问题（已修复）
+
+- 搜索页把"平台列表"从已启用源的 `capabilities` 推导，未启用源时整页被 `lxSearchEnableHint` 挡住，无法搜索/浏览/订阅。
+- `LxSourceDeclaration.sources` 使用 `BTreeMap`，字典序（kg < kw < mg < tx < wy）导致默认平台恒为 `kg`（酷狗）；官方默认是 `kw`（酷我）。
+- 默认平台 `kg` 的歌单搜索未实现，歌单分类只把原始英文错误当一行文字显示，看起来像"歌单无结果"。
+- 本地歌单从未接入搜索页歌单分类；`filter=local` 与 `filter=all` 的歌单 tab 永不含本地歌单。
+- `_LxPlatformResults` 硬编码 3 秒翻页延迟 + 每页 10 条，用户实际只能看到第一页。
+- 搜索建议硬编码 `tx`（QQ），与当前选中平台无关。
+
+### 决策
+
+- **平台顺序跟随官方**：`kw → kg → tx → wy → mg`。该顺序即 `laetibeat_lx::search::SUPPORTED_PLATFORMS`，UI 直接消费 `supported_lx_search_platforms()`，不再依赖容器迭代顺序。
+- **搜索 / 浏览 / 订阅与源解耦**：内置平台搜索无条件可用；只有播放需要已启用源。缺源时只提示，不封锁页面。
+- **默认平台** = 内置顺序中第一个"有启用源声明 `musicUrl`"的平台；完全没有源时回退到内置第一个平台（`kw`）。
+- **专辑 / 艺术家**保持"当前平台歌曲结果聚合"，不补全平台原生专辑/艺术家接口（后期有强需求再做）。
+- **请求节流**：同一平台串行 + 最小间隔 300ms；取消 3 秒翻页延迟；每页 20 条；翻页由 `has_more` 与 `_loadingMore` 去重，避免滚动事件放大请求量。既能正常浏览，也不至于高频打接口。
+- **不做跨平台聚合**：一次只查当前平台（维持 2026-11-17 的结论）。
+
+### 实施
+
+- [x] 拆分 provider：`lxPlatformsProvider`（内置、有序、恒可用）/ `lxPlayablePlatformsProvider`（源声明、仅播放门控）
+- [x] 搜索页平台 bar 恒显示内置平台；无播放源的平台显示"未启用音源"标记
+- [x] 移除"未启用源则整页提示"分支；无播放源时点击播放/播放全部改为提示导入或启用源
+- [x] 默认平台改为"第一个可播放平台，否则内置第一个"
+- [x] `_LxPlatformResults`：去掉 3 秒延迟、页大小 20、改走统一 gated 搜索入口
+- [x] 歌单分类补本地歌单（`localPlaylistsProvider` → `LocalPlaylistDetailPage`）
+- [x] 歌单分类对不支持的平台（当前 kg / wy / mg）显示明确文案，而不是原始错误
+- [x] 搜索建议不再硬编码 `tx`，跟随当前默认平台
+- [x] 清理死代码：`_buildSongs`、`_SongEntry`、`search_source.dart`、`_LxPlatformStatusBar`
+- [x] l10n 新增 `lxSearchSourceRequired` / `lxPlaylistSearchUnsupported` / `lxPlatformNoSource`
+- [x] `mobile_lx_sources_page` 改为 invalidate `lxPlayablePlatformsProvider`
+- [x] `_playLxResults` 改为直接走 gated 搜索（原先读 `lxSearchProvider` 的缓存值，歌曲 tab 下可能为空导致按钮无效）
+- [x] `cargo check --workspace` / `cargo test --workspace`（37 tests）通过
+- [ ] 有 Flutter 环境时复验 `flutter analyze` / `flutter test`（本机无 Flutter SDK，Dart 改动未做编译验证）
+- [ ] Android 真机验证：无音源时搜索/订阅可用、播放提示正确、切平台只发一次请求
+
+### 后续（本次未做）
+
+- [ ] `kg` / `wy` / `mg` 歌单搜索与详情。官方 5/5 均有实现，当前我们只有 `kw` + `tx`：
+  - `kg`：`msearchretry.kugou.com/api/v3/search/special`（`page` 从 1 开始，返回 `data.info`）；详情需 `global_collection_id` 链 + `infSign` 签名
+  - `wy`：`eapi /api/cloudsearch/pc`（`type=1000`）；详情需 `musicDetail` 批量接口
+  - `mg`：`jadeite.migu.cn/music_search/v3/search/searchAll`（`searchSwitch.songlist=1`，需 `sign` 头）；详情为两步请求
+- [ ] 搜索结果未保留 `types` / `_types`（每首可用音质与体积），播放选质只能"默认音质 → 128k"，不会尝试 320k/flac
+- [ ] 封面 `pic` fallback 只有 `kg`；官方 `kw` / `mg` 也有 `pic` 实现
+- [ ] 专辑 / 艺术家分类只聚合歌曲第 1 页（当前 50 条），应改为与歌曲分页共用同一数据源
+- [ ] `lxSearchProvider` 非 autoDispose，逐词常驻内存；建议 autoDispose + 少量 keepAlive
+- [ ] 搜索建议（tipSearch）与热词/排行榜仍未接入
 
 ## LX 在线歌单与订阅（2026-11-15 定稿方向）
 
@@ -114,7 +196,7 @@ LX 平台：酷我 / QQ / 网易 / 咪咕 / 酷狗
 - [x] 7. 媒体库歌单页显示订阅来源 badge
 - [x] 8. 订阅歌单下拉同步，同步前确认覆盖
 - [x] 9. 自己创建 LX 歌单并从 LX 搜索结果添加歌曲
-- [ ] 10. 依次补 TX / WY / MG / KG
+- [x] 10. 已补 KW / TX 歌单搜索与详情；WY / MG / KG 待补
 
 ### 待确认
 
@@ -549,7 +631,7 @@ LX 平台：酷我 / QQ / 网易 / 咪咕 / 酷狗
 - [x] 源列表：名称、版本、作者、状态、启用开关、优先级
 - [x] 删除确认、错误提示
 - [ ] `updateAlert` 更新提示 UI
-- [ ] 导入/启用/禁用/删除/优先级变更后 invalidate `lxEnabledPlatformsProvider` / `lxSearchProvider`
+- [x] 导入/启用/禁用/删除/优先级变更后 invalidate `lxPlayablePlatformsProvider` / `lxSearchProvider`（2026-11-18）
 - [x] 移动端与桌面端 UI 隔离，不共享桌面布局
 
 ### 10.8 搜索与播放接入
@@ -606,7 +688,7 @@ LX 平台：酷我 / QQ / 网易 / 咪咕 / 酷狗
 - [x] 无本地/Subsonic 时，启用 LX 源后可在搜索页搜索 kw/kg/tx/wy/mg 并播放
 - [x] 搜索分页 / 加载更多
 - [x] 搜索失败重试
-- [ ] 搜索输入防抖（300ms）：当前 `LibrarySearchSuggestions` 每次按键都会触发搜索
+- [x] 搜索输入防抖（300ms）：`LibrarySearchSuggestions` 已在 `didUpdateWidget` 里 300ms 防抖
 - [ ] 搜索请求真正取消（当前通过请求代次丢弃旧结果）
 - [ ] LX 源启用/删除后搜索页能力列表立即刷新
 - [ ] 真实 LX 源 + 真实平台搜索结果联调
@@ -638,7 +720,7 @@ LX 平台：酷我 / QQ / 网易 / 咪咕 / 酷狗
 ### 正确性与状态一致性
 
 - LX source id 已改为 manifest 身份稳定 id，脚本更新复用同一记录；旧 content-hash 记录会在 store 打开时迁移并清理重复脚本
-- `lxEnabledPlatformsProvider` 仍不是 autoDispose；目前依赖源管理操作后主动 invalidate，后续可考虑 autoDispose 减少常驻缓存
+- 平台列表已拆成 `lxPlatformsProvider`（内置、恒可用）与 `lxPlayablePlatformsProvider`（autoDispose、仅播放门控）；源管理操作后只需 invalidate 后者
 - `load_enabled_sources` 会在首次 list/search 时同步初始化所有启用源；已避免阻塞 bootstrap，但首次搜索仍可能等待脚本初始化
 - LX 歌词正缓存长期保留、未命中负缓存 1 天；封面磁盘缓存按平台 + 歌曲 id，URL 变化时需等待缓存清理
 - 全局缓存上限目前按历史默认比例（本地 1GB : Subsonic 2GB : 洛雪 512MB）分配到三组，暂不支持独立分组配额
@@ -649,7 +731,7 @@ LX 平台：酷我 / QQ / 网易 / 咪咕 / 酷狗
 - 媒体库首页已入口化；歌曲/专辑/艺术家/歌单页已统一本地/OpenSubsonic 并接入来源 chips 与 badge
 - OpenSubsonic 歌单已接入 get/create/update/delete：详情、改名、删除、按索引移歌、加歌；暂未做 comment/public 编辑 UI
 - 本地专辑/艺术家详情页已接入：专辑曲目按 `track_ids`、艺术家专辑按专辑艺术家/曲目关联聚合；跨源同名专辑/艺术家暂不自动合并
-- LX 在线歌单当前只接入酷我 KW；搜索页可切换其他平台，但接口尚未实现，下一步依次补 TX / WY / MG / KG
+- LX 在线歌单当前已接入酷我 KW 与 QQ TX；WY / MG / KG 尚未实现，切过去会显示"该平台暂不支持歌单搜索"（官方 5/5 均有实现，待补）
 - 媒体库首页的远端数量只读已缓存 Provider；首次进入且未打开过对应详情页时显示 `—`，不主动触发全量远端加载
 - 移动端内容设置已接通“选择本地媒体库”与“扫描”；真机上 SAF 目录持久授权与 Rust 扫描结果仍需验证
 

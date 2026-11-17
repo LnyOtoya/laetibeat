@@ -21,6 +21,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../library/albums/album_detail_page.dart';
 import '../library/artists/artist_detail_page.dart';
+import '../library/playlists/local_playlist_detail_page.dart';
 import '../library/playlists/lx_playlist_preview_page.dart';
 import '../library/playlists/playlist_actions.dart';
 import '../library/playlists/remote_playlist_detail_page.dart';
@@ -216,30 +217,83 @@ class _MobileSearchResultsPageState
   late final TextEditingController _controller;
   MobileSearchCategory _category = MobileSearchCategory.songs;
   late MobileSearchSourceFilter _filter;
-  String _lxPlatform = 'kw';
+  String? _lxPlatform;
+
+  /// 自动解析出的默认平台。用户没有手动选择时，一旦播放能力加载完成，
+  /// 允许用它纠正"当前平台没有任何音源"的情况。
+  String? _resolvedLxPlatform;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialQuery);
     _filter = ref.read(defaultSearchSourceProvider);
+    // 源可能在设置页被增删；进入搜索结果页时刷新一次播放能力。
+    ref.invalidate(lxPlayablePlatformsProvider);
+  }
+
+  /// 解析当前平台。
+  ///
+  /// 平台来自内置列表，与是否导入音源无关；这里只决定"默认选中哪一个"：
+  /// 用户手动选择优先，其次是内置顺序中第一个可播放平台，最后回退到第一个
+  /// 内置平台（保证没导入任何音源时依然能搜索）。
+  String? _resolveLxPlatform(List<String> platforms, List<String> playable) {
+    final selected = _lxPlatform;
+    if (selected != null && platforms.contains(selected)) return selected;
+
+    final current = _resolvedLxPlatform;
+    if (current != null &&
+        platforms.contains(current) &&
+        playable.contains(current)) {
+      return current;
+    }
+    // 纯内部记忆值，不触发重建：输入不变时结果稳定。
+    _resolvedLxPlatform = lxDefaultPlatform(
+      platforms: platforms,
+      playable: playable,
+    );
+    return _resolvedLxPlatform;
   }
 
   void _playLxResults() {
-    final l10n = AppLocalizations.of(context);
     final query = widget.initialQuery.trim();
     if (query.isEmpty) return;
-    final lx = ref
-        .read(lxSearchProvider((platform: _lxPlatform, query: query)))
-        .value;
-    if (lx == null || lx.tracks.isEmpty) return;
-    final tracks = lx.tracks
-        .take(10)
-        .map(lxSearchTrackToUiTrack)
-        .toList(growable: false);
-    ref
-        .read(playerProvider.notifier)
-        .load(tracks, 0, source: '洛雪 · ${lxPlatformLabel(l10n, _lxPlatform)}');
+    final platforms = ref.read(lxPlatformsProvider).value ?? kLxPlatformOrder;
+    final playable =
+        ref.read(lxPlayablePlatformsProvider).value ?? const <String>[];
+    final platform = _resolveLxPlatform(platforms, playable);
+    if (platform == null) return;
+    if (!playable.contains(platform)) {
+      M3ESnackbar.show(
+        context,
+        message: AppLocalizations.of(context).lxSearchSourceRequired,
+      );
+      return;
+    }
+    unawaited(_loadLxFirstPage(platform, query));
+  }
+
+  Future<void> _loadLxFirstPage(String platform, String query) async {
+    final l10n = AppLocalizations.of(context);
+    try {
+      // 走统一的 gated 入口：与歌曲/歌单搜索共享同平台节流。
+      final page = await searchLxSongs(
+        platform: platform,
+        keyword: query,
+        page: 1,
+        limit: 10,
+      );
+      if (!mounted || page.tracks.isEmpty) return;
+      final tracks = page.tracks
+          .map(lxSearchTrackToUiTrack)
+          .toList(growable: false);
+      ref
+          .read(playerProvider.notifier)
+          .load(tracks, 0, source: '洛雪 · ${lxPlatformLabel(l10n, platform)}');
+    } catch (error) {
+      if (!mounted) return;
+      M3ESnackbar.show(context, message: error.toString());
+    }
   }
 
   @override
@@ -252,6 +306,14 @@ class _MobileSearchResultsPageState
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
+    final lxPlatformsAsync = ref.watch(lxPlatformsProvider);
+    final playableAsync = ref.watch(lxPlayablePlatformsProvider);
+    final lxPlatforms = lxPlatformsAsync.value ?? kLxPlatformOrder;
+    final playablePlatforms = playableAsync.value ?? const <String>[];
+    final activeLxPlatform = _resolveLxPlatform(
+      lxPlatforms,
+      playablePlatforms,
+    );
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surfaceContainer,
@@ -323,13 +385,13 @@ class _MobileSearchResultsPageState
                   ),
                 );
               },
-              child:
-                  (_filter == MobileSearchSourceFilter.lx ||
-                      (_category == MobileSearchCategory.playlists &&
-                          _filter == MobileSearchSourceFilter.all))
+              child: _filter == MobileSearchSourceFilter.lx
                   ? _LxPlatformBar(
                       key: const ValueKey<String>('lx-platform-bar'),
-                      platform: _lxPlatform,
+                      // 平台列表来自内置能力，永远不会为空；这里只是防御。
+                      platform: activeLxPlatform ?? kLxPlatformOrder.first,
+                      platforms: lxPlatforms,
+                      playablePlatforms: playablePlatforms,
                       showPlay: _category == MobileSearchCategory.songs,
                       onPlay: _playLxResults,
                       onChanged: (platform) =>
@@ -344,10 +406,8 @@ class _MobileSearchResultsPageState
                 query: widget.initialQuery,
                 category: _category,
                 filter: _filter,
-                lxPlatform:
-                    _filter == MobileSearchSourceFilter.lx ||
-                        _category == MobileSearchCategory.playlists
-                    ? _lxPlatform
+                lxPlatform: _filter == MobileSearchSourceFilter.lx
+                    ? activeLxPlatform
                     : null,
               ),
             ),
@@ -395,18 +455,41 @@ class _CategoryTabs extends StatelessWidget {
   }
 }
 
+class _LxAlbumGroup {
+  _LxAlbumGroup({
+    required this.title,
+    required this.artist,
+    required this.tracks,
+  });
+
+  final String title;
+  final String artist;
+  final List<rust.UiTrack> tracks;
+}
+
+class _LxArtistGroup {
+  _LxArtistGroup({required this.name, required this.tracks});
+
+  final String name;
+  final List<rust.UiTrack> tracks;
+}
+
 class _LxPlatformBar extends StatelessWidget {
   const _LxPlatformBar({
     super.key,
     required this.platform,
+    required this.platforms,
+    required this.playablePlatforms,
     required this.onChanged,
     required this.onPlay,
     required this.showPlay,
   });
 
-  static const List<String> _platforms = <String>['tx', 'wy', 'mg', 'kg', 'kw'];
-
   final String platform;
+  final List<String> platforms;
+
+  /// 有启用源可以解析播放地址的平台。为空表示只能浏览，不能播放。
+  final List<String> playablePlatforms;
   final ValueChanged<String> onChanged;
   final VoidCallback onPlay;
   final bool showPlay;
@@ -414,6 +497,8 @@ class _LxPlatformBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final theme = M3ETheme.of(context);
+    final canPlay = playablePlatforms.contains(platform);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Row(
@@ -427,6 +512,32 @@ class _LxPlatformBar extends StatelessWidget {
               shape: M3EButtonShape.round,
               onPressed: onPlay,
             ),
+          if (showPlay && !canPlay) ...<Widget>[
+            const SizedBox(width: 8),
+            Flexible(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    M3EIcons.info,
+                    size: 14,
+                    color: theme.colorScheme.error,
+                  ),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      l10n.lxPlatformNoSource,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.typeScale.labelSmall.copyWith(
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const Spacer(),
           M3ESplitButton<String>(
             size: M3EButtonSize.sm,
@@ -436,10 +547,12 @@ class _LxPlatformBar extends StatelessWidget {
             leadingIcon: M3EIcons.music_note,
             selectedValue: platform,
             trailingTooltip: l10n.searchFilter,
+            // 切歌在播放链路里是"解析播放地址"，只标注是否可用；
+            // 平台本身始终可切换，搜索永远不受音源影响。
             onPressed: () {},
             onSelected: onChanged,
             items: <M3ESplitButtonItem<String>>[
-              for (final item in _platforms)
+              for (final item in platforms)
                 M3ESplitButtonItem(
                   value: item,
                   child: Text(lxPlatformLabel(l10n, item)),
@@ -534,28 +647,44 @@ class _SearchResults extends ConsumerWidget {
         platform: lxPlatform!,
       );
     }
-    final local = ref.watch(musicLibraryProvider).value;
+    final isPlaylistCategory = category == MobileSearchCategory.playlists;
+    final isLxFilter = filter == MobileSearchSourceFilter.lx;
+    if (isLxFilter && lxPlatform == null) {
+      // 只会发生在内置平台表尚未返回（或宿主初始化失败）时。
+      final platformsAsync = ref.watch(lxPlatformsProvider);
+      if (platformsAsync.isLoading) return _loading();
+      if (platformsAsync.hasError) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              platformsAsync.error.toString(),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        );
+      }
+      return Center(child: Text(l10n.searchNoResults));
+    }
+    final local = isPlaylistCategory || isLxFilter
+        ? null
+        : ref.watch(musicLibraryProvider).value;
     final servers =
         ref.watch(subsonicServersProvider).value ??
         const <SubsonicServerConfig>[];
     final server = servers.isEmpty ? null : servers.first;
-    final remoteAsync = server == null
+    final remoteAsync = server == null || isPlaylistCategory || isLxFilter
         ? null
         : ref.watch(remoteSearchProvider((sourceId: server.id, query: query)));
-    final platforms =
-        ref.watch(lxEnabledPlatformsProvider).value ?? const <String>[];
-    final lxPages = <String, rust_lx.UiLxSearchPage?>{};
-    var lxLoading = false;
-    for (final platform in platforms) {
-      final async = ref.watch(
-        lxSearchProvider((platform: platform, query: query)),
-      );
-      lxPages[platform] = async.value;
-      lxLoading = lxLoading || async.isLoading;
-    }
-
+    final lxPage =
+        isLxFilter &&
+            !isPlaylistCategory &&
+            category != MobileSearchCategory.songs &&
+            lxPlatform != null
+        ? ref.watch(lxSearchProvider((platform: lxPlatform!, query: query)))
+        : null;
     final children = <Widget>[];
-    if ((remoteAsync?.isLoading ?? false) || lxLoading) {
+    if ((remoteAsync?.isLoading ?? false) || (lxPage?.isLoading ?? false)) {
       children.add(
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -569,15 +698,8 @@ class _SearchResults extends ConsumerWidget {
 
     final remote = remoteAsync?.value;
     children.addAll(switch (category) {
-      MobileSearchCategory.songs => _buildSongs(
-        context,
-        ref,
-        local,
-        remote,
-        lxPages,
-        server,
-        l10n,
-      ),
+      // 歌曲由上面的分页列表提前返回，这里不会真正渲染。
+      MobileSearchCategory.songs => const <Widget>[],
       MobileSearchCategory.playlists => _buildPlaylists(
         context,
         ref,
@@ -592,13 +714,18 @@ class _SearchResults extends ConsumerWidget {
         remote,
         server,
         l10n,
+        lxPage?.value,
+        lxPlatform,
       ),
       MobileSearchCategory.artists => _buildArtists(
         context,
+        ref,
         local,
         remote,
         server,
         l10n,
+        lxPage?.value,
+        lxPlatform,
       ),
     });
 
@@ -606,82 +733,6 @@ class _SearchResults extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: children,
     );
-  }
-
-  List<Widget> _buildSongs(
-    BuildContext context,
-    WidgetRef ref,
-    MusicLibraryState? local,
-    rust_subsonic.UiRemoteSearchResult? remote,
-    Map<String, rust_lx.UiLxSearchPage?> lxPages,
-    SubsonicServerConfig? server,
-    AppLocalizations l10n,
-  ) {
-    final entries = <_SongEntry>[];
-    final lower = query.toLowerCase();
-    if (local != null && _includesLocal) {
-      for (final track in local.tracks.where(
-        (track) => _matchesTrack(track, lower),
-      )) {
-        entries.add(
-          _SongEntry(
-            track: track,
-            source: l10n.searchSourceLocal,
-            sourceKey: 'local',
-          ),
-        );
-      }
-    }
-    if (remote != null && _includesSubsonic) {
-      for (final track in remote.tracks) {
-        entries.add(
-          _SongEntry(
-            track: remoteTrackToUiTrack(track, server!.id),
-            source: server.name,
-            sourceKey: server.name.toLowerCase().contains('navidrome')
-                ? 'navidrome'
-                : 'subsonic',
-          ),
-        );
-      }
-    }
-    if (_includesLx) {
-      for (final entry in lxPages.entries) {
-        final lx = entry.value;
-        if (lx == null) continue;
-        for (final track in lx.tracks) {
-          entries.add(
-            _SongEntry(
-              track: lxSearchTrackToUiTrack(track),
-              source: '洛雪',
-              sourceKey: entry.key,
-            ),
-          );
-        }
-      }
-    }
-    if (entries.isEmpty) return <Widget>[_empty(l10n)];
-    final tracks = entries.map((entry) => entry.track).toList(growable: false);
-    return <Widget>[
-      M3EList(
-        color: M3ETheme.of(context).colorScheme.surface,
-        variant: M3ECardVariant.filled,
-        itemCount: entries.length,
-        onTap: (index) =>
-            ref.read(playerProvider.notifier).load(tracks, index, source: '搜索'),
-        itemBuilder: (BuildContext context, int index) {
-          final entry = entries[index];
-          return M3EListItem(
-            leading: _SearchResultCover(track: entry.track),
-            headline: entry.track.title,
-            supportingText: entry.track.artist,
-            trailing: filter == MobileSearchSourceFilter.all
-                ? _sourceChip(entry.source, entry.sourceKey)
-                : null,
-          );
-        },
-      ),
-    ];
   }
 
   List<Widget> _buildPlaylists(
@@ -692,6 +743,49 @@ class _SearchResults extends ConsumerWidget {
     String? lxPlatform,
   ) {
     final widgets = <Widget>[];
+    if (_includesLocal) {
+      // 本地（含订阅）歌单：与歌曲/专辑一样属于媒体库内容，必须能搜到。
+      final localPlaylists = ref.watch(localPlaylistsProvider).value;
+      if (localPlaylists != null) {
+        final lower = query.toLowerCase();
+        final matches = localPlaylists
+            .where((playlist) => playlist.name.toLowerCase().contains(lower))
+            .toList(growable: false);
+        if (matches.isNotEmpty) {
+          widgets.add(
+            M3EList(
+              color: M3ETheme.of(context).colorScheme.surface,
+              variant: M3ECardVariant.filled,
+              itemCount: matches.length,
+              onTap: (int index) => pushMobileRootPage(
+                context,
+                LocalPlaylistDetailPage(playlistId: matches[index].id),
+                name: MobileRoutes.libraryPlaylists,
+              ),
+              itemBuilder: (BuildContext context, int index) {
+                final playlist = matches[index];
+                final platform = playlist.source;
+                final isLx = platform != null && platform.isNotEmpty;
+                return M3EListItem(
+                  headline: playlist.name,
+                  supportingText: l10n.librarySongsCount(
+                    playlist.itemCount.toInt(),
+                  ),
+                  trailing: filter == MobileSearchSourceFilter.all
+                      ? _sourceChip(
+                          isLx
+                              ? 'LX · ${lxPlatformLabel(l10n, platform ?? '')}'
+                              : l10n.searchSourceLocal,
+                          platform ?? 'local',
+                        )
+                      : null,
+                );
+              },
+            ),
+          );
+        }
+      }
+    }
     if (server != null && _includesSubsonic) {
       final playlists = ref.watch(remotePlaylistsProvider(server.id)).value;
       if (playlists != null) {
@@ -736,8 +830,8 @@ class _SearchResults extends ConsumerWidget {
         widgets.add(_loading());
       }
     }
-    if (_includesLx) {
-      final platform = lxPlatform ?? 'kw';
+    if (_includesLx && lxPlatform != null) {
+      final platform = lxPlatform;
       final lxAsync = ref.watch(
         lxPlaylistSearchProvider((platform: platform, query: query)),
       );
@@ -746,12 +840,27 @@ class _SearchResults extends ConsumerWidget {
         if (lxAsync.isLoading) {
           widgets.add(_loading());
         } else if (lxAsync.hasError) {
+          // 当前 kg / wy / mg 尚未实现歌单搜索，后端返回 "not implemented"。
+          // 换成可读文案，而不是把英文错误直接丢给用户。
+          final message = lxAsync.error.toString();
+          final unsupported = message.contains('not implemented');
           widgets.add(
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Text(
-                lxAsync.error.toString(),
-                textAlign: TextAlign.center,
+              child: Column(
+                children: <Widget>[
+                  Icon(
+                    M3EIcons.info,
+                    color: M3ETheme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    unsupported
+                        ? l10n.lxPlaylistSearchUnsupported
+                        : message,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
           );
@@ -796,6 +905,8 @@ class _SearchResults extends ConsumerWidget {
     rust_subsonic.UiRemoteSearchResult? remote,
     SubsonicServerConfig? server,
     AppLocalizations l10n,
+    rust_lx.UiLxSearchPage? lxPage,
+    String? lxPlatform,
   ) {
     final lower = query.toLowerCase();
     final children = <Widget>[];
@@ -817,7 +928,10 @@ class _SearchResults extends ConsumerWidget {
               )
               .toList(growable: false)
         : const <rust_subsonic.UiRemoteAlbum>[];
-    if (localAlbums.isEmpty && remoteAlbums.isEmpty) {
+    final lxAlbums = filter == MobileSearchSourceFilter.lx
+        ? _lxAlbumGroups(lxPage)
+        : const <_LxAlbumGroup>[];
+    if (localAlbums.isEmpty && remoteAlbums.isEmpty && lxAlbums.isEmpty) {
       return <Widget>[_empty(l10n)];
     }
     if (localAlbums.isNotEmpty) {
@@ -871,15 +985,76 @@ class _SearchResults extends ConsumerWidget {
         ),
       );
     }
+    if (lxAlbums.isNotEmpty) {
+      children.add(const SizedBox(height: 8));
+      children.add(
+        M3EList(
+          color: M3ETheme.of(context).colorScheme.surface,
+          variant: M3ECardVariant.filled,
+          itemCount: lxAlbums.length,
+          onTap: (int index) {
+            if (!_canPlayLx(ref, lxPlatform)) {
+              _requireLxSource(context, l10n);
+              return;
+            }
+            final album = lxAlbums[index];
+            ref
+                .read(playerProvider.notifier)
+                .load(
+                  album.tracks,
+                  0,
+                  source:
+                      '洛雪 · ${lxPlatformLabel(l10n, lxPlatform ?? '')} · ${album.title}',
+                );
+          },
+          itemBuilder: (BuildContext context, int index) {
+            final album = lxAlbums[index];
+            return M3EListItem(
+              leading: _SearchResultCover(track: album.tracks.first),
+              headline: album.title,
+              supportingText: album.artist,
+              trailing: _sourceChip(
+                'LX · ${lxPlatformLabel(l10n, lxPlatform ?? '')}',
+                lxPlatform ?? '',
+              ),
+            );
+          },
+        ),
+      );
+    }
     return children;
+  }
+
+  List<_LxAlbumGroup> _lxAlbumGroups(rust_lx.UiLxSearchPage? page) {
+    if (page == null) return const <_LxAlbumGroup>[];
+    final groups = <String, _LxAlbumGroup>{};
+    for (final raw in page.tracks) {
+      final track = lxSearchTrackToUiTrack(raw);
+      final key = track.albumId.isNotEmpty ? track.albumId : track.album;
+      if (key.isEmpty) continue;
+      final existing = groups[key];
+      if (existing == null) {
+        groups[key] = _LxAlbumGroup(
+          title: track.album.isEmpty ? track.title : track.album,
+          artist: track.artist,
+          tracks: <rust.UiTrack>[track],
+        );
+      } else {
+        existing.tracks.add(track);
+      }
+    }
+    return groups.values.toList(growable: false);
   }
 
   List<Widget> _buildArtists(
     BuildContext context,
+    WidgetRef ref,
     MusicLibraryState? local,
     rust_subsonic.UiRemoteSearchResult? remote,
     SubsonicServerConfig? server,
     AppLocalizations l10n,
+    rust_lx.UiLxSearchPage? lxPage,
+    String? lxPlatform,
   ) {
     final lower = query.toLowerCase();
     final children = <Widget>[];
@@ -893,7 +1068,10 @@ class _SearchResults extends ConsumerWidget {
               .where((artist) => artist.name.toLowerCase().contains(lower))
               .toList(growable: false)
         : const <rust_subsonic.UiRemoteArtist>[];
-    if (localArtists.isEmpty && remoteArtists.isEmpty) {
+    final lxArtists = filter == MobileSearchSourceFilter.lx
+        ? _lxArtistGroups(lxPage)
+        : const <_LxArtistGroup>[];
+    if (localArtists.isEmpty && remoteArtists.isEmpty && lxArtists.isEmpty) {
       return <Widget>[_empty(l10n)];
     }
     if (localArtists.isNotEmpty) {
@@ -947,7 +1125,62 @@ class _SearchResults extends ConsumerWidget {
         ),
       );
     }
+    if (lxArtists.isNotEmpty) {
+      children.add(const SizedBox(height: 8));
+      children.add(
+        M3EList(
+          color: M3ETheme.of(context).colorScheme.surface,
+          variant: M3ECardVariant.filled,
+          itemCount: lxArtists.length,
+          onTap: (int index) {
+            if (!_canPlayLx(ref, lxPlatform)) {
+              _requireLxSource(context, l10n);
+              return;
+            }
+            final artist = lxArtists[index];
+            ref
+                .read(playerProvider.notifier)
+                .load(
+                  artist.tracks,
+                  0,
+                  source:
+                      '洛雪 · ${lxPlatformLabel(l10n, lxPlatform ?? '')} · ${artist.name}',
+                );
+          },
+          itemBuilder: (BuildContext context, int index) {
+            final artist = lxArtists[index];
+            return M3EListItem(
+              headline: artist.name,
+              supportingText: l10n.librarySongsCount(artist.tracks.length),
+              trailing: _sourceChip(
+                'LX · ${lxPlatformLabel(l10n, lxPlatform ?? '')}',
+                lxPlatform ?? '',
+              ),
+            );
+          },
+        ),
+      );
+    }
     return children;
+  }
+
+  List<_LxArtistGroup> _lxArtistGroups(rust_lx.UiLxSearchPage? page) {
+    if (page == null) return const <_LxArtistGroup>[];
+    final groups = <String, _LxArtistGroup>{};
+    for (final raw in page.tracks) {
+      final track = lxSearchTrackToUiTrack(raw);
+      if (track.artist.isEmpty) continue;
+      final existing = groups[track.artist];
+      if (existing == null) {
+        groups[track.artist] = _LxArtistGroup(
+          name: track.artist,
+          tracks: <rust.UiTrack>[track],
+        );
+      } else {
+        existing.tracks.add(track);
+      }
+    }
+    return groups.values.toList(growable: false);
   }
 
   bool get _includesLocal =>
@@ -958,14 +1191,17 @@ class _SearchResults extends ConsumerWidget {
       filter == MobileSearchSourceFilter.all ||
       filter == MobileSearchSourceFilter.subsonic;
 
-  bool get _includesLx =>
-      filter == MobileSearchSourceFilter.all ||
-      filter == MobileSearchSourceFilter.lx;
+  bool get _includesLx => filter == MobileSearchSourceFilter.lx;
 
-  bool _matchesTrack(rust.UiTrack track, String lower) =>
-      track.title.toLowerCase().contains(lower) ||
-      track.artist.toLowerCase().contains(lower) ||
-      track.album.toLowerCase().contains(lower);
+  /// LX 平台只有在有启用源能解析 `musicUrl` 时才允许起播。
+  ///
+  /// 搜索、浏览、加入歌单都不受此限制。
+  bool _canPlayLx(WidgetRef ref, String? lxPlatform) =>
+      lxPlatformCanPlay(ref, lxPlatform);
+
+  void _requireLxSource(BuildContext context, AppLocalizations l10n) {
+    M3ESnackbar.show(context, message: l10n.lxSearchSourceRequired);
+  }
 
   void _playLocalAlbum(
     WidgetRef ref,
@@ -1092,28 +1328,6 @@ class _PagedSongsResultsState extends ConsumerState<_PagedSongsResults> {
       }
     }
 
-    if (widget.filter == MobileSearchSourceFilter.all) {
-      final platforms =
-          ref.watch(lxEnabledPlatformsProvider).value ?? const <String>[];
-      for (final platform in platforms) {
-        final async = ref.watch(
-          lxSearchProvider((platform: platform, query: widget.query)),
-        );
-        if (async.isLoading) loading = true;
-        final lx = async.value;
-        if (lx == null) continue;
-        for (final track in lx.tracks) {
-          entries.add(
-            _PagedSongEntry(
-              track: lxSearchTrackToUiTrack(track),
-              source: '洛雪',
-              sourceKey: platform,
-            ),
-          );
-        }
-      }
-    }
-
     if (entries.isEmpty) {
       if (loading) {
         return Center(
@@ -1192,8 +1406,9 @@ class _LxPlatformResults extends ConsumerStatefulWidget {
 }
 
 class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
-  static const Duration _loadMoreDelay = Duration(seconds: 3);
-  static const int _pageSize = 10;
+  /// 单页数量。平台接口按页返回，20 条接近官方 30 条的体验，
+  /// 又不会一次拉太多。
+  static const int _pageSize = 20;
 
   final ScrollController _scrollController = ScrollController();
   List<rust_lx.UiLxSearchTrack> _tracks = const [];
@@ -1238,9 +1453,9 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
 
   Future<void> _loadMore() async {
     if (_loading || _loadingMore || !_hasMore) return;
+    // 节流由统一的 LxSearchGate 负责（同平台串行 + 最小间隔），
+    // 这里只需要防止滚动事件重复触发。
     setState(() => _loadingMore = true);
-    await Future<void>.delayed(_loadMoreDelay);
-    if (!mounted) return;
     await _fetch(reset: false);
     if (mounted) setState(() => _loadingMore = false);
   }
@@ -1258,7 +1473,7 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
       });
     }
     try {
-      final result = await rust_lx.searchLxMusic(
+      final result = await searchLxSongs(
         platform: widget.platform,
         keyword: widget.query,
         page: reset ? 1 : _page + 1,
@@ -1341,9 +1556,19 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
           color: theme.colorScheme.surface,
           variant: M3ECardVariant.filled,
           itemCount: _tracks.length,
-          onTap: (index) => ref
-              .read(playerProvider.notifier)
-              .load(tracks, index, source: '洛雪'),
+          onTap: (index) {
+            // 播放才需要音源；没有源时给明确提示，而不是让播放器在后台失败。
+            if (!lxPlatformCanPlay(ref, widget.platform)) {
+              M3ESnackbar.show(
+                context,
+                message: l10n.lxSearchSourceRequired,
+              );
+              return;
+            }
+            ref
+                .read(playerProvider.notifier)
+                .load(tracks, index, source: '洛雪');
+          },
           itemBuilder: (BuildContext context, int index) {
             final track = _tracks[index];
             return M3EListItem(
@@ -1408,18 +1633,6 @@ class _SearchResultCover extends ConsumerWidget {
       ),
     );
   }
-}
-
-class _SongEntry {
-  const _SongEntry({
-    required this.track,
-    required this.source,
-    required this.sourceKey,
-  });
-
-  final rust.UiTrack track;
-  final String source;
-  final String sourceKey;
 }
 
 Widget _sourceChip(String label, String sourceKey) {

@@ -114,12 +114,14 @@ class _LibrarySearchSuggestionsState
       }
     }
 
-    final platforms =
-        ref.watch(lxEnabledPlatformsProvider).value ?? const <String>[];
-    // Predictions intentionally use QQ Music only.
-    if (platforms.contains('tx')) {
+    final platforms = ref.watch(lxPlatformsProvider).value ?? kLxPlatformOrder;
+    final playable =
+        ref.watch(lxPlayablePlatformsProvider).value ?? const <String>[];
+    // 跟随当前默认平台（与搜索结果页保持一致），不再硬编码 QQ 音乐。
+    final platform = lxDefaultPlatform(platforms: platforms, playable: playable);
+    if (platform != null) {
       final lx = ref
-          .watch(lxSearchProvider((platform: 'tx', query: trimmed)))
+          .watch(lxSearchProvider((platform: platform, query: trimmed)))
           .value;
       if (lx != null) {
         for (final track in lx.tracks.take(2)) {
@@ -127,8 +129,8 @@ class _LibrarySearchSuggestionsState
             MobileSearchSuggestion(
               text: '${track.name} ${track.singer.join('、')}',
               query: '${track.name} ${track.singer.join(' ')}'.trim(),
-              sourceLabel: '洛雪',
-              sourceKey: 'tx',
+              sourceLabel: '洛雪 · ${lxPlatformLabel(l10n, platform)}',
+              sourceKey: platform,
               kindLabel: l10n.librarySongs,
             ),
           );

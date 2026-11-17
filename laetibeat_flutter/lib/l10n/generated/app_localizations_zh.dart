@@ -72,6 +72,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get librarySourceLocal => '本地';
 
   @override
+  String get librarySourceLx => '洛雪';
+
+  @override
   String get libraryNoSources => '尚未配置音乐源';
 
   @override
@@ -626,6 +629,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lxSearchNoResults => '没有找到歌曲';
+
+  @override
+  String get lxSearchSourceRequired => '播放前需先导入并启用支持该平台的洛雪音源';
+
+  @override
+  String get lxPlaylistSearchUnsupported => '该平台暂不支持歌单搜索，可切换到其他平台';
+
+  @override
+  String get lxPlatformNoSource => '未启用音源';
 
   @override
   String get lxSearchLoadMore => '加载更多';

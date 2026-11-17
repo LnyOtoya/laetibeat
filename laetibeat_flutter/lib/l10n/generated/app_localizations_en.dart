@@ -72,6 +72,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get librarySourceLocal => 'Local';
 
   @override
+  String get librarySourceLx => 'LX';
+
+  @override
   String get libraryNoSources => 'No music sources configured';
 
   @override
@@ -644,6 +647,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lxSearchNoResults => 'No songs found';
+
+  @override
+  String get lxSearchSourceRequired =>
+      'Import and enable an LX source that supports this platform to play';
+
+  @override
+  String get lxPlaylistSearchUnsupported =>
+      'Playlist search is not supported on this platform yet. Try another platform.';
+
+  @override
+  String get lxPlatformNoSource => 'No source';
 
   @override
   String get lxSearchLoadMore => 'Load more';

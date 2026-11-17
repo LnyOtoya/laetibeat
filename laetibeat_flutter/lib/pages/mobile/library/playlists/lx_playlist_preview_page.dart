@@ -45,10 +45,7 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
   List<rust_playlists.UiPlaylistTrackInput> _inputs(
     rust_lx.UiLxPlaylistDetail detail,
   ) {
-    return detail.tracks
-        .map(lxSearchTrackToUiTrack)
-        .map(playlistTrackInputFromTrack)
-        .toList(growable: false);
+    return playlistInputsFromLxDetail(detail);
   }
 
   Future<void> _subscribe() async {
@@ -190,9 +187,7 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
                                 color: theme.colorScheme.secondaryContainer,
                                 child: Icon(
                                   M3EIcons.queue_music,
-                                  color: theme
-                                      .colorScheme
-                                      .onSecondaryContainer,
+                                  color: theme.colorScheme.onSecondaryContainer,
                                 ),
                               ),
                             ),
@@ -275,9 +270,7 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: M3EButton.icon(
-                      icon: Icon(
-                        _busy ? M3EIcons.hourglass_top : M3EIcons.add,
-                      ),
+                      icon: Icon(_busy ? M3EIcons.hourglass_top : M3EIcons.add),
                       label: Text(l10n.playlistSubscribe),
                       style: M3EButtonStyle.tonal,
                       onPressed: _busy ? null : _subscribe,
@@ -304,9 +297,10 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
                   return M3EListItem(
                     leading: _LxTrackCover(track: track),
                     headline: track.title,
-                    supportingText: [track.artist, track.album]
-                        .where((value) => value.isNotEmpty)
-                        .join(' · '),
+                    supportingText: [
+                      track.artist,
+                      track.album,
+                    ].where((value) => value.isNotEmpty).join(' · '),
                     trailingText: track.duration,
                   );
                 },

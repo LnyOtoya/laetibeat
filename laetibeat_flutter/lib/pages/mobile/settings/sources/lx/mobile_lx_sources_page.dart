@@ -58,7 +58,9 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
   }
 
   void _invalidateSearchProviders() {
-    ref.invalidate(lxEnabledPlatformsProvider);
+    // 平台列表来自内置能力，不需要因源变化而刷新；
+    // 但"哪些平台可以播放"取决于启用源的声明。
+    ref.invalidate(lxPlayablePlatformsProvider);
     ref.invalidate(lxSearchProvider);
   }
 

@@ -21,6 +21,7 @@
   "libraryBrowse": "Browse",
   "librarySourceAll": "All",
   "librarySourceLocal": "Local",
+  "librarySourceLx": "LX",
   "libraryNoSources": "No music sources configured",
   "librarySongsCount": "{count} songs",
   "@librarySongsCount": {
@@ -246,6 +247,9 @@
   "lxSearchTitle": "LX platform search",
   "lxSearchEnableHint": "Enable an LX source to search",
   "lxSearchNoResults": "No songs found",
+  "lxSearchSourceRequired": "Import and enable an LX source that supports this platform to play",
+  "lxPlaylistSearchUnsupported": "Playlist search is not supported on this platform yet. Try another platform.",
+  "lxPlatformNoSource": "No source",
 
   "lxSearchLoadMore": "Load more",
   "lxSearchLoadingMore": "Loading…",  "lxSearchFailed": "LX platform search failed",

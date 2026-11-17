@@ -33,6 +33,7 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
   static const String _allSource = '__all__';
   static const String _localSource = 'local';
   static const String _remoteSource = 'remote';
+  static const String _lxSource = 'lx';
 
   bool _isGrid = true;
   String _selectedSource = _allSource;
@@ -140,9 +141,7 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
     final localEntries = (localAsync.value ?? const [])
         .map((playlist) => _PlaylistEntry(local: playlist, sourceId: ''))
         .toList(growable: false);
-    final lxSources =
-        localEntries.map(_lxSourceOf).whereType<String>().toSet().toList()
-          ..sort();
+    final hasLx = localEntries.any((entry) => _lxSourceOf(entry) != null);
     final remoteEntries =
         remoteAsync?.value
             ?.map(
@@ -159,12 +158,9 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
             .where((entry) => _lxSourceOf(entry) == null)
             .toList(growable: false),
       _ when _selectedSource == _remoteSource => const <_PlaylistEntry>[],
-      _ when _selectedSource.startsWith('lx:') =>
+      _ when _selectedSource == _lxSource =>
         localEntries
-            .where(
-              (entry) =>
-                  _lxSourceOf(entry) == _selectedSource.substring('lx:'.length),
-            )
+            .where((entry) => _lxSourceOf(entry) != null)
             .toList(growable: false),
       _ => const <_PlaylistEntry>[],
     };
@@ -242,13 +238,13 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
                             onPressed: () => _selectSource(_remoteSource),
                           ),
                         ],
-                        for (final source in lxSources) ...[
+                        if (hasLx) ...[
                           const SizedBox(width: 8),
                           M3EChip(
                             type: M3EChipType.filter,
-                            label: 'LX · ${lxPlatformLabel(l10n, source)}',
-                            selected: _selectedSource == 'lx:$source',
-                            onPressed: () => _selectSource('lx:$source'),
+                            label: l10n.librarySourceLx,
+                            selected: _selectedSource == _lxSource,
+                            onPressed: () => _selectSource(_lxSource),
                           ),
                         ],
                       ],

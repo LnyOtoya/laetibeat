@@ -6,7 +6,6 @@ import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/shared/layout/app_bottom_inset.dart';
 import 'package:laetibeat/widgets/player/cover_provider.dart';
 import 'package:laetibeat/widgets/player/lx_search_provider.dart';
-import 'package:laetibeat/widgets/player/lx_track.dart';
 import 'package:laetibeat/widgets/player/player_provider.dart';
 import 'package:laetibeat/widgets/playlist_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
@@ -95,10 +94,7 @@ class LocalPlaylistDetailPage extends ConsumerWidget {
         platform: source,
         playlistId: sourceListId,
       );
-      final inputs = detail.tracks
-          .map(lxSearchTrackToUiTrack)
-          .map(playlistTrackInputFromTrack)
-          .toList(growable: false);
+      final inputs = playlistInputsFromLxDetail(detail);
       await rust_playlists.replaceLocalPlaylistTracks(
         playlistId: playlistId,
         tracks: inputs,

@@ -39,11 +39,6 @@ pub fn search_playlists(
     page: u32,
     limit: u32,
 ) -> Result<Vec<LxPlaylistSummary>> {
-    if platform != "kw" {
-        return Err(LxError::Request(format!(
-            "playlist search is not implemented: {platform}"
-        )));
-    }
     let keyword = keyword.trim();
     if keyword.is_empty() {
         return Ok(Vec::new());
@@ -51,6 +46,14 @@ pub fn search_playlists(
     let page = page.max(1);
     let limit = limit.clamp(1, MAX_LIMIT);
     let client = client()?;
+    if platform == "tx" {
+        return search_tx_playlists(&client, keyword, page, limit);
+    }
+    if platform != "kw" {
+        return Err(LxError::Request(format!(
+            "playlist search is not implemented: {platform}"
+        )));
+    }
     let body = get_text(
         client
             .get("http://search.kuwo.cn/r.s")
@@ -114,14 +117,17 @@ pub fn get_playlist_detail(
     page: u32,
     limit: u32,
 ) -> Result<LxPlaylistDetail> {
+    let page = page.max(1);
+    let limit = limit.clamp(1, 1000);
+    let client = client()?;
+    if platform == "tx" {
+        return get_tx_playlist_detail(&client, playlist_id);
+    }
     if platform != "kw" {
         return Err(LxError::Request(format!(
             "playlist detail is not implemented: {platform}"
         )));
     }
-    let page = page.max(1);
-    let limit = limit.clamp(1, 1000);
-    let client = client()?;
     let body = get_json(
         client
             .get("http://nplserver.kuwo.cn/pl.svc")
@@ -192,6 +198,217 @@ pub fn get_playlist_all(platform: &str, playlist_id: &str) -> Result<LxPlaylistD
     }
 }
 
+
+fn search_tx_playlists(
+    client: &Client,
+    keyword: &str,
+    page: u32,
+    limit: u32,
+) -> Result<Vec<LxPlaylistSummary>> {
+    let page_no = (page - 1).to_string();
+    let page_size = limit.to_string();
+    let body = get_json(
+        client
+            .get("https://c.y.qq.com/soso/fcgi-bin/client_music_search_songlist")
+            .query(&[
+                ("page_no", page_no.as_str()),
+                ("num_per_page", page_size.as_str()),
+                ("format", "json"),
+                ("query", keyword),
+                ("remoteplace", "txt.yqq.playlist"),
+                ("inCharset", "utf8"),
+                ("outCharset", "utf-8"),
+            ])
+            .header("User-Agent", "Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36")
+            .header("Referer", "https://y.qq.com/")
+            .header("Origin", "https://y.qq.com"),
+    )?;
+    if body.get("code").and_then(Value::as_i64) != Some(0) {
+        return Err(LxError::Request("tx playlist search failed".to_string()));
+    }
+    let mut result = Vec::new();
+    for item in body
+        .get("data")
+        .and_then(|value| value.get("list"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let Some(id) = item.get("dissid").and_then(value_string) else {
+            continue;
+        };
+        let Some(name) = item.get("dissname").and_then(Value::as_str) else {
+            continue;
+        };
+        result.push(LxPlaylistSummary {
+            source: "tx".to_string(),
+            id,
+            name: clean(name),
+            author: clean(
+                item.get("creator")
+                    .and_then(|value| value.get("name"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+            ),
+            cover_url: item.get("imgurl").and_then(Value::as_str).map(str::to_string),
+            play_count: item
+                .get("listennum")
+                .and_then(value_string)
+                .unwrap_or_default(),
+            total: item.get("song_count").and_then(value_u64).unwrap_or(0),
+            description: clean(
+                item.get("introduction")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+            ),
+        });
+    }
+    Ok(result)
+}
+
+fn get_tx_playlist_detail(
+    client: &Client,
+    playlist_id: &str,
+) -> Result<LxPlaylistDetail> {
+    let body = get_json(
+        client
+            .get("https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg")
+            .query(&[
+                ("type", "1"),
+                ("json", "1"),
+                ("utf8", "1"),
+                ("onlysong", "0"),
+                ("new_format", "1"),
+                ("disstid", playlist_id),
+                ("loginUin", "0"),
+                ("hostUin", "0"),
+                ("format", "json"),
+                ("inCharset", "utf8"),
+                ("outCharset", "utf-8"),
+                ("notice", "0"),
+                ("platform", "yqq.json"),
+                ("needNewCode", "0"),
+            ])
+            .header("Origin", "https://y.qq.com")
+            .header("Referer", format!("https://y.qq.com/n/yqq/playsquare/{playlist_id}.html")),
+    )?;
+    if body.get("code").and_then(Value::as_i64) != Some(0) {
+        return Err(LxError::Request("tx playlist detail failed".to_string()));
+    }
+    let Some(cdlist) = body
+        .get("cdlist")
+        .and_then(Value::as_array)
+        .and_then(|items| items.first())
+    else {
+        return Err(LxError::Request("tx playlist detail is empty".to_string()));
+    };
+    let tracks = cdlist
+        .get("songlist")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(parse_tx_track)
+        .collect::<Vec<_>>();
+    let total = cdlist
+        .get("songnum")
+        .and_then(value_u64)
+        .unwrap_or(tracks.len() as u64);
+    Ok(LxPlaylistDetail {
+        info: LxPlaylistSummary {
+            source: "tx".to_string(),
+            id: playlist_id.to_string(),
+            name: clean(cdlist.get("dissname").and_then(Value::as_str).unwrap_or("")),
+            author: clean(cdlist.get("nickname").and_then(Value::as_str).unwrap_or("")),
+            cover_url: cdlist.get("logo").and_then(Value::as_str).map(str::to_string),
+            play_count: cdlist
+                .get("visitnum")
+                .and_then(value_string)
+                .unwrap_or_default(),
+            total,
+            description: clean(cdlist.get("desc").and_then(Value::as_str).unwrap_or("")),
+        },
+        tracks,
+        page: 1,
+        limit: total as u32,
+        total,
+        has_more: false,
+    })
+}
+
+fn parse_tx_track(item: &Value) -> Option<LxSearchTrack> {
+    let file = item.get("file");
+    if file
+        .and_then(|value| value.get("media_mid"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .is_empty()
+    {
+        return None;
+    }
+    let id = item.get("mid").and_then(Value::as_str)?;
+    let name = item.get("title").or_else(|| item.get("name"))?.as_str()?;
+    let album = item.get("album");
+    let album_id = album
+        .and_then(|value| value.get("mid"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let album_name = album
+        .and_then(|value| value.get("name"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let singer = item
+        .get("singer")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.get("name").and_then(Value::as_str))
+                .map(clean)
+                .filter(|value| !value.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let img = if album_id.is_empty() || album_id == "空" {
+        item.get("singer")
+            .and_then(Value::as_array)
+            .and_then(|items| items.first())
+            .and_then(|item| item.get("mid"))
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .map(|mid| format!("https://y.gtimg.cn/music/photo_new/T001R500x500M000{mid}.jpg"))
+    } else {
+        Some(format!(
+            "https://y.gtimg.cn/music/photo_new/T002R500x500M000{album_id}.jpg"
+        ))
+    };
+    let mut extra = BTreeMap::new();
+    if let Some(media_mid) = file.and_then(|value| value.get("media_mid")).and_then(Value::as_str) {
+        extra.insert("strMediaMid".to_string(), Value::String(media_mid.to_string()));
+    }
+    if let Some(song_id) = item.get("id").and_then(value_u64) {
+        extra.insert("songId".to_string(), Value::String(song_id.to_string()));
+    }
+    if !album_id.is_empty() {
+        extra.insert("albumMid".to_string(), Value::String(album_id.clone()));
+    }
+    Some(LxSearchTrack {
+        source: "tx".to_string(),
+        id: id.to_string(),
+        name: clean(name),
+        singer,
+        album: clean(album_name),
+        album_id,
+        interval: item
+            .get("interval")
+            .and_then(value_i64)
+            .map(normalize_seconds)
+            .unwrap_or(0),
+        img,
+        extra,
+    })
+}
+
 fn parse_kw_track(item: &Value) -> Option<LxSearchTrack> {
     let id = item.get("id").and_then(value_string)?;
     let name = item.get("name").and_then(Value::as_str)?;
@@ -219,7 +436,7 @@ fn parse_kw_track(item: &Value) -> Option<LxSearchTrack> {
 fn client() -> Result<Client> {
     Client::builder()
         .no_proxy()
-        .timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(10))
         .user_agent(USER_AGENT)
         .build()
         .map_err(|error| LxError::Request(error.to_string()))
