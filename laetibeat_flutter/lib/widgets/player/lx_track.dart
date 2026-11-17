@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
+
+import '../../l10n/generated/app_localizations.dart';
 
 /// Convert the app's generic track into the music info expected by LX.
 ///
@@ -50,4 +54,37 @@ rust.UiTrack lxSearchTrackToUiTrack(rust_lx.UiLxSearchTrack track) {
     coverId: track.img,
     sourceExtraJson: track.extraJson.isEmpty ? null : track.extraJson,
   );
+}
+
+/// 曲目可用音质（`sourceExtraJson.types`），按音质从高到低排列。
+///
+/// 该列表由 Rust 侧解析（kw / kg / tx / wy / mg 各自的质量字段）后写入
+/// `extra`，随队列快照持久化；老数据没有这个字段时返回空列表。
+List<String> lxAvailableQualities(String? extraJson) {
+  if (extraJson == null || extraJson.isEmpty) return const <String>[];
+  try {
+    final decoded = jsonDecode(extraJson);
+    if (decoded is Map) {
+      final types = decoded['types'];
+      if (types is List) {
+        return types.whereType<String>().toList(growable: false);
+      }
+    }
+  } catch (_) {
+    // 快照损坏或旧格式：交给播放端回退到默认质量阶梯。
+  }
+  return const <String>[];
+}
+
+/// 列表中展示用的音质标签；没有音质信息时返回 null。
+String? lxQualityLabel(AppLocalizations l10n, rust.UiTrack track) {
+  final types = lxAvailableQualities(track.sourceExtraJson);
+  if (types.isEmpty) return null;
+  return switch (types.first) {
+    'flac24bit' => l10n.lxQualityFlac,
+    'flac' => l10n.lxQualityFlac,
+    '320k' => l10n.lxQuality320,
+    '128k' => l10n.lxQuality128,
+    _ => types.first,
+  };
 }

@@ -5,7 +5,10 @@ use reqwest::blocking::Client;
 use serde_json::{json, Value};
 
 use crate::error::{LxError, Result};
-use crate::search::{eapi_json, mg_sign, LxSearchTrack, MG_DEVICE_ID};
+use crate::search::{
+    eapi_json, insert_quality_types, kw_quality_types, mg_quality_types, mg_sign,
+    ordered_quality_types, tx_quality_types, wy_quality_types, LxSearchTrack, MG_DEVICE_ID,
+};
 use crate::utils::decode_text;
 
 const USER_AGENT: &str = "Mozilla/5.0 (Linux; U; Android 11.0.0; zh-cn; MI 11) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30";
@@ -585,6 +588,17 @@ fn parse_kg_playlist_track(item: &Value) -> Option<LxSearchTrack> {
     if !hash.is_empty() {
         extra.insert("hash".to_string(), Value::String(hash.to_string()));
     }
+    // 歌单详情接口用的是小写字段名，且只给到 flac。
+    let has = |key: &str| item.get(key).and_then(value_u64).unwrap_or(0) > 0;
+    insert_quality_types(
+        &mut extra,
+        ordered_quality_types(
+            has("filesize"),
+            has("320filesize"),
+            has("sqfilesize"),
+            false,
+        ),
+    );
     Some(LxSearchTrack {
         source: "kg".to_string(),
         id,
@@ -817,7 +831,11 @@ fn parse_wy_song_list(body: &Value) -> Vec<LxSearchTrack> {
                 .and_then(|value| value.get("picUrl"))
                 .and_then(Value::as_str)
                 .map(str::to_string),
-            extra: BTreeMap::new(),
+            extra: {
+                let mut extra = BTreeMap::new();
+                insert_quality_types(&mut extra, wy_quality_types(song));
+                extra
+            },
         });
     }
     tracks
@@ -1020,6 +1038,7 @@ fn parse_mg_playlist_track(item: &Value) -> Option<LxSearchTrack> {
             extra.insert(key.to_string(), Value::String(value.to_string()));
         }
     }
+    insert_quality_types(&mut extra, mg_quality_types(item));
     Some(LxSearchTrack {
         source: "mg".to_string(),
         id: id.to_string(),
@@ -1142,6 +1161,9 @@ fn parse_tx_track(item: &Value) -> Option<LxSearchTrack> {
     if !album_id.is_empty() {
         extra.insert("albumMid".to_string(), Value::String(album_id.clone()));
     }
+    if let Some(file) = file {
+        insert_quality_types(&mut extra, tx_quality_types(file));
+    }
     Some(LxSearchTrack {
         source: "tx".to_string(),
         id: id.to_string(),
@@ -1179,7 +1201,11 @@ fn parse_kw_track(item: &Value) -> Option<LxSearchTrack> {
             .map(normalize_seconds)
             .unwrap_or(0),
         img: None,
-        extra: BTreeMap::new(),
+        extra: {
+            let mut extra = BTreeMap::new();
+            insert_quality_types(&mut extra, kw_quality_types(item));
+            extra
+        },
     })
 }
 
@@ -1308,6 +1334,21 @@ mod tests {
     use super::*;
 
     #[test]
+    fn parses_kw_playlist_track_quality() {
+        let item: Value = serde_json::from_str(
+            r#"{"id":"2867496601","name":"Song","artist":"Singer","album":"Album",
+                "albumid":"1","duration":200,
+                "N_MINFO":"level:zpga201,bitrate:20201,format:mflac,size:33.34Mb;level:ff,bitrate:2000,format:flac,size:34.55Mb;level:p,bitrate:320,format:mp3,size:11.42Mb;"}"#,
+        )
+        .unwrap();
+        let track = parse_kw_track(&item).unwrap();
+        assert_eq!(
+            track.extra.get("types"),
+            Some(&serde_json::json!(["flac", "320k"]))
+        );
+    }
+
+    #[test]
     fn supports_all_five_playlist_platforms() {
         for platform in ["kw", "kg", "tx", "wy", "mg"] {
             assert!(supports_playlist_search(platform), "{platform} missing");
@@ -1342,6 +1383,7 @@ mod tests {
                 {"filename":"周杰伦 - 反方向的钟",
                  "hash":"A6049AAB184A305CAA906C6BBB8E8233",
                  "album_audio_id":64531905,"album_id":"978031",
+                 "filesize":4570000,"320filesize":11420000,"sqfilesize":34550000,
                  "remark":"Jay","duration":258,"extname":"mp3"}]}}"#,
         )
         .unwrap();
@@ -1356,6 +1398,10 @@ mod tests {
         assert_eq!(
             track.extra.get("hash").and_then(Value::as_str),
             Some("A6049AAB184A305CAA906C6BBB8E8233")
+        );
+        assert_eq!(
+            track.extra.get("types"),
+            Some(&serde_json::json!(["flac", "320k", "128k"]))
         );
     }
 
@@ -1379,7 +1425,8 @@ mod tests {
             r#"{"code":200,"songs":[
                 {"id":5257138,"name":"屋顶","dt":319039,
                  "al":{"id":123,"name":"男女情歌对唱冠军全记录","picUrl":"https://p/x.jpg"},
-                 "ar":[{"name":"周杰伦"},{"name":"温岚"}]}]}"#,
+                 "ar":[{"name":"周杰伦"},{"name":"温岚"}],
+                 "l":{"br":128000},"h":{"br":320000},"sq":null,"hr":null}]}"#,
         )
         .unwrap();
         let tracks = parse_wy_song_list(&songs);
@@ -1391,6 +1438,10 @@ mod tests {
         assert_eq!(tracks[0].album_id, "123");
         // ms -> seconds
         assert_eq!(tracks[0].interval, 319);
+        assert_eq!(
+            tracks[0].extra.get("types"),
+            Some(&serde_json::json!(["320k", "128k"]))
+        );
     }
 
     #[test]
@@ -1415,6 +1466,7 @@ mod tests {
                  "album":"叶惠美","albumId":"8592","duration":270,
                  "singerList":[{"name":"周杰伦"}],
                  "img3":"/data/oss/resource/00/x.webp",
+                 "audioFormats":[{"formatType":"PQ"},{"formatType":"SQ"}],
                  "lrcUrl":"https://l/1","mrcUrl":"https://m/1"}]}}"#,
         )
         .unwrap();
@@ -1435,6 +1487,10 @@ mod tests {
         assert_eq!(
             track.extra.get("mrcUrl").and_then(Value::as_str),
             Some("https://m/1")
+        );
+        assert_eq!(
+            track.extra.get("types"),
+            Some(&serde_json::json!(["flac", "128k"]))
         );
     }
 

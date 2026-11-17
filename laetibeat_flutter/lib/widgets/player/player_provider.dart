@@ -731,19 +731,27 @@ class PlayerNotifier extends Notifier<PlayerState> {
     if (t.source == 'lx' && t.sourceId.isNotEmpty) {
       final music = lxMusicInfoFromTrack(t);
       final preferred = ref.read(lxDefaultQualityProvider);
-      final trackQuality = lxQualityForTrack(t);
-      final qualities = <String>{
-        preferred,
-        trackQuality,
-        '128k',
-      }.toList(growable: false);
+      final available = lxAvailableQualities(t.sourceExtraJson);
+      // 有音质清单时只尝试真实存在的档位（从高到低），省掉注定失败的请求；
+      // 没有清单（老数据/平台未提供）则回退到「默认音质 + 元数据推断 + 128k」。
+      final qualities = <String>{};
+      if (available.isNotEmpty) {
+        if (available.contains(preferred)) qualities.add(preferred);
+        qualities.addAll(available);
+      } else {
+        qualities
+          ..add(preferred)
+          ..add(lxQualityForTrack(t));
+      }
+      qualities.add('128k');
+      final qualityLadder = qualities.toList(growable: false);
       final totalWatch = Stopwatch()..start();
       Object? lastError;
       debugPrint(
         'LX play resolve start source=${t.sourceId} songmid=${t.id} '
-        'qualities=$qualities',
+        'qualities=$qualityLadder',
       );
-      for (final quality in qualities) {
+      for (final quality in qualityLadder) {
         if (!refreshLx) {
           final cached = _cachedLxUrl(t, quality);
           if (cached != null) {

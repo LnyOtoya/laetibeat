@@ -166,6 +166,29 @@
 - [ ] 真机验证：切到 kg / wy / mg 的歌单分类能出结果、能进预览页、能订阅
 - [ ] 已知限制：kg / mg 的整单拉取需要多页时请求数 = ceil(总数 / 平台页大小)；wy 每 200 首一次批量请求
 
+### 第五轮：音质 types（2026-11-18）
+
+目标：让「默认音质 = 无损/320k」真正生效，而不是每次都掉到 128k。
+
+- 设计：不新增 FFI 字段。把可用音质写进 `LxSearchTrack.extra["types"]`（降序，如 `["flac","320k","128k"]`），它本来就会随 `sourceExtraJson` 持久化并作为 `musicInfo.types` 传给音源脚本，播放端直接读。
+- [x] Rust 公共件：`search::ordered_quality_types`、`insert_quality_types` + 5 个平台的质量映射
+  - kw：`N_MINFO` 的 `bitrate` 档位 4000/2000/320/128
+  - kg（搜索）：`FileSize` / `HQFileSize` / `SQFileSize` / `ResFileSize`
+  - tx：`file.size_128mp3` / `size_320mp3` / `size_flac` / `size_hires`
+  - wy：`l` / `h` / `sq` / `hr` 对象是否存在
+  - mg：`audioFormats[].formatType` = PQ / HQ / SQ / ZQ24
+- [x] 搜索解析接入（5 平台）：`parse_kw` / `push_kg_track` / `parse_tx` / `parse_wy` / `parse_mg`
+- [x] 歌单详情解析接入（5 平台）：`parse_kw_track` / `parse_kg_playlist_track`（小写 `filesize` / `320filesize` / `sqfilesize`，无 24bit）/ `parse_tx_track` / `parse_wy_song_list` / `parse_mg_playlist_track`
+- [x] 播放音质阶梯：`player_provider._resolveTrack` 有清单时只尝试真实存在的档位（优先用户默认音质，然后高→低），没有清单时回退旧逻辑（默认音质 → 元数据推断 → 128k）
+- [x] UI：LX 搜索结果的副标题显示最高音质（复用 `lxQualityFlac` / `lxQuality320` / `lxQuality128`）
+- [x] 测试：`derives_quality_types_per_platform`（5 平台 + 空数据）、`parses_kw_playlist_track_quality`，并给 kg/wy/mg 详情 fixture 补了 types 断言
+- [x] 真实网络核对（临时测试，跑完已删除）：
+  - 搜索：kw `[flac,320k,128k]`；kg `[flac24bit,flac,320k,128k]`；tx `[flac,320k,128k]`；wy `[flac,320k,128k]`；mg `[flac24bit,flac,320k,128k]` / `[flac,320k,128k]`
+  - 详情：5 平台均返回 `[flac,320k,128k]`（kg 旧接口无 24bit，符合预期）
+- [x] `cargo check --workspace --all-targets` 无 warning；`cargo test --workspace` 46 tests 通过
+- [ ] 真机验证：设置里选「无损 FLAC」后，日志 `LX play resolve start ... qualities=[flac, 320k, 128k]`；无无损时直接跳过 flac，不再先失败一次
+- [ ] 后续：每档体积（size）未保留，UI 无法显示「无损 · 32MB」；播放页/歌单预览页也还没显示音质标签（目前只有 LX 搜索结果行）
+
 ### 第四轮：P0 工程债（2026-11-18）
 
 - [x] **媒体通知桥接的 O(n) 队列签名**：`LaetibeatAudioHandler._sync` 每次 position tick 都把整个队列 `map(id).join('\u0000')` 拼成字符串（整库 1 万首时每秒数次分配几百 KB）。改为 `identical(state.queue, _lastQueue)` 引用比较——`PlayerState.copyWith` 复用同一个 List，只有 `load` / `insertNext` 才换引用，所以 O(1) 且语义等价
@@ -209,7 +232,7 @@
 ### 后续（本次未做）
 
 - [x] `kg` / `wy` / `mg` 歌单搜索与详情（2026-11-18 完成，见第三轮）
-- [ ] 搜索结果未保留 `types` / `_types`（每首可用音质与体积），播放选质只能"默认音质 → 128k"，不会尝试 320k/flac
+- [x] 搜索结果保留可用音质（`extra.types`）并驱动播放选质（2026-11-18，见第五轮）；仍未保留每档体积
 - [ ] 封面 `pic` fallback 只有 `kg`；官方 `kw` / `mg` 也有 `pic` 实现
 - [ ] 专辑 / 艺术家分类只聚合歌曲第 1 页（当前 50 条），应改为与歌曲分页共用同一数据源
 - [ ] `lxSearchProvider` 非 autoDispose，逐词常驻内存；建议 autoDispose + 少量 keepAlive

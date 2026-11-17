@@ -1581,10 +1581,14 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
           },
           itemBuilder: (BuildContext context, int index) {
             final track = _tracks[index];
+            final quality = lxQualityLabel(l10n, tracks[index]);
+            final singer = track.singer.join('、');
             return M3EListItem(
               leading: _SearchResultCover(track: tracks[index]),
               headline: track.name,
-              supportingText: track.singer.join('、'),
+              supportingText: quality == null
+                  ? singer
+                  : (singer.isEmpty ? quality : '$singer · $quality'),
               trailing: M3EIconButton(
                 size: M3EIconButtonSize.xs,
                 icon: const Icon(M3EIcons.playlist_add),

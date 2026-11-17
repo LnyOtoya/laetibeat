@@ -264,6 +264,118 @@ fn get_json(request: reqwest::blocking::RequestBuilder) -> Result<Value> {
         .map_err(|error| LxError::Request(format!("invalid search response: {error}")))
 }
 
+/// Canonical quality ids understood by the player's ladder, best first.
+pub(crate) fn ordered_quality_types(
+    has_128: bool,
+    has_320: bool,
+    has_flac: bool,
+    has_24bit: bool,
+) -> Vec<&'static str> {
+    let mut types = Vec::new();
+    if has_24bit {
+        types.push("flac24bit");
+    }
+    if has_flac {
+        types.push("flac");
+    }
+    if has_320 {
+        types.push("320k");
+    }
+    if has_128 {
+        types.push("128k");
+    }
+    types
+}
+
+/// Attach the available quality list to `extra["types"]`.
+///
+/// `extra` is persisted as `sourceExtraJson` and handed to the source script as
+/// `musicInfo.types`, so the player can use it without any extra FFI field.
+pub(crate) fn insert_quality_types(
+    extra: &mut BTreeMap<String, Value>,
+    types: Vec<&'static str>,
+) {
+    if types.is_empty() {
+        return;
+    }
+    extra.insert("types".to_string(), json!(types));
+}
+
+/// Kuwo lists every available quality in `N_MINFO`
+/// (`level:xx,bitrate:2000,format:flac,size:34.55Mb;...`).
+pub(crate) fn kw_quality_types(item: &Value) -> Vec<&'static str> {
+    let Some(raw) = item.get("N_MINFO").and_then(Value::as_str) else {
+        return Vec::new();
+    };
+    let (mut has_128, mut has_320, mut has_flac, mut has_24) = (false, false, false, false);
+    for entry in raw.split(';') {
+        let bitrate = entry
+            .split(',')
+            .find_map(|part| part.strip_prefix("bitrate:"))
+            .and_then(|value| value.parse::<u32>().ok());
+        match bitrate {
+            Some(4000) => has_24 = true,
+            Some(2000) => has_flac = true,
+            Some(320) => has_320 = true,
+            Some(128) => has_128 = true,
+            _ => {}
+        }
+    }
+    ordered_quality_types(has_128, has_320, has_flac, has_24)
+}
+
+/// Kugou: a non-zero size means that quality exists.
+pub(crate) fn kg_quality_types(item: &Value) -> Vec<&'static str> {
+    let has = |key: &str| item.get(key).and_then(value_u64).unwrap_or(0) > 0;
+    ordered_quality_types(
+        has("FileSize"),
+        has("HQFileSize"),
+        has("SQFileSize"),
+        has("ResFileSize"),
+    )
+}
+
+/// QQ Music: `file.size_128mp3` / `size_320mp3` / `size_flac` / `size_hires`.
+pub(crate) fn tx_quality_types(file: &Value) -> Vec<&'static str> {
+    let has = |key: &str| file.get(key).and_then(value_u64).unwrap_or(0) > 0;
+    ordered_quality_types(
+        has("size_128mp3"),
+        has("size_320mp3"),
+        has("size_flac"),
+        has("size_hires"),
+    )
+}
+
+/// NetEase: `l` / `h` / `sq` / `hr` objects on the song.
+pub(crate) fn wy_quality_types(song: &Value) -> Vec<&'static str> {
+    let has = |key: &str| {
+        song.get(key)
+            .map(|value| !value.is_null())
+            .unwrap_or(false)
+    };
+    ordered_quality_types(has("l"), has("h"), has("sq"), has("hr"))
+}
+
+/// Migu: `audioFormats[].formatType` = PQ / HQ / SQ / ZQ24.
+pub(crate) fn mg_quality_types(item: &Value) -> Vec<&'static str> {
+    let (mut has_128, mut has_320, mut has_flac, mut has_24) = (false, false, false, false);
+    for format in item
+        .get("audioFormats")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        match format.get("formatType").and_then(Value::as_str) {
+            Some("PQ") => has_128 = true,
+            Some("HQ") => has_320 = true,
+            Some("SQ") => has_flac = true,
+            Some("ZQ24") | Some("ZQ") => has_24 = true,
+            _ => {}
+        }
+    }
+    ordered_quality_types(has_128, has_320, has_flac, has_24)
+}
+
 fn parse_kw(body: &Value) -> (Vec<LxSearchTrack>, u64) {
     let total = body
         .get("TOTAL")
@@ -314,7 +426,11 @@ fn parse_kw(body: &Value) -> (Vec<LxSearchTrack>, u64) {
                     let path = value.strip_prefix("120/").unwrap_or(value);
                     format!("http://img1.kwcdn.kuwo.cn/star/albumcover/500/{path}")
                 }),
-            extra: BTreeMap::new(),
+            extra: {
+                let mut extra = BTreeMap::new();
+                insert_quality_types(&mut extra, kw_quality_types(item));
+                extra
+            },
         });
     }
     (tracks, total)
@@ -391,6 +507,7 @@ fn push_kg_track(
     if !hash.is_empty() {
         extra.insert("hash".to_string(), Value::String(hash.to_string()));
     }
+    insert_quality_types(&mut extra, kg_quality_types(item));
     tracks.push(LxSearchTrack {
         source: "kg".to_string(),
         id,
@@ -501,6 +618,7 @@ fn parse_tx(body: &Value) -> (Vec<LxSearchTrack>, u64) {
         if !album_id.is_empty() {
             extra.insert("albumMid".to_string(), Value::String(album_id.clone()));
         }
+        insert_quality_types(&mut extra, tx_quality_types(file));
         tracks.push(LxSearchTrack {
             source: "tx".to_string(),
             id: id.to_string(),
@@ -667,7 +785,11 @@ fn parse_wy(body: &Value) -> (Vec<LxSearchTrack>, u64) {
                 .and_then(|value| value.get("picUrl"))
                 .and_then(Value::as_str)
                 .map(ToString::to_string),
-            extra: BTreeMap::new(),
+            extra: {
+                let mut extra = BTreeMap::new();
+                insert_quality_types(&mut extra, wy_quality_types(song));
+                extra
+            },
         });
     }
     let total = if total == 0 {
@@ -731,6 +853,7 @@ fn parse_mg(body: &Value) -> (Vec<LxSearchTrack>, u64) {
             if let Some(value) = item.get("copyrightId").and_then(Value::as_str) {
                 extra.insert("copyrightId".to_string(), Value::String(value.to_string()));
             }
+            insert_quality_types(&mut extra, mg_quality_types(item));
             for (key, aliases) in [
                 ("lrcUrl", &["lrcUrl", "lyricUrl"][..]),
                 ("mrcUrl", &["mrcUrl", "mrcurl"][..]),
@@ -864,6 +987,45 @@ mod tests {
         assert_eq!(tracks.len(), 2);
         assert_eq!(tracks[0].name, "Song Live");
         assert_eq!(tracks[1].source, "kg");
+    }
+
+    #[test]
+    fn derives_quality_types_per_platform() {
+        let kw: Value = serde_json::from_str(
+            r#"{"N_MINFO":"level:zpga201,bitrate:20201,format:mflac,size:33.34Mb;level:ff,bitrate:2000,format:flac,size:34.55Mb;level:p,bitrate:320,format:mp3,size:11.42Mb;level:h,bitrate:128,format:mp3,size:4.57Mb;"}"#,
+        )
+        .unwrap();
+        assert_eq!(kw_quality_types(&kw), vec!["flac", "320k", "128k"]);
+
+        let kg: Value = serde_json::from_str(
+            r#"{"FileSize":4570000,"HQFileSize":11420000,"SQFileSize":34550000,"ResFileSize":0}"#,
+        )
+        .unwrap();
+        assert_eq!(kg_quality_types(&kg), vec!["flac", "320k", "128k"]);
+
+        let tx: Value = serde_json::from_str(
+            r#"{"size_128mp3":4500000,"size_320mp3":11000000,"size_flac":0,"size_hires":0}"#,
+        )
+        .unwrap();
+        assert_eq!(tx_quality_types(&tx), vec!["320k", "128k"]);
+
+        let wy: Value = serde_json::from_str(
+            r#"{"l":{"br":128000},"h":{"br":320000},"sq":null,"hr":null}"#,
+        )
+        .unwrap();
+        assert_eq!(wy_quality_types(&wy), vec!["320k", "128k"]);
+
+        let mg: Value = serde_json::from_str(
+            r#"{"audioFormats":[{"formatType":"PQ"},{"formatType":"SQ"},{"formatType":"ZQ24"},{"formatType":"Z3D"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(mg_quality_types(&mg), vec!["flac24bit", "flac", "128k"]);
+
+        // 没有任何音质信息时不写 key，播放端回退到默认阶梯
+        let empty: Value = serde_json::from_str("{}").unwrap();
+        let mut extra = BTreeMap::new();
+        insert_quality_types(&mut extra, kw_quality_types(&empty));
+        assert!(extra.is_empty());
     }
 
     #[test]
