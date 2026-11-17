@@ -166,6 +166,24 @@
 - [ ] 真机验证：切到 kg / wy / mg 的歌单分类能出结果、能进预览页、能订阅
 - [ ] 已知限制：kg / mg 的整单拉取需要多页时请求数 = ceil(总数 / 平台页大小)；wy 每 200 首一次批量请求
 
+### 第四轮：P0 工程债（2026-11-18）
+
+- [x] **媒体通知桥接的 O(n) 队列签名**：`LaetibeatAudioHandler._sync` 每次 position tick 都把整个队列 `map(id).join('\u0000')` 拼成字符串（整库 1 万首时每秒数次分配几百 KB）。改为 `identical(state.queue, _lastQueue)` 引用比较——`PlayerState.copyWith` 复用同一个 List，只有 `load` / `insertNext` 才换引用，所以 O(1) 且语义等价
+- [x] **订阅歌单同步的原子性**：`local_playlists::replace_tracks` 原先是 `DELETE`（自动提交）后再走 `add_tracks` 的独立事务，中途失败会把订阅歌单**清空**。改为单个事务内 `DELETE → insert → 更新时间戳`，`add_tracks` 抽出 `add_tracks_in(&Connection, ..)` 供两条路径复用；补测试 `replace_tracks_overwrites_atomically`
+- [x] **`reference/` gitlink 清理**：`git rm --cached reference/lx-music-mobile`，本地参考目录保留
+- [x] **桌面端日志**：新增 `rust_lib_laetibeat::init_logging()`（Android → logcat tag `LaetibeatLx`；桌面 → `env_logger`，默认 info、`RUST_LOG` 可覆盖），在 `init_app` 里统一初始化；此前桌面端 `laetibeat_lx` 的 `log::info!` 全部被丢弃。新增依赖 `env_logger`（仅非 Android 目标）
+- [x] `cargo check --workspace --all-targets` 无 warning；`cargo test --workspace` 44 tests 通过
+- [ ] 真机验证：长队列（整库）播放时滑动音乐库不再掉帧 / 无 GC 抖动
+- [ ] 桌面验证：启动后 stderr 能看到 `lx.playlist.*` 等日志
+- [ ] 订阅歌单：异常中断（如断网）后歌单条目保持原样而非被清空
+
+### 歌单订阅的已订阅状态（2026-11-18）
+
+- 说明：订阅信息存在本地歌单的 `source` + `source_list_id` 上，重新搜索同一平台歌单时会据此判断。
+- [x] 修复重复订阅：`_subscribe` 原先把 `localPlaylistsProvider.value` 当同步值读，列表尚未加载完时会拿到 `null`，把已订阅误判成未订阅并创建重复歌单；改为 `await ref.read(localPlaylistsProvider.future)`
+- [x] 预览页按钮显示订阅状态：已订阅时显示「已订阅」+ 同步图标，点击进入"覆盖同步"确认（此前按钮永远是「订阅」）
+- [ ] 搜索结果列表行内未标记"已订阅"（仅在预览页体现）
+
 ### 歌单接口实测结论（2026-11-18）
 
 | 平台 | 歌单搜索 | 歌单详情 | 结论 |
@@ -567,7 +585,8 @@ LX 平台：酷我 / QQ / 网易 / 咪咕 / 酷狗
 ### 10.1 边界与目录原则
 
 - [x] `reference/lx-music-mobile` 仅作为协议和行为参考，不参与构建、运行、发布
-- [x] 将 `reference/` 加入 `.gitignore`，发布前确认不进入源码包/APK
+- [x] 将 `reference/` 加入 `.gitignore`
+- [x] `git rm --cached reference/lx-music-mobile`（2026-11-18）：此前它以 gitlink 形式留在索引里，`.gitignore` 对已跟踪条目无效，别人 clone 会得到空的 submodule；现已移出索引，本地文件保留
 - [x] 不直接复制官方 JS/Kotlin/React Native/Redux 代码；按行为重写
 - [x] 新建独立 crate：`laetibeat_lx/`，与 `laetibeat_flutter/`、`laetibeat_core/` 同级
 - [x] `laetibeat_lx` 只依赖自身需要的 Rust crates，不反向依赖 Flutter/FRB
@@ -830,7 +849,7 @@ LX 平台：酷我 / QQ / 网易 / 咪咕 / 酷狗
 - SourceManager 的 status/declarations 仅存在内存，没有持久化；冷启动失败不可见
 - LX 自定义源主要提供 `musicUrl` / `lyric` / `pic`，通常不提供搜索；搜索层需要单独维护
 - 洛雪音源脚本属于第三方内容，不随应用分发；不同脚本的兼容性、可用性和版权风险需由用户自行承担
-- `reference/lx-music-mobile` 仅本地参考，不参与构建/发布；正式提交前必须确认其不进入仓库或发布包
+- `reference/lx-music-mobile` 已从 git 索引移除（保留本地目录），不会再进仓库/发布包
 - 仓库根目录暂无 `LICENSE` / 第三方 `NOTICE`；发布前需确认 QuickJS/rquickjs、FFmpeg、opensubsonic 等依赖的分发合规
 - Flutter release 构建可能复用包含 `integration_test` 的旧 `GeneratedPluginRegistrant.java`；失败时删除该生成文件或 `flutter clean` 后重试
 - Dart 侧测试仅覆盖 form factor 等少量逻辑；播放队列、搜索聚合、缓存设置、LX UI 缺少回归测试

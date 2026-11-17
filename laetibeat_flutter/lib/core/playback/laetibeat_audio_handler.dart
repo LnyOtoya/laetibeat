@@ -23,9 +23,16 @@ class LaetibeatAudioHandler extends BaseAudioHandler {
   ProviderSubscription<PlayerState>? _subscription;
 
   String? _lastTrackId;
-  String? _lastQueueSignature;
   String? _lastPlaybackKey;
   DateTime _lastPositionBroadcast = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// 上一次同步过的队列 List 引用。
+  ///
+  /// `_sync` 会被 position 的每一次 tick 触发（每秒数次）。之前用
+  /// `queue.map(id).join()` 做签名，长队列（整库 1 万首）时等于每秒数次
+  /// 分配几百 KB 字符串。PlayerState.copyWith 复用同一个队列 List，只有
+  /// load / insertNext 才会生成新 List，所以引用比较是 O(1) 且足够的。
+  List<rust.UiTrack>? _lastQueue;
 
   PlayerNotifier get _player => _container.read(playerProvider.notifier);
 
@@ -42,11 +49,8 @@ class LaetibeatAudioHandler extends BaseAudioHandler {
       }
     }
 
-    final queueSignature = state.queue
-        .map((rust.UiTrack track) => track.id)
-        .join('\u0000');
-    if (queueSignature != _lastQueueSignature) {
-      _lastQueueSignature = queueSignature;
+    if (!identical(state.queue, _lastQueue)) {
+      _lastQueue = state.queue;
       queue.add(
         state.queue
             .map(

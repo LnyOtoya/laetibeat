@@ -263,59 +263,7 @@ impl LocalPlaylistStore {
             return Ok(0);
         }
         let tx = self.conn.transaction().map_err(map_err)?;
-        let exists: Option<i64> = tx
-            .query_row(
-                "SELECT id FROM local_playlists WHERE id = ?1",
-                params![playlist_id],
-                |row| row.get(0),
-            )
-            .optional()
-            .map_err(map_err)?;
-        if exists.is_none() {
-            return Err("歌单不存在".to_string());
-        }
-
-        let mut position: i64 = tx
-            .query_row(
-                "SELECT COALESCE(MAX(position), -1) + 1
-                 FROM local_playlist_items WHERE playlist_id = ?1",
-                params![playlist_id],
-                |row| row.get(0),
-            )
-            .map_err(map_err)?;
-        let now = now_ms();
-        let mut added = 0usize;
-        for track in tracks {
-            let changed = tx
-                .execute(
-                    "INSERT OR IGNORE INTO local_playlist_items(
-                        playlist_id, position, source, source_id, track_id,
-                        relative_path, cover_id, source_extra_json, title, artist,
-                        album, duration_seconds, added_at
-                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
-                    params![
-                        playlist_id,
-                        position,
-                        track.source,
-                        track.source_id,
-                        track.track_id,
-                        track.relative_path,
-                        track.cover_id,
-                        track.source_extra_json,
-                        track.title,
-                        track.artist,
-                        track.album,
-                        track.duration_seconds,
-                        now,
-                    ],
-                )
-                .map_err(map_err)?;
-            if changed > 0 {
-                position += 1;
-                added += 1;
-            }
-        }
-        touch(&tx, playlist_id, now)?;
+        let added = add_tracks_in(&tx, playlist_id, tracks)?;
         tx.commit().map_err(map_err)?;
         Ok(added)
     }
@@ -374,24 +322,27 @@ impl LocalPlaylistStore {
         Ok(())
     }
 
+    /// 覆盖式写入（订阅同步）。
+    ///
+    /// 删除与重新插入必须在同一个事务里：否则中途失败会把订阅歌单直接清空。
     pub fn replace_tracks(
         &mut self,
         playlist_id: i64,
         tracks: &[PlaylistTrackInput],
     ) -> Result<usize, String> {
-        self.conn
-            .execute(
-                "DELETE FROM local_playlist_items WHERE playlist_id = ?1",
-                params![playlist_id],
-            )
-            .map_err(map_err)?;
-        let added = self.add_tracks(playlist_id, tracks)?;
-        self.conn
-            .execute(
-                "UPDATE local_playlists SET last_synced_at = ?1, updated_at = ?1 WHERE id = ?2",
-                params![now_ms(), playlist_id],
-            )
-            .map_err(map_err)?;
+        let tx = self.conn.transaction().map_err(map_err)?;
+        tx.execute(
+            "DELETE FROM local_playlist_items WHERE playlist_id = ?1",
+            params![playlist_id],
+        )
+        .map_err(map_err)?;
+        let added = add_tracks_in(&tx, playlist_id, tracks)?;
+        tx.execute(
+            "UPDATE local_playlists SET last_synced_at = ?1, updated_at = ?1 WHERE id = ?2",
+            params![now_ms(), playlist_id],
+        )
+        .map_err(map_err)?;
+        tx.commit().map_err(map_err)?;
         Ok(added)
     }
 
@@ -556,6 +507,71 @@ fn clean_name(name: &str) -> Result<String, String> {
     Ok(name.to_string())
 }
 
+/// Insert tracks inside an existing transaction.
+///
+/// Shared by `add_tracks` (append) and `replace_tracks` (overwrite) so both paths
+/// keep the same dedupe/position semantics.
+fn add_tracks_in(
+    conn: &Connection,
+    playlist_id: i64,
+    tracks: &[PlaylistTrackInput],
+) -> Result<usize, String> {
+    let exists: Option<i64> = conn
+        .query_row(
+            "SELECT id FROM local_playlists WHERE id = ?1",
+            params![playlist_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(map_err)?;
+    if exists.is_none() {
+        return Err("歌单不存在".to_string());
+    }
+
+    let mut position: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(position), -1) + 1
+             FROM local_playlist_items WHERE playlist_id = ?1",
+            params![playlist_id],
+            |row| row.get(0),
+        )
+        .map_err(map_err)?;
+    let now = now_ms();
+    let mut added = 0usize;
+    for track in tracks {
+        let changed = conn
+            .execute(
+                "INSERT OR IGNORE INTO local_playlist_items(
+                    playlist_id, position, source, source_id, track_id,
+                    relative_path, cover_id, source_extra_json, title, artist,
+                    album, duration_seconds, added_at
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                params![
+                    playlist_id,
+                    position,
+                    track.source,
+                    track.source_id,
+                    track.track_id,
+                    track.relative_path,
+                    track.cover_id,
+                    track.source_extra_json,
+                    track.title,
+                    track.artist,
+                    track.album,
+                    track.duration_seconds,
+                    now,
+                ],
+            )
+            .map_err(map_err)?;
+        if changed > 0 {
+            position += 1;
+            added += 1;
+        }
+    }
+    touch(conn, playlist_id, now)?;
+    Ok(added)
+}
+
 fn touch(conn: &Connection, playlist_id: i64, now: i64) -> Result<(), String> {
     conn.execute(
         "UPDATE local_playlists SET updated_at = ?1 WHERE id = ?2",
@@ -672,5 +688,40 @@ mod tests {
         let after = store.get(playlist.id).unwrap().unwrap();
         assert_eq!(after.items.len(), 1);
         assert_eq!(after.items[0].position, 0);
+    }
+
+    #[test]
+    fn replace_tracks_overwrites_atomically() {
+        let mut store = LocalPlaylistStore::open_in_memory().unwrap();
+        let playlist = store.create("Sub").unwrap();
+        store
+            .add_tracks(playlist.id, &[track("a"), track("b"), track("c")])
+            .unwrap();
+        store.mark_subscribed(playlist.id, "tx", "3805603854").unwrap();
+
+        // 覆盖为新的集合：旧条目必须全部消失
+        let added = store
+            .replace_tracks(playlist.id, &[track("b"), track("d")])
+            .unwrap();
+        assert_eq!(added, 2);
+        let detail = store.get(playlist.id).unwrap().unwrap();
+        let ids: Vec<&str> = detail
+            .items
+            .iter()
+            .map(|item| item.track_id.as_str())
+            .collect();
+        assert_eq!(ids, vec!["b", "d"]);
+        assert!(detail.playlist.last_synced_at.is_some());
+
+        // 平台歌单变空：条目清空但歌单本身与订阅身份保留
+        store.replace_tracks(playlist.id, &[]).unwrap();
+        let empty = store.get(playlist.id).unwrap().unwrap();
+        assert!(empty.items.is_empty());
+        assert_eq!(empty.playlist.name, "Sub");
+        assert_eq!(empty.playlist.source.as_deref(), Some("tx"));
+
+        // 歌单不存在时返回错误，且事务回滚（不会留下半截数据）
+        assert!(store.replace_tracks(9999, &[track("x")]).is_err());
+        assert!(store.get(9999).unwrap().is_none());
     }
 }

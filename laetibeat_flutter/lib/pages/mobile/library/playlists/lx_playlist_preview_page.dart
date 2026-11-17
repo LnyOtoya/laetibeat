@@ -48,9 +48,29 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
     return playlistInputsFromLxDetail(detail);
   }
 
+  /// 当前在线歌单是否已订阅：本地存在 source + sourceListId 相同的歌单。
+  bool _isSubscribed() {
+    final playlists = ref.watch(localPlaylistsProvider).value;
+    if (playlists == null) return false;
+    return playlists.any(
+      (playlist) =>
+          playlist.source == widget.platform &&
+          playlist.sourceListId == widget.playlist.id,
+    );
+  }
+
   Future<void> _subscribe() async {
     final l10n = AppLocalizations.of(context);
-    final existing = (ref.read(localPlaylistsProvider).value ?? const [])
+    // 首次进入搜索页时列表可能还没加载完；如果直接读 .value 会拿到 null，
+    // 已订阅的歌单就会被当成未订阅，从而创建一个重复歌单。
+    List<rust_playlists.UiLocalPlaylistSummary> playlists;
+    try {
+      playlists = await ref.read(localPlaylistsProvider.future);
+    } catch (_) {
+      playlists = const <rust_playlists.UiLocalPlaylistSummary>[];
+    }
+    if (!mounted) return;
+    final existing = playlists
         .where(
           (playlist) =>
               playlist.source == widget.platform &&
@@ -128,6 +148,7 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
+    final subscribed = _isSubscribed();
     final async = ref.watch(lxPlaylistAllProvider(_key));
     final tracks = async.value?.tracks
         .map(lxSearchTrackToUiTrack)
@@ -270,8 +291,18 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: M3EButton.icon(
-                      icon: Icon(_busy ? M3EIcons.hourglass_top : M3EIcons.add),
-                      label: Text(l10n.playlistSubscribe),
+                      icon: Icon(
+                        _busy
+                            ? M3EIcons.hourglass_top
+                            : (subscribed ? M3EIcons.sync : M3EIcons.add),
+                      ),
+                      // 已订阅后再点就是“用平台最新内容覆盖本地”，
+                      // 所以按钮直接展示“已订阅”并提示同步语义。
+                      label: Text(
+                        subscribed
+                            ? l10n.playlistSubscribed
+                            : l10n.playlistSubscribe,
+                      ),
                       style: M3EButtonStyle.tonal,
                       onPressed: _busy ? null : _subscribe,
                     ),

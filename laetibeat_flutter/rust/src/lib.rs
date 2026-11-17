@@ -1,6 +1,28 @@
 pub mod api;
 mod frb_generated;
 
+/// 初始化 Rust 侧日志。
+///
+/// - Android：输出到 logcat，tag 为 `LaetibeatLx`（便于 `adb logcat -s` 过滤）
+/// - 桌面：输出到 stderr，默认 `info`，可用 `RUST_LOG=debug` 覆盖
+///
+/// 两个平台都是幂等的，重复调用只生效一次。
+pub(crate) fn init_logging() {
+    #[cfg(target_os = "android")]
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_max_level(log::LevelFilter::Info)
+            .with_tag("LaetibeatLx"),
+    );
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = env_logger::Builder::from_env(
+            env_logger::Env::default().default_filter_or("info"),
+        )
+        .try_init();
+    }
+}
+
 /// Android 上初始化 rustls-platform-verifier。
 ///
 /// reqwest 0.13 的 rustls feature 会走 platform verifier；
