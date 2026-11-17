@@ -2048,6 +2048,24 @@ abstract class AppLocalizations {
   /// **'No results found'**
   String get searchNoResults;
 
+  /// No description provided for @searchNoPlaylistResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No playlists found'**
+  String get searchNoPlaylistResults;
+
+  /// No description provided for @searchNoAlbumResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No albums found'**
+  String get searchNoAlbumResults;
+
+  /// No description provided for @searchNoArtistResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No artists found'**
+  String get searchNoArtistResults;
+
   /// No description provided for @searchConfigureSubsonic.
   ///
   /// In en, this message translates to:

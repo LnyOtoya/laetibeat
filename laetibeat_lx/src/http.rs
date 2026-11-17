@@ -132,9 +132,9 @@ fn run(url: &str, options_json: &str) -> std::result::Result<Value, String> {
         }));
     }
 
-    let text = String::from_utf8_lossy(&bytes);
-    let body =
-        serde_json::from_str::<Value>(&text).unwrap_or_else(|_| Value::String(text.to_string()));
+    // 脚本请求的页面可能是 GBK（老接口常见），统一走宽松解码。
+    let text = crate::utils::decode_text(&bytes);
+    let body = serde_json::from_str::<Value>(&text).unwrap_or(Value::String(text));
 
     Ok(json!({
         "statusCode": status.as_u16(),

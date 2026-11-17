@@ -228,8 +228,16 @@ class _MobileSearchResultsPageState
     super.initState();
     _controller = TextEditingController(text: widget.initialQuery);
     _filter = ref.read(defaultSearchSourceProvider);
-    // 源可能在设置页被增删；进入搜索结果页时刷新一次播放能力。
-    ref.invalidate(lxPlayablePlatformsProvider);
+    // 源可能在设置页被增删；进页面后刷新一次播放能力。
+    //
+    // 必须放到首帧之后：initState 仍处于 build 阶段，此时 invalidate 会让
+    // Riverpod 对 UncontrolledProviderScope 调用 setState，触发
+    // "setState() called during build" 断言（上一页的 suggestions 仍在 watch
+    // 这个 provider，所以它一定有存活 element）。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.invalidate(lxPlayablePlatformsProvider);
+    });
   }
 
   /// 解析当前平台。
@@ -894,7 +902,9 @@ class _SearchResults extends ConsumerWidget {
         );
       }
     }
-    if (widgets.isEmpty) return <Widget>[_empty(l10n)];
+    if (widgets.isEmpty) {
+      return <Widget>[_empty(l10n, message: l10n.searchNoPlaylistResults)];
+    }
     return widgets;
   }
 
@@ -932,7 +942,7 @@ class _SearchResults extends ConsumerWidget {
         ? _lxAlbumGroups(lxPage)
         : const <_LxAlbumGroup>[];
     if (localAlbums.isEmpty && remoteAlbums.isEmpty && lxAlbums.isEmpty) {
-      return <Widget>[_empty(l10n)];
+      return <Widget>[_empty(l10n, message: l10n.searchNoAlbumResults)];
     }
     if (localAlbums.isNotEmpty) {
       children.add(
@@ -1072,7 +1082,7 @@ class _SearchResults extends ConsumerWidget {
         ? _lxArtistGroups(lxPage)
         : const <_LxArtistGroup>[];
     if (localArtists.isEmpty && remoteArtists.isEmpty && lxArtists.isEmpty) {
-      return <Widget>[_empty(l10n)];
+      return <Widget>[_empty(l10n, message: l10n.searchNoArtistResults)];
     }
     if (localArtists.isNotEmpty) {
       children.add(
@@ -1639,10 +1649,10 @@ Widget _sourceChip(String label, String sourceKey) {
   return SearchSourceChip(label: label, sourceKey: sourceKey);
 }
 
-Widget _empty(AppLocalizations l10n) {
+Widget _empty(AppLocalizations l10n, {String? message}) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 32),
-    child: Center(child: Text(l10n.searchNoResults)),
+    child: Center(child: Text(message ?? l10n.searchNoResults)),
   );
 }
 

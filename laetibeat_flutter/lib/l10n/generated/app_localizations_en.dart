@@ -1044,6 +1044,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchNoResults => 'No results found';
 
   @override
+  String get searchNoPlaylistResults => 'No playlists found';
+
+  @override
+  String get searchNoAlbumResults => 'No albums found';
+
+  @override
+  String get searchNoArtistResults => 'No artists found';
+
+  @override
   String get searchConfigureSubsonic => 'Configure a Subsonic source first';
 
   @override

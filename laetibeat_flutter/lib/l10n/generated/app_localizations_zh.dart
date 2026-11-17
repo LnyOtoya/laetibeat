@@ -1019,6 +1019,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get searchNoResults => '未找到相关内容';
 
   @override
+  String get searchNoPlaylistResults => '没有找到歌单';
+
+  @override
+  String get searchNoAlbumResults => '没有找到专辑';
+
+  @override
+  String get searchNoArtistResults => '没有找到艺人';
+
+  @override
   String get searchConfigureSubsonic => '请先配置 Subsonic 音源';
 
   @override

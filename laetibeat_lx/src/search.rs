@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 use sha1::{Digest, Sha1};
 
 use crate::error::{LxError, Result};
-use crate::utils::{aes_ecb_pkcs7_hex, md5_hex};
+use crate::utils::{aes_ecb_pkcs7_hex, decode_text, md5_hex};
 
 const USER_AGENT: &str = "Mozilla/5.0 (Linux; U; Android 11.0.0; zh-cn; MI 11) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30";
 const MAX_RESPONSE_BYTES: usize = 5 * 1024 * 1024;
@@ -260,7 +260,7 @@ fn get_json(request: reqwest::blocking::RequestBuilder) -> Result<Value> {
     if bytes.len() > MAX_RESPONSE_BYTES {
         return Err(LxError::Request("search response is too large".to_string()));
     }
-    serde_json::from_slice(&bytes)
+    serde_json::from_str(&decode_text(&bytes))
         .map_err(|error| LxError::Request(format!("invalid search response: {error}")))
 }
 

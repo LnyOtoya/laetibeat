@@ -54,6 +54,52 @@ pub fn aes_ecb_pkcs7_hex(data: &[u8], key: &[u8]) -> std::result::Result<String,
         .collect::<String>())
 }
 
+/// Decode an HTTP body into text without failing the whole request.
+///
+/// Some Chinese endpoints are not clean UTF-8:
+/// - QQ's `client_music_search_songlist` truncates long strings **by byte**
+///   (and HTML-escapes the rest), so the body is UTF-8 with a handful of
+///   cut-off multi-byte characters;
+/// - other legacy endpoints are genuinely GBK while claiming `charset=utf-8`.
+///
+/// So: use strict UTF-8 when it works; otherwise decode both ways and keep the
+/// result with fewer replacement characters. A UTF-8 BOM is stripped.
+pub fn decode_text(bytes: &[u8]) -> String {
+    let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes);
+    if let Ok(text) = std::str::from_utf8(bytes) {
+        return text.to_string();
+    }
+    // Mostly-UTF-8 body that contains a few corrupted bytes: keep the valid
+    // text and replace only the broken spans.
+    if invalid_utf8_bytes(bytes) * 10 <= bytes.len() {
+        return String::from_utf8_lossy(bytes).into_owned();
+    }
+    // Heavily non-UTF-8 body: treat it as GBK.
+    let (gb18030, _, _) = encoding_rs::GB18030.decode(bytes);
+    gb18030.into_owned()
+}
+
+/// Total length of the byte spans that are not valid UTF-8.
+fn invalid_utf8_bytes(bytes: &[u8]) -> usize {
+    let mut rest = bytes;
+    let mut invalid = 0;
+    loop {
+        match std::str::from_utf8(rest) {
+            Ok(_) => return invalid,
+            Err(error) => {
+                let valid = error.valid_up_to();
+                let bad = error.error_len().unwrap_or(rest.len() - valid);
+                invalid += bad;
+                let advance = valid + bad;
+                if advance >= rest.len() {
+                    return invalid;
+                }
+                rest = &rest[advance..];
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -67,6 +113,36 @@ mod tests {
             base64_decode_json_array("aGVsbG8="),
             "[104,101,108,108,111]"
         );
+    }
+
+    #[test]
+    fn decodes_utf8_and_gbk_bodies() {
+        // UTF-8 passthrough
+        assert_eq!(decode_text("周杰伦".as_bytes()), "周杰伦");
+        // UTF-8 BOM is stripped
+        assert_eq!(decode_text(b"\xEF\xBB\xBFhello"), "hello");
+        // Pure GBK bytes for 周杰伦 must be decoded as GB18030.
+        let gbk = [0xD6_u8, 0xDC, 0xBD, 0xDC, 0xC2, 0xD7];
+        assert_eq!(decode_text(&gbk), "周杰伦");
+
+        // QQ truncates long strings by byte, so the body is UTF-8 with a few
+        // cut-off characters. The UTF-8 reading must win here; decoding the
+        // whole body as GB18030 would turn every Chinese name into mojibake.
+        let mut mixed = b"{\"name\":\"".to_vec();
+        mixed.extend_from_slice("周杰伦歌曲大全".as_bytes());
+        mixed.push(0xE4); // first byte of a truncated 3-byte sequence
+        mixed.extend_from_slice(b"\",\"count\":29}");
+        let decoded = decode_text(&mixed);
+        let value: serde_json::Value = serde_json::from_str(&decoded).unwrap();
+        assert_eq!(value["count"], 29);
+        let name = value["name"].as_str().unwrap();
+        assert!(name.starts_with("周杰伦歌曲大全"), "got {name}");
+        // A GBK-encoded JSON body must still parse after decoding
+        let mut payload = b"{\"name\":\"".to_vec();
+        payload.extend_from_slice(&gbk);
+        payload.extend_from_slice(b"\"}");
+        let value: serde_json::Value = serde_json::from_str(&decode_text(&payload)).unwrap();
+        assert_eq!(value["name"], "周杰伦");
     }
 
     #[test]

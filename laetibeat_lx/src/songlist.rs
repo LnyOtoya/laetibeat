@@ -1,15 +1,19 @@
 use std::collections::BTreeMap;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use reqwest::blocking::Client;
 use serde_json::Value;
 
 use crate::error::{LxError, Result};
 use crate::search::LxSearchTrack;
+use crate::utils::decode_text;
 
 const USER_AGENT: &str = "Mozilla/5.0 (Linux; U; Android 11.0.0; zh-cn; MI 11) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30";
 const MAX_RESPONSE_BYTES: usize = 5 * 1024 * 1024;
 const MAX_LIMIT: u32 = 100;
+/// QQ occasionally answers `code != 0` (anti-bot / transient upstream error).
+/// The reference client retries up to 5 times; three attempts is enough here.
+const TX_SEARCH_ATTEMPTS: u32 = 3;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LxPlaylistSummary {
@@ -33,7 +37,39 @@ pub struct LxPlaylistDetail {
     pub has_more: bool,
 }
 
+/// Search playlists on one platform.
+///
+/// Every attempt is logged with platform / page / keyword length / result count
+/// and elapsed time, so a silent "no results" can be told apart from a request
+/// failure when debugging on device.
 pub fn search_playlists(
+    platform: &str,
+    keyword: &str,
+    page: u32,
+    limit: u32,
+) -> Result<Vec<LxPlaylistSummary>> {
+    let started = Instant::now();
+    let page = page.max(1);
+    let limit = limit.clamp(1, MAX_LIMIT);
+    let keyword_len = keyword.trim().chars().count();
+    let result = search_playlists_inner(platform, keyword, page, limit);
+    match &result {
+        Ok(items) => log::info!(
+            "lx.playlist.search platform={platform} page={page} limit={limit} \
+             keyword_len={keyword_len} items={} elapsed={}ms",
+            items.len(),
+            started.elapsed().as_millis()
+        ),
+        Err(error) => log::warn!(
+            "lx.playlist.search platform={platform} page={page} limit={limit} \
+             keyword_len={keyword_len} failed in {}ms: {error}",
+            started.elapsed().as_millis()
+        ),
+    }
+    result
+}
+
+fn search_playlists_inner(
     platform: &str,
     keyword: &str,
     page: u32,
@@ -111,7 +147,35 @@ pub fn search_playlists(
     Ok(result)
 }
 
+/// Load one page of a playlist's tracks.
 pub fn get_playlist_detail(
+    platform: &str,
+    playlist_id: &str,
+    page: u32,
+    limit: u32,
+) -> Result<LxPlaylistDetail> {
+    let started = Instant::now();
+    let page = page.max(1);
+    let limit = limit.clamp(1, 1000);
+    let result = get_playlist_detail_inner(platform, playlist_id, page, limit);
+    match &result {
+        Ok(detail) => log::info!(
+            "lx.playlist.detail platform={platform} id={playlist_id} page={page} \
+             tracks={} total={} elapsed={}ms",
+            detail.tracks.len(),
+            detail.total,
+            started.elapsed().as_millis()
+        ),
+        Err(error) => log::warn!(
+            "lx.playlist.detail platform={platform} id={playlist_id} page={page} \
+             failed in {}ms: {error}",
+            started.elapsed().as_millis()
+        ),
+    }
+    result
+}
+
+fn get_playlist_detail_inner(
     platform: &str,
     playlist_id: &str,
     page: u32,
@@ -190,8 +254,14 @@ pub fn get_playlist_all(platform: &str, playlist_id: &str) -> Result<LxPlaylistD
         }
         if !has_more || page >= 20 {
             let mut result = first.unwrap_or(detail);
+            let fetched_pages = page;
             result.tracks = all_tracks;
             result.has_more = false;
+            log::info!(
+                "lx.playlist.all platform={platform} id={playlist_id} \
+                 tracks={} pages={fetched_pages}",
+                result.tracks.len()
+            );
             return Ok(result);
         }
         page += 1;
@@ -200,6 +270,31 @@ pub fn get_playlist_all(platform: &str, playlist_id: &str) -> Result<LxPlaylistD
 
 
 fn search_tx_playlists(
+    client: &Client,
+    keyword: &str,
+    page: u32,
+    limit: u32,
+) -> Result<Vec<LxPlaylistSummary>> {
+    let mut last_error = None;
+    for attempt in 1..=TX_SEARCH_ATTEMPTS {
+        match search_tx_playlists_once(client, keyword, page, limit) {
+            Ok(items) => return Ok(items),
+            Err(error) => {
+                log::warn!(
+                    "lx.playlist.search tx attempt {attempt}/{TX_SEARCH_ATTEMPTS} failed: {error}"
+                );
+                last_error = Some(error);
+                if attempt < TX_SEARCH_ATTEMPTS {
+                    std::thread::sleep(Duration::from_millis(200 * u64::from(attempt)));
+                }
+            }
+        }
+    }
+    Err(last_error
+        .unwrap_or_else(|| LxError::Request("tx playlist search failed".to_string())))
+}
+
+fn search_tx_playlists_once(
     client: &Client,
     keyword: &str,
     page: u32,
@@ -458,8 +553,8 @@ fn get_text(request: reqwest::blocking::RequestBuilder) -> Result<String> {
     if bytes.len() > MAX_RESPONSE_BYTES {
         return Err(LxError::Request("playlist response is too large".to_string()));
     }
-    String::from_utf8(bytes.to_vec())
-        .map_err(|error| LxError::Request(format!("playlist response is not UTF-8: {error}")))
+    // 部分老接口声明 charset=utf-8 但实际返回 GBK（如 QQ 歌单搜索），这里做宽松解码。
+    Ok(decode_text(&bytes))
 }
 
 fn get_json(request: reqwest::blocking::RequestBuilder) -> Result<Value> {
@@ -547,13 +642,8 @@ fn split_singers(value: &str) -> Vec<String> {
 }
 
 fn clean(value: &str) -> String {
-    value
-        .replace("&nbsp;", " ")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&#39;", "'")
-        .replace("&quot;", "\"")
+    // 与 search.rs 保持一致：QQ 会把换行/标点转义成 &#10; / &#46; 之类的实体。
+    html_escape::decode_html_entities(value.trim())
         .trim()
         .to_string()
 }

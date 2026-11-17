@@ -134,12 +134,46 @@
 - [ ] 有 Flutter 环境时复验 `flutter analyze` / `flutter test`（本机无 Flutter SDK，Dart 改动未做编译验证）
 - [ ] Android 真机验证：无音源时搜索/订阅可用、播放提示正确、切平台只发一次请求
 
+### 第二轮：异常修复与歌单诊断（2026-11-18）
+
+- [x] 修复进入搜索结果页必现的 `setState() called during build`：`initState` 里的 `ref.invalidate(lxPlayablePlatformsProvider)` 改为 `addPostFrameCallback` 后再执行（上一页 suggestions 仍 watch 该 provider，element 存活导致 invalidate 触发 scope 的 setState）
+- [x] `songlist.rs` 补日志：`lx.playlist.search` / `lx.playlist.detail` / `lx.playlist.all` 记录 platform、page、limit、keyword 长度、返回条数、耗时与错误
+- [x] QQ 歌单搜索失败重试：`code != 0` 时最多 3 次（官方为 5 次），200/400ms 退避
+- [x] 搜索空态按分类区分：`searchNoPlaylistResults` / `searchNoAlbumResults` / `searchNoArtistResults`（原先歌单空态显示"没有找到歌曲"，容易被误判为"没反应"）
+- [x] `cargo check --workspace` / `cargo test --workspace`（38 tests）通过
+- [ ] 真机复验：进搜索页不再报错；`adb logcat -s LaetibeatLx` 能看到各平台歌单请求的条数与耗时
+- [x] 定位 QQ 歌单"无返回"：真机日志为 `playlist response is not UTF-8: invalid utf-8 sequence of 2 bytes from index 667`
+- [x] 修复：QQ `client_music_search_songlist` 返回的是**UTF-8 主体 + 被按字节截断的中文**（服务端会先截断再 HTML 转义，如 `&#46;`），严格 UTF-8 解码必然失败；改为宽松解码（`utils::decode_text`：严格 UTF-8 → 非法字节占比 <10% 用 lossy → 否则按 GB18030），并应用到 `songlist` / `search` / `http` 三条取文本路径
+- [x] `clean()` 统一用 `html_escape::decode_html_entities`，QQ 描述里的 `&#10;` / `&#46;` 不再原样显示
+- [x] 新增依赖 `encoding_rs`（GB18030 兜底），并加 `decodes_utf8_and_gbk_bodies` 测试
+- [ ] 真机复验 tx 歌单：期望日志 `lx.playlist.search platform=tx ... items=N`
+- [ ] 已知无法消除：QQ 超长描述会被服务端截断，末尾可能出现少量 � 替换符
+
+### 歌单接口实测结论（2026-11-18）
+
+| 平台 | 歌单搜索 | 歌单详情 | 结论 |
+|---|---|---|---|
+| kw | `search.kuwo.cn/r.s?...ft=playlist` ✅ 已实现 | `nplserver.kuwo.cn/pl.svc` ✅ 已实现 | 完成 |
+| tx | `c.y.qq.com/soso/fcgi-bin/client_music_search_songlist` ✅ 代码已实现，实测 `code:0`、`data.list` 字段与解析一致 | `fcg_ucc_getcdinfo_byids_cp.fcg` ✅ 实测可用 | 实现存在，需确认为何 App 内无返回 |
+| kg | `msearchretry.kugou.com/api/v3/search/special` ✅ 实测 `errcode:0`、`data.info[]` | `mobilecdn.kugou.com/api/v3/special/song` ✅ 实测可用，**免签名** | 待实现（比官方 infSign + 抓网页简单） |
+| wy | `eapi /api/cloudsearch/pc`（`type:1000`）✅ 实测可用，可复用 `search_wy` 的 eapi 加密 | `eapi /api/v6/playlist/detail`（info + `trackIds`）→ `eapi /api/v3/song/detail` 批量（实测 145 首一次拉完） | 待实现 |
+| mg | `jadeite.migu.cn/.../searchAll` + `searchSwitch.songlist=1` ✅ 实测可用，复用现有签名 | `c.musicapp.migu.cn/MIGUM3.0/resource/playlist/v2.0` + `app.c.nf.migu.cn/MIGUM3.0/resource/playlist/song/v2.0` ✅ **免签名**，字段与 `parse_mg` 一致 | 待实现 |
+
+分页语义差异：kw `pn` 从 0 / tx `page_no` 从 0 / kg `page` 从 1 / wy `offset` / mg `pageNo` 从 1。
+
+### 待决策：平台范围
+
+- 结论：**不建议裁剪到 QQ + 网易云**。理由：
+  1. 酷我 / 酷狗 / QQ 同属 TME，曲库高度重叠，但同一首歌在不同平台的可播放状态、音质、可用版本（Live / DJ / 现场）不同，多平台是"换源"兜底；咪咕则覆盖运营商系长尾。
+  2. 删除成本 ≥ 补齐成本：kw 的歌单/歌词/封面、kg 的 KRC 歌词与封面、mg 的 MRC 解密都已跑通，删掉等于丢弃已验证资产。
+  3. 用户导入的自定义源可能只声明 kw/kg，平台被删会让这些脚本失去可搜索入口；且 LX 官方为 5 平台，用户有预期。
+  4. 单平台失效时（接口风控很常见），多平台是唯一降级手段。
+- 建议方案：保留 5 个平台，引入"平台能力表"（搜索 / 歌单 / 歌词 / 封面 / 播放），UI 只展示实际支持的能力；某平台接口失效时只关掉能力位，不删代码。
+- [ ] 确认平台范围（全做 5 个 vs 只保留 tx+wy）
+
 ### 后续（本次未做）
 
-- [ ] `kg` / `wy` / `mg` 歌单搜索与详情。官方 5/5 均有实现，当前我们只有 `kw` + `tx`：
-  - `kg`：`msearchretry.kugou.com/api/v3/search/special`（`page` 从 1 开始，返回 `data.info`）；详情需 `global_collection_id` 链 + `infSign` 签名
-  - `wy`：`eapi /api/cloudsearch/pc`（`type=1000`）；详情需 `musicDetail` 批量接口
-  - `mg`：`jadeite.migu.cn/music_search/v3/search/searchAll`（`searchSwitch.songlist=1`，需 `sign` 头）；详情为两步请求
+- [ ] `kg` / `wy` / `mg` 歌单搜索与详情（端点与字段已实测，见上表；kg / mg 详情免签名）
 - [ ] 搜索结果未保留 `types` / `_types`（每首可用音质与体积），播放选质只能"默认音质 → 128k"，不会尝试 320k/flac
 - [ ] 封面 `pic` fallback 只有 `kg`；官方 `kw` / `mg` 也有 `pic` 实现
 - [ ] 专辑 / 艺术家分类只聚合歌曲第 1 页（当前 50 条），应改为与歌曲分页共用同一数据源
