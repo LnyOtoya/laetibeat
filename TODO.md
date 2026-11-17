@@ -149,15 +149,32 @@
 - [ ] 真机复验 tx 歌单：期望日志 `lx.playlist.search platform=tx ... items=N`
 - [ ] 已知无法消除：QQ 超长描述会被服务端截断，末尾可能出现少量 � 替换符
 
+### 第三轮：补齐 kg / wy / mg 歌单（2026-11-18）
+
+- [x] 平台能力表（Rust 单一口径）：`songlist::PLAYLIST_SEARCH_PLATFORMS` + `supports_playlist_search()`，附测试；Dart 侧仍以错误信息降级（当前 5/5 支持，不会触发）
+- [x] kg 搜索：`msearchretry.kugou.com/api/v3/search/special`（`page` 从 1 开始）
+- [x] kg 详情：`mobilecdn.kugou.com/api/v5/special/info`（名称/作者/封面/播放量/简介）+ `v3/special/song`（歌曲），**两个都免签名**；歌曲 id 用 `album_audio_id`（与歌曲搜索的 `Audioid` 一致），`hash` 写入 `extra` 供 `musicUrl` 使用
+- [x] wy 搜索：`eapi /api/cloudsearch/pc`（`type:1000`），复用抽出的 `search::eapi_json`
+- [x] wy 详情：`eapi /api/v6/playlist/detail` 拿 `trackIds`（`tracks` 只返回 10 首）→ `eapi /api/v3/song/detail` 每批 200 个 id 批量取详情
+- [x] mg 搜索：复用现有签名 + `searchSwitch.songlist=1`
+- [x] mg 详情：`c.musicapp.migu.cn/MIGUM3.0/resource/playlist/v2.0`（信息）+ `app.c.nf.migu.cn/MIGUM3.0/resource/playlist/song/v2.0`（歌曲），免签名；字段与 `parse_mg` 一致（列表接口用 `songName`）
+- [x] 分页修正：**mg 会把 `pageSize` 静默截到 50**，因此整单拉取按平台取页大小（mg 50 / 其余 1000），`has_more` 改为按实际返回条数计算；否则 100 首的歌单只能拿到 50 首
+- [x] 抽出 `search::eapi_json`（wy 全平台复用）与 `search::mg_sign`（mg 搜索/歌单共用签名）
+- [x] 单测：`supports_all_five_playlist_platforms`、`parses_kg_playlist_search_and_tracks`、`parses_wy_playlist_search_and_songs`、`parses_mg_playlist_search_and_tracks`、`parses_tx_playlist_summaries`（fixture 取自真实响应）
+- [x] 真实网络冒烟（临时测试，跑完已删除）：5 平台歌单搜索 + 详情 + 整单拉取全部通过，条数与 `total` 一致（kg 194 / tx 223 / wy 145 / mg 100）
+- [x] `cargo check --workspace --all-targets` 无 warning；`cargo test --workspace` 43 tests 通过
+- [ ] 真机验证：切到 kg / wy / mg 的歌单分类能出结果、能进预览页、能订阅
+- [ ] 已知限制：kg / mg 的整单拉取需要多页时请求数 = ceil(总数 / 平台页大小)；wy 每 200 首一次批量请求
+
 ### 歌单接口实测结论（2026-11-18）
 
 | 平台 | 歌单搜索 | 歌单详情 | 结论 |
 |---|---|---|---|
 | kw | `search.kuwo.cn/r.s?...ft=playlist` ✅ 已实现 | `nplserver.kuwo.cn/pl.svc` ✅ 已实现 | 完成 |
-| tx | `c.y.qq.com/soso/fcgi-bin/client_music_search_songlist` ✅ 代码已实现，实测 `code:0`、`data.list` 字段与解析一致 | `fcg_ucc_getcdinfo_byids_cp.fcg` ✅ 实测可用 | 实现存在，需确认为何 App 内无返回 |
-| kg | `msearchretry.kugou.com/api/v3/search/special` ✅ 实测 `errcode:0`、`data.info[]` | `mobilecdn.kugou.com/api/v3/special/song` ✅ 实测可用，**免签名** | 待实现（比官方 infSign + 抓网页简单） |
-| wy | `eapi /api/cloudsearch/pc`（`type:1000`）✅ 实测可用，可复用 `search_wy` 的 eapi 加密 | `eapi /api/v6/playlist/detail`（info + `trackIds`）→ `eapi /api/v3/song/detail` 批量（实测 145 首一次拉完） | 待实现 |
-| mg | `jadeite.migu.cn/.../searchAll` + `searchSwitch.songlist=1` ✅ 实测可用，复用现有签名 | `c.musicapp.migu.cn/MIGUM3.0/resource/playlist/v2.0` + `app.c.nf.migu.cn/MIGUM3.0/resource/playlist/song/v2.0` ✅ **免签名**，字段与 `parse_mg` 一致 | 待实现 |
+| tx | `c.y.qq.com/soso/fcgi-bin/client_music_search_songlist` ✅ | `fcg_ucc_getcdinfo_byids_cp.fcg` ✅ | 完成（编码问题已修） |
+| kg | `msearchretry.kugou.com/api/v3/search/special` ✅ | `mobilecdn.kugou.com/api/v5/special/info` + `v3/special/song` ✅ **免签名** | **已实现**（2026-11-18） |
+| wy | `eapi /api/cloudsearch/pc`（`type:1000`）✅ | `eapi /api/v6/playlist/detail`（info + `trackIds`）→ `eapi /api/v3/song/detail` 批量 | **已实现**（2026-11-18） |
+| mg | `jadeite.migu.cn/.../searchAll` + `searchSwitch.songlist=1` ✅ | `c.musicapp.migu.cn/MIGUM3.0/resource/playlist/v2.0` + `app.c.nf.migu.cn/MIGUM3.0/resource/playlist/song/v2.0` ✅ **免签名** | **已实现**（2026-11-18） |
 
 分页语义差异：kw `pn` 从 0 / tx `page_no` 从 0 / kg `page` 从 1 / wy `offset` / mg `pageNo` 从 1。
 
@@ -169,11 +186,11 @@
   3. 用户导入的自定义源可能只声明 kw/kg，平台被删会让这些脚本失去可搜索入口；且 LX 官方为 5 平台，用户有预期。
   4. 单平台失效时（接口风控很常见），多平台是唯一降级手段。
 - 建议方案：保留 5 个平台，引入"平台能力表"（搜索 / 歌单 / 歌词 / 封面 / 播放），UI 只展示实际支持的能力；某平台接口失效时只关掉能力位，不删代码。
-- [ ] 确认平台范围（全做 5 个 vs 只保留 tx+wy）
+- [x] 平台范围：保留全部 5 个平台（2026-11-18 决定），歌单能力已 5/5 打通
 
 ### 后续（本次未做）
 
-- [ ] `kg` / `wy` / `mg` 歌单搜索与详情（端点与字段已实测，见上表；kg / mg 详情免签名）
+- [x] `kg` / `wy` / `mg` 歌单搜索与详情（2026-11-18 完成，见第三轮）
 - [ ] 搜索结果未保留 `types` / `_types`（每首可用音质与体积），播放选质只能"默认音质 → 128k"，不会尝试 320k/flac
 - [ ] 封面 `pic` fallback 只有 `kg`；官方 `kw` / `mg` 也有 `pic` 实现
 - [ ] 专辑 / 艺术家分类只聚合歌曲第 1 页（当前 50 条），应改为与歌曲分页共用同一数据源

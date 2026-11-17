@@ -15,6 +15,8 @@ use crate::utils::{aes_ecb_pkcs7_hex, decode_text, md5_hex};
 const USER_AGENT: &str = "Mozilla/5.0 (Linux; U; Android 11.0.0; zh-cn; MI 11) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30";
 const MAX_RESPONSE_BYTES: usize = 5 * 1024 * 1024;
 const MAX_LIMIT: u32 = 50;
+/// Migu's fixed device id used for search signing.
+pub(crate) const MG_DEVICE_ID: &str = "963B7AA0D21511ED807EE5846EC87D20";
 
 /// Platforms with a standalone search implementation in this milestone.
 pub const SUPPORTED_PLATFORMS: &[&str] = &["kw", "kg", "tx", "wy", "mg"];
@@ -218,10 +220,8 @@ fn search_mg(
         .map_err(|error| LxError::Request(error.to_string()))?
         .as_millis()
         .to_string();
-    let device_id = "963B7AA0D21511ED807EE5846EC87D20";
-    let sign = md5_hex(&format!(
-        "{keyword}6cdc72a439cef99a3418d2a78aa28c73yyapp2d16148780a1dcc7408e06336b98cfd50{device_id}{timestamp}"
-    ));
+    let device_id = MG_DEVICE_ID;
+    let sign = mg_sign(keyword, device_id, &timestamp);
     let body = get_json(
         client
             .get("https://jadeite.migu.cn/music_search/v3/search/searchAll")
@@ -565,7 +565,6 @@ fn search_wy(
     page: u32,
     limit: u32,
 ) -> Result<(Vec<LxSearchTrack>, u64)> {
-    let path = "/api/search/song/list/page";
     let payload = json!({
         "keyword": keyword,
         "needCorrect": "1",
@@ -575,13 +574,28 @@ fn search_wy(
         "total": page == 1,
         "limit": limit
     });
-    let text =
-        serde_json::to_string(&payload).map_err(|error| LxError::Request(error.to_string()))?;
+    let body = eapi_json(client, "/api/search/song/list/page", &payload)?;
+    Ok(parse_wy(&body))
+}
+
+/// Migu search signature. Shared with playlist search in `songlist.rs`.
+pub(crate) fn mg_sign(keyword: &str, device_id: &str, timestamp: &str) -> String {
+    md5_hex(&format!(
+        "{keyword}6cdc72a439cef99a3418d2a78aa28c73yyapp2d16148780a1dcc7408e06336b98cfd50{device_id}{timestamp}"
+    ))
+}
+
+/// NetEase `eapi` request: encrypt the JSON payload and POST it to `/eapi/batch`.
+///
+/// Shared with playlist search/detail in `songlist.rs`.
+pub(crate) fn eapi_json(client: &Client, path: &str, payload: &Value) -> Result<Value> {
+    let text = serde_json::to_string(payload)
+        .map_err(|error| LxError::Request(error.to_string()))?;
     let digest = md5_hex(&format!("nobody{path}use{text}md5forencrypt"));
     let data = format!("{path}-36cd479b6b5-{text}-36cd479b6b5-{digest}");
     let params =
         aes_ecb_pkcs7_hex(data.as_bytes(), b"e82ckenh8dichen8").map_err(LxError::Request)?;
-    let body = get_json(
+    get_json(
         client
             .post("http://interface.music.163.com/eapi/batch")
             .header(
@@ -590,8 +604,7 @@ fn search_wy(
             )
             .header("origin", "https://music.163.com")
             .form(&[("params", params)]),
-    )?;
-    Ok(parse_wy(&body))
+    )
 }
 
 fn parse_wy(body: &Value) -> (Vec<LxSearchTrack>, u64) {
