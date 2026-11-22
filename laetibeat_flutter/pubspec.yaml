@@ -40,6 +40,9 @@ dependencies:
   flutter_riverpod: ^3.0.0
   material_3_expressive: ^1.2.0
   material_ui: ^1.8.0
+  # Material You dynamic color + the official Google color utilities.
+  dynamic_color: ^2.1.0
+  material_color_utilities: ^0.13.0
   window_manager: ^0.5.2
   media_kit: ^1.2.6
   media_kit_libs_linux: ^1.2.1

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart' show GlobalMaterialLocalizations;
 
+import '../design/design.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../pages/desktop/desktop_app.dart';
 import '../pages/mobile/home/mobile_home_page.dart';
@@ -50,7 +51,10 @@ class LaetibeatApp extends ConsumerWidget {
       ],
       supportedLocales: AppLocalizations.supportedLocales,
       data: themeData,
-      dynamicColoring: true,
+      // Dynamic color is resolved by MaterialYouThemeHost below, using the
+      // official material_color_utilities dynamic schemes. Do not let M3E
+      // re-seed from only the palette primary here.
+      dynamicColoring: false,
       autoTheming: followSystem,
       initialTheme: initialTheme,
       fontFamily: 'Google Sans Flex',
@@ -68,28 +72,24 @@ class LaetibeatApp extends ConsumerWidget {
       onGenerateRoute: formFactor == AppFormFactor.mobile
           ? mobileOnGenerateRoute
           : null,
-      appBuilder: formFactor == AppFormFactor.mobile
-          ? (BuildContext context, Widget? child) {
-              // appBuilder 位于 M3EMaterialApp 内部 M3ETheme 的外层。
-              // Shell 必须再套一层同数据的 M3ETheme，否则底部导航会
-              // 回退到 Material Theme 推导出的另一套取色。
-              return M3ETheme(
-                data: themeData,
-                autoTheming: followSystem,
-                dynamicColoring: true,
-                initialTheme: initialTheme,
-                child: PlayerErrorListener(
-                  child: MediaIntegrationHost(
-                    child: MobileShell(child: child ?? const SizedBox.shrink()),
-                  ),
-                ),
-              );
-            }
-          : null,
+      appBuilder: (BuildContext context, Widget? child) {
+        final content = formFactor == AppFormFactor.mobile
+            ? MobileShell(child: child ?? const SizedBox.shrink())
+            : (child ?? const SizedBox.shrink());
+
+        // Resolve the Material You palette once and project it onto both the
+        // expressive theme and material_ui's Theme for the whole navigator.
+        return MaterialYouThemeHost(
+          density: formFactor == AppFormFactor.desktop
+              ? AppThemeDensity.regular
+              : AppThemeDensity.compact,
+          child: PlayerErrorListener(
+            child: MediaIntegrationHost(child: content),
+          ),
+        );
+      },
       home: switch (formFactor) {
-        AppFormFactor.desktop => const PlayerErrorListener(
-          child: MediaIntegrationHost(child: DesktopApp()),
-        ),
+        AppFormFactor.desktop => const DesktopApp(),
         AppFormFactor.mobile => const MobileHomePage(),
       },
     );

@@ -1,7 +1,7 @@
 # Laetibeat 项目蓝图
 
-> 最后更新：2026-11-18
-> 当前阶段：搜索与 LX 音源解耦中；本地 / OpenSubsonic / LX 三源播放链路已打通，进入正确性、稳定性与工程债收尾
+> 最后更新：2026-11-22
+> 当前阶段：设计系统 token 化、Material You 官方取色与页面 gutter 契约已落地；具体页面尚未迁移，LX / 远端链路继续稳定性收尾
 
 ## 当前状态速览
 
@@ -17,6 +17,7 @@
 - LX 剩余重点：脚本执行安全与中断、源生命周期与懒加载、异步 request broker、真实源联调
 - 主要功能缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
+- 设计系统：新增 `lib/design/`（颜色/字体/间距/圆角/尺寸/动效/断点 token、Material You 官方取色、`AppArtwork` / `AppText` / `AppMediaRow` 等基础组件）；页面级左右 gutter 统一为 `AppLayout.pageGutter` + `AppPageBody`；具体页面尚未迁移
 
 ## 当前优先事项（2026-11-10）
 
@@ -49,7 +50,16 @@
 - [x] 媒体库详情页来源筛选：歌曲/专辑/艺术家/歌单页已完成“全部/本地/Navidrome”chips 与来源 badge
 - [ ] 清理死代码：`AudioSource`、`PlayState`、`SourceType::Opensubsonic`、`linux_mpris.dart`、`tmp.dart.bak`、未引用的移动首页组件
 - [ ] 更新 `ARCHITECTURE.md`：当前移动端播放后端、单 Navigator、audio_service 状态
-- [x] 在可用 Flutter 环境复验 `flutter analyze` / `flutter test`（2026-11-10；analyze 仍有 4 个既有 warning/info）
+- [x] 在可用 Flutter 环境复验 `flutter analyze` / `flutter test`（2026-11-22；analyze 剩余 6 条均为既有 warning/info，`lib/design/` 无新增问题；test 6 个通过）
+- [x] 设计系统 token 化：`lib/design/` 新增颜色/字体/间距/圆角/尺寸/动效/断点 token；`AppTheme` 成为 `M3EThemeData` 唯一入口
+- [x] Material You 官方取色：接入 `material_color_utilities` + `dynamic_color`，`MaterialYouColorScheme` 从官方 `DynamicScheme` 解析全部角色，`MaterialYouThemeHost` 使用系统 CorePalette；关闭 M3E 自带 `dynamicColoring`
+- [x] 页面 gutter 契约：`AppLayout.pageGutter` + `AppPageBody` 作为唯一水平 inset；`AppScaffold` 默认套用；`AppSectionHeader` / `AppMediaRow` / `AppEmptyState` 默认水平 padding 归零
+- [x] 基础组件拆分：`AppArtwork`（尺寸/形状/占位）、`AppText`、`AppSurface`、`AppMediaRow`、`AppMediaTile`、`AppEmptyState`
+- [x] 新增 `test/design_system_smoke_test.dart`：Material You light/dark 角色、主题宿主渲染、Section 与 MediaRow 左边缘对齐
+- [ ] 具体页面迁移到 `lib/design/`：`AppScaffold` / `AppPageBody` / `AppText` / `AppArtwork` / `AppMediaRow`
+- [ ] 统一 UI 代码 import 到 `material_ui`，清理 `package:flutter/material.dart`（当前仍有 18 个文件）
+- [ ] 补充 `AppTopBar`（AppBar 标题/leading 与页面 gutter 对齐）、按钮、输入框、卡片等交互组件封装
+- [ ] 页面内硬编码颜色/字号/间距清零，全部改用 design token
 - [ ] 补充播放队列、搜索、缓存管理的回归测试
 - [ ] 补齐仓库 LICENSE / 第三方 NOTICE，确认 QuickJS / FFmpeg 分发合规
 - [ ] Android cleartext 改为按域名白名单的 network security config
@@ -63,6 +73,61 @@
 - [ ] 移动端首页推荐/历史接入，或删除孤立组件
 - [ ] MPRIS 迁移到 audio_service，或彻底移除旧实现
 - [ ] 高级 DSP / ReplayGain / 响度归一
+
+## 设计系统与 Token 化（2026-11-22）
+
+### 目标
+
+- 单一主题入口：`lib/design/theme/app_theme.dart` 构建 `M3EThemeData`
+- Material You 取色对齐 Google 官方：使用 `material_color_utilities` 的 `DynamicScheme` 解析全部角色，而不是只取 CorePalette.primary 再重新 seed
+- 全部 token 化：颜色、字体、间距、圆角、尺寸、动效、断点
+- 组件按用途拆文件：封面 `AppArtwork` 单独文件，尺寸/形状/占位也分别拆文件
+- 所有页面内容左右 gutter 一致：`AppLayout.pageGutter` + `AppPageBody`
+- 本轮只建设计系统，不修改具体页面
+
+### 已完成
+
+- [x] 目录：`lib/design/{tokens,theme,components}` + `design.dart` 出口
+- [x] 颜色 token：`AppColorTokens`、`AppColorRole`、`AppSurfaceLevel`
+- [x] 字体 token：`AppTypography`（Google Sans Flex + CJK fallback）；`AppTextRole` 映射 M3 15 个 type role
+- [x] 间距/圆角/尺寸/动效/断点 token：`AppSpacing`、`AppRadii`、`AppIconSize`、`AppComponentSize`、`AppMotion`、`AppBreakpoints`
+- [x] 布局 token：`AppLayout.pageGutter`、`AppLayout.gutterFor(width)`、`AppLayout.maxContentWidth`
+- [x] Material You：`MaterialYouColorScheme.fromSeed()` / `fromCorePalette()`；支持 tonalSpot / fidelity / content / vibrant / expressive / neutral / monochrome / rainbow / fruitSalad
+- [x] `MaterialYouThemeHost`：Android 使用系统 CorePalette 全部 palettes；桌面回退 accent color / 品牌 seed；resume 时刷新
+- [x] `AppTheme.light/dark/build` 统一 typography / spacing / iconTheme / visualDensity
+- [x] 封面组件：`AppArtwork`、`AppArtworkSize`、`AppArtworkShape`、`AppArtworkPlaceholder`
+- [x] 文本组件：`AppText`、`AppTextRole`
+- [x] 容器与布局：`AppSurface`、`AppScaffold`、`AppPageBody`、`AppSectionHeader`
+- [x] 媒体内容：`AppMediaRow`、`AppMediaTile`
+- [x] 反馈：`AppEmptyState`
+- [x] App 根节点接入：`app.dart` 使用 `MaterialYouThemeHost`，关闭 M3E 自带 `dynamicColoring`
+- [x] `AppThemeFactory` 委托到 `lib/design`，不再自写 seed / 字体
+- [x] 验证：`flutter analyze` 无新增问题；`flutter test` 6 个通过（含 gutter 对齐回归测试）
+
+### 页面 gutter 契约
+
+| 层 | 水平 padding | 说明 |
+|---|---|---|
+| `AppScaffold` / `AppPageBody` | `AppLayout.pageGutter` | 唯一页面 gutter |
+| `AppSectionHeader` | 0 | 继承页面 gutter |
+| `AppMediaRow` | 0 | 垂直 8；继承页面 gutter |
+| `AppSurface` | 0（外部） | 只设内部 padding |
+| `AppMediaTile` | 0（外部） | 由 carousel 持有 gutter |
+| `AppArtwork` | 0 | 只决定尺寸/形状 |
+| `AppEmptyState` | 0 | 垂直 24；继承页面 gutter |
+| 横向 carousel | `AppLayout.pageGutter` | 自己持有，保证可滚到边缘 |
+| Bottom Sheet / Dialog | `AppLayout.pageGutter` | 与页面一致 |
+| AppBar | 同一 gutter token | 通过 `contentPadding` / 后续 `AppTopBar` 统一 |
+
+### 待办
+
+- [ ] 页面迁移：Home / Library / Search / Settings / Playback 全部改用 `AppScaffold` / `AppPageBody` / `AppText` / `AppArtwork` / `AppMediaRow`
+- [ ] 新增 `AppTopBar`，统一 AppBar leading/title/actions 与页面 gutter 对齐
+- [ ] 补齐交互组件：按钮、图标按钮、输入框、卡片、Chip、Bottom Sheet 的 token 封装
+- [ ] 统一 UI import 到 `material_ui`，清理 18 个 `package:flutter/material.dart` 文件
+- [ ] 页面内硬编码颜色/字号/间距清零
+- [ ] 桌面端响应式：`AppPageBody.maxContentWidth` + NavigationRail + 右侧播放面板
+- [ ] 视觉回归：360 / 412 / 768 / 1280 宽度，light/dark，动态色开/关，文本缩放 1.3 / 2.0
 
 ## 搜索页 LX 单平台分类路由重构（2026-11-17）
 
