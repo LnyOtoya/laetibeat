@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{LxError, Result};
 use crate::import::parse_source_manifest;
-use crate::models::LxSourceManifest;
+use crate::models::{LxSourceDeclaration, LxSourceManifest};
 use crate::utils::md5_hex;
 
 const INDEX_FILE: &str = "index.json";
@@ -30,6 +30,19 @@ pub struct LxSourceRecord {
     pub active: bool,
     pub priority: i32,
     pub allow_update_alert: bool,
+    /// Cached `inited` declaration from the last successful load.
+    ///
+    /// The JS runtime itself cannot outlive the process, but its declared
+    /// capabilities can: this lets the UI answer "can this platform play?"
+    /// without starting QuickJS on every launch.
+    #[serde(default)]
+    pub declaration: Option<LxSourceDeclaration>,
+    /// Script hash the cached declaration was produced from.
+    #[serde(default)]
+    pub declaration_hash: String,
+    /// Unix seconds when the declaration was cached (diagnostics).
+    #[serde(default)]
+    pub declaration_at: i64,
 }
 
 fn normalized(value: &str) -> String {
@@ -152,6 +165,9 @@ impl LxSourceStore {
             active: false,
             priority,
             allow_update_alert: true,
+            declaration: None,
+            declaration_hash: String::new(),
+            declaration_at: 0,
         };
         self.records.push(record.clone());
         self.save_index()?;
@@ -188,6 +204,44 @@ impl LxSourceStore {
             .find(|record| record.id == id)
             .ok_or_else(|| LxError::InvalidSource(format!("source not found: {id}")))?;
         record.enabled = enabled;
+        self.save_index()
+    }
+
+    /// Cache the declaration produced by a successful load.
+    pub fn set_declaration(
+        &mut self,
+        id: &str,
+        declaration: LxSourceDeclaration,
+        script_hash: &str,
+        at: i64,
+    ) -> Result<()> {
+        let record = self
+            .records
+            .iter_mut()
+            .find(|record| record.id == id)
+            .ok_or_else(|| LxError::InvalidSource(format!("source not found: {id}")))?;
+        record.declaration = Some(declaration);
+        record.declaration_hash = script_hash.to_string();
+        record.declaration_at = at;
+        self.save_index()
+    }
+
+    /// Drop the cached declaration (load failed, or the script changed).
+    pub fn clear_declaration(&mut self, id: &str) -> Result<()> {
+        let record = self
+            .records
+            .iter_mut()
+            .find(|record| record.id == id)
+            .ok_or_else(|| LxError::InvalidSource(format!("source not found: {id}")))?;
+        if record.declaration.is_none()
+            && record.declaration_hash.is_empty()
+            && record.declaration_at == 0
+        {
+            return Ok(());
+        }
+        record.declaration = None;
+        record.declaration_hash.clear();
+        record.declaration_at = 0;
         self.save_index()
     }
 
@@ -383,6 +437,48 @@ send({}, { sources: {} });
         ))
     }
 
+    /// 声明缓存要能跨进程存活，并且能被显式清掉。
+    #[test]
+    fn caches_declaration_across_reopen() {
+        use crate::models::LxSourceCapability;
+        use std::collections::BTreeMap;
+
+        let root = temp_root();
+        let mut store = LxSourceStore::open(&root).unwrap();
+        let record = store.import_script(SCRIPT).unwrap();
+        let declaration = LxSourceDeclaration {
+            sources: BTreeMap::from([(
+                "kw".to_string(),
+                LxSourceCapability {
+                    source_type: "music".to_string(),
+                    actions: vec!["musicUrl".to_string()],
+                    qualitys: vec!["128k".to_string()],
+                },
+            )]),
+        };
+        store
+            .set_declaration(&record.id, declaration.clone(), "hash-a", 123)
+            .unwrap();
+
+        // 重新打开（模拟下次启动）：缓存应仍在。
+        let reopened = LxSourceStore::open(&root).unwrap();
+        let saved = reopened.get(&record.id).unwrap();
+        assert_eq!(saved.declaration.as_ref(), Some(&declaration));
+        assert_eq!(saved.declaration_hash, "hash-a");
+        assert_eq!(saved.declaration_at, 123);
+
+        // 加载失败/脚本变更时清空。
+        let mut store = LxSourceStore::open(&root).unwrap();
+        store.clear_declaration(&record.id).unwrap();
+        let cleared = LxSourceStore::open(&root).unwrap();
+        let cleared = cleared.get(&record.id).unwrap();
+        assert!(cleared.declaration.is_none());
+        assert!(cleared.declaration_hash.is_empty());
+        assert_eq!(cleared.declaration_at, 0);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
     #[test]
     fn imports_lists_loads_and_removes() {
         let root = temp_root();
@@ -446,6 +542,9 @@ send({}, { sources: {} });
             enabled: true,
             active: true,
             priority: 7,
+            declaration: None,
+            declaration_hash: String::new(),
+            declaration_at: 0,
             allow_update_alert: true,
         };
         fs::write(

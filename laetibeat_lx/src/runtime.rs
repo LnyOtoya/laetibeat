@@ -15,6 +15,9 @@ const MAX_RESULT_BYTES: usize = 2 * 1024 * 1024;
 const MAX_RUNTIME_MEMORY_BYTES: usize = 64 * 1024 * 1024;
 const MAX_STACK_SIZE: usize = 512 * 1024;
 const TIMER_PUMP_LIMIT: Duration = Duration::from_secs(20);
+/// Budget for timers queued before `inited`. Scripts normally send the
+/// declaration synchronously, so this only matters when they defer it.
+const INIT_TIMER_BUDGET: Duration = Duration::from_secs(5);
 const INIT_TIMEOUT: Duration = Duration::from_secs(20);
 #[cfg(not(test))]
 const ACTION_TIMEOUT: Duration = Duration::from_secs(30);
@@ -61,7 +64,15 @@ impl LxRuntime {
                 // Source scripts normally call send(inited) synchronously, but
                 // allow promise jobs and short timers queued during init.
                 drain_jobs(&ctx);
-                pump_timers(&ctx);
+                // 只有脚本没有同步 send(inited) 时才去等定时器；否则会白白
+                // 消耗整个 pump 预算（实测把 25s 里的 20s 花在这里）。
+                let declared = declaration_slot
+                    .lock()
+                    .map(|slot| slot.is_some())
+                    .unwrap_or(false);
+                if !declared {
+                    pump_timers(&ctx, INIT_TIMER_BUDGET, &deadline);
+                }
                 log::info!(
                     "lx.runtime init source={} elapsed={}ms",
                     manifest.name,
@@ -157,7 +168,7 @@ impl LxRuntime {
                     );
                 } else {
                     let timer_started = Instant::now();
-                    pump_timers(&ctx);
+                    pump_timers(&ctx, TIMER_PUMP_LIMIT, &self.deadline);
                     log::debug!(
                         "lx.js action={action} source={} timers={}ms",
                         info.source,
@@ -204,12 +215,7 @@ fn install_interrupt_handler(
     runtime: &Runtime,
     deadline: Arc<Mutex<Option<Instant>>>,
 ) {
-    runtime.set_interrupt_handler(Some(Box::new(move || {
-        match deadline.lock() {
-            Ok(slot) => slot.map_or(false, |deadline| Instant::now() >= deadline),
-            Err(_) => true,
-        }
-    })));
+    runtime.set_interrupt_handler(Some(Box::new(move || deadline_reached(&deadline))));
 }
 
 fn begin_deadline(deadline: &Arc<Mutex<Option<Instant>>>, timeout: Duration) {
@@ -314,7 +320,7 @@ fn install_host(ctx: &Ctx<'_>, declaration_slot: Arc<Mutex<Option<String>>>) -> 
 /// This is deliberately bounded: a source cannot keep the host thread alive
 /// forever with a long timer. A later async runtime can replace this with a
 /// real event loop.
-fn pump_timers(ctx: &Ctx<'_>) {
+fn pump_timers(ctx: &Ctx<'_>, budget: Duration, deadline: &Arc<Mutex<Option<Instant>>>) {
     let started = Instant::now();
     loop {
         let delay: i64 = match ctx.eval("globalThis.__lx_next_timer_delay()") {
@@ -324,13 +330,15 @@ fn pump_timers(ctx: &Ctx<'_>) {
         if delay < 0 {
             return;
         }
-        let remaining = TIMER_PUMP_LIMIT.saturating_sub(started.elapsed());
+        let remaining = budget.saturating_sub(started.elapsed());
         if remaining.is_zero() {
             return;
         }
         let wait = Duration::from_millis(delay.max(0) as u64).min(remaining);
-        if !wait.is_zero() {
-            std::thread::sleep(wait);
+        // `set_interrupt_handler` 只能打断 JS 执行，打断不了 sleep，
+        // 所以这里按小片睡并在每片之间检查墙上时钟 deadline。
+        if !wait.is_zero() && !sleep_unless_aborted(wait, deadline) {
+            return;
         }
         if ctx
             .eval::<i64, _>("globalThis.__lx_run_due_timers()")
@@ -339,6 +347,30 @@ fn pump_timers(ctx: &Ctx<'_>) {
             return;
         }
         drain_jobs(ctx);
+    }
+}
+
+/// Sleep in small slices so a wall-clock deadline can still abort the wait.
+///
+/// Returns false when the deadline was reached.
+fn sleep_unless_aborted(wait: Duration, deadline: &Arc<Mutex<Option<Instant>>>) -> bool {
+    const SLICE: Duration = Duration::from_millis(50);
+    let mut left = wait;
+    while !left.is_zero() {
+        let step = left.min(SLICE);
+        std::thread::sleep(step);
+        left = left.saturating_sub(step);
+        if deadline_reached(deadline) {
+            return false;
+        }
+    }
+    true
+}
+
+fn deadline_reached(deadline: &Arc<Mutex<Option<Instant>>>) -> bool {
+    match deadline.lock() {
+        Ok(slot) => slot.map_or(false, |value| Instant::now() >= value),
+        Err(_) => true,
     }
 }
 
@@ -388,6 +420,36 @@ send(EVENT_NAMES.inited, {
   }
 });
 "#;
+
+    /// 脚本同步 `send(inited)` 之后还留着一个长定时器。
+    ///
+    /// 旧实现无条件 `pump_timers()`（预算 20s），即使加载已完成也要干等；
+    /// 这正是线上"首次初始化 25 秒"的主因。
+    #[test]
+    fn synchronous_inited_does_not_wait_for_timers() {
+        const SCRIPT: &str = r#"/**
+ * @name Timer Source
+ * @description Sends inited synchronously but keeps a long timer
+ * @version 1.0.0
+ * @author laetibeat
+ */
+const { EVENT_NAMES, send } = globalThis.lx;
+setTimeout(() => {}, 60000);
+send(EVENT_NAMES.inited, {
+  sources: {
+    kw: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] }
+  }
+});
+"#;
+        let started = Instant::now();
+        let runtime = LxRuntime::load(SCRIPT).unwrap();
+        assert!(runtime.declaration().sources.contains_key("kw"));
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "load took {elapsed:?}; timers must be skipped once inited arrived"
+        );
+    }
 
     #[test]
     fn loads_source_and_resolves_url() {

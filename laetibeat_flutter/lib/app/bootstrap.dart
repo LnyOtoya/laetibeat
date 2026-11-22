@@ -158,7 +158,9 @@ Future<void> bootstrap() async {
 
 Future<void> _prewarmLxRuntime(ProviderContainer container) async {
   try {
+    // 先拿到缓存的能力声明（毫秒级），再在后台真正加载脚本。
     await container.read(lxRuntimeProvider.future);
+    await container.read(lxRuntimeProvider.notifier).warmUp();
   } catch (error) {
     // 失败不阻塞启动：状态留在 provider 里，界面会提示去设置页处理。
     debugPrint('洛雪音源预热失败: $error');

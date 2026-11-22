@@ -166,6 +166,36 @@
 - [ ] 真机验证：切到 kg / wy / mg 的歌单分类能出结果、能进预览页、能订阅
 - [ ] 已知限制：kg / mg 的整单拉取需要多页时请求数 = ceil(总数 / 平台页大小)；wy 每 200 首一次批量请求
 
+### 第七轮：LX 声明持久化 + 加载提速（第 2、3 步，2026-11-22）
+
+目标：把"每次启动都要重新初始化"变成"装好一次，之后毫秒级"。
+
+- [x] **持久化 `inited` 声明**：`LxSourceRecord` 新增 `declaration` / `declaration_hash` / `declaration_at`
+      （`#[serde(default)]`，兼容旧 `index.json`）；`load_source` 成功后写回，失败时清除
+- [x] **缓存失效**：`resolved_declaration()` 只在 `declaration_hash == script_hash` 时使用缓存，
+      脚本更新/重新导入后自动失效
+- [x] **`list_lx_sources` 不再加载脚本**：只读内存/缓存声明，"哪些平台能播"从秒级变毫秒级
+- [x] **按需 `pump_timers`**：只有脚本没有同步 `send(inited)` 时才等定时器；
+      初始化阶段预算降到 5s（`INIT_TIMER_BUDGET`）
+- [x] **可中断等待**：`pump_timers` 里的 `thread::sleep` 改成 50ms 分片 + 检查墙上时钟 deadline
+      （`set_interrupt_handler` 只能打断 JS 执行，打断不了 sleep，这是 20s deadline 跑出 25s 的原因）
+- [x] Dart：`lxRuntimeProvider` 改为快照 `LxRuntimeSnapshot { playablePlatforms, warming }`；
+      新增 `warmUp()`（后台逐个加载启用源，单飞去重）；`ensurePlayable` 复用它
+- [x] Dart：启动预热即使已有缓存也照样加载，保证"进 App 后首次播放"也不用等
+- [x] 删除派生的 `lxPlayablePlatformsProvider`，搜索页/建议页直接读运行时快照
+- [x] 回归测试：
+      - `synchronous_inited_does_not_wait_for_timers`：同步 `inited` + 60s 定时器，加载必须 < 2s（实测 0.00s）
+      - `caches_declaration_across_reopen`：声明跨进程存活、可清除
+      - `reopens_with_cached_declaration`：重启后不跑 JS 就有能力，真正用时才加载
+      - `script_change_invalidates_cached_declaration`：脚本变更后旧声明不再暴露
+- [x] `cargo check --workspace --all-targets` 无 warning；`cargo test --workspace` 50 tests 通过
+- [ ] 真机验证：
+      - 首次启动：日志 `lx.runtime init source=fish_music elapsed=...` 应从 ~25s 降到几秒
+      - 第二次启动：`elapsed` 日志仍会出现（后台预热），但**界面立刻**显示可播放状态
+      - 关闭网络后启动：应仍显示可播放（读缓存），点播放时才报解析失败
+- [ ] 后续：拆锁（store 一把 / runtime 一把），让预热彻底不阻塞 UI 查询；
+      失败状态加 TTL 与手动重试入口
+
 ### 第六轮：LX 运行时异步化（第 1 步，2026-11-22）
 
 问题现象：每次启动 App 都要手动进入「洛雪音源配置页」等它加载完，LX 才能播放。

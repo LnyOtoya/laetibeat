@@ -92,7 +92,7 @@ impl LxSourceManager {
             .into_iter()
             .map(|record| LxSourceEntry {
                 status: self.status_of(&record.id),
-                declaration: self.declarations.get(&record.id).cloned(),
+                declaration: self.resolved_declaration(&record),
                 record,
             })
             .collect()
@@ -101,13 +101,30 @@ impl LxSourceManager {
     pub fn get(&self, id: &str) -> Option<LxSourceEntry> {
         self.store.get(id).map(|record| LxSourceEntry {
             status: self.status_of(id),
-            declaration: self.declarations.get(id).cloned(),
+            declaration: self.resolved_declaration(record),
             record: record.clone(),
+        })
+    }
+
+    /// 本次进程加载的声明优先；否则回退到持久化缓存，但只在脚本未变
+    /// （hash 一致）时可信。
+    fn resolved_declaration(&self, record: &LxSourceRecord) -> Option<LxSourceDeclaration> {
+        self.declarations.get(&record.id).cloned().or_else(|| {
+            if !record.script_hash.is_empty() && record.declaration_hash == record.script_hash {
+                record.declaration.clone()
+            } else {
+                None
+            }
         })
     }
 
     pub fn load_source(&mut self, id: &str) -> Result<()> {
         let script = self.store.load_script(id)?;
+        let script_hash = self
+            .store
+            .get(id)
+            .map(|record| record.script_hash.clone())
+            .unwrap_or_default();
         self.statuses
             .insert(id.to_string(), LxSourceStatus::Initializing);
         self.runtimes.remove(id);
@@ -117,11 +134,23 @@ impl LxSourceManager {
             Ok(runtime) => {
                 let declaration = runtime.declaration().clone();
                 self.runtimes.insert(id.to_string(), runtime);
-                self.declarations.insert(id.to_string(), declaration);
+                self.declarations
+                    .insert(id.to_string(), declaration.clone());
                 self.statuses.insert(id.to_string(), LxSourceStatus::Ready);
+                // 把声明持久化：下次启动判断"能不能播放"不必再跑一次 JS。
+                let at = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|elapsed| elapsed.as_secs() as i64)
+                    .unwrap_or(0);
+                if let Err(error) = self.store.set_declaration(id, declaration, &script_hash, at)
+                {
+                    log::warn!("lx.store cache declaration failed id={id}: {error}");
+                }
                 Ok(())
             }
             Err(error) => {
+                // 加载失败：丢掉旧缓存，免得用过期能力误导界面。
+                let _ = self.store.clear_declaration(id);
                 self.statuses
                     .insert(id.to_string(), LxSourceStatus::Failed(error.to_string()));
                 Err(error)
@@ -389,7 +418,7 @@ impl LxSourceManager {
 mod tests {
     use super::*;
     use std::fs;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     const SCRIPT: &str = r#"/**
  * @name Manager Test
@@ -419,6 +448,55 @@ send(EVENT_NAMES.inited, {
             std::process::id(),
             nonce
         ))
+    }
+
+    /// 重启后不跑 JS 也能知道能力（读持久化声明），只有真正用到才加载。
+    #[test]
+    fn reopens_with_cached_declaration() {
+        let root = temp_root();
+        let mut manager = LxSourceManager::open(&root).unwrap();
+        let record = manager.import_script(SCRIPT).unwrap();
+        manager.set_enabled(&record.id, true).unwrap();
+
+        // 模拟进程重启：新 manager 只有磁盘上的状态。
+        let mut reopened = LxSourceManager::open(&root).unwrap();
+        let entry = reopened.get(&record.id).unwrap();
+        assert_eq!(entry.status, LxSourceStatus::Uninitialized);
+        let declaration = entry.declaration.expect("cached declaration");
+        assert!(declaration.sources.contains_key("kw"));
+
+        // 真正需要运行时才加载。
+        let started = Instant::now();
+        reopened.load_source(&record.id).unwrap();
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert_eq!(
+            reopened.get(&record.id).unwrap().status,
+            LxSourceStatus::Ready
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    /// 脚本变了以后，旧声明不能再被当作可用能力。
+    #[test]
+    fn script_change_invalidates_cached_declaration() {
+        let root = temp_root();
+        let mut manager = LxSourceManager::open(&root).unwrap();
+        let record = manager.import_script(SCRIPT).unwrap();
+        manager.set_enabled(&record.id, true).unwrap();
+
+        let updated = format!("{SCRIPT}
+// bumped
+");
+        let same = manager.import_script(&updated).unwrap();
+        assert_eq!(same.id, record.id);
+        let entry = manager.get(&record.id).unwrap();
+        assert!(
+            entry.declaration.is_none(),
+            "stale declaration must not be exposed"
+        );
+
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

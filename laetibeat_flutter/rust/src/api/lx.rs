@@ -104,10 +104,9 @@ pub fn import_lx_source(script: String) -> Result<UiLxSourceEntry, String> {
 
 pub fn list_lx_sources() -> Result<Vec<UiLxSourceEntry>, String> {
     with_manager(|manager| {
-        // Lazy restore: only enabled sources whose runtime was not already
-        // created are loaded here. This is the first UI-facing path that needs
-        // the capabilities declared by `inited`.
-        manager.load_enabled_sources();
+        // 只读：不在这里初始化脚本。能力来自本次进程已加载的声明，
+        // 或上次成功加载后持久化的缓存（`inited` 的产物），
+        // 这样"哪些平台能播"是毫秒级的，不需要等 QuickJS。
         Ok(manager.list().into_iter().map(map_entry).collect())
     })
 }

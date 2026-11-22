@@ -116,7 +116,8 @@ class _LibrarySearchSuggestionsState
 
     final platforms = ref.watch(lxPlatformsProvider).value ?? kLxPlatformOrder;
     final playable =
-        ref.watch(lxPlayablePlatformsProvider).value ?? const <String>[];
+        ref.watch(lxRuntimeProvider).value?.playablePlatforms ??
+        const <String>[];
     // 跟随当前默认平台（与搜索结果页保持一致），不再硬编码 QQ 音乐。
     final platform = lxDefaultPlatform(platforms: platforms, playable: playable);
     if (platform != null) {

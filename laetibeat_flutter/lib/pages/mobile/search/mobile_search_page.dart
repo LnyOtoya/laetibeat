@@ -273,7 +273,8 @@ class _MobileSearchResultsPageState
   Future<void> _playLxResultsFor(String query) async {
     final l10n = AppLocalizations.of(context);
     final platforms = ref.read(lxPlatformsProvider).value ?? kLxPlatformOrder;
-    final playable = ref.read(lxRuntimeProvider).value ?? const <String>[];
+    final playable =
+        ref.read(lxRuntimeProvider).value?.playablePlatforms ?? const <String>[];
     final platform = _resolveLxPlatform(platforms, playable);
     if (platform == null) return;
     // 源还在初始化时等待，而不是把用户挡回去。
@@ -316,12 +317,14 @@ class _MobileSearchResultsPageState
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
     final lxPlatformsAsync = ref.watch(lxPlatformsProvider);
-    final playableAsync = ref.watch(lxPlayablePlatformsProvider);
     final runtimeAsync = ref.watch(lxRuntimeProvider);
     final lxPlatforms = lxPlatformsAsync.value ?? kLxPlatformOrder;
-    final playablePlatforms = playableAsync.value ?? const <String>[];
+    final playablePlatforms =
+        runtimeAsync.value?.playablePlatforms ?? const <String>[];
     // 源还在初始化时"可播列表为空"只代表未知，不能当成"没有源"。
-    final lxPreparing = runtimeAsync.isLoading && !runtimeAsync.hasValue;
+    final lxPreparing =
+        (runtimeAsync.isLoading && !runtimeAsync.hasValue) ||
+        (runtimeAsync.value?.warming ?? false);
     final activeLxPlatform = _resolveLxPlatform(
       lxPlatforms,
       playablePlatforms,
