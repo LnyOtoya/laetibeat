@@ -50,13 +50,28 @@
 - [x] 媒体库详情页来源筛选：歌曲/专辑/艺术家/歌单页已完成“全部/本地/Navidrome”chips 与来源 badge
 - [ ] 清理死代码：`AudioSource`、`PlayState`、`SourceType::Opensubsonic`、`linux_mpris.dart`、`tmp.dart.bak`、未引用的移动首页组件
 - [ ] 更新 `ARCHITECTURE.md`：当前移动端播放后端、单 Navigator、audio_service 状态
-- [x] 在可用 Flutter 环境复验 `flutter analyze` / `flutter test`（2026-11-22；analyze 剩余 6 条均为既有 warning/info，`lib/design/` 无新增问题；test 6 个通过）
+- [x] 在可用 Flutter 环境复验 `flutter analyze` / `flutter test`（2026-11-22；analyze 剩余 6 条均为既有 warning/info，`lib/design/` 无新增问题；test 13 个通过）
 - [x] 设计系统 token 化：`lib/design/` 新增颜色/字体/间距/圆角/尺寸/动效/断点 token；`AppTheme` 成为 `M3EThemeData` 唯一入口
 - [x] Material You 官方取色：接入 `material_color_utilities` + `dynamic_color`，`MaterialYouColorScheme` 从官方 `DynamicScheme` 解析全部角色，`MaterialYouThemeHost` 使用系统 CorePalette；关闭 M3E 自带 `dynamicColoring`
 - [x] 页面 gutter 契约：`AppLayout.pageGutter` + `AppPageBody` 作为唯一水平 inset；`AppScaffold` 默认套用；`AppSectionHeader` / `AppMediaRow` / `AppEmptyState` 默认水平 padding 归零
 - [x] 基础组件拆分：`AppArtwork`（尺寸/形状/占位）、`AppText`、`AppSurface`、`AppMediaRow`、`AppMediaTile`、`AppEmptyState`
 - [x] 新增 `test/design_system_smoke_test.dart`：Material You light/dark 角色、主题宿主渲染、Section 与 MediaRow 左边缘对齐
-- [ ] 具体页面迁移到 `lib/design/`：`AppScaffold` / `AppPageBody` / `AppText` / `AppArtwork` / `AppMediaRow`
+- [x] 新增 `AppMorphingTabBar`：默认 tab pill + 搜索 pill + extra action；搜索态为 leading pill + 搜索框；M3E 颜色/圆角/字体/tab 语义
+- [x] 新增 `test/app_morphing_tab_bar_test.dart`：默认态渲染、点击搜索进入搜索态、搜索框与 collapsed leading 出现
+- [x] `AppMorphingTabBar` 第二阶段：tab pill ↔ search pill 的 spring morph、宽度/位置动画、键盘上浮、反向 retarget
+- [x] 新增 `test/app_morphing_tab_bar_animation_test.dart`：搜索展开/关闭时左右 pill 宽度变化与反向 retarget
+- [x] 新增 `test/app_morphing_tab_bar_compact_test.dart`：320dp 宽度下默认态与搜索态无溢出
+- [x] 新增 `test/app_morphing_tab_bar_search_action_test.dart`：`onSearchPressed` 外部搜索动作不触发 inline morph
+- [x] 新增 `test/mobile_shell_navigation_test.dart`：MobileShell 使用 morphing bar，Home → Stats 顶层切换
+- [x] 新增 `test/app_morphing_tab_bar_accessory_test.dart`：bottom accessory 渲染，搜索态收起并缩短整体高度
+- [x] `AppMorphingTabBar` 接入 shell：Home / Library / Stats 三个顶层 tab；MiniPlayer 作为 bottom accessory
+- [x] 浮动导航改为 `Stack` overlay，移除 `Scaffold.bottomNavigationBar` 的全宽背景板；`AppBottomInsetScope` 为页面提供底部留白
+- [x] `AppMorphingTabBar` bottom accessory：搜索态自动收起；extra action 的搜索态收起由 `hideExtraActionWhenSearching` 控制
+- [x] 新增 `MobileSearchInlineView`：复用搜索历史与 `LibrarySearchSuggestions`，搜索框由 shell 的 controller/focusNode 驱动
+- [x] `MobileShell` inline search：搜索态替换 body、`PopScope` 返回关闭、提交后推入现有结果页
+- [x] 新增 `test/mobile_shell_inline_search_test.dart`：打开/关闭 inline search、搜索框与 body 切换
+- [x] 页面迁移试点：Home / Library 已改用 `AppScaffold` / `AppPageBody` / `AppText` / `AppSpacing` / `AppRadii` / `AppSurfaceLevel`；Library 搜索栏 `margin: 0` 与卡片对齐
+- [ ] 页面迁移剩余：Search / Settings / Playback / Library 子页统一到 design token
 - [ ] 统一 UI 代码 import 到 `material_ui`，清理 `package:flutter/material.dart`（当前仍有 18 个文件）
 - [ ] 补充 `AppTopBar`（AppBar 标题/leading 与页面 gutter 对齐）、按钮、输入框、卡片等交互组件封装
 - [ ] 页面内硬编码颜色/字号/间距清零，全部改用 design token
@@ -100,9 +115,10 @@
 - [x] 容器与布局：`AppSurface`、`AppScaffold`、`AppPageBody`、`AppSectionHeader`
 - [x] 媒体内容：`AppMediaRow`、`AppMediaTile`
 - [x] 反馈：`AppEmptyState`
+- [x] 导航：`AppMorphingTabBar` spring morph（tab pill ↔ search pill、键盘上浮、反向 retarget；M3E 颜色/tab 语义）；已接入 `MobileShell` 的 Home / Library / Stats 与 inline search
 - [x] App 根节点接入：`app.dart` 使用 `MaterialYouThemeHost`，关闭 M3E 自带 `dynamicColoring`
 - [x] `AppThemeFactory` 委托到 `lib/design`，不再自写 seed / 字体
-- [x] 验证：`flutter analyze` 无新增问题；`flutter test` 6 个通过（含 gutter 对齐回归测试）
+- [x] 验证：`flutter analyze` 无新增问题；`flutter test` 13 个通过（含 gutter 对齐、morphing tab bar 状态/宽度动画/320dp、shell 导航、bottom accessory 与 inline search 回归测试）
 
 ### 页面 gutter 契约
 
@@ -121,7 +137,11 @@
 
 ### 待办
 
-- [ ] 页面迁移：Home / Library / Search / Settings / Playback 全部改用 `AppScaffold` / `AppPageBody` / `AppText` / `AppArtwork` / `AppMediaRow`
+- [x] 页面迁移试点：Home / Library 已改用 `AppScaffold` / `AppPageBody` / `AppText` / `AppSpacing` / `AppRadii` / `AppSurfaceLevel`
+- [ ] 页面迁移剩余：Search / Settings / Playback / Library 子页
+- [x] `AppMorphingTabBar` inline search 与路由联动：已用 `MobileSearchInlineView` 接入 shell，提交后进入现有结果页
+- [ ] 抽取搜索历史 store，消除 `MobileSearchPage` 与 `MobileSearchInlineView` 的重复逻辑
+- [x] Mini Player bottom accessory：已从 overlay 迁入 morphing bar 上方，搜索态自动收起；待真机验证视觉与键盘 inset
 - [ ] 新增 `AppTopBar`，统一 AppBar leading/title/actions 与页面 gutter 对齐
 - [ ] 补齐交互组件：按钮、图标按钮、输入框、卡片、Chip、Bottom Sheet 的 token 封装
 - [ ] 统一 UI import 到 `material_ui`，清理 18 个 `package:flutter/material.dart` 文件

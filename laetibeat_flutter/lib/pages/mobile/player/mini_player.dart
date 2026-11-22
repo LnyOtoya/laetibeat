@@ -10,9 +10,6 @@ import '../mobile_navigation.dart';
 import '../routes.dart';
 import 'mobile_playback_page.dart';
 
-/// 移动端 mini player 需要预留的高度：64dp 工具栏 + 上下浮动外边距。
-const double kMiniPlayerReservedHeight = 96;
-
 /// 移动端全局迷你播放器。
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});

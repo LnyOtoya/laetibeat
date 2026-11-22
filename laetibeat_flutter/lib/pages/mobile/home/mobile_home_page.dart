@@ -1,6 +1,7 @@
-import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../design/design.dart';
+import '../../../shared/layout/app_bottom_inset.dart';
 import 'mobile_home_content.dart';
 
 /// 移动端首页。
@@ -11,11 +12,20 @@ class MobileHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = M3ETheme.of(context);
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
 
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
-      body: const SafeArea(bottom: false, child: MobileHomeContent()),
+    return AppScaffold(
+      background: AppSurfaceLevel.container,
+      applyPageGutter: true,
+      safeArea: false,
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: const MobileHomeContent(),
+        ),
+      ),
     );
   }
 }

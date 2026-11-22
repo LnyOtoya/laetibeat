@@ -3,6 +3,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/app_destination.dart';
+import '../../design/design.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../shared/feedback/app_haptics.dart';
 import '../../shared/layout/app_bottom_inset.dart';
@@ -13,6 +14,7 @@ import 'library/mobile_library_subpages.dart';
 import 'mobile_navigation.dart';
 import 'player/mini_player.dart';
 import 'routes.dart';
+import 'search/mobile_search_inline_view.dart';
 import 'search/mobile_search_page.dart';
 import 'settings/content/mobile_content_settings_page.dart';
 import 'settings/mobile_settings_page.dart';
@@ -21,27 +23,42 @@ import 'stats/mobile_stats_page.dart';
 /// 移动端 Shell。
 ///
 /// [child] 是 MaterialApp 的根 Navigator。所有页面都在这条 Navigator 上，
-/// Shell 只负责底部导航、MiniPlayer 和底部 inset。
-class MobileShell extends ConsumerWidget {
+/// Shell 负责底部导航、inline search、MiniPlayer 和底部 inset。
+class MobileShell extends ConsumerStatefulWidget {
   const MobileShell({super.key, required this.child});
 
   final Widget child;
 
-  static const List<AppDestination> _tabs = [
+  @override
+  ConsumerState<MobileShell> createState() => _MobileShellState();
+}
+
+class _MobileShellState extends ConsumerState<MobileShell> {
+  static const List<AppDestination> _tabs = <AppDestination>[
     AppDestination.home,
     AppDestination.library,
+    AppDestination.stats,
   ];
 
-  List<M3ENavigationBarDestination> _destinations(AppLocalizations l10n) {
-    return [
-      M3ENavigationBarDestination(
-        icon: const Icon(M3EIcons.home),
-        label: l10n.navHome,
-      ),
-      M3ENavigationBarDestination(
-        icon: const Icon(M3EIcons.music_note),
-        label: l10n.navLibrary,
-      ),
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  final GlobalKey<MobileSearchInlineViewState> _searchViewKey =
+      GlobalKey<MobileSearchInlineViewState>();
+
+  bool _isSearching = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  List<AppMorphingTab> _destinations(AppLocalizations l10n) {
+    return <AppMorphingTab>[
+      AppMorphingTab(icon: M3EIcons.home, label: l10n.navHome),
+      AppMorphingTab(icon: M3EIcons.music_note, label: l10n.navLibrary),
+      AppMorphingTab(icon: M3EIcons.bar_chart, label: l10n.statisticsTitle),
     ];
   }
 
@@ -51,6 +68,9 @@ class MobileShell extends ConsumerWidget {
     }
     if (route == MobileRoutes.library || route.startsWith('/library/')) {
       return AppDestination.library;
+    }
+    if (route == MobileRoutes.stats) {
+      return AppDestination.stats;
     }
     return null;
   }
@@ -63,11 +83,13 @@ class MobileShell extends ConsumerWidget {
       MobileRoutes.libraryPlaylists,
       MobileRoutes.libraryArtists,
       MobileRoutes.libraryAlbums,
+      MobileRoutes.stats,
     };
     return visible.contains(route);
   }
 
   void _selectTab(AppDestination destination) {
+    if (_isSearching) _closeSearch();
     final NavigatorState? navigator = mobileNavigatorKey.currentState;
     if (navigator == null) return;
     final String? current = mobileCurrentRouteName.value;
@@ -88,6 +110,10 @@ class MobileShell extends ConsumerWidget {
         }
         navigator.pushNamed(MobileRoutes.library);
         return;
+      case AppDestination.stats:
+        if (current == MobileRoutes.stats) return;
+        navigator.pushNamed(MobileRoutes.stats);
+        return;
       case AppDestination.search:
         if (current == MobileRoutes.search) return;
         navigator.pushNamed(MobileRoutes.search);
@@ -97,8 +123,44 @@ class MobileShell extends ConsumerWidget {
     }
   }
 
+  void _handleSearchToggle(bool value) {
+    if (value) {
+      if (_isSearching) return;
+      setState(() => _isSearching = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _isSearching) _searchFocusNode.requestFocus();
+      });
+    } else {
+      _closeSearch();
+    }
+  }
+
+  void _closeSearch() {
+    if (!_isSearching) return;
+    _searchFocusNode.unfocus();
+    _searchController.clear();
+    setState(() => _isSearching = false);
+  }
+
+  void _submitSearch(String query) {
+    _searchViewKey.currentState?.submit(query);
+  }
+
+  double _bottomOverlayInset(
+    BuildContext context, {
+    required bool showNavigationBar,
+    required bool showMiniPlayer,
+  }) {
+    if (!showNavigationBar) return 0;
+    final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
+    return AppSpacing.sm +
+        AppComponentSize.morphingBar +
+        safeBottom +
+        (showMiniPlayer ? AppComponentSize.miniPlayerAccessory : 0);
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
     final bool hasTrack = ref.watch(
@@ -113,43 +175,65 @@ class MobileShell extends ConsumerWidget {
         final int selectedIndex = _tabs.indexOf(tab);
         final bool showNavigationBar = _showNavigationBar(routeName);
         final bool isHome = routeName == null || routeName == MobileRoutes.home;
-        // 主页保持沉浸式，不显示 MiniPlayer；其他 tab 保持原行为。
-        final bool showMiniPlayer = hasTrack && showNavigationBar && !isHome;
+        final bool showMiniPlayer =
+            hasTrack && showNavigationBar && !isHome && !_isSearching;
+        final double bottomInset = _bottomOverlayInset(
+          context,
+          showNavigationBar: showNavigationBar,
+          showMiniPlayer: showMiniPlayer,
+        );
+
+        final bottomBar = showNavigationBar
+            ? AppMorphingTabBar(
+                key: const ValueKey('mobile_morphing_tab_bar'),
+                tabs: _destinations(l10n),
+                selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
+                onTabSelected: (int index) {
+                  if (index < 0 || index >= _tabs.length) return;
+                  _selectTab(_tabs[index]);
+                },
+                isSearching: _isSearching,
+                onSearchToggle: _handleSearchToggle,
+                searchConfig: AppMorphingSearchConfig(
+                  hintText: l10n.searchHint,
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  onSubmitted: _submitSearch,
+                ),
+                bottomAccessory: showMiniPlayer ? const MiniPlayer() : null,
+                floatAboveKeyboard: false,
+              )
+            : null;
+
+        final body = Stack(
+          children: <Widget>[
+            Positioned.fill(
+              child: Offstage(offstage: _isSearching, child: widget.child),
+            ),
+            if (_isSearching)
+              Positioned.fill(
+                child: MobileSearchInlineView(
+                  key: _searchViewKey,
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  onClose: _closeSearch,
+                ),
+              ),
+            if (bottomBar != null)
+              Positioned(left: 0, right: 0, bottom: 0, child: bottomBar),
+          ],
+        );
 
         return TapHapticDetector(
-          child: Scaffold(
-            backgroundColor: theme.colorScheme.surfaceContainer,
-            body: Stack(
-              children: [
-                Positioned.fill(
-                  child: AppBottomInsetScope(
-                    bottomInset: showMiniPlayer ? kMiniPlayerReservedHeight : 0,
-                    child: child,
-                  ),
-                ),
-                if (showMiniPlayer)
-                  const Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: MiniPlayer(),
-                  ),
-              ],
+          child: PopScope(
+            canPop: !_isSearching,
+            onPopInvokedWithResult: (bool didPop, Object? result) {
+              if (!didPop && _isSearching) _closeSearch();
+            },
+            child: Scaffold(
+              backgroundColor: theme.colorScheme.surfaceContainer,
+              body: AppBottomInsetScope(bottomInset: bottomInset, child: body),
             ),
-            bottomNavigationBar: showNavigationBar
-                ? M3ENavigationBar(
-                    destinations: _destinations(l10n),
-                    selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
-                    onDestinationSelected: (int index) {
-                      if (index < 0 || index >= _tabs.length) return;
-                      _selectTab(_tabs[index]);
-                    },
-                    size: M3ENavBarSize.medium,
-                    density: M3ENavBarDensity.compact,
-                    shapeFamily: M3ENavBarShapeFamily.square,
-                    labelBehavior: M3ENavBarLabelBehavior.alwaysShow,
-                  )
-                : null,
           ),
         );
       },
@@ -171,7 +255,7 @@ Route<dynamic>? mobileOnGenerateRoute(RouteSettings settings) {
     MobileRoutes.libraryAlbums => const MobileLibraryAlbumsPage(),
     MobileRoutes.libraryPodcasts => const MobileLibraryPage(),
     MobileRoutes.search => const MobileSearchPage(),
-    MobileRoutes.stats => const MobileStatsPage(),
+    MobileRoutes.stats => const MobileStatsPage(showBackButton: false),
     MobileRoutes.settings => const MobileSettingsPage(),
     MobileRoutes.contentSettings => const MobileContentSettingsPage(),
     _ => const MobileHomePage(),

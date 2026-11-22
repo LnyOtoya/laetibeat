@@ -7,6 +7,7 @@ import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
@@ -113,10 +114,11 @@ class MobileLibraryPage extends ConsumerWidget {
       ),
     ];
 
-    return Scaffold(
-      backgroundColor: scheme.surfaceContainer,
+    return AppScaffold(
+      background: AppSurfaceLevel.container,
+      safeArea: false,
       appBar: M3EAppBar.top(
-        backgroundColor: scheme.surfaceContainer,
+        backgroundColor: AppSurfaceLevel.container.resolve(scheme),
         variant: M3EAppBarVariant.largeFlexible,
         shapeFamily: M3EAppBarShapeFamily.square,
         safeArea: true,
@@ -125,7 +127,10 @@ class MobileLibraryPage extends ConsumerWidget {
         actions: mobileHomeAppBarActions(context),
       ),
       body: ListView(
-        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
+        padding: EdgeInsets.only(
+          top: AppSpacing.sm,
+          bottom: AppSpacing.lg + bottomInset,
+        ),
         children: [
           M3ESearchBar(
             hintText: l10n.searchHint,
@@ -133,17 +138,19 @@ class MobileLibraryPage extends ConsumerWidget {
             readOnly: true,
             expandOnFocus: false,
             constraints: const BoxConstraints.tightFor(height: 52),
+            margin: 0,
+            focusedMargin: 0,
             backgroundColor: WidgetStatePropertyAll<Color?>(
-              scheme.surfaceContainerHigh,
+              AppSurfaceLevel.high.resolve(scheme),
             ),
             onTap: () => _openSearchPage(context),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.xl),
           M3ECard(
             variant: M3ECardVariant.filled,
-            color: scheme.primaryContainer,
-            borderRadius: BorderRadius.circular(28),
-            padding: const EdgeInsets.all(24),
+            color: AppColorRole.primaryContainer.resolve(scheme),
+            borderRadius: AppRadii.xxlAll,
+            padding: const EdgeInsets.all(AppSpacing.xl),
             expanded: true,
             openBuilder: (_) => const MobileLibrarySongsPage(),
             child: Column(
@@ -173,29 +180,27 @@ class MobileLibraryPage extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                Text(
+                const SizedBox(height: AppSpacing.xl),
+                AppText(
                   l10n.libraryAllSongs,
-                  style: theme.typeScale.headlineMedium.copyWith(
-                    color: scheme.onPrimaryContainer,
-                  ),
+                  role: AppTextRole.headlineMedium,
+                  colorRole: AppColorRole.onPrimaryContainer,
                 ),
-                const SizedBox(height: 4),
-                Text(
+                const SizedBox(height: AppSpacing.xs),
+                AppText(
                   _formatCount(songsCount, l10n.librarySongsCount),
-                  style: theme.typeScale.displaySmall.copyWith(
-                    color: scheme.onPrimaryContainer,
-                  ),
+                  role: AppTextRole.displaySmall,
+                  colorRole: AppColorRole.onPrimaryContainer,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          Text(l10n.libraryBrowse, style: theme.typeScale.titleLarge),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.xl),
+          AppText(l10n.libraryBrowse, role: AppTextRole.titleLarge),
+          const SizedBox(height: AppSpacing.sm),
           M3EList(
             itemCount: entries.length,
-            color: scheme.surfaceContainerHigh,
+            color: AppSurfaceLevel.high.resolve(scheme),
             variant: M3ECardVariant.filled,
             // M3EList 会在行表面统一绑定点击；只设置 M3EListItem.onTap
             // 不会生效。
@@ -216,7 +221,7 @@ class MobileLibraryPage extends ConsumerWidget {
                 trailingText: entry.countText,
                 trailing: Icon(
                   M3EIcons.chevron_right,
-                  size: 20,
+                  size: AppIconSize.sm,
                   color: scheme.onSurfaceVariant,
                 ),
                 showDivider: index < entries.length - 1,

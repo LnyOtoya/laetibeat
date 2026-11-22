@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 
+import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../widgets/player/cover_provider.dart';
 import '../../../widgets/player/player_provider.dart';
@@ -40,15 +41,24 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final contentWidth = math.max(0.0, constraints.maxWidth - 48);
+        final contentWidth = math.min(
+          math.max(0.0, constraints.maxWidth),
+          AppComponentSize.controlMaxWidth,
+        );
         final shapeHeight = math.min(
           contentWidth,
-          math.max(220.0, constraints.maxHeight * 0.42),
+          math.max(220.0, constraints.maxHeight * 0.38),
         );
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          padding: const EdgeInsets.only(
+            top: AppSpacing.xl,
+            bottom: AppSpacing.xxl,
+          ),
           child: SizedBox(
-            height: math.max(constraints.maxHeight - 56, 0),
+            height: math.max(
+              constraints.maxHeight - (AppSpacing.xl + AppSpacing.xxl),
+              0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -60,14 +70,13 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
                   ),
                 ),
                 const Spacer(),
-                Text(
+                AppText(
                   track?.title ?? l10n.nothingPlaying,
+                  role: AppTextRole.displayLarge,
+                  colorRole: AppColorRole.tertiary,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: theme.typeScale.displayLarge.copyWith(
-                    color: theme.colorScheme.tertiary,
-                  ),
                 ),
                 const Spacer(),
                 SquishButtonPair(
@@ -78,7 +87,7 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
                   onToggle: notifier.toggle,
                   onNext: notifier.next,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xl),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -101,7 +110,7 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
                         onPressed: player.queue.isEmpty ? null : notifier.prev,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: AppSpacing.lg),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -145,21 +154,19 @@ class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
                                         }
                                       : null,
                                 ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: AppSpacing.xs),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
+                              AppText(
                                 _formatDuration(displayPosition),
-                                style: theme.typeScale.labelMedium.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
+                                role: AppTextRole.labelMedium,
+                                colorRole: AppColorRole.onSurfaceVariant,
                               ),
-                              Text(
+                              AppText(
                                 _formatDuration(player.duration),
-                                style: theme.typeScale.labelMedium.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
+                                role: AppTextRole.labelMedium,
+                                colorRole: AppColorRole.onSurfaceVariant,
                               ),
                             ],
                           ),
