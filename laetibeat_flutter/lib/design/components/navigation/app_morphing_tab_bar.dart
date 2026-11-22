@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../tokens/app_color_tokens.dart';
 import '../../tokens/app_layout_tokens.dart';
 import '../../tokens/app_motion_tokens.dart';
+import '../../tokens/app_shape_tokens.dart';
 import '../../tokens/app_size_tokens.dart';
 import '../../tokens/app_spacing_tokens.dart';
 import '../text/app_text.dart';
@@ -443,18 +444,59 @@ class _AppMorphingTabBarState extends State<AppMorphingTabBar>
   }
 
   Widget _buildTabs(M3EThemeData theme) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        for (var index = 0; index < widget.tabs.length; index++)
-          Expanded(
-            child: _TabItem(
-              tab: widget.tabs[index],
-              selected: index == _selectedIndex,
-              onTap: () => widget.onTabSelected(index),
-            ),
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final slotWidth = constraints.maxWidth / widget.tabs.length;
+        final inset = AppSpacing.xs;
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragUpdate: (DragUpdateDetails details) {
+            if (slotWidth <= 0) return;
+            final index =
+                ((details.localPosition.dx - slotWidth / 2) / slotWidth)
+                    .round()
+                    .clamp(0, widget.tabs.length - 1);
+            if (index != _selectedIndex) {
+              widget.onTabSelected(index);
+            }
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              AnimatedPositioned(
+                key: const ValueKey('app_morphing_tab_indicator'),
+                duration: AppMotion.standard,
+                curve: AppMotion.standardCurve,
+                left: _selectedIndex * slotWidth + inset,
+                top: inset,
+                bottom: inset,
+                width: math.max(0, slotWidth - inset * 2),
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer,
+                      borderRadius: AppRadii.fullAll,
+                    ),
+                  ),
+                ),
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  for (var index = 0; index < widget.tabs.length; index++)
+                    Expanded(
+                      child: _TabItem(
+                        tab: widget.tabs[index],
+                        selected: index == _selectedIndex,
+                        onTap: () => widget.onTabSelected(index),
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ),
-      ],
+        );
+      },
     );
   }
 
@@ -649,49 +691,37 @@ class _TabItem extends StatelessWidget {
       selected: selected,
       label: tab.semanticLabel ?? tab.label,
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xs),
-        child: Material(
-          color: selected ? scheme.secondaryContainer : Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          shape: const StadiumBorder(),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            excludeFromSemantics: true,
-            customBorder: const StadiumBorder(),
-            splashFactory: NoSplash.splashFactory,
-            highlightColor: Colors.transparent,
-            child: SizedBox.expand(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(
-                    icon,
-                    size: 22,
-                    color: selected
-                        ? scheme.onSecondaryContainer
-                        : scheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: AppSpacing.xxs),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xxs,
-                    ),
-                    child: AppText(
-                      tab.label,
-                      role: AppTextRole.labelSmall,
-                      colorRole: selected
-                          ? AppColorRole.onSecondaryContainer
-                          : AppColorRole.onSurfaceVariant,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+      child: InkWell(
+        onTap: onTap,
+        excludeFromSemantics: true,
+        customBorder: const StadiumBorder(),
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: Colors.transparent,
+        child: SizedBox.expand(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Icon(
+                icon,
+                size: 22,
+                color: selected
+                    ? scheme.onSecondaryContainer
+                    : scheme.onSurfaceVariant,
               ),
-            ),
+              const SizedBox(height: AppSpacing.xxs),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
+                child: AppText(
+                  tab.label,
+                  role: AppTextRole.labelSmall,
+                  colorRole: selected
+                      ? AppColorRole.onSecondaryContainer
+                      : AppColorRole.onSurfaceVariant,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
       ),

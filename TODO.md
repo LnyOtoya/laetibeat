@@ -50,7 +50,7 @@
 - [x] 媒体库详情页来源筛选：歌曲/专辑/艺术家/歌单页已完成“全部/本地/Navidrome”chips 与来源 badge
 - [ ] 清理死代码：`AudioSource`、`PlayState`、`SourceType::Opensubsonic`、`linux_mpris.dart`、`tmp.dart.bak`、未引用的移动首页组件
 - [ ] 更新 `ARCHITECTURE.md`：当前移动端播放后端、单 Navigator、audio_service 状态
-- [x] 在可用 Flutter 环境复验 `flutter analyze` / `flutter test`（2026-11-22；analyze 剩余 6 条均为既有 warning/info，`lib/design/` 无新增问题；test 13 个通过）
+- [x] 在可用 Flutter 环境复验 `flutter analyze` / `flutter test`（2026-11-22；analyze 剩余 6 条均为既有 warning/info，`lib/design/` 无新增问题；test 14 个通过）
 - [x] 设计系统 token 化：`lib/design/` 新增颜色/字体/间距/圆角/尺寸/动效/断点 token；`AppTheme` 成为 `M3EThemeData` 唯一入口
 - [x] Material You 官方取色：接入 `material_color_utilities` + `dynamic_color`，`MaterialYouColorScheme` 从官方 `DynamicScheme` 解析全部角色，`MaterialYouThemeHost` 使用系统 CorePalette；关闭 M3E 自带 `dynamicColoring`
 - [x] 页面 gutter 契约：`AppLayout.pageGutter` + `AppPageBody` 作为唯一水平 inset；`AppScaffold` 默认套用；`AppSectionHeader` / `AppMediaRow` / `AppEmptyState` 默认水平 padding 归零
@@ -121,9 +121,11 @@
 - [x] 反馈：`AppEmptyState`
 - [x] 导航：`AppMorphingTabBar` spring morph（tab pill ↔ search pill、键盘上浮、反向 retarget；M3E 颜色/tab 语义）；已接入 `MobileShell` 的 Home / Library / Stats 与 inline search
 - [x] 导航选中态：整格 pill 同时包住 icon + label，移除 icon-only 小胶囊；InkWell 关闭 splash/highlight，避免点击时大阴影叠加
+- [x] 导航 tab 支持左右拖动切换；选中 pill 使用 `AnimatedPositioned` 动画，点击切换同样滑动
+- [x] 新增 `test/app_morphing_tab_bar_tab_drag_test.dart`：点击动画中间位置 + 横向拖动切换
 - [x] App 根节点接入：`app.dart` 使用 `MaterialYouThemeHost`，关闭 M3E 自带 `dynamicColoring`
 - [x] `AppThemeFactory` 委托到 `lib/design`，不再自写 seed / 字体
-- [x] 验证：`flutter analyze` 无新增问题；`flutter test` 13 个通过（含 gutter 对齐、morphing tab bar 状态/宽度动画/320dp、shell 导航、bottom accessory 与 inline search 回归测试）
+- [x] 验证：`flutter analyze` 无新增问题；`flutter test` 14 个通过（含 gutter 对齐、morphing tab bar 状态/宽度动画/点击与拖动切换/320dp、shell 导航、bottom accessory 与 inline search 回归测试）
 
 ### 页面 gutter 契约
 
