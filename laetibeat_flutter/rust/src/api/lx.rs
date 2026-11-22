@@ -1,4 +1,4 @@
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock, RwLock};
 
 use flutter_rust_bridge::frb;
 use laetibeat_core::remote_library as core_lib;
@@ -61,8 +61,26 @@ pub struct UiLxLyric {
 
 static MANAGER: OnceLock<Mutex<Option<LxSourceManager>>> = OnceLock::new();
 
+/// 无锁读取的源列表快照。
+///
+/// `list_lx_sources` 只读这个快照，不参与 manager 的互斥锁：后台预热或
+/// 解析播放地址可能把 manager 锁占用数秒，UI 的能力查询不应被它堵住。
+/// 快照在每次变更后（`with_manager` 结束时）刷新。
+static SNAPSHOT: OnceLock<RwLock<Vec<LxSourceEntry>>> = OnceLock::new();
+
 fn manager_slot() -> &'static Mutex<Option<LxSourceManager>> {
     MANAGER.get_or_init(|| Mutex::new(None))
+}
+
+fn snapshot_cell() -> &'static RwLock<Vec<LxSourceEntry>> {
+    SNAPSHOT.get_or_init(|| RwLock::new(Vec::new()))
+}
+
+/// 调用方必须已持有 manager 锁，保证写入顺序与变更顺序一致。
+fn publish_snapshot(manager: &LxSourceManager) {
+    if let Ok(mut snapshot) = snapshot_cell().write() {
+        *snapshot = manager.list();
+    }
 }
 
 /// Initialize the filesystem-backed source store.
@@ -75,6 +93,7 @@ pub fn init_lx_source_store(root: String) -> Result<(), String> {
     // Do not load scripts here. Enabled sources are restored lazily the first
     // time the list/search path asks for capabilities, so QuickJS init or a
     // slow source HTTP request cannot block app bootstrap.
+    publish_snapshot(&manager);
     *manager_slot()
         .lock()
         .map_err(|_| "LX manager lock poisoned".to_string())? = Some(manager);
@@ -88,7 +107,10 @@ fn with_manager<T>(f: impl FnOnce(&mut LxSourceManager) -> Result<T, String>) ->
     let manager = guard
         .as_mut()
         .ok_or_else(|| "LX source store is not initialized".to_string())?;
-    f(manager)
+    let result = f(manager);
+    // 失败也要发布：失败会改状态、清声明缓存。
+    publish_snapshot(manager);
+    result
 }
 
 /// Import a source script. Imported sources default to disabled.
@@ -102,13 +124,15 @@ pub fn import_lx_source(script: String) -> Result<UiLxSourceEntry, String> {
     })
 }
 
+/// List sources and their capabilities.
+///
+/// 只读快照，**不获取 manager 锁**：后台预热/解析播放地址期间 UI 依然能
+/// 秒回。能力来自本次进程已加载的声明，或上次成功加载后持久化的缓存。
 pub fn list_lx_sources() -> Result<Vec<UiLxSourceEntry>, String> {
-    with_manager(|manager| {
-        // 只读：不在这里初始化脚本。能力来自本次进程已加载的声明，
-        // 或上次成功加载后持久化的缓存（`inited` 的产物），
-        // 这样"哪些平台能播"是毫秒级的，不需要等 QuickJS。
-        Ok(manager.list().into_iter().map(map_entry).collect())
-    })
+    let snapshot = snapshot_cell()
+        .read()
+        .map_err(|_| "LX snapshot lock poisoned".to_string())?;
+    Ok(snapshot.iter().cloned().map(map_entry).collect())
 }
 
 pub fn load_lx_source(id: String) -> Result<UiLxSourceEntry, String> {
@@ -481,5 +505,51 @@ fn map_lx_search_track(track: lx_search::LxSearchTrack) -> UiLxSearchTrack {
         interval: track.interval,
         img: track.img,
         extra_json: serde_json::to_string(&track.extra).unwrap_or_default(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    fn temp_root() -> String {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir()
+            .join(format!("laetibeat_lx_api_{}_{}", std::process::id(), nonce))
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    /// `list_lx_sources` 必须只读快照，不能等 manager 锁。
+    ///
+    /// 后台预热或解析播放地址会持有 manager 锁数秒；如果 list 也去抢锁，
+    /// 搜索页/平台栏就会被堵住。这里用一个线程在持锁期间调用 list，
+    /// 超时即视为回归（而不是让测试挂死）。
+    #[test]
+    fn list_lx_sources_does_not_wait_for_manager_lock() {
+        let root = temp_root();
+        init_lx_source_store(root.clone()).unwrap();
+        assert!(list_lx_sources().unwrap().is_empty());
+
+        let guard = manager_slot().lock().unwrap();
+        let (sender, receiver) = mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = sender.send(list_lx_sources().is_ok());
+        });
+        let received = receiver.recv_timeout(Duration::from_secs(2));
+        drop(guard);
+
+        assert_eq!(
+            received,
+            Ok(true),
+            "list_lx_sources blocked on the manager lock"
+        );
+
+        let _ = std::fs::remove_dir_all(root);
     }
 }

@@ -166,6 +166,26 @@
 - [ ] 真机验证：切到 kg / wy / mg 的歌单分类能出结果、能进预览页、能订阅
 - [ ] 已知限制：kg / mg 的整单拉取需要多页时请求数 = ceil(总数 / 平台页大小)；wy 每 200 首一次批量请求
 
+### 第八轮：读路径与加载解耦（快照锁，2026-11-22）
+
+问题：所有 LX 调用共用一把 `Mutex<Option<LxSourceManager>>`，后台预热（数秒）
+会把 UI 的能力查询 `list_lx_sources` 一起堵住——预热等于白做。
+
+- [x] 新增 `SNAPSHOT: OnceLock<RwLock<Vec<LxSourceEntry>>>`：`list_lx_sources` 只读它，
+      **完全不碰 manager 锁**
+- [x] 快照在 `with_manager` 结束时刷新（成功/失败都刷新，因为失败会改状态、清声明缓存）；
+      `init_lx_source_store` 也发布一次初始快照
+- [x] 锁顺序单一（先 manager 再 snapshot），不存在反向持锁，因此无死锁风险
+- [x] 回归测试 `list_lx_sources_does_not_wait_for_manager_lock`：主线程持 manager 锁 2s，
+      子线程调用 list 必须立刻返回（超时即失败，不会挂死）
+- [x] `cargo check --workspace --all-targets` 无 warning；`cargo test --workspace` 51 tests 通过
+- [ ] 仍串行（可接受，后续再解）：
+      - `resolve_lx_music_url` / `resolve_lx_lyric` / `resolve_lx_pic` 在 JS 执行期间持有 manager 锁，
+        两个并发的解析会排队
+      - 预热期间点播放，解析会等预热做完（语义上可接受，源本来就在加载）
+- [ ] 下一步（若要彻底并发）：每源一个 Actor（专用线程 + 消息队列），manager 只保存句柄；
+      届时 `LxRuntime` 不再需要放在全局 Mutex 里
+
 ### 第七轮：LX 声明持久化 + 加载提速（第 2、3 步，2026-11-22）
 
 目标：把"每次启动都要重新初始化"变成"装好一次，之后毫秒级"。
