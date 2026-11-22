@@ -69,7 +69,11 @@
 - [x] `AppMorphingTabBar` bottom accessory：搜索态自动收起；extra action 的搜索态收起由 `hideExtraActionWhenSearching` 控制
 - [x] 新增 `MobileSearchInlineView`：复用搜索历史与 `LibrarySearchSuggestions`，搜索框由 shell 的 controller/focusNode 驱动
 - [x] `MobileShell` inline search：搜索态替换 body、`PopScope` 返回关闭、提交后推入现有结果页
-- [x] 新增 `test/mobile_shell_inline_search_test.dart`：打开/关闭 inline search、搜索框与 body 切换
+- [x] 新增 `MobileSearchBrowseView`：Apple Music 式两阶段搜索，未聚焦显示 2×2 流派卡片（假数据）
+- [x] 搜索框聚焦后进入输入态：home pill 隐藏，搜索字段占左侧，右侧出现独立 clear pill
+- [x] `AppMorphingTabBar` 新增 `searchEditing` / `onSearchClear`，保持搜索字段 element 稳定，避免聚焦后键盘被重布局收起
+- [x] 新增 `test/mobile_shell_inline_search_test.dart`：browse → 聚焦输入 → clear 关闭搜索
+- [ ] 把底部搜索框移入 Navigator Overlay，恢复文本选择/复制菜单（当前禁用 selection overlay 规避 Overlay 缺失）
 - [x] 页面迁移试点：Home / Library 已改用 `AppScaffold` / `AppPageBody` / `AppText` / `AppSpacing` / `AppRadii` / `AppSurfaceLevel`；Library 搜索栏 `margin: 0` 与卡片对齐
 - [ ] 页面迁移剩余：Search / Settings / Playback / Library 子页统一到 design token
 - [ ] 统一 UI 代码 import 到 `material_ui`，清理 `package:flutter/material.dart`（当前仍有 18 个文件）

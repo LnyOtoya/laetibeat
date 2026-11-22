@@ -7,6 +7,7 @@ import 'package:laetibeat/l10n/generated/app_localizations.dart';
 import 'package:laetibeat/pages/mobile/mobile_app.dart';
 import 'package:laetibeat/pages/mobile/mobile_navigation.dart';
 import 'package:laetibeat/pages/mobile/routes.dart';
+import 'package:laetibeat/pages/mobile/search/mobile_search_browse_view.dart';
 import 'package:laetibeat/pages/mobile/search/mobile_search_inline_view.dart';
 import 'package:laetibeat/widgets/player/player_provider.dart';
 import 'package:laetibeat/widgets/settings/persistence.dart';
@@ -70,15 +71,49 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('app_morphing_search_button')));
     await tester.pumpAndSettle();
 
-    expect(find.byType(MobileSearchInlineView), findsOneWidget);
+    expect(find.byType(MobileSearchBrowseView), findsOneWidget);
+    expect(find.byType(MobileSearchInlineView), findsNothing);
     expect(find.byType(TextField), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('app_morphing_left_pill')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('app_morphing_search_clear_pill')),
+      findsNothing,
+    );
+
+    await tester.tap(find.byType(TextField));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MobileSearchInlineView), findsOneWidget);
+    expect(find.byType(MobileSearchBrowseView), findsNothing);
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('app_morphing_left_pill')))
+          .width,
+      0,
+    );
+    expect(
+      find.byKey(const ValueKey('app_morphing_collapsed_leading')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('app_morphing_search_close')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('app_morphing_search_clear_pill')),
+      findsOneWidget,
+    );
 
     await tester.tap(
-      find.byKey(const ValueKey('app_morphing_collapsed_leading')),
+      find.byKey(const ValueKey('app_morphing_search_clear_pill')),
     );
     await tester.pumpAndSettle();
 
     expect(find.byType(MobileSearchInlineView), findsNothing);
+    expect(find.byType(MobileSearchBrowseView), findsNothing);
     expect(find.byType(TextField), findsNothing);
   });
 }

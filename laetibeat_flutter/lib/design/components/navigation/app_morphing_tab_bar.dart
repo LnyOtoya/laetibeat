@@ -51,6 +51,8 @@ class AppMorphingSearchConfig {
     this.onChanged,
     this.onSubmitted,
     this.autoFocus = false,
+    this.showClearButton = true,
+    this.onClear,
   });
 
   final String hintText;
@@ -59,6 +61,13 @@ class AppMorphingSearchConfig {
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final bool autoFocus;
+
+  /// Whether the trailing clear/cancel affordance is shown while the field
+  /// is expanded. Use this to hide it in browse mode and reveal it on focus.
+  final bool showClearButton;
+
+  /// Runs when the trailing affordance is tapped. Defaults to closing search.
+  final VoidCallback? onClear;
 }
 
 /// M3E-styled bottom bar that morphs between tabs and search.
@@ -77,9 +86,13 @@ class AppMorphingTabBar extends StatefulWidget {
     required this.selectedIndex,
     required this.onTabSelected,
     this.isSearching = false,
+    this.searchEditing = false,
     this.onSearchToggle,
     this.onSearchPressed,
     this.searchConfig = const AppMorphingSearchConfig(),
+    this.onSearchClear,
+    this.searchClearIcon = M3EIcons.close,
+    this.searchClearLabel = '清除',
     this.extraAction,
     this.searchModeLeadingIcon = M3EIcons.home,
     this.searchModeLeadingLabel = '返回',
@@ -101,7 +114,16 @@ class AppMorphingTabBar extends StatefulWidget {
   final int selectedIndex;
   final ValueChanged<int> onTabSelected;
   final bool isSearching;
+
+  /// Whether the search field currently owns the whole left side.
+  ///
+  /// Browse: leading pill + expanded search field.
+  /// Editing: search field on the left + a separate clear pill on the right.
+  final bool searchEditing;
   final ValueChanged<bool>? onSearchToggle;
+  final VoidCallback? onSearchClear;
+  final IconData searchClearIcon;
+  final String searchClearLabel;
 
   /// When provided, the search pill runs this action instead of entering the
   /// inline search state. Use this to open a dedicated search page while the
@@ -304,24 +326,32 @@ class _AppMorphingTabBarState extends State<AppMorphingTabBar>
   Widget _buildMorphRow(M3EThemeData theme, double availableWidth) {
     final scheme = theme.colorScheme;
     final t = _morphController.value.clamp(0.0, 1.0);
+    final editing = _searching && widget.searchEditing;
 
     final extraFullWidth = widget.extraAction == null
         ? 0.0
         : widget.searchPillWidth;
     final hidesExtra =
         widget.extraAction != null && widget.hideExtraActionWhenSearching;
-    final extraWidth = hidesExtra ? extraFullWidth * (1 - t) : extraFullWidth;
+    final extraWidth = editing
+        ? 0.0
+        : (hidesExtra ? extraFullWidth * (1 - t) : extraFullWidth);
+    final clearWidth = editing ? widget.searchPillWidth : 0.0;
 
     final expandedLeftWidth = math.max(
       0.0,
       availableWidth - widget.searchPillWidth - widget.spacing - extraFullWidth,
     );
-    final leftWidth = _lerpDouble(expandedLeftWidth, widget.searchPillWidth, t);
+    final leftWidth = editing
+        ? 0.0
+        : _lerpDouble(expandedLeftWidth, widget.searchPillWidth, t);
 
     final showTabs = t < 0.999 || !_searching;
-    final showLeading = t > 0.001 || _searching;
+    final showLeading = !editing && (t > 0.001 || _searching);
     final showSearchButton = t < 0.999 || !_searching;
     final showSearchField = t > 0.001 || _searching;
+    final hasLeftPill = leftWidth > 0.01;
+    final hasClearPill = clearWidth > 0.01;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -329,30 +359,32 @@ class _AppMorphingTabBarState extends State<AppMorphingTabBar>
         SizedBox(
           key: const ValueKey('app_morphing_left_pill'),
           width: leftWidth,
-          child: _Pill(
-            color: scheme.surfaceContainerHigh,
-            child: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                if (showTabs)
-                  _FadeLayer(
-                    opacity: 1 - t,
-                    ignorePointer: t >= 0.5,
-                    excludeSemantics: t >= 0.5,
-                    child: _buildTabs(theme),
+          child: hasLeftPill
+              ? _Pill(
+                  color: scheme.surfaceContainerHigh,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      if (showTabs)
+                        _FadeLayer(
+                          opacity: 1 - t,
+                          ignorePointer: t >= 0.5,
+                          excludeSemantics: t >= 0.5,
+                          child: _buildTabs(theme),
+                        ),
+                      if (showLeading)
+                        _FadeLayer(
+                          opacity: t,
+                          ignorePointer: t < 0.5,
+                          excludeSemantics: t < 0.5,
+                          child: _buildCollapsedLeadingContent(theme),
+                        ),
+                    ],
                   ),
-                if (showLeading)
-                  _FadeLayer(
-                    opacity: t,
-                    ignorePointer: t < 0.5,
-                    excludeSemantics: t < 0.5,
-                    child: _buildCollapsedLeadingContent(theme),
-                  ),
-              ],
-            ),
-          ),
+                )
+              : const SizedBox.shrink(),
         ),
-        SizedBox(width: widget.spacing),
+        SizedBox(width: hasLeftPill ? widget.spacing : 0),
         Expanded(
           child: SizedBox(
             key: const ValueKey('app_morphing_right_pill'),
@@ -379,6 +411,16 @@ class _AppMorphingTabBarState extends State<AppMorphingTabBar>
               ),
             ),
           ),
+        ),
+        SizedBox(width: hasClearPill ? widget.spacing : 0),
+        SizedBox(
+          width: clearWidth,
+          child: hasClearPill
+              ? _Pill(
+                  color: scheme.surfaceContainerHigh,
+                  child: _buildSearchClearContent(theme),
+                )
+              : const SizedBox.shrink(),
         ),
         if (extraWidth > 0.01) ...<Widget>[
           SizedBox(width: widget.spacing),
@@ -482,6 +524,11 @@ class _AppMorphingTabBarState extends State<AppMorphingTabBar>
                   controller: _controller,
                   focusNode: _focusNode,
                   autofocus: widget.searchConfig.autoFocus,
+                  // The bar lives outside the root Navigator's Overlay. Disable
+                  // selection handles/context menu so EditableText does not
+                  // require an Overlay ancestor; typing, caret and IME still work.
+                  enableInteractiveSelection: false,
+                  contextMenuBuilder: null,
                   textInputAction: TextInputAction.search,
                   onChanged: widget.searchConfig.onChanged,
                   onSubmitted: widget.searchConfig.onSubmitted,
@@ -497,15 +544,21 @@ class _AppMorphingTabBarState extends State<AppMorphingTabBar>
                   ),
                 ),
               ),
-              if (!compact)
+              if (!compact &&
+                  widget.searchConfig.showClearButton &&
+                  !widget.searchEditing)
                 SizedBox.square(
                   dimension: AppTouchTarget.min,
                   child: Semantics(
                     button: true,
-                    label: '关闭搜索',
+                    label: widget.searchConfig.onClear == null
+                        ? '关闭搜索'
+                        : '清空搜索',
                     child: InkWell(
                       key: const ValueKey('app_morphing_search_close'),
-                      onTap: () => _setSearching(false),
+                      onTap:
+                          widget.searchConfig.onClear ??
+                          () => _setSearching(false),
                       excludeFromSemantics: true,
                       customBorder: const CircleBorder(),
                       child: Center(
@@ -522,6 +575,27 @@ class _AppMorphingTabBarState extends State<AppMorphingTabBar>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSearchClearContent(M3EThemeData theme) {
+    final scheme = theme.colorScheme;
+    return Semantics(
+      button: true,
+      label: widget.searchClearLabel,
+      child: InkWell(
+        key: const ValueKey('app_morphing_search_clear_pill'),
+        onTap: widget.onSearchClear ?? () => _setSearching(false),
+        excludeFromSemantics: true,
+        customBorder: const StadiumBorder(),
+        child: Center(
+          child: Icon(
+            widget.searchClearIcon,
+            size: AppIconSize.md,
+            color: scheme.onSurface,
+          ),
+        ),
+      ),
     );
   }
 

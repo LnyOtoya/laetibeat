@@ -14,6 +14,7 @@ import 'library/mobile_library_subpages.dart';
 import 'mobile_navigation.dart';
 import 'player/mini_player.dart';
 import 'routes.dart';
+import 'search/mobile_search_browse_view.dart';
 import 'search/mobile_search_inline_view.dart';
 import 'search/mobile_search_page.dart';
 import 'settings/content/mobile_content_settings_page.dart';
@@ -46,12 +47,27 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       GlobalKey<MobileSearchInlineViewState>();
 
   bool _isSearching = false;
+  bool _searchFieldFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchFocusNode.addListener(_onSearchFocusChanged);
+  }
 
   @override
   void dispose() {
+    _searchFocusNode.removeListener(_onSearchFocusChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  void _onSearchFocusChanged() {
+    if (!mounted) return;
+    final focused = _searchFocusNode.hasFocus;
+    if (focused == _searchFieldFocused) return;
+    setState(() => _searchFieldFocused = focused);
   }
 
   List<AppMorphingTab> _destinations(AppLocalizations l10n) {
@@ -126,9 +142,10 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   void _handleSearchToggle(bool value) {
     if (value) {
       if (_isSearching) return;
-      setState(() => _isSearching = true);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _isSearching) _searchFocusNode.requestFocus();
+      _searchFocusNode.unfocus();
+      setState(() {
+        _isSearching = true;
+        _searchFieldFocused = false;
       });
     } else {
       _closeSearch();
@@ -139,7 +156,26 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     if (!_isSearching) return;
     _searchFocusNode.unfocus();
     _searchController.clear();
-    setState(() => _isSearching = false);
+    setState(() {
+      _isSearching = false;
+      _searchFieldFocused = false;
+    });
+  }
+
+  void _clearSearchText() {
+    if (_searchController.text.isEmpty) {
+      _closeSearch();
+      return;
+    }
+    _searchController.clear();
+  }
+
+  void _selectGenre(String genre) {
+    _searchController.value = TextEditingValue(
+      text: genre,
+      selection: TextSelection.collapsed(offset: genre.length),
+    );
+    _searchFocusNode.requestFocus();
   }
 
   void _submitSearch(String query) {
@@ -176,7 +212,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         final bool showNavigationBar = _showNavigationBar(routeName);
         final bool isHome = routeName == null || routeName == MobileRoutes.home;
         final bool showMiniPlayer =
-            hasTrack && showNavigationBar && !isHome && !_isSearching;
+            hasTrack && showNavigationBar && !isHome && !_searchFieldFocused;
         final double bottomInset = _bottomOverlayInset(
           context,
           showNavigationBar: showNavigationBar,
@@ -193,14 +229,18 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                   _selectTab(_tabs[index]);
                 },
                 isSearching: _isSearching,
+                searchEditing: _searchFieldFocused,
                 onSearchToggle: _handleSearchToggle,
+                onSearchClear: _clearSearchText,
                 searchConfig: AppMorphingSearchConfig(
                   hintText: l10n.searchHint,
                   controller: _searchController,
                   focusNode: _searchFocusNode,
                   onSubmitted: _submitSearch,
+                  showClearButton: false,
                 ),
                 bottomAccessory: showMiniPlayer ? const MiniPlayer() : null,
+                hideBottomAccessoryWhenSearching: false,
                 floatAboveKeyboard: false,
               )
             : null;
@@ -212,12 +252,14 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             ),
             if (_isSearching)
               Positioned.fill(
-                child: MobileSearchInlineView(
-                  key: _searchViewKey,
-                  controller: _searchController,
-                  focusNode: _searchFocusNode,
-                  onClose: _closeSearch,
-                ),
+                child: _searchFieldFocused
+                    ? MobileSearchInlineView(
+                        key: _searchViewKey,
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        onClose: _closeSearch,
+                      )
+                    : MobileSearchBrowseView(onGenreSelected: _selectGenre),
               ),
             if (bottomBar != null)
               Positioned(left: 0, right: 0, bottom: 0, child: bottomBar),
