@@ -3,7 +3,7 @@ description: Design, redesign, review, or implement user interfaces using Google
 metadata:
   updated: 2026-10-01
   version: 1.1.1
-name: material-design-3-ui
+name: material3-expressive
 ---
 
 # Material Design 3 UI/UX
