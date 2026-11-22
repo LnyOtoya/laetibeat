@@ -13,6 +13,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/playback/just_audio_backend.dart';
+import '../widgets/player/lx_search_provider.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../core/playback/laetibeat_audio_handler.dart';
 import '../core/providers/playback_backend_provider.dart';
@@ -149,6 +150,19 @@ Future<void> bootstrap() async {
 
   // 启动后套用用户保存的缓存上限；磁盘 LRU 扫描放在首帧之后，避免阻塞启动。
   unawaited(_applyStartupCacheLimits(container));
+
+  // 预热洛雪运行时：源脚本初始化可能要十几秒（QuickJS + 脚本自检），
+  // 放在后台跑，用户进搜索页时通常已经就绪，不必再等。
+  unawaited(_prewarmLxRuntime(container));
+}
+
+Future<void> _prewarmLxRuntime(ProviderContainer container) async {
+  try {
+    await container.read(lxRuntimeProvider.future);
+  } catch (error) {
+    // 失败不阻塞启动：状态留在 provider 里，界面会提示去设置页处理。
+    debugPrint('洛雪音源预热失败: $error');
+  }
 }
 
 Future<void> _applyStartupCacheLimits(ProviderContainer container) async {

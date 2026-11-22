@@ -248,6 +248,7 @@
   "lxSearchEnableHint": "Enable an LX source to search",
   "lxSearchNoResults": "No songs found",
   "lxSearchSourceRequired": "Import and enable an LX source that supports this platform to play",
+  "lxSourcePreparing": "Preparing the LX source, the first run may take a few seconds…",
   "lxPlaylistSearchUnsupported": "Playlist search is not supported on this platform yet. Try another platform.",
   "lxPlatformNoSource": "No source",
 

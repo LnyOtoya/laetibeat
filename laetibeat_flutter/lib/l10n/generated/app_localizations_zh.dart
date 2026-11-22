@@ -634,6 +634,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lxSearchSourceRequired => '播放前需先导入并启用支持该平台的洛雪音源';
 
   @override
+  String get lxSourcePreparing => '正在准备洛雪音源，首次使用可能需要十几秒…';
+
+  @override
   String get lxPlaylistSearchUnsupported => '该平台暂不支持歌单搜索，可切换到其他平台';
 
   @override

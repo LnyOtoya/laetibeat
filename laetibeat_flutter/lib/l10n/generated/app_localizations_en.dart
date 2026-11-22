@@ -653,6 +653,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Import and enable an LX source that supports this platform to play';
 
   @override
+  String get lxSourcePreparing =>
+      'Preparing the LX source, the first run may take a few seconds…';
+
+  @override
   String get lxPlaylistSearchUnsupported =>
       'Playlist search is not supported on this platform yet. Try another platform.';
 

@@ -166,6 +166,38 @@
 - [ ] 真机验证：切到 kg / wy / mg 的歌单分类能出结果、能进预览页、能订阅
 - [ ] 已知限制：kg / mg 的整单拉取需要多页时请求数 = ceil(总数 / 平台页大小)；wy 每 200 首一次批量请求
 
+### 第六轮：LX 运行时异步化（第 1 步，2026-11-22）
+
+问题现象：每次启动 App 都要手动进入「洛雪音源配置页」等它加载完，LX 才能播放。
+
+根因不是"没做异步"，而是**语义错误**：`lxPlatformCanPlay` 用 `ref.read(...).value == null` 判断，
+把"还在初始化"当成了"没有源"，于是首次点播放直接弹"请先导入音源"；而配置页是唯一会 `await`
+并显示 loading 的地方，所以用户只能靠它"手动等待"。另外启动时完全没有预热。
+
+- [x] 新增 `lxRuntimeProvider`（`AsyncNotifier`，非 autoDispose）：所有入口（搜索页、建议、播放、
+      设置页）共享同一个初始化 Future，结果常驻进程；离开页面不再丢状态
+- [x] 启动预热：`bootstrap` 在 `runApp` 之后 `unawaited(_prewarmLxRuntime(container))`，
+      把源脚本初始化（实测 25s）挪到后台，不阻塞首帧
+- [x] 播放门控改为三态 `LxPlaybackStatus { ready, preparing, unavailable }`：
+      - ready → 直接起播
+      - preparing → 提示「正在准备洛雪音源…」并 `await`（最长 60s），就绪后继续起播
+      - unavailable → 提示需要导入/启用源；若上一次初始化失败，先 `invalidate` 重试一次
+- [x] 搜索页：歌曲/专辑/歌手/「播放全部」四个入口统一走 `ensureLxPlayable`，不再同步判死
+- [x] 平台栏：初始化期间显示中性提示「正在准备洛雪音源…」而不是红色「暂无可播放音源」
+- [x] 平台默认值：运行时就绪前不因"可播列表为空"把默认平台从 kw 切走，避免初始化完成后跳变
+- [x] `lxPlayablePlatformsProvider` 保留为派生 provider（`ref.watch(lxRuntimeProvider.future)`），
+      现有建议页/平台栏调用点无需改动
+- [x] 设置页增删/启用源后 `invalidate(lxRuntimeProvider)`
+- [x] 新增 l10n：`lxSourcePreparing`（中/英）
+- [x] `cargo test --workspace` 46 tests 仍通过（本轮只改 Dart）
+- [ ] 真机验证：
+      - 冷启动后直接进搜索 → 平台栏显示「正在准备洛雪音源…」，随后变为可播，不用再进配置页
+      - 初始化期间点歌 → 弹「正在准备洛雪音源…」并等待，就绪后自动起播
+      - 离开搜索页再回来 → 不再重新初始化
+      - 设置页启用/禁用源后返回搜索 → 可播状态立即更新
+- [ ] 后续（第 2、3 步）：持久化 `inited` 声明使"能否播放"毫秒级可得；
+      按需 `pump_timers` + 可中断 sleep + 拆锁，把 25s 降到几秒
+
 ### 第五轮：音质 types（2026-11-18）
 
 目标：让「默认音质 = 无损/320k」真正生效，而不是每次都掉到 128k。

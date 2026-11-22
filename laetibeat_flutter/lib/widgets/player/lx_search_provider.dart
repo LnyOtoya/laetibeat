@@ -1,5 +1,7 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
+import 'package:material_3_expressive/material_3_expressive.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 
@@ -30,25 +32,55 @@ final lxPlatformsProvider = FutureProvider<List<String>>((ref) async {
   return kLxPlatformOrder;
 });
 
-/// Platforms that at least one enabled source can resolve `musicUrl` for.
+/// 洛雪运行时的就绪状态（值 = 可解析 `musicUrl` 的平台列表）。
 ///
-/// This is playback capability only. It must never gate search, browsing or
-/// playlist subscription.
-final lxPlayablePlatformsProvider = FutureProvider.autoDispose<List<String>>((
-  ref,
-) async {
-  final sources = await rust_lx.listLxSources();
-  final platforms = <String>{};
-  for (final source in sources) {
-    if (!source.enabled) continue;
-    for (final capability in source.capabilities) {
-      if (capability.sourceType != 'music') continue;
-      if (!capability.actions.contains('musicUrl')) continue;
-      platforms.add(capability.source);
+/// 首次读取时开始加载，结果常驻（非 autoDispose），所有入口共享同一个
+/// Future —— 搜索页、建议、播放、设置页不会各自触发一次初始化。
+/// 启动后由 `bootstrap` 预热，把源脚本初始化（可能十几秒）挪到后台。
+final lxRuntimeProvider = AsyncNotifierProvider<LxRuntimeNotifier, List<String>>(
+  LxRuntimeNotifier.new,
+);
+
+class LxRuntimeNotifier extends AsyncNotifier<List<String>> {
+  @override
+  Future<List<String>> build() async {
+    // `list_lx_sources` 会在 Rust 侧初始化尚未加载的启用源（懒加载入口）。
+    final sources = await rust_lx.listLxSources();
+    final platforms = <String>{};
+    for (final source in sources) {
+      if (!source.enabled) continue;
+      for (final capability in source.capabilities) {
+        if (capability.sourceType != 'music') continue;
+        if (!capability.actions.contains('musicUrl')) continue;
+        platforms.add(capability.source);
+      }
+    }
+    return platforms.toList(growable: false);
+  }
+
+  /// 等待就绪并判断 [platform] 是否可播。
+  ///
+  /// 初始化失败或超时都返回 false（不抛异常），由调用方决定提示文案。
+  Future<bool> ensurePlayable(String platform) async {
+    if (platform.isEmpty) return false;
+    final current = state;
+    if (current.hasValue) {
+      return (current.value ?? const <String>[]).contains(platform);
+    }
+    if (current.hasError) return false;
+    try {
+      final platforms = await future.timeout(const Duration(seconds: 60));
+      return platforms.contains(platform);
+    } catch (_) {
+      return false;
     }
   }
-  return platforms.toList(growable: false);
-});
+}
+
+/// 兼容旧的 AsyncValue 形态调用点；数据来自 [lxRuntimeProvider]。
+final lxPlayablePlatformsProvider = FutureProvider.autoDispose<List<String>>(
+  (ref) => ref.watch(lxRuntimeProvider.future),
+);
 
 /// Default platform: the first playable platform in built-in order, falling
 /// back to the first built-in platform so search works without any source.
@@ -63,15 +95,70 @@ String? lxDefaultPlatform({
   return platforms.first;
 }
 
-/// Whether [platform] can currently resolve a play URL.
+/// 播放能力三态。
+enum LxPlaybackStatus {
+  /// 已就绪且该平台有可用源。
+  ready,
+
+  /// 运行时还在初始化（源脚本可能十几秒），可以等待。
+  preparing,
+
+  /// 没有启用源 / 初始化失败：需要用户去设置页处理。
+  unavailable,
+}
+
+/// 当前平台的可播状态。
 ///
-/// Callers use this to show a "needs a source" prompt instead of letting the
-/// play request fail deep inside the player.
-bool lxPlatformCanPlay(WidgetRef ref, String? platform) {
-  if (platform == null || platform.isEmpty) return false;
-  final playable = ref.read(lxPlayablePlatformsProvider).value;
-  if (playable == null) return false;
-  return playable.contains(platform);
+/// 关键点：**"还在初始化"不等于"不可用"**。以前把二者混在一起，导致首次
+/// 启动时点播放会误报"请先导入音源"。
+LxPlaybackStatus lxPlaybackStatus(WidgetRef ref, String? platform) {
+  if (platform == null || platform.isEmpty) return LxPlaybackStatus.unavailable;
+  final runtime = ref.read(lxRuntimeProvider);
+  if (runtime.isLoading && !runtime.hasValue) return LxPlaybackStatus.preparing;
+  if (runtime.hasError) return LxPlaybackStatus.unavailable;
+  final platforms = runtime.value ?? const <String>[];
+  return platforms.contains(platform)
+      ? LxPlaybackStatus.ready
+      : LxPlaybackStatus.unavailable;
+}
+
+/// 播放前确保平台可播。
+///
+/// - 已就绪：直接返回 true；
+/// - 初始化中：提示"正在准备音源"并等待（最长 60s），就绪后返回 true；
+/// - 仍不可用：提示需要导入/启用源，返回 false。
+Future<bool> ensureLxPlayable(
+  BuildContext context,
+  WidgetRef ref,
+  String? platform,
+  AppLocalizations l10n,
+) async {
+  final status = lxPlaybackStatus(ref, platform);
+  if (status == LxPlaybackStatus.ready) return true;
+
+  if (status == LxPlaybackStatus.preparing) {
+    M3ESnackbar.show(context, message: l10n.lxSourcePreparing);
+    final ready = await ref
+        .read(lxRuntimeProvider.notifier)
+        .ensurePlayable(platform ?? '');
+    if (ready) return true;
+    if (!context.mounted) return false;
+    M3ESnackbar.show(context, message: l10n.lxSearchSourceRequired);
+    return false;
+  }
+
+  // 之前初始化失败过：先给一次重试机会，避免一次失败就一直判定不可用。
+  if (ref.read(lxRuntimeProvider).hasError) {
+    ref.invalidate(lxRuntimeProvider);
+    final ready = await ref
+        .read(lxRuntimeProvider.notifier)
+        .ensurePlayable(platform ?? '');
+    if (ready) return true;
+    if (!context.mounted) return false;
+  }
+
+  M3ESnackbar.show(context, message: l10n.lxSearchSourceRequired);
+  return false;
 }
 
 /// Serializes LX search requests per platform and keeps a minimum gap between

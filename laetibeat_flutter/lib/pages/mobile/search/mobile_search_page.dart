@@ -236,7 +236,8 @@ class _MobileSearchResultsPageState
     // 这个 provider，所以它一定有存活 element）。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.invalidate(lxPlayablePlatformsProvider);
+      // 源的能力声明可能变化，重新读取运行时状态。
+      ref.invalidate(lxRuntimeProvider);
     });
   }
 
@@ -250,10 +251,10 @@ class _MobileSearchResultsPageState
     if (selected != null && platforms.contains(selected)) return selected;
 
     final current = _resolvedLxPlatform;
-    if (current != null &&
-        platforms.contains(current) &&
-        playable.contains(current)) {
-      return current;
+    if (current != null && platforms.contains(current)) {
+      // playable 为空可能只是运行时还没就绪：保持当前选择，
+      // 避免初始化完成后平台从 kw 突然跳到 tx。
+      if (playable.isEmpty || playable.contains(current)) return current;
     }
     // 纯内部记忆值，不触发重建：输入不变时结果稳定。
     _resolvedLxPlatform = lxDefaultPlatform(
@@ -266,19 +267,19 @@ class _MobileSearchResultsPageState
   void _playLxResults() {
     final query = widget.initialQuery.trim();
     if (query.isEmpty) return;
+    unawaited(_playLxResultsFor(query));
+  }
+
+  Future<void> _playLxResultsFor(String query) async {
+    final l10n = AppLocalizations.of(context);
     final platforms = ref.read(lxPlatformsProvider).value ?? kLxPlatformOrder;
-    final playable =
-        ref.read(lxPlayablePlatformsProvider).value ?? const <String>[];
+    final playable = ref.read(lxRuntimeProvider).value ?? const <String>[];
     final platform = _resolveLxPlatform(platforms, playable);
     if (platform == null) return;
-    if (!playable.contains(platform)) {
-      M3ESnackbar.show(
-        context,
-        message: AppLocalizations.of(context).lxSearchSourceRequired,
-      );
-      return;
-    }
-    unawaited(_loadLxFirstPage(platform, query));
+    // 源还在初始化时等待，而不是把用户挡回去。
+    if (!await ensureLxPlayable(context, ref, platform, l10n)) return;
+    if (!mounted) return;
+    await _loadLxFirstPage(platform, query);
   }
 
   Future<void> _loadLxFirstPage(String platform, String query) async {
@@ -316,8 +317,11 @@ class _MobileSearchResultsPageState
     final l10n = AppLocalizations.of(context);
     final lxPlatformsAsync = ref.watch(lxPlatformsProvider);
     final playableAsync = ref.watch(lxPlayablePlatformsProvider);
+    final runtimeAsync = ref.watch(lxRuntimeProvider);
     final lxPlatforms = lxPlatformsAsync.value ?? kLxPlatformOrder;
     final playablePlatforms = playableAsync.value ?? const <String>[];
+    // 源还在初始化时"可播列表为空"只代表未知，不能当成"没有源"。
+    final lxPreparing = runtimeAsync.isLoading && !runtimeAsync.hasValue;
     final activeLxPlatform = _resolveLxPlatform(
       lxPlatforms,
       playablePlatforms,
@@ -400,6 +404,7 @@ class _MobileSearchResultsPageState
                       platform: activeLxPlatform ?? kLxPlatformOrder.first,
                       platforms: lxPlatforms,
                       playablePlatforms: playablePlatforms,
+                      preparing: lxPreparing,
                       showPlay: _category == MobileSearchCategory.songs,
                       onPlay: _playLxResults,
                       onChanged: (platform) =>
@@ -488,6 +493,7 @@ class _LxPlatformBar extends StatelessWidget {
     required this.platform,
     required this.platforms,
     required this.playablePlatforms,
+    required this.preparing,
     required this.onChanged,
     required this.onPlay,
     required this.showPlay,
@@ -498,6 +504,10 @@ class _LxPlatformBar extends StatelessWidget {
 
   /// 有启用源可以解析播放地址的平台。为空表示只能浏览，不能播放。
   final List<String> playablePlatforms;
+
+  /// 源运行时还在初始化：此时 [playablePlatforms] 还没算出来，
+  /// 不能据此显示"暂无可播放音源"。
+  final bool preparing;
   final ValueChanged<String> onChanged;
   final VoidCallback onPlay;
   final bool showPlay;
@@ -520,7 +530,7 @@ class _LxPlatformBar extends StatelessWidget {
               shape: M3EButtonShape.round,
               onPressed: onPlay,
             ),
-          if (showPlay && !canPlay) ...<Widget>[
+          if (showPlay && (preparing || !canPlay)) ...<Widget>[
             const SizedBox(width: 8),
             Flexible(
               child: Row(
@@ -529,16 +539,22 @@ class _LxPlatformBar extends StatelessWidget {
                   Icon(
                     M3EIcons.info,
                     size: 14,
-                    color: theme.colorScheme.error,
+                    color: preparing
+                        ? theme.colorScheme.onSurfaceVariant
+                        : theme.colorScheme.error,
                   ),
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
-                      l10n.lxPlatformNoSource,
+                      preparing
+                          ? l10n.lxSourcePreparing
+                          : l10n.lxPlatformNoSource,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.typeScale.labelSmall.copyWith(
-                        color: theme.colorScheme.error,
+                        color: preparing
+                            ? theme.colorScheme.onSurfaceVariant
+                            : theme.colorScheme.error,
                       ),
                     ),
                   ),
@@ -1003,19 +1019,17 @@ class _SearchResults extends ConsumerWidget {
           variant: M3ECardVariant.filled,
           itemCount: lxAlbums.length,
           onTap: (int index) {
-            if (!_canPlayLx(ref, lxPlatform)) {
-              _requireLxSource(context, l10n);
-              return;
-            }
             final album = lxAlbums[index];
-            ref
-                .read(playerProvider.notifier)
-                .load(
-                  album.tracks,
-                  0,
-                  source:
-                      '洛雪 · ${lxPlatformLabel(l10n, lxPlatform ?? '')} · ${album.title}',
-                );
+            unawaited(
+              _playLxTracks(
+                context,
+                ref,
+                l10n,
+                lxPlatform,
+                album.tracks,
+                '洛雪 · ${lxPlatformLabel(l10n, lxPlatform ?? '')} · ${album.title}',
+              ),
+            );
           },
           itemBuilder: (BuildContext context, int index) {
             final album = lxAlbums[index];
@@ -1143,19 +1157,17 @@ class _SearchResults extends ConsumerWidget {
           variant: M3ECardVariant.filled,
           itemCount: lxArtists.length,
           onTap: (int index) {
-            if (!_canPlayLx(ref, lxPlatform)) {
-              _requireLxSource(context, l10n);
-              return;
-            }
             final artist = lxArtists[index];
-            ref
-                .read(playerProvider.notifier)
-                .load(
-                  artist.tracks,
-                  0,
-                  source:
-                      '洛雪 · ${lxPlatformLabel(l10n, lxPlatform ?? '')} · ${artist.name}',
-                );
+            unawaited(
+              _playLxTracks(
+                context,
+                ref,
+                l10n,
+                lxPlatform,
+                artist.tracks,
+                '洛雪 · ${lxPlatformLabel(l10n, lxPlatform ?? '')} · ${artist.name}',
+              ),
+            );
           },
           itemBuilder: (BuildContext context, int index) {
             final artist = lxArtists[index];
@@ -1205,12 +1217,20 @@ class _SearchResults extends ConsumerWidget {
 
   /// LX 平台只有在有启用源能解析 `musicUrl` 时才允许起播。
   ///
-  /// 搜索、浏览、加入歌单都不受此限制。
-  bool _canPlayLx(WidgetRef ref, String? lxPlatform) =>
-      lxPlatformCanPlay(ref, lxPlatform);
-
-  void _requireLxSource(BuildContext context, AppLocalizations l10n) {
-    M3ESnackbar.show(context, message: l10n.lxSearchSourceRequired);
+  /// 搜索、浏览、加入歌单都不受此限制；源还在初始化时这里会等待而不是
+  /// 直接判失败（见 [ensureLxPlayable]）。
+  Future<void> _playLxTracks(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+    String? lxPlatform,
+    List<rust.UiTrack> tracks,
+    String source,
+  ) async {
+    if (tracks.isEmpty) return;
+    if (!await ensureLxPlayable(context, ref, lxPlatform, l10n)) return;
+    if (!context.mounted) return;
+    ref.read(playerProvider.notifier).load(tracks, 0, source: source);
   }
 
   void _playLocalAlbum(
@@ -1461,6 +1481,17 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
     });
   }
 
+  /// 播放才需要音源；没有源时给明确提示，初始化中则等待。
+  Future<void> _playTrack(
+    List<rust.UiTrack> tracks,
+    int index,
+    AppLocalizations l10n,
+  ) async {
+    if (!await ensureLxPlayable(context, ref, widget.platform, l10n)) return;
+    if (!mounted) return;
+    ref.read(playerProvider.notifier).load(tracks, index, source: '洛雪');
+  }
+
   Future<void> _loadMore() async {
     if (_loading || _loadingMore || !_hasMore) return;
     // 节流由统一的 LxSearchGate 负责（同平台串行 + 最小间隔），
@@ -1566,19 +1597,7 @@ class _LxPlatformResultsState extends ConsumerState<_LxPlatformResults> {
           color: theme.colorScheme.surface,
           variant: M3ECardVariant.filled,
           itemCount: _tracks.length,
-          onTap: (index) {
-            // 播放才需要音源；没有源时给明确提示，而不是让播放器在后台失败。
-            if (!lxPlatformCanPlay(ref, widget.platform)) {
-              M3ESnackbar.show(
-                context,
-                message: l10n.lxSearchSourceRequired,
-              );
-              return;
-            }
-            ref
-                .read(playerProvider.notifier)
-                .load(tracks, index, source: '洛雪');
-          },
+          onTap: (index) => unawaited(_playTrack(tracks, index, l10n)),
           itemBuilder: (BuildContext context, int index) {
             final track = _tracks[index];
             final quality = lxQualityLabel(l10n, tracks[index]);

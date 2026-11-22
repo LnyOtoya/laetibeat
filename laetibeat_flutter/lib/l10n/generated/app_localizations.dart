@@ -1322,6 +1322,12 @@ abstract class AppLocalizations {
   /// **'Import and enable an LX source that supports this platform to play'**
   String get lxSearchSourceRequired;
 
+  /// No description provided for @lxSourcePreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing the LX source, the first run may take a few seconds…'**
+  String get lxSourcePreparing;
+
   /// No description provided for @lxPlaylistSearchUnsupported.
   ///
   /// In en, this message translates to:
