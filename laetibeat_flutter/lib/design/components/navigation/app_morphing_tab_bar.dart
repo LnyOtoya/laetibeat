@@ -8,7 +8,6 @@ import 'package:material_ui/material_ui.dart';
 import '../../tokens/app_color_tokens.dart';
 import '../../tokens/app_layout_tokens.dart';
 import '../../tokens/app_motion_tokens.dart';
-import '../../tokens/app_shape_tokens.dart';
 import '../../tokens/app_size_tokens.dart';
 import '../../tokens/app_spacing_tokens.dart';
 import '../text/app_text.dart';
@@ -650,47 +649,50 @@ class _TabItem extends StatelessWidget {
       selected: selected,
       label: tab.semanticLabel ?? tab.label,
       onTap: onTap,
-      child: InkWell(
-        onTap: onTap,
-        excludeFromSemantics: true,
-        customBorder: const StadiumBorder(),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: selected
-                    ? scheme.secondaryContainer
-                    : Colors.transparent,
-                borderRadius: AppRadii.fullAll,
-              ),
-              child: SizedBox(
-                width: 48,
-                height: 28,
-                child: Icon(
-                  icon,
-                  size: 22,
-                  color: selected
-                      ? scheme.onSecondaryContainer
-                      : scheme.onSurfaceVariant,
-                ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xs),
+        child: Material(
+          color: selected ? scheme.secondaryContainer : Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          shape: const StadiumBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            excludeFromSemantics: true,
+            customBorder: const StadiumBorder(),
+            splashFactory: NoSplash.splashFactory,
+            highlightColor: Colors.transparent,
+            child: SizedBox.expand(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Icon(
+                    icon,
+                    size: 22,
+                    color: selected
+                        ? scheme.onSecondaryContainer
+                        : scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xxs,
+                    ),
+                    child: AppText(
+                      tab.label,
+                      role: AppTextRole.labelSmall,
+                      colorRole: selected
+                          ? AppColorRole.onSecondaryContainer
+                          : AppColorRole.onSurfaceVariant,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: AppSpacing.xxs),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
-              child: AppText(
-                tab.label,
-                role: AppTextRole.labelSmall,
-                colorRole: selected
-                    ? AppColorRole.onSurface
-                    : AppColorRole.onSurfaceVariant,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

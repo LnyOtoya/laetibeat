@@ -120,6 +120,7 @@
 - [x] 媒体内容：`AppMediaRow`、`AppMediaTile`
 - [x] 反馈：`AppEmptyState`
 - [x] 导航：`AppMorphingTabBar` spring morph（tab pill ↔ search pill、键盘上浮、反向 retarget；M3E 颜色/tab 语义）；已接入 `MobileShell` 的 Home / Library / Stats 与 inline search
+- [x] 导航选中态：整格 pill 同时包住 icon + label，移除 icon-only 小胶囊；InkWell 关闭 splash/highlight，避免点击时大阴影叠加
 - [x] App 根节点接入：`app.dart` 使用 `MaterialYouThemeHost`，关闭 M3E 自带 `dynamicColoring`
 - [x] `AppThemeFactory` 委托到 `lib/design`，不再自写 seed / 字体
 - [x] 验证：`flutter analyze` 无新增问题；`flutter test` 13 个通过（含 gutter 对齐、morphing tab bar 状态/宽度动画/320dp、shell 导航、bottom accessory 与 inline search 回归测试）
