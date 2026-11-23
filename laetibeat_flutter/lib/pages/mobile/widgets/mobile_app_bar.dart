@@ -1,12 +1,6 @@
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../l10n/generated/app_localizations.dart';
-import '../mobile_navigation.dart';
-import '../routes.dart';
-import '../settings/mobile_settings_page.dart';
-import '../settings/sources/mobile_music_sources_page.dart';
-
 /// 移动端页面统一的顶部 AppBar。
 M3EAppBar mobileTopAppBar(
   BuildContext context, {
@@ -39,48 +33,6 @@ Widget mobileTopAppBarTitle(BuildContext context, String text) {
       overflow: TextOverflow.ellipsis,
       style: theme.typeScale.titleLarge.copyWith(
         color: theme.colorScheme.onSurface,
-      ),
-    ),
-  );
-}
-
-/// Home / Library 共用的右侧操作：音乐源配置 + 设置。
-List<Widget> mobileHomeAppBarActions(BuildContext context) {
-  return <Widget>[
-    mobileMusicSourcesAction(context),
-    mobileSettingsAction(context),
-  ];
-}
-
-/// 音乐源配置入口。
-Widget mobileMusicSourcesAction(BuildContext context) {
-  final l10n = AppLocalizations.of(context);
-  return M3EIconButton(
-    variant: M3EIconButtonVariant.standard,
-    icon: const Icon(M3EIcons.cloud),
-    tooltip: l10n.actionMusicSources,
-    onPressed: () => pushMobileRootPage(
-      context,
-      const MobileMusicSourcesPage(),
-      name: MobileRoutes.musicSources,
-    ),
-  );
-}
-
-/// 设置入口。
-Widget mobileSettingsAction(BuildContext context) {
-  return Padding(
-    // M3EAppBar 默认 contentPadding 只有 4，圆形背景视觉上会贴右侧太近。
-    padding: const EdgeInsetsDirectional.only(end: 8),
-    child: M3EIconButton(
-      variant: M3EIconButtonVariant.tonal,
-      shape: M3EIconButtonShapeVariant.round,
-      icon: const Icon(M3EIcons.settings),
-      tooltip: AppLocalizations.of(context).actionSettings,
-      onPressed: () => pushMobileRootPage(
-        context,
-        const MobileSettingsPage(),
-        name: MobileRoutes.settings,
       ),
     ),
   );

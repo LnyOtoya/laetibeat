@@ -37,6 +37,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     AppDestination.home,
     AppDestination.library,
     AppDestination.stats,
+    AppDestination.settings,
   ];
 
   List<AppFloatingNavTab> _destinations(AppLocalizations l10n) {
@@ -56,6 +57,11 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         selectedIcon: M3EIcons.bar_chart,
         label: l10n.statisticsTitle,
       ),
+      AppFloatingNavTab(
+        icon: M3EIcons.settings,
+        selectedIcon: M3EIcons.settings,
+        label: l10n.actionSettings,
+      ),
     ];
   }
 
@@ -69,6 +75,9 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     if (route == MobileRoutes.stats) {
       return AppDestination.stats;
     }
+    if (route == MobileRoutes.settings || route.startsWith('/settings/')) {
+      return AppDestination.settings;
+    }
     return null;
   }
 
@@ -81,6 +90,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       MobileRoutes.libraryArtists,
       MobileRoutes.libraryAlbums,
       MobileRoutes.stats,
+      MobileRoutes.settings,
     };
     return visible.contains(route);
   }
@@ -109,6 +119,17 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       case AppDestination.stats:
         if (current == MobileRoutes.stats) return;
         navigator.pushNamed(MobileRoutes.stats);
+        return;
+      case AppDestination.settings:
+        if (current == MobileRoutes.settings) return;
+        if (current?.startsWith('/settings/') ?? false) {
+          navigator.popUntil(
+            (Route<dynamic> route) =>
+                route.isFirst || route.settings.name == MobileRoutes.settings,
+          );
+          return;
+        }
+        navigator.pushNamed(MobileRoutes.settings);
         return;
       case AppDestination.search:
         _openSearch();

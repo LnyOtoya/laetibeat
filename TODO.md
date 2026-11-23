@@ -229,6 +229,8 @@
 - [x] 新增 `test/app_morphing_tab_bar_accessory_test.dart`：bottom accessory 渲染，搜索态收起并缩短整体高度（旧架构测试，待迁移到 BottomOverlay）
 - [x] `AppMorphingTabBar` 接入 shell：Home / Library / Stats 三个顶层 tab；MiniPlayer 作为 bottom accessory（已被 2026-11-23 独立 BottomOverlay 架构取代，待拆分）
 - [x] 浮动导航改为 `Stack` overlay，移除 `Scaffold.bottomNavigationBar` 的全宽背景板；`AppBottomInsetScope` 为页面提供底部留白（新架构改为页面 full-bleed，`AppBottomInsetScope` 仅保留为可选 floating chrome metrics）
+- [x] 底部导航加入 Settings 顶层 tab；Home/Library AppBar 移除设置与音源入口
+- [x] 设置 > 内容设置新增“音源配置”入口，跳转 `MobileMusicSourcesPage`
 - [x] `AppMorphingTabBar` bottom accessory：搜索态自动收起；extra action 的搜索态收起由 `hideExtraActionWhenSearching` 控制
 - [x] 新增 `MobileSearchInlineView`：复用搜索历史与 `LibrarySearchSuggestions`，搜索框由 shell 的 controller/focusNode 驱动
 - [x] `MobileShell` inline search：搜索态替换 body、`PopScope` 返回关闭、提交后推入现有结果页

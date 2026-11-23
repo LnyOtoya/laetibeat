@@ -12,7 +12,6 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
 import '../search/mobile_search_page.dart';
-import '../widgets/mobile_app_bar.dart';
 import 'mobile_library_subpages.dart';
 
 /// 媒体库首页。
@@ -124,7 +123,6 @@ class MobileLibraryPage extends ConsumerWidget {
         safeArea: true,
         titleText: l10n.libraryTitle,
         subtitleText: subtitle,
-        actions: mobileHomeAppBarActions(context),
       ),
       body: ListView(
         padding: EdgeInsets.only(

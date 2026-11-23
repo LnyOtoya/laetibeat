@@ -6,7 +6,10 @@ import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../widgets/settings/download_settings.dart';
 import '../../../../widgets/settings/lyrics_settings.dart';
 import '../../../../widgets/settings/music_library_provider.dart';
+import '../../mobile_navigation.dart';
+import '../../routes.dart';
 import '../../widgets/mobile_large_subpage_app_bar.dart';
+import '../sources/mobile_music_sources_page.dart';
 
 /// 内容设置子页面。
 class MobileContentSettingsPage extends ConsumerWidget {
@@ -89,8 +92,7 @@ class MobileContentSettingsPage extends ConsumerWidget {
                 M3EButton(
                   style: M3EButtonStyle.tonal,
                   enabled:
-                      library?.directory != null &&
-                      library?.isLoading != true,
+                      library?.directory != null && library?.isLoading != true,
                   label: Text(
                     library?.isLoading == true
                         ? l10n.scanningButton
@@ -123,6 +125,29 @@ class MobileContentSettingsPage extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 24),
+            _ContentGroupTitle('媒体来源'),
+            const SizedBox(height: 8),
+            M3EList(
+              color: theme.colorScheme.surface,
+              variant: M3ECardVariant.filled,
+              onTap: (int index) {
+                if (index == 0) {
+                  pushMobileRootPage(
+                    context,
+                    const MobileMusicSourcesPage(),
+                    name: MobileRoutes.musicSources,
+                  );
+                }
+              },
+              itemCount: 1,
+              itemBuilder: (BuildContext context, int index) {
+                return const M3EListItem(
+                  headline: '音源配置',
+                  supportingText: '管理本地、Subsonic、LX 等音乐来源',
+                );
+              },
+            ),
+            const SizedBox(height: 24),
             _ContentGroupTitle(l10n.downloadDirectory),
             const SizedBox(height: 8),
             M3EList(
@@ -138,8 +163,7 @@ class MobileContentSettingsPage extends ConsumerWidget {
                 return M3EListItem(
                   headline: l10n.downloadDirectory,
                   supportingText:
-                      download.displayName ??
-                      l10n.downloadDirectorySupporting,
+                      download.displayName ?? l10n.downloadDirectorySupporting,
                 );
               },
             ),
@@ -373,10 +397,7 @@ String? _safTreeId(String uri) {
 }
 
 class _LibraryScanCard extends StatelessWidget {
-  const _LibraryScanCard({
-    required this.state,
-    required this.onCancel,
-  });
+  const _LibraryScanCard({required this.state, required this.onCancel});
 
   final MusicLibraryState state;
   final VoidCallback onCancel;
@@ -479,10 +500,7 @@ class _LibraryStatusCard extends StatelessWidget {
       itemCount: 1,
       itemBuilder: (BuildContext context, int index) {
         return M3EListItem(
-          leading: Icon(
-            icon,
-            color: isError ? scheme.error : scheme.primary,
-          ),
+          leading: Icon(icon, color: isError ? scheme.error : scheme.primary),
           headline: text,
         );
       },
