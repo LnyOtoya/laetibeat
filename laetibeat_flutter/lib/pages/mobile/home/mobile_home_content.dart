@@ -10,6 +10,7 @@ import '../../../src/rust/api/simple.dart' as rust;
 import '../../../src/rust/api/subsonic.dart' as rust_subsonic;
 import '../../../widgets/player/cover_provider.dart';
 import '../../../widgets/player/player_provider.dart';
+import '../../../widgets/recommendation_provider.dart';
 import '../../../widgets/remote_browser_provider.dart';
 import '../../../widgets/settings/music_library_provider.dart';
 import '../../../widgets/settings/subsonic_provider.dart';
@@ -37,6 +38,12 @@ class MobileHomeContent extends ConsumerWidget {
         ref.watch(subsonicServersProvider).value ??
         const <SubsonicServerConfig>[];
     final latestAlbums = _latestAlbums(ref, library, servers);
+    final longLostAlbums =
+        ref
+            .watch(albumRecommendationsProvider(RecommendMode.longTimeNoSee))
+            .value ??
+        const <RecommendedAlbum>[];
+    final longLostArtists = _artistsFromRecommendations(longLostAlbums);
 
     return ListView(
       padding: const EdgeInsets.only(
@@ -107,6 +114,30 @@ class MobileHomeContent extends ConsumerWidget {
               ),
             ],
           ),
+        const SizedBox(height: AppSpacing.xl),
+        const AppSectionHeader(title: '重拾旧爱'),
+        if (longLostArtists.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+            child: AppEmptyState(
+              title: '还没有很久没听的艺术家',
+              message: '播放记录积累后会出现在这里',
+              icon: M3EIcons.person,
+            ),
+          )
+        else
+          SizedBox(
+            height: 156,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.zero,
+              itemCount: longLostArtists.length,
+              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
+              itemBuilder: (BuildContext context, int index) {
+                return _LongLostArtist(album: longLostArtists[index]);
+              },
+            ),
+          ),
       ],
     );
   }
@@ -162,6 +193,91 @@ class _ContinueListeningCarousel extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+List<RecommendedAlbum> _artistsFromRecommendations(
+  List<RecommendedAlbum> albums,
+) {
+  final seen = <String>{};
+  final artists = <RecommendedAlbum>[];
+  for (final album in albums) {
+    if (!seen.add(album.artist)) continue;
+    artists.add(album);
+    if (artists.length >= 8) break;
+  }
+  return artists;
+}
+
+class _LongLostArtist extends StatelessWidget {
+  const _LongLostArtist({required this.album});
+
+  final RecommendedAlbum album;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 112,
+      child: Column(
+        children: <Widget>[
+          M3EShapeContainer.cookie9Sided(
+            width: 112,
+            height: 112,
+            color: M3ETheme.of(context).colorScheme.secondaryContainer,
+            child: _RecommendedAlbumCover(album: album),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          AppText(
+            album.artist,
+            role: AppTextRole.labelLarge,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecommendedAlbumCover extends ConsumerWidget {
+  const _RecommendedAlbumCover({required this.album});
+
+  final RecommendedAlbum album;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bytes = _coverBytes(ref);
+    final scheme = M3ETheme.of(context).colorScheme;
+
+    if (bytes == null || bytes.isEmpty) {
+      return Center(
+        child: Icon(
+          M3EIcons.person,
+          size: AppIconSize.xl,
+          color: scheme.onSecondaryContainer,
+        ),
+      );
+    }
+
+    return SizedBox.expand(
+      child: Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
+    );
+  }
+
+  Uint8List? _coverBytes(WidgetRef ref) {
+    final track = album.coverTrack;
+    if (track != null) {
+      return ref.watch(trackCoverProvider(track)).value;
+    }
+    final sourceId = album.remoteSourceId;
+    final coverId = album.remoteCoverId;
+    if (sourceId != null && coverId != null && coverId.isNotEmpty) {
+      return ref
+          .watch(remoteCoverProvider((sourceId: sourceId, coverId: coverId)))
+          .value;
+    }
+    return null;
   }
 }
 
