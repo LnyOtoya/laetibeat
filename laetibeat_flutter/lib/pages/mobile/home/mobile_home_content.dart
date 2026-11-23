@@ -44,6 +44,7 @@ class MobileHomeContent extends ConsumerWidget {
             .value ??
         const <RecommendedAlbum>[];
     final longLostArtists = _artistsFromRecommendations(longLostAlbums);
+    final recommendedTracks = _recommendedTracks(ref);
 
     return ListView(
       padding: const EdgeInsets.only(
@@ -138,6 +139,37 @@ class MobileHomeContent extends ConsumerWidget {
               },
             ),
           ),
+        const SizedBox(height: AppSpacing.xl),
+        const AppSectionHeader(title: '为你推荐'),
+        if (recommendedTracks.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+            child: AppEmptyState(
+              title: '还没有为你推荐的歌曲',
+              message: '播放一些歌曲后，会根据收听记录生成推荐',
+              icon: M3EIcons.music_note,
+            ),
+          )
+        else
+          SizedBox(
+            height: 156,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.zero,
+              itemCount: recommendedTracks.length,
+              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
+              itemBuilder: (BuildContext context, int index) {
+                return _RecommendedSong(
+                  track: recommendedTracks[index],
+                  onTap: () {
+                    ref
+                        .read(playerProvider.notifier)
+                        .load(recommendedTracks, index, source: '为你推荐');
+                  },
+                );
+              },
+            ),
+          ),
       ],
     );
   }
@@ -207,6 +239,60 @@ List<RecommendedAlbum> _artistsFromRecommendations(
     if (artists.length >= 8) break;
   }
   return artists;
+}
+
+List<rust.UiTrack> _recommendedTracks(WidgetRef ref) {
+  final albums =
+      ref
+          .watch(albumRecommendationsProvider(RecommendMode.neverPlayed))
+          .value ??
+      const <RecommendedAlbum>[];
+  final seen = <String>{};
+  final tracks = <rust.UiTrack>[];
+  for (final album in albums) {
+    for (final track in album.tracks) {
+      if (!seen.add(track.id)) continue;
+      tracks.add(track);
+      if (tracks.length >= 10) return tracks;
+    }
+  }
+  return tracks;
+}
+
+class _RecommendedSong extends StatelessWidget {
+  const _RecommendedSong({required this.track, required this.onTap});
+
+  final rust.UiTrack track;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: 112,
+        child: Column(
+          children: <Widget>[
+            M3EShapeContainer.square(
+              width: 112,
+              height: 112,
+              color: M3ETheme.of(context).colorScheme.secondaryContainer,
+              child: _TrackCover(track: track),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            AppText(
+              track.title,
+              role: AppTextRole.labelLarge,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _LongLostArtist extends StatelessWidget {
