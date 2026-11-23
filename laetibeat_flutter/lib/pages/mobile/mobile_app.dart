@@ -15,6 +15,7 @@ import 'mobile_navigation.dart';
 import 'player/mini_player.dart';
 import 'routes.dart';
 import 'search/mobile_search_page.dart';
+import 'settings/appearance/mobile_color_mapping_page.dart';
 import 'settings/content/mobile_content_settings_page.dart';
 import 'settings/mobile_settings_page.dart';
 import 'stats/mobile_stats_page.dart';
@@ -252,6 +253,7 @@ Route<dynamic>? mobileOnGenerateRoute(RouteSettings settings) {
     MobileRoutes.search => const MobileSearchPage(),
     MobileRoutes.stats => const MobileStatsPage(showBackButton: false),
     MobileRoutes.settings => const MobileSettingsPage(),
+    MobileRoutes.colorMapping => const MobileColorMappingPage(),
     MobileRoutes.contentSettings => const MobileContentSettingsPage(),
     _ => const MobileHomePage(),
   };

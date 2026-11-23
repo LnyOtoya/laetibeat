@@ -9,9 +9,12 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../app/app_locale.dart';
 import '../../../../widgets/settings/settings_provider.dart';
 import '../../../../l10n/generated/app_localizations.dart';
+import '../../mobile_navigation.dart';
+import '../../routes.dart';
 import '../../search/search_models.dart';
 import '../../widgets/mobile_large_subpage_app_bar.dart';
 import 'cover_shape_dialog.dart';
+import 'mobile_color_mapping_page.dart';
 
 /// 移动端外观设置子页面。
 class MobileAppearanceSettingsPage extends ConsumerWidget {
@@ -178,9 +181,15 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
                     _pickLanguage(context, ref);
                   case 6:
                     _pickDefaultSearchSource(context, ref);
+                  case 7:
+                    pushMobileRootPage(
+                      context,
+                      const MobileColorMappingPage(),
+                      name: MobileRoutes.colorMapping,
+                    );
                 }
               },
-              itemCount: 7,
+              itemCount: 8,
               itemBuilder: (BuildContext context, int index) {
                 return switch (index) {
                   0 => M3EListItem(
@@ -207,9 +216,13 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
                     headline: l10n.language,
                     supportingText: l10n.languageSupporting,
                   ),
-                  _ => M3EListItem(
+                  6 => M3EListItem(
                     headline: l10n.defaultSearchSource,
                     supportingText: l10n.defaultSearchSourceSupporting,
+                  ),
+                  _ => const M3EListItem(
+                    headline: '当前取色映射',
+                    supportingText: '查看当前主题颜色角色与映射值',
                   ),
                 };
               },
