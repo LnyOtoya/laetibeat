@@ -17,6 +17,7 @@ import '../playlists/playlist_cover.dart';
 import '../playlists/playlist_dialogs.dart';
 import 'package:laetibeat/widgets/player/lx_search_provider.dart';
 import '../playlists/remote_playlist_detail_page.dart';
+import '../library_source_filter.dart';
 import '../widgets/library_layout_control_bar.dart';
 import '../widgets/library_source_badge.dart';
 
@@ -30,13 +31,7 @@ class PlaylistsLibraryView extends ConsumerStatefulWidget {
 }
 
 class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
-  static const String _allSource = '__all__';
-  static const String _localSource = 'local';
-  static const String _remoteSource = 'remote';
-  static const String _lxSource = 'lx';
-
   bool _isGrid = true;
-  String _selectedSource = _allSource;
 
   void _openEntry(_PlaylistEntry entry) {
     final local = entry.local;
@@ -130,10 +125,10 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
         ref.watch(subsonicServersProvider).value ??
         const <SubsonicServerConfig>[];
     final server = servers.isEmpty ? null : servers.first;
+    final filter = ref.watch(librarySourceFilterProvider);
     final localAsync = ref.watch(localPlaylistsProvider);
     final includeRemote =
-        (_selectedSource == _allSource || _selectedSource == _remoteSource) &&
-        server != null;
+        filter == LibrarySourceFilter.navidrome && server != null;
     final remoteAsync = includeRemote
         ? ref.watch(remotePlaylistsProvider(server.id))
         : null;
@@ -141,7 +136,6 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
     final localEntries = (localAsync.value ?? const [])
         .map((playlist) => _PlaylistEntry(local: playlist, sourceId: ''))
         .toList(growable: false);
-    final hasLx = localEntries.any((entry) => _lxSourceOf(entry) != null);
     final remoteEntries =
         remoteAsync?.value
             ?.map(
@@ -151,23 +145,20 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
             .toList(growable: false) ??
         const <_PlaylistEntry>[];
 
-    final filteredLocal = switch (_selectedSource) {
-      _ when _selectedSource == _allSource => localEntries,
-      _ when _selectedSource == _localSource =>
+    final filteredLocal = switch (filter) {
+      LibrarySourceFilter.local =>
         localEntries
             .where((entry) => _lxSourceOf(entry) == null)
             .toList(growable: false),
-      _ when _selectedSource == _remoteSource => const <_PlaylistEntry>[],
-      _ when _selectedSource == _lxSource =>
+      LibrarySourceFilter.navidrome => const <_PlaylistEntry>[],
+      LibrarySourceFilter.lx =>
         localEntries
             .where((entry) => _lxSourceOf(entry) != null)
             .toList(growable: false),
-      _ => const <_PlaylistEntry>[],
     };
     final entries = <_PlaylistEntry>[
       ...filteredLocal,
-      if ((_selectedSource == _allSource || _selectedSource == _remoteSource) &&
-          server != null)
+      if (filter == LibrarySourceFilter.navidrome && server != null)
         ...remoteEntries,
     ];
 
@@ -208,59 +199,15 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: M3EChipGroup(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        M3EChip(
-                          type: M3EChipType.filter,
-                          label: l10n.librarySourceAll,
-                          selected: _selectedSource == _allSource,
-                          onPressed: () => _selectSource(_allSource),
-                        ),
-                        const SizedBox(width: 8),
-                        M3EChip(
-                          type: M3EChipType.filter,
-                          label: l10n.librarySourceLocal,
-                          selected: _selectedSource == _localSource,
-                          onPressed: () => _selectSource(_localSource),
-                        ),
-                        if (server != null) ...[
-                          const SizedBox(width: 8),
-                          M3EChip(
-                            type: M3EChipType.filter,
-                            label: server.name,
-                            selected: _selectedSource == _remoteSource,
-                            onPressed: () => _selectSource(_remoteSource),
-                          ),
-                        ],
-                        if (hasLx) ...[
-                          const SizedBox(width: 8),
-                          M3EChip(
-                            type: M3EChipType.filter,
-                            label: l10n.librarySourceLx,
-                            selected: _selectedSource == _lxSource,
-                            onPressed: () => _selectSource(_lxSource),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              M3EIconButton(
-                variant: M3EIconButtonVariant.tonal,
-                shape: M3EIconButtonShapeVariant.round,
-                icon: const Icon(M3EIcons.add),
-                tooltip: l10n.playlistNew,
-                onPressed: () => _createPlaylist(server),
-              ),
-            ],
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: M3EIconButton(
+              variant: M3EIconButtonVariant.tonal,
+              shape: M3EIconButtonShapeVariant.round,
+              icon: const Icon(M3EIcons.add),
+              tooltip: l10n.playlistNew,
+              onPressed: () => _createPlaylist(server),
+            ),
           ),
         ),
         LibraryLayoutControlBar(
@@ -278,11 +225,6 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
     if (local.source != null) return local.source;
     if (local.coverSource == 'lx') return local.coverSourceId;
     return null;
-  }
-
-  void _selectSource(String source) {
-    if (source == _selectedSource) return;
-    setState(() => _selectedSource = source);
   }
 
   Widget _buildContent(

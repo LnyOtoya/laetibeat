@@ -230,7 +230,8 @@
 - [x] `AppMorphingTabBar` 接入 shell：Home / Library / Stats 三个顶层 tab；MiniPlayer 作为 bottom accessory（已被 2026-11-23 独立 BottomOverlay 架构取代，待拆分）
 - [x] 浮动导航改为 `Stack` overlay，移除 `Scaffold.bottomNavigationBar` 的全宽背景板；`AppBottomInsetScope` 为页面提供底部留白（新架构改为页面 full-bleed，`AppBottomInsetScope` 仅保留为可选 floating chrome metrics）
 - [x] 底部导航加入 Settings 顶层 tab；Home/Library AppBar 移除设置与音源入口
-- [x] 媒体库 AppBar 右侧增加 `m3e_core.M3ESplitButton` 来源选择：本地 / Navidrome / 洛雪，默认本地；滚动时 AppBar 不隐藏；SplitButton 直接使用 intrinsic 宽度，end-aligned 向左扩展；筛选逻辑待接
+- [x] 媒体库 AppBar 右侧增加 `m3e_core.M3ESplitButton` 来源选择：本地 / Navidrome / 洛雪，默认本地；滚动时 AppBar 不隐藏；SplitButton 直接使用 intrinsic 宽度，end-aligned 向左扩展
+- [x] `librarySourceFilterProvider` 串联来源选择：曲库 / 专辑 / 艺术家 / 歌单子页统一读取，不显示各自的来源 chips；本地 / Navidrome / 洛雪分别过滤
 - [x] 媒体库去掉搜索框与旧入口，改为 `M3EExpandableSegmentedItem` 五项：曲库 / 专辑 / 艺术家 / 歌单 / 电台；默认折叠，可展开进入子项；父项 `secondaryContainer` + `onSecondaryContainer` 文本、子项 `surfaceContainer`、选中 `secondaryContainer`
 - [x] 设置 > 内容设置新增“音源配置”入口，跳转 `MobileMusicSourcesPage`
 - [x] `AppMorphingTabBar` bottom accessory：搜索态自动收起；extra action 的搜索态收起由 `hideExtraActionWhenSearching` 控制

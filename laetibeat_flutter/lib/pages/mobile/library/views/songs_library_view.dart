@@ -6,12 +6,12 @@ import 'package:laetibeat/widgets/player/player_provider.dart';
 import 'package:laetibeat/widgets/remote_browser_provider.dart';
 import 'package:laetibeat/widgets/settings/music_library_provider.dart';
 import 'package:laetibeat/widgets/settings/song_sort_settings.dart';
-import 'package:laetibeat/widgets/settings/song_source_settings.dart';
 import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../l10n/generated/app_localizations.dart';
+import '../library_source_filter.dart';
 import '../playlists/playlist_actions.dart';
 
 /// 歌曲分类内容。
@@ -23,11 +23,6 @@ class SongsLibraryView extends ConsumerStatefulWidget {
 }
 
 class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
-  static const String _allSource = '__all__';
-  static const String _localSource = SongSources.local;
-  static const String _subsonicSource = SongSources.subsonic;
-
-  late String _selectedSource;
   final Set<String> _selectedTrackIds = <String>{};
   final Set<String> _dismissedTrackIds = <String>{};
   late final M3EToolbarVisibilityController _toolbarVisibilityController;
@@ -36,11 +31,6 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
   @override
   void initState() {
     super.initState();
-    _selectedSource = switch (ref.read(defaultSongSourceProvider)) {
-      SongSources.local => _localSource,
-      SongSources.subsonic => _subsonicSource,
-      _ => _allSource,
-    };
     _toolbarVisibilityController = M3EToolbarVisibilityController();
     _toolbarScrollBehavior = M3EToolbarScrollBehavior.exitAlways(
       exitDirection: M3EToolbarExitDirection.top,
@@ -79,10 +69,9 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
 
   List<rust.UiTrack> _currentTracks() {
     final tracks = <rust.UiTrack>[];
-    final includeLocal =
-        _selectedSource == _allSource || _selectedSource == _localSource;
-    final includeRemote =
-        _selectedSource == _allSource || _selectedSource == _subsonicSource;
+    final filter = ref.read(librarySourceFilterProvider);
+    final includeLocal = filter == LibrarySourceFilter.local;
+    final includeRemote = filter == LibrarySourceFilter.navidrome;
 
     if (includeLocal) {
       tracks.addAll(
@@ -111,16 +100,17 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
   }
 
   String get _playbackSourceName {
-    if (_selectedSource == _allSource) {
-      return AppLocalizations.of(context).libraryAllSongs;
-    }
-    if (_selectedSource == _localSource) {
+    final filter = ref.read(librarySourceFilterProvider);
+    if (filter == LibrarySourceFilter.local) {
       return AppLocalizations.of(context).librarySourceLocal;
+    }
+    if (filter == LibrarySourceFilter.lx) {
+      return AppLocalizations.of(context).librarySourceLx;
     }
     final servers =
         ref.read(subsonicServersProvider).value ??
         const <SubsonicServerConfig>[];
-    return servers.isEmpty ? _selectedSource : servers.first.name;
+    return servers.isEmpty ? 'Navidrome' : servers.first.name;
   }
 
   void _playTracks(List<rust.UiTrack> tracks, int index) {
@@ -161,15 +151,6 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
     _clearSelection();
   }
 
-  void _selectSource(String source) {
-    if (source == _selectedSource) return;
-    setState(() {
-      _selectedSource = source;
-      _selectedTrackIds.clear();
-      _dismissedTrackIds.clear();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
@@ -187,40 +168,6 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: M3EChipGroup(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      M3EChip(
-                        type: M3EChipType.filter,
-                        label: l10n.librarySourceAll,
-                        selected: _selectedSource == _allSource,
-                        onPressed: () => _selectSource(_allSource),
-                      ),
-                      const SizedBox(width: 8),
-                      M3EChip(
-                        type: M3EChipType.filter,
-                        label: l10n.librarySourceLocal,
-                        selected: _selectedSource == _localSource,
-                        onPressed: () => _selectSource(_localSource),
-                      ),
-                      if (server != null) ...[
-                        const SizedBox(width: 8),
-                        M3EChip(
-                          type: M3EChipType.filter,
-                          label: server.name,
-                          selected: _selectedSource == _subsonicSource,
-                          onPressed: () => _selectSource(_subsonicSource),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(
@@ -391,10 +338,9 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
     SubsonicServerConfig? server,
   ) {
     final l10n = AppLocalizations.of(context);
-    final includeLocal =
-        _selectedSource == _allSource || _selectedSource == _localSource;
-    final includeRemote =
-        _selectedSource == _allSource || _selectedSource == _subsonicSource;
+    final filter = ref.watch(librarySourceFilterProvider);
+    final includeLocal = filter == LibrarySourceFilter.local;
+    final includeRemote = filter == LibrarySourceFilter.navidrome;
 
     final localTracks = includeLocal
         ? (localState?.tracks ?? const <rust.UiTrack>[])
@@ -458,7 +404,7 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
         return _buildTrackList(
           theme,
           tracks,
-          _selectedSource == _subsonicSource
+          filter == LibrarySourceFilter.navidrome
               ? l10n.noRemoteSongsScan
               : l10n.noSongs,
         );

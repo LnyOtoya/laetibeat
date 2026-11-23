@@ -12,6 +12,7 @@ import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
+import 'library_source_filter.dart';
 import 'mobile_library_subpages.dart';
 
 /// 媒体库首页。
@@ -186,45 +187,32 @@ class MobileLibraryPage extends ConsumerWidget {
   }
 }
 
-class _LibrarySourceSplitButton extends StatefulWidget {
+class _LibrarySourceSplitButton extends ConsumerWidget {
   const _LibrarySourceSplitButton();
 
   @override
-  State<_LibrarySourceSplitButton> createState() =>
-      _LibrarySourceSplitButtonState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filter = ref.watch(librarySourceFilterProvider);
 
-class _LibrarySourceSplitButtonState extends State<_LibrarySourceSplitButton> {
-  static const String _local = '本地';
-  static const String _navidrome = 'Navidrome';
-  static const String _lx = '洛雪';
-
-  String _selected = _local;
-
-  @override
-  Widget build(BuildContext context) {
-    // The app bar action row is end-aligned with an intrinsic-width child, so
-    // a longer label naturally grows toward the left instead of overflowing.
-    return m3e_core.M3ESplitButton<String>(
+    return m3e_core.M3ESplitButton<LibrarySourceFilter>(
       style: m3e_core.M3EButtonStyle.tonal,
       size: m3e_core.M3EButtonSize.md,
       shape: m3e_core.M3EButtonShape.round,
-      label: _selected,
-      selectedValue: _selected,
+      label: filter.label,
+      selectedValue: filter,
       leadingTooltip: '当前来源',
       trailingTooltip: '选择来源',
       decoration: m3e_core.M3ESplitButtonDecoration.styleFrom(),
-      items: const <m3e_core.M3ESplitButtonItem<String>>[
-        m3e_core.M3ESplitButtonItem<String>(value: _local, child: Text(_local)),
-        m3e_core.M3ESplitButtonItem<String>(
-          value: _navidrome,
-          child: Text(_navidrome),
-        ),
-        m3e_core.M3ESplitButtonItem<String>(value: _lx, child: Text(_lx)),
+      items: <m3e_core.M3ESplitButtonItem<LibrarySourceFilter>>[
+        for (final value in LibrarySourceFilter.values)
+          m3e_core.M3ESplitButtonItem<LibrarySourceFilter>(
+            value: value,
+            child: Text(value.label),
+          ),
       ],
       onPressed: () {},
-      onSelected: (String value) {
-        setState(() => _selected = value);
+      onSelected: (LibrarySourceFilter value) {
+        ref.read(librarySourceFilterProvider.notifier).select(value);
       },
     );
   }

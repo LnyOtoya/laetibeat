@@ -14,6 +14,7 @@ import '../../mobile_navigation.dart';
 import '../../routes.dart';
 import '../albums/album_detail_page.dart';
 import '../albums/local_album_detail_page.dart';
+import '../library_source_filter.dart';
 import '../widgets/library_layout_control_bar.dart';
 import '../widgets/library_source_badge.dart';
 
@@ -26,12 +27,7 @@ class AlbumsLibraryView extends ConsumerStatefulWidget {
 }
 
 class _AlbumsLibraryViewState extends ConsumerState<AlbumsLibraryView> {
-  static const String _allSource = '__all__';
-  static const String _localSource = 'local';
-  static const String _remoteSource = 'remote';
-
   bool _isGrid = true;
-  String _selectedSource = _allSource;
 
   void _openEntry(_AlbumEntry entry) {
     final local = entry.local;
@@ -63,9 +59,9 @@ class _AlbumsLibraryViewState extends ConsumerState<AlbumsLibraryView> {
         ref.watch(subsonicServersProvider).value ??
         const <SubsonicServerConfig>[];
     final server = servers.isEmpty ? null : servers.first;
+    final filter = ref.watch(librarySourceFilterProvider);
     final includeRemote =
-        (_selectedSource == _allSource || _selectedSource == _remoteSource) &&
-        server != null;
+        filter == LibrarySourceFilter.navidrome && server != null;
 
     final localEntries = _localEntries(localState);
     final remoteAsync = includeRemote
@@ -76,10 +72,8 @@ class _AlbumsLibraryViewState extends ConsumerState<AlbumsLibraryView> {
         : _remoteEntries(server.id, remoteAsync.value);
 
     final entries = <_AlbumEntry>[
-      if (_selectedSource == _allSource || _selectedSource == _localSource)
-        ...localEntries,
-      if ((_selectedSource == _allSource || _selectedSource == _remoteSource) &&
-          server != null)
+      if (filter == LibrarySourceFilter.local) ...localEntries,
+      if (filter == LibrarySourceFilter.navidrome && server != null)
         ...remoteEntries,
     ];
 
@@ -130,40 +124,6 @@ class _AlbumsLibraryViewState extends ConsumerState<AlbumsLibraryView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: M3EChipGroup(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  M3EChip(
-                    type: M3EChipType.filter,
-                    label: l10n.librarySourceAll,
-                    selected: _selectedSource == _allSource,
-                    onPressed: () => _selectSource(_allSource),
-                  ),
-                  const SizedBox(width: 8),
-                  M3EChip(
-                    type: M3EChipType.filter,
-                    label: l10n.librarySourceLocal,
-                    selected: _selectedSource == _localSource,
-                    onPressed: () => _selectSource(_localSource),
-                  ),
-                  if (server != null) ...[
-                    const SizedBox(width: 8),
-                    M3EChip(
-                      type: M3EChipType.filter,
-                      label: server.name,
-                      selected: _selectedSource == _remoteSource,
-                      onPressed: () => _selectSource(_remoteSource),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
         LibraryLayoutControlBar(
           isGrid: _isGrid,
           onToggleLayout: () => setState(() => _isGrid = !_isGrid),
@@ -171,11 +131,6 @@ class _AlbumsLibraryViewState extends ConsumerState<AlbumsLibraryView> {
         Expanded(child: content),
       ],
     );
-  }
-
-  void _selectSource(String source) {
-    if (source == _selectedSource) return;
-    setState(() => _selectedSource = source);
   }
 
   List<_AlbumEntry> _localEntries(MusicLibraryState? state) {
