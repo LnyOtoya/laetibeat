@@ -216,6 +216,7 @@
 - [x] 在可用 Flutter 环境复验 `flutter analyze` / `flutter test`（2026-11-22；analyze 剩余 6 条均为既有 warning/info，`lib/design/` 无新增问题；test 14 个通过）
 - [x] 设计系统 token 化：`lib/design/` 新增颜色/字体/间距/圆角/尺寸/动效/断点 token；`AppTheme` 成为 `M3EThemeData` 唯一入口
 - [x] Material You 官方取色：接入 `material_color_utilities` + `dynamic_color`，`MaterialYouColorScheme` 从官方 `DynamicScheme` 解析全部角色，`MaterialYouThemeHost` 使用系统 CorePalette；关闭 M3E 自带 `dynamicColoring`
+- [x] 优先读取 Android 最终 system color resources（`system_primary_light` 等）：Kotlin MethodChannel `com.otimeum.laetibeat/system_colors` + `SystemColorSource`；`MaterialYouColorScheme.fromSystemRoles` 直接映射标准角色；失败回退 CorePalette / accent seed
 - [x] 页面 gutter 契约：`AppLayout.pageGutter` + `AppPageBody` 作为唯一水平 inset；`AppScaffold` 默认套用；`AppSectionHeader` / `AppMediaRow` / `AppEmptyState` 默认水平 padding 归零
 - [x] 基础组件拆分：`AppArtwork`（尺寸/形状/占位）、`AppText`、`AppSurface`、`AppMediaRow`、`AppMediaTile`、`AppEmptyState`
 - [x] 新增 `test/design_system_smoke_test.dart`：Material You light/dark 角色、主题宿主渲染、Section 与 MediaRow 左边缘对齐

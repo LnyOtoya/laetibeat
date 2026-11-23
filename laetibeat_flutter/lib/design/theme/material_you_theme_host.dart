@@ -3,6 +3,7 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_color_utilities/material_color_utilities.dart' as mcu;
 import 'package:material_ui/material_ui.dart';
@@ -10,6 +11,7 @@ import 'package:material_ui/material_ui.dart';
 import '../tokens/app_color_tokens.dart';
 import 'app_theme.dart';
 import 'material_you_color.dart';
+import 'system_color_source.dart';
 
 /// Provides the app's [M3ETheme] from the OS Material You palette.
 ///
@@ -41,6 +43,7 @@ class _MaterialYouThemeHostState extends State<MaterialYouThemeHost>
     with WidgetsBindingObserver {
   mcu.CorePalette? _corePalette;
   Color? _accentColor;
+  SystemColorRoles? _systemRoles;
 
   @override
   void initState() {
@@ -63,6 +66,15 @@ class _MaterialYouThemeHostState extends State<MaterialYouThemeHost>
   }
 
   Future<void> _loadDynamicColors() async {
+    // Prefer the finalized Android role resources used by Compose. They avoid
+    // re-deriving accent tones from the five CorePalette palettes.
+    final systemRoles = await SystemColorSource.load();
+    if (!mounted) return;
+    if (systemRoles != null) {
+      setState(() => _systemRoles = systemRoles);
+      return;
+    }
+
     try {
       final palette = await DynamicColorPlugin.getCorePalette();
       if (!mounted) return;
@@ -89,7 +101,23 @@ class _MaterialYouThemeHostState extends State<MaterialYouThemeHost>
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
 
-    final colorScheme = _corePalette != null
+    final systemRoles = _systemRoles?.forBrightness(brightness);
+    if (kDebugMode) {
+      final source = systemRoles != null && systemRoles.isNotEmpty
+          ? 'system'
+          : _corePalette != null
+          ? 'corePalette'
+          : 'seed';
+      debugPrint(
+        '[theme] dynamic source=$source brightness=${brightness.name}',
+      );
+    }
+    final colorScheme = systemRoles != null && systemRoles.isNotEmpty
+        ? MaterialYouColorScheme.fromSystemRoles(
+            systemRoles,
+            brightness: brightness,
+          )
+        : _corePalette != null
         ? MaterialYouColorScheme.fromCorePalette(
             _corePalette!,
             brightness: brightness,

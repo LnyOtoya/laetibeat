@@ -68,6 +68,61 @@ abstract final class MaterialYouColorScheme {
     return _toExpressive(scheme);
   }
 
+  /// Builds the expressive scheme from final Android system roles.
+  ///
+  /// Android/Compose reads finalized resource values such as
+  /// `system_primary_light`; they are more accurate than re-deriving every
+  /// accent from the CorePalette. Missing roles fall back to a seed scheme.
+  static M3EColorScheme fromSystemRoles(
+    Map<String, Color> roles, {
+    required Brightness brightness,
+  }) {
+    final primary = roles['primary'] ?? const Color(0xFF6750A4);
+    final base = ColorScheme.fromSeed(
+      seedColor: primary,
+      brightness: brightness,
+    );
+
+    final resolved = base.copyWith(
+      primary: roles['primary'],
+      onPrimary: roles['onPrimary'],
+      primaryContainer: roles['primaryContainer'],
+      onPrimaryContainer: roles['onPrimaryContainer'],
+      secondary: roles['secondary'],
+      onSecondary: roles['onSecondary'],
+      secondaryContainer: roles['secondaryContainer'],
+      onSecondaryContainer: roles['onSecondaryContainer'],
+      tertiary: roles['tertiary'],
+      onTertiary: roles['onTertiary'],
+      tertiaryContainer: roles['tertiaryContainer'],
+      onTertiaryContainer: roles['onTertiaryContainer'],
+      error: roles['error'],
+      onError: roles['onError'],
+      errorContainer: roles['errorContainer'],
+      onErrorContainer: roles['onErrorContainer'],
+      surface: roles['surface'],
+      onSurface: roles['onSurface'],
+      onSurfaceVariant: roles['onSurfaceVariant'],
+      surfaceContainerLowest: roles['surfaceContainerLowest'],
+      surfaceContainerLow: roles['surfaceContainerLow'],
+      surfaceContainer: roles['surfaceContainer'],
+      surfaceContainerHigh: roles['surfaceContainerHigh'],
+      surfaceContainerHighest: roles['surfaceContainerHighest'],
+      surfaceDim: roles['surfaceDim'],
+      surfaceBright: roles['surfaceBright'],
+      outline: roles['outline'],
+      outlineVariant: roles['outlineVariant'],
+      inverseSurface: roles['inverseSurface'],
+      onInverseSurface: roles['onInverseSurface'],
+      inversePrimary: roles['inversePrimary'],
+      shadow: roles['shadow'],
+      scrim: roles['scrim'],
+      surfaceTint: roles['surfaceTint'],
+    );
+
+    return M3EColorScheme.fromColorScheme(resolved).harmonized();
+  }
+
   static mcu.DynamicScheme _schemeFromSeed({
     required Color seed,
     required Brightness brightness,
