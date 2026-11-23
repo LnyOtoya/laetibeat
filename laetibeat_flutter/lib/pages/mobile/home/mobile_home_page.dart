@@ -16,6 +16,13 @@ class MobileHomePage extends StatefulWidget {
 }
 
 class _MobileHomePageState extends State<MobileHomePage> {
+  static final Size _appBarSize = M3EAppBar.top(
+    variant: M3EAppBarVariant.largeFlexible,
+    density: M3EAppBarDensity.regular,
+    shapeFamily: M3EAppBarShapeFamily.square,
+    safeArea: true,
+  ).preferredSize;
+
   final M3EAppBarController _appBarController = M3EAppBarController();
 
   @override
@@ -30,75 +37,93 @@ class _MobileHomePageState extends State<MobileHomePage> {
     final scheme = M3ETheme.of(context).colorScheme;
 
     return AppScaffold(
-      background: AppSurfaceLevel.container,
+      background: AppSurfaceLevel.base,
       applyPageGutter: false,
       safeArea: false,
-      appBar: M3EAppBar.top(
-        backgroundColor: AppSurfaceLevel.container.resolve(scheme),
-        controller: _appBarController,
-        variant: M3EAppBarVariant.largeFlexible,
-        density: M3EAppBarDensity.regular,
-        shapeFamily: M3EAppBarShapeFamily.square,
-        safeArea: true,
-        hideOnScroll: false,
-        hideMode: M3EAppBarHideMode.none,
-        title: AnimatedBuilder(
+      appBar: PreferredSize(
+        preferredSize: _appBarSize,
+        child: AnimatedBuilder(
           animation: _appBarController,
           builder: (BuildContext context, Widget? child) {
-            return AnimatedSwitcher(
-              duration: const Duration(milliseconds: 260),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              layoutBuilder:
-                  (Widget? currentChild, List<Widget> previousChildren) {
-                    return Stack(
-                      alignment: Alignment.centerLeft,
-                      children: <Widget>[...previousChildren, ?currentChild],
-                    );
-                  },
-              transitionBuilder: (Widget child, Animation<double> animation) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.08),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                );
-              },
-              child: _appBarController.isCollapsed
-                  ? Column(
-                      key: const ValueKey<String>('collapsed'),
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          '首页',
-                          style: M3ETheme.of(context).typeScale.titleLarge
-                              .copyWith(
-                                color: DefaultTextStyle.of(context).style.color,
+            return M3EAppBar.top(
+              backgroundColor:
+                  (_appBarController.isCollapsed
+                          ? AppSurfaceLevel.container
+                          : AppSurfaceLevel.base)
+                      .resolve(scheme),
+              controller: _appBarController,
+              variant: M3EAppBarVariant.largeFlexible,
+              density: M3EAppBarDensity.regular,
+              shapeFamily: M3EAppBarShapeFamily.square,
+              safeArea: true,
+              hideOnScroll: false,
+              hideMode: M3EAppBarHideMode.none,
+              title: AnimatedBuilder(
+                animation: _appBarController,
+                builder: (BuildContext context, Widget? child) {
+                  return AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 260),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    layoutBuilder:
+                        (Widget? currentChild, List<Widget> previousChildren) {
+                          return Stack(
+                            alignment: Alignment.centerLeft,
+                            children: <Widget>[
+                              ...previousChildren,
+                              ?currentChild,
+                            ],
+                          );
+                        },
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, 0.08),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          );
+                        },
+                    child: _appBarController.isCollapsed
+                        ? Column(
+                            key: const ValueKey<String>('collapsed'),
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                '首页',
+                                style: M3ETheme.of(context).typeScale.titleLarge
+                                    .copyWith(
+                                      color: DefaultTextStyle.of(
+                                        context,
+                                      ).style.color,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        AppText(
-                          '浏览音乐库近况',
-                          role: AppTextRole.bodySmall,
-                          colorRole: AppColorRole.onSurfaceVariant,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    )
-                  : const Text(
-                      '继续听',
-                      key: ValueKey<String>('expanded'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                              const SizedBox(height: 2),
+                              AppText(
+                                '浏览音乐库近况',
+                                role: AppTextRole.bodySmall,
+                                colorRole: AppColorRole.onSurfaceVariant,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          )
+                        : const Text(
+                            '继续听',
+                            key: ValueKey<String>('expanded'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                  );
+                },
+              ),
             );
           },
         ),

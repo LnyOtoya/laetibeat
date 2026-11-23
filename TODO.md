@@ -115,6 +115,9 @@
 
 - [x] 备份旧 `MobileHomeContent` 到 `backup/home/2026-11-23/`
 - [x] 首页 gutter token 化：普通 section 使用 `AppLayout.gutterFor(width)`（手机 16）；继续听 carousel 使用 `AppLayout.carouselGutter = 8`；Home 页禁用 `AppPageBody` 全局 gutter，各 section 自行应用
+- [x] 最新添加 / 重拾旧爱 / 为你推荐 header 使用 `AppInsets.sectionHeader`：上 8、下 16
+- [x] Home 页面背景改为 `surface`（`AppSurfaceLevel.base`）；AppBar 展开时 `surface`，折叠时 `surfaceContainer`
+- [x] Home 文本颜色全部走主题 role：主文本 `onSurface`，副标题/来源/时间 `onSurfaceVariant`；封面标题和 carousel 歌名不再硬编码白色；专辑封面底部 scrim 改用 `surface` 动态色
 - [x] 顶部改为 `M3ECarousel`（hero-left、横向）：首张更宽，item gap 不变
 - [x] Home 顶部改用 `M3EAppBar.top`：largeFlexible、regular、square、safeArea、默认展开、滚动不隐藏；展开标题“继续听”，折叠标题“首页”并在下方显示 subtitle“浏览音乐库近况”，使用 260ms fade + slide 过渡；折叠标题显式使用 `titleLarge`，避免过渡瞬间仍继承 `displaySmall` 导致标题块溢出
 - [x] 轮播图卡片内不再显示 `继续听`，只保留歌曲名

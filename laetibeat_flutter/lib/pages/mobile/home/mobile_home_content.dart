@@ -28,7 +28,6 @@ class MobileHomeContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = M3ETheme.of(context);
     final double pageGutter = AppLayout.gutterFor(
       MediaQuery.sizeOf(context).width,
     );
@@ -77,10 +76,6 @@ class MobileHomeContent extends ConsumerWidget {
               child: _ContinueListeningCarousel(
                 queue: queue,
                 currentIndex: player.$2.clamp(0, queue.length - 1),
-                subtitleStyle: theme.typeScale.titleMedium.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
                 onTrackSelected: (int index) {
                   ref.read(playerProvider.notifier).play(index);
                 },
@@ -102,7 +97,10 @@ class MobileHomeContent extends ConsumerWidget {
         const SizedBox(height: AppSpacing.xl),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: pageGutter),
-          child: const AppSectionHeader(title: _latestTitle),
+          child: const AppSectionHeader(
+            title: _latestTitle,
+            padding: AppInsets.sectionHeader,
+          ),
         ),
         if (latestAlbums.isEmpty)
           Padding(
@@ -144,7 +142,10 @@ class MobileHomeContent extends ConsumerWidget {
         const SizedBox(height: AppSpacing.xl),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: pageGutter),
-          child: const AppSectionHeader(title: '重拾旧爱'),
+          child: const AppSectionHeader(
+            title: '重拾旧爱',
+            padding: AppInsets.sectionHeader,
+          ),
         ),
         if (longLostArtists.isEmpty)
           Padding(
@@ -174,7 +175,10 @@ class MobileHomeContent extends ConsumerWidget {
         const SizedBox(height: AppSpacing.xl),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: pageGutter),
-          child: const AppSectionHeader(title: '为你推荐'),
+          child: const AppSectionHeader(
+            title: '为你推荐',
+            padding: AppInsets.sectionHeader,
+          ),
         ),
         if (recommendedTracks.isEmpty)
           Padding(
@@ -235,13 +239,11 @@ class _ContinueListeningCarousel extends StatelessWidget {
   const _ContinueListeningCarousel({
     required this.queue,
     required this.currentIndex,
-    required this.subtitleStyle,
     required this.onTrackSelected,
   });
 
   final List<rust.UiTrack> queue;
   final int currentIndex;
-  final TextStyle subtitleStyle;
   final ValueChanged<int> onTrackSelected;
 
   @override
@@ -265,9 +267,10 @@ class _ContinueListeningCarousel extends StatelessWidget {
           M3ECarouselItem(
             image: _TrackCover(track: queue[indices[position]]),
             applyDynamicTextContentTransform: false,
-            subtitle: Text(
+            subtitle: AppText(
               queue[indices[position]].title,
-              style: subtitleStyle,
+              role: AppTextRole.titleMedium,
+              colorRole: AppColorRole.onSurface,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -609,20 +612,19 @@ class _LatestAlbumCard extends StatelessWidget {
                         end: Alignment.bottomCenter,
                         colors: <Color>[
                           Colors.transparent,
-                          Colors.black.withValues(alpha: 0.72),
+                          theme.colorScheme.surface.withValues(alpha: 0.88),
                         ],
                       ),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Text(
+                      child: AppText(
                         album.title,
+                        role: AppTextRole.titleMedium,
+                        colorRole: AppColorRole.onSurface,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.typeScale.titleMedium.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),

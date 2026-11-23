@@ -34,4 +34,10 @@ abstract final class AppInsets {
     horizontal: AppSpacing.md,
     vertical: AppSpacing.sm,
   );
+
+  /// Section header padding: 8dp above the title, 16dp below to content.
+  static const EdgeInsets sectionHeader = EdgeInsets.only(
+    top: AppSpacing.sm,
+    bottom: AppSpacing.lg,
+  );
 }
