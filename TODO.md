@@ -232,9 +232,11 @@
 - [x] 浮动导航改为 `Stack` overlay，移除 `Scaffold.bottomNavigationBar` 的全宽背景板；`AppBottomInsetScope` 为页面提供底部留白（新架构改为页面 full-bleed，`AppBottomInsetScope` 仅保留为可选 floating chrome metrics）
 - [x] 底部导航加入 Settings 顶层 tab；Home/Library AppBar 移除设置与音源入口
 - [x] 媒体库 AppBar 右侧增加 `m3e_core.M3ESplitButton` 来源选择：本地 / Navidrome / 洛雪，默认本地；滚动时 AppBar 不隐藏；SplitButton 直接使用 intrinsic 宽度，end-aligned 向左扩展
-- [x] `librarySourceFilterProvider` 串联来源选择：曲库 / 专辑 / 艺术家 / 歌单子页统一读取，不显示各自的来源 chips；本地 / Navidrome / 洛雪分别过滤
+- [x] `librarySourceFilterProvider` 改为派生自外观设置 `defaultSongSourceProvider`：右上角 SplitButton 与设置页歌曲来源双向同步；支持全部 / 本地 / Navidrome / 洛雪
+- [x] `SongSources.all` 增加洛雪；曲库 / 专辑 / 艺术家 / 歌单子页统一读取来源过滤，不显示各自 chips
 - [x] 设置 > 外观新增“当前取色映射”：白底页面列出 M3EColorScheme 全部角色、名称与 ARGB 值，路由 `/settings/appearance/color-mapping`
-- [x] 媒体库去掉搜索框与旧入口，改为 `M3EExpandableSegmentedItem` 五项：曲库 / 专辑 / 艺术家 / 歌单 / 电台；默认折叠，可展开进入子项；颜色恢复为 `M3EExpandableSegmentedItem` 组件默认映射（父项 `surfaceContainer`、子项 `surfaceContainerLow`、选中 `secondaryContainer`）
+- [x] 媒体库去掉搜索框与旧入口，改为 `M3EExpandableSegmentedItem` 五项：曲库 / 专辑 / 艺术家 / 歌单 / 电台；默认折叠，可展开进入子项；颜色恢复为组件默认映射
+- [x] Segment 展开内容改为自适应横向封面行：`M3EShapeContainer.square` 64dp，根据可用宽度计算显示个数，不横向滚动；点击 header / 内容区均展开折叠，最右侧 icon-only 圆形按钮进入详情页
 - [x] 设置 > 内容设置新增“音源配置”入口，跳转 `MobileMusicSourcesPage`
 - [x] `AppMorphingTabBar` bottom accessory：搜索态自动收起；extra action 的搜索态收起由 `hideExtraActionWhenSearching` 控制
 - [x] 新增 `MobileSearchInlineView`：复用搜索历史与 `LibrarySearchSuggestions`，搜索框由 shell 的 controller/focusNode 驱动

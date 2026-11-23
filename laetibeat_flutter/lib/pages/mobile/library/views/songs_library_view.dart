@@ -70,8 +70,12 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
   List<rust.UiTrack> _currentTracks() {
     final tracks = <rust.UiTrack>[];
     final filter = ref.read(librarySourceFilterProvider);
-    final includeLocal = filter == LibrarySourceFilter.local;
-    final includeRemote = filter == LibrarySourceFilter.navidrome;
+    final includeLocal =
+        filter == LibrarySourceFilter.local ||
+        filter == LibrarySourceFilter.all;
+    final includeRemote =
+        filter == LibrarySourceFilter.navidrome ||
+        filter == LibrarySourceFilter.all;
 
     if (includeLocal) {
       tracks.addAll(
@@ -101,6 +105,9 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
 
   String get _playbackSourceName {
     final filter = ref.read(librarySourceFilterProvider);
+    if (filter == LibrarySourceFilter.all) {
+      return AppLocalizations.of(context).libraryAllSongs;
+    }
     if (filter == LibrarySourceFilter.local) {
       return AppLocalizations.of(context).librarySourceLocal;
     }
@@ -339,8 +346,12 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
   ) {
     final l10n = AppLocalizations.of(context);
     final filter = ref.watch(librarySourceFilterProvider);
-    final includeLocal = filter == LibrarySourceFilter.local;
-    final includeRemote = filter == LibrarySourceFilter.navidrome;
+    final includeLocal =
+        filter == LibrarySourceFilter.local ||
+        filter == LibrarySourceFilter.all;
+    final includeRemote =
+        filter == LibrarySourceFilter.navidrome ||
+        filter == LibrarySourceFilter.all;
 
     final localTracks = includeLocal
         ? (localState?.tracks ?? const <rust.UiTrack>[])

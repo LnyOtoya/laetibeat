@@ -62,7 +62,9 @@ class _ArtistsLibraryViewState extends ConsumerState<ArtistsLibraryView> {
     final filter = ref.watch(librarySourceFilterProvider);
 
     final includeRemote =
-        filter == LibrarySourceFilter.navidrome && server != null;
+        (filter == LibrarySourceFilter.navidrome ||
+            filter == LibrarySourceFilter.all) &&
+        server != null;
 
     final localEntries = _localEntries(localState);
     final remoteAsync = includeRemote
@@ -73,8 +75,12 @@ class _ArtistsLibraryViewState extends ConsumerState<ArtistsLibraryView> {
         : _remoteEntries(server.id, remoteAsync.value);
 
     final entries = <_ArtistEntry>[
-      if (filter == LibrarySourceFilter.local) ...localEntries,
-      if (filter == LibrarySourceFilter.navidrome && server != null)
+      if (filter == LibrarySourceFilter.local ||
+          filter == LibrarySourceFilter.all)
+        ...localEntries,
+      if ((filter == LibrarySourceFilter.navidrome ||
+              filter == LibrarySourceFilter.all) &&
+          server != null)
         ...remoteEntries,
     ];
 

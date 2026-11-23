@@ -1,27 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../widgets/settings/song_source_settings.dart';
+
 /// Library source selected from the Media Library app bar.
 ///
-/// Child pages read this provider instead of showing their own filter chips.
-enum LibrarySourceFilter { local, navidrome, lx }
+/// This is a projection of the persisted appearance setting
+/// `defaultSongSourceProvider`; child pages read it instead of showing their
+/// own filter chips.
+enum LibrarySourceFilter { all, local, navidrome, lx }
 
-class LibrarySourceFilterNotifier extends Notifier<LibrarySourceFilter> {
-  @override
-  LibrarySourceFilter build() => LibrarySourceFilter.local;
-
-  void select(LibrarySourceFilter source) {
-    if (source == state) return;
-    state = source;
-  }
-}
-
-final librarySourceFilterProvider =
-    NotifierProvider<LibrarySourceFilterNotifier, LibrarySourceFilter>(
-      LibrarySourceFilterNotifier.new,
-    );
+final librarySourceFilterProvider = Provider<LibrarySourceFilter>((ref) {
+  final source = ref.watch(defaultSongSourceProvider);
+  return switch (source) {
+    SongSources.local => LibrarySourceFilter.local,
+    SongSources.subsonic => LibrarySourceFilter.navidrome,
+    SongSources.lx => LibrarySourceFilter.lx,
+    _ => LibrarySourceFilter.all,
+  };
+});
 
 extension LibrarySourceFilterLabel on LibrarySourceFilter {
   String get label => switch (this) {
+    LibrarySourceFilter.all => '全部',
     LibrarySourceFilter.local => '本地',
     LibrarySourceFilter.navidrome => 'Navidrome',
     LibrarySourceFilter.lx => '洛雪',

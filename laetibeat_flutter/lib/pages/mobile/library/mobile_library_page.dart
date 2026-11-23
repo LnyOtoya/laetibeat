@@ -1,15 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:laetibeat/shared/layout/app_bottom_inset.dart';
+import 'package:laetibeat/widgets/player/cover_provider.dart';
 import 'package:laetibeat/widgets/playlist_provider.dart';
 import 'package:laetibeat/widgets/remote_browser_provider.dart';
 import 'package:laetibeat/widgets/settings/music_library_provider.dart';
+import 'package:laetibeat/widgets/settings/song_source_settings.dart';
 import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../../src/rust/api/simple.dart' as rust;
 import '../mobile_navigation.dart';
 import '../routes.dart';
 import 'library_source_filter.dart';
@@ -68,6 +71,100 @@ class MobileLibraryPage extends ConsumerWidget {
         ? null
         : localPlaylists + remotePlaylists;
 
+    final sourceFilter = ref.watch(librarySourceFilterProvider);
+    final includeLocal =
+        sourceFilter == LibrarySourceFilter.local ||
+        sourceFilter == LibrarySourceFilter.all;
+    final includeRemote =
+        (sourceFilter == LibrarySourceFilter.navidrome ||
+            sourceFilter == LibrarySourceFilter.all) &&
+        server != null;
+
+    final localTracksById = <String, rust.UiTrack>{
+      for (final track in local?.tracks ?? const <rust.UiTrack>[])
+        track.id: track,
+    };
+    final remoteTrackPreviews = includeRemote
+        ? ref.watch(remoteAllTracksProvider(server.id)).value ?? const []
+        : const [];
+    final remoteAlbumPreviews = includeRemote
+        ? ref.watch(remoteAllAlbumsProvider(server.id)).value ?? const []
+        : const [];
+    final remoteArtistPreviews = includeRemote
+        ? ref.watch(remoteArtistsProvider(server.id)).value ?? const []
+        : const [];
+    final remotePlaylistPreviews = includeRemote
+        ? ref.watch(remotePlaylistsProvider(server.id)).value ?? const []
+        : const [];
+    final localPlaylistPreviews =
+        ref.watch(localPlaylistsProvider).value ?? const [];
+
+    final songPreviews = <Widget>[
+      if (includeLocal)
+        for (final track in (local?.tracks ?? const <rust.UiTrack>[]).take(10))
+          _PreviewCover(localTrack: track, fallbackIcon: M3EIcons.music_note),
+      if (includeRemote)
+        for (final track in remoteTrackPreviews.take(10))
+          _PreviewCover(
+            remoteSourceId: server.id,
+            remoteCoverId: track.coverId,
+            fallbackIcon: M3EIcons.music_note,
+          ),
+    ];
+    final albumPreviews = <Widget>[
+      if (includeLocal)
+        for (final album in (local?.albums ?? const []).take(10))
+          _PreviewCover(
+            localTrack: localTracksById[album.coverTrackId],
+            fallbackIcon: M3EIcons.album,
+          ),
+      if (includeRemote)
+        for (final album in remoteAlbumPreviews.take(10))
+          _PreviewCover(
+            remoteSourceId: server.id,
+            remoteCoverId: album.coverId,
+            fallbackIcon: M3EIcons.album,
+          ),
+    ];
+    final artistPreviews = <Widget>[
+      if (includeLocal)
+        for (final artist in (local?.artists ?? const []).take(10))
+          _PreviewCover(
+            localTrack: localTracksById[artist.coverTrackId],
+            fallbackIcon: M3EIcons.person,
+          ),
+      if (includeRemote)
+        for (final artist in remoteArtistPreviews.take(10))
+          _PreviewCover(
+            remoteSourceId: server.id,
+            remoteCoverId: artist.coverId,
+            fallbackIcon: M3EIcons.person,
+          ),
+    ];
+    final playlistPreviews = <Widget>[
+      if (includeLocal)
+        for (final playlist in localPlaylistPreviews.take(10))
+          _PreviewCover(
+            localTrack: playlist.coverSource == 'local'
+                ? localTracksById[playlist.coverTrackId]
+                : null,
+            remoteSourceId: playlist.coverSource == 'lx'
+                ? null
+                : playlist.coverSourceId,
+            remoteCoverId: playlist.coverSource == 'lx'
+                ? null
+                : playlist.coverId,
+            fallbackIcon: M3EIcons.queue_music,
+          ),
+      if (includeRemote)
+        for (final playlist in remotePlaylistPreviews.take(10))
+          _PreviewCover(
+            remoteSourceId: server.id,
+            remoteCoverId: playlist.coverId,
+            fallbackIcon: M3EIcons.queue_music,
+          ),
+    ];
+
     return AppScaffold(
       background: AppSurfaceLevel.base,
       safeArea: false,
@@ -94,7 +191,7 @@ class MobileLibraryPage extends ConsumerWidget {
                   songsCount,
                   l10n.librarySongsCount,
                 ),
-                childText: '全部歌曲',
+                previews: songPreviews,
                 routeName: MobileRoutes.librarySongs,
                 page: const MobileLibrarySongsPage(),
               ),
@@ -105,7 +202,7 @@ class MobileLibraryPage extends ConsumerWidget {
                   albumsCount,
                   l10n.libraryAlbumsCount,
                 ),
-                childText: '全部专辑',
+                previews: albumPreviews,
                 routeName: MobileRoutes.libraryAlbums,
                 page: const MobileLibraryAlbumsPage(),
               ),
@@ -116,7 +213,7 @@ class MobileLibraryPage extends ConsumerWidget {
                   artistsCount,
                   l10n.libraryArtistsCount,
                 ),
-                childText: '全部艺术家',
+                previews: artistPreviews,
                 routeName: MobileRoutes.libraryArtists,
                 page: const MobileLibraryArtistsPage(),
               ),
@@ -127,7 +224,7 @@ class MobileLibraryPage extends ConsumerWidget {
                   playlistsCount,
                   l10n.libraryPlaylistsCount,
                 ),
-                childText: '全部歌单',
+                previews: playlistPreviews,
                 routeName: MobileRoutes.libraryPlaylists,
                 page: const MobileLibraryPlaylistsPage(),
               ),
@@ -135,7 +232,7 @@ class MobileLibraryPage extends ConsumerWidget {
                 icon: M3EIcons.radio,
                 title: '电台',
                 supportingText: '暂无',
-                childText: '暂无电台',
+                previews: const <Widget>[],
                 routeName: MobileRoutes.libraryPodcasts,
               ),
             ],
@@ -192,30 +289,39 @@ class _LibrarySourceSplitButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final filter = ref.watch(librarySourceFilterProvider);
+    final source = ref.watch(defaultSongSourceProvider);
 
-    return m3e_core.M3ESplitButton<LibrarySourceFilter>(
+    return m3e_core.M3ESplitButton<String>(
       style: m3e_core.M3EButtonStyle.tonal,
       size: m3e_core.M3EButtonSize.md,
       shape: m3e_core.M3EButtonShape.round,
-      label: filter.label,
-      selectedValue: filter,
+      label: _labelForSongSource(source),
+      selectedValue: source,
       leadingTooltip: '当前来源',
       trailingTooltip: '选择来源',
       decoration: m3e_core.M3ESplitButtonDecoration.styleFrom(),
-      items: <m3e_core.M3ESplitButtonItem<LibrarySourceFilter>>[
-        for (final value in LibrarySourceFilter.values)
-          m3e_core.M3ESplitButtonItem<LibrarySourceFilter>(
+      items: <m3e_core.M3ESplitButtonItem<String>>[
+        for (final value in SongSources.all)
+          m3e_core.M3ESplitButtonItem<String>(
             value: value,
-            child: Text(value.label),
+            child: Text(_labelForSongSource(value)),
           ),
       ],
       onPressed: () {},
-      onSelected: (LibrarySourceFilter value) {
-        ref.read(librarySourceFilterProvider.notifier).select(value);
+      onSelected: (String value) {
+        ref.read(defaultSongSourceProvider.notifier).setSource(value);
       },
     );
   }
+}
+
+String _labelForSongSource(String source) {
+  return switch (source) {
+    SongSources.local => '本地',
+    SongSources.subsonic => 'Navidrome',
+    SongSources.lx => '洛雪',
+    _ => '全部',
+  };
 }
 
 class _LibrarySegment {
@@ -223,7 +329,7 @@ class _LibrarySegment {
     required this.icon,
     required this.title,
     required this.supportingText,
-    required this.childText,
+    required this.previews,
     required this.routeName,
     this.page,
   });
@@ -231,7 +337,7 @@ class _LibrarySegment {
   final IconData icon;
   final String title;
   final String supportingText;
-  final String childText;
+  final List<Widget> previews;
   final String routeName;
   final Widget? page;
 }
@@ -271,7 +377,7 @@ class _LibrarySegmentedListState extends State<_LibrarySegmentedList> {
             gap: 2,
             selectedRadius: 28,
             onToggle: () => _toggle(index),
-            onChildTap: (_) => widget.onOpen(widget.segments[index]),
+            onChildTap: (_) => _toggle(index),
             header: m3e_core.M3EListItem(
               leading: Icon(widget.segments[index].icon),
               headline: Text(
@@ -280,15 +386,137 @@ class _LibrarySegmentedListState extends State<_LibrarySegmentedList> {
               ),
               supportingText: Text(widget.segments[index].supportingText),
             ),
+            childPadding: EdgeInsets.zero,
             children: <Widget>[
-              m3e_core.M3EListItem(
-                leading: Icon(widget.segments[index].icon),
-                headline: Text(widget.segments[index].childText),
-                enabled: widget.segments[index].page != null,
+              _SegmentPreviewRow(
+                previews: widget.segments[index].previews,
+                onBrowse: () => widget.onOpen(widget.segments[index]),
               ),
             ],
           ),
       ],
+    );
+  }
+}
+
+class _SegmentPreviewRow extends StatelessWidget {
+  const _SegmentPreviewRow({required this.previews, required this.onBrowse});
+
+  final List<Widget> previews;
+  final VoidCallback onBrowse;
+
+  @override
+  Widget build(BuildContext context) {
+    const double size = 64;
+    const double gap = 8;
+    const double horizontalPadding = 16;
+    const double buttonWidth = 52;
+
+    final browseButton = m3e_core.M3EButton(
+      style: m3e_core.M3EButtonStyle.tonal,
+      size: m3e_core.M3EButtonSize.custom(
+        height: 48,
+        hPadding: 16,
+        iconSize: 20,
+        iconGap: 8,
+      ),
+      shape: m3e_core.M3EButtonShape.round,
+      onPressed: onBrowse,
+      decoration: m3e_core.M3EButtonDecoration.styleFrom(
+        haptic: m3e_core.M3EHapticFeedback.light,
+      ),
+      semanticLabel: '浏览全部',
+      child: const Icon(M3EIcons.arrow_forward),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: 8,
+      ),
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final available = constraints.maxWidth;
+          final count = previews.isEmpty
+              ? 0
+              : ((available - buttonWidth - gap) / (size + gap)).floor().clamp(
+                  1,
+                  previews.length,
+                );
+
+          return Row(
+            children: <Widget>[
+              if (count == 0)
+                Expanded(
+                  child: Text(
+                    '暂无内容',
+                    style: M3ETheme.of(context).typeScale.bodyMedium.copyWith(
+                      color: M3ETheme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                )
+              else
+                for (var index = 0; index < count; index++) ...<Widget>[
+                  previews[index],
+                  const SizedBox(width: gap),
+                ],
+              browseButton,
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PreviewCover extends ConsumerWidget {
+  const _PreviewCover({
+    this.localTrack,
+    this.remoteSourceId,
+    this.remoteCoverId,
+    required this.fallbackIcon,
+  });
+
+  final rust.UiTrack? localTrack;
+  final String? remoteSourceId;
+  final String? remoteCoverId;
+  final IconData fallbackIcon;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    final track = localTrack;
+    final sourceId = remoteSourceId;
+    final coverId = remoteCoverId;
+    final bytes = track != null
+        ? ref.watch(trackCoverProvider(track)).value
+        : sourceId != null && coverId != null && coverId.isNotEmpty
+        ? ref
+              .watch(
+                remoteCoverProvider((sourceId: sourceId, coverId: coverId)),
+              )
+              .value
+        : null;
+
+    return M3EShapeContainer.square(
+      width: 64,
+      height: 64,
+      color: scheme.secondaryContainer,
+      child: bytes == null || bytes.isEmpty
+          ? Center(
+              child: Icon(
+                fallbackIcon,
+                size: AppIconSize.lg,
+                color: scheme.onSecondaryContainer,
+              ),
+            )
+          : SizedBox.expand(
+              child: Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+              ),
+            ),
     );
   }
 }

@@ -128,7 +128,9 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
     final filter = ref.watch(librarySourceFilterProvider);
     final localAsync = ref.watch(localPlaylistsProvider);
     final includeRemote =
-        filter == LibrarySourceFilter.navidrome && server != null;
+        (filter == LibrarySourceFilter.navidrome ||
+            filter == LibrarySourceFilter.all) &&
+        server != null;
     final remoteAsync = includeRemote
         ? ref.watch(remotePlaylistsProvider(server.id))
         : null;
@@ -146,6 +148,7 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
         const <_PlaylistEntry>[];
 
     final filteredLocal = switch (filter) {
+      LibrarySourceFilter.all => localEntries,
       LibrarySourceFilter.local =>
         localEntries
             .where((entry) => _lxSourceOf(entry) == null)
@@ -158,7 +161,9 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
     };
     final entries = <_PlaylistEntry>[
       ...filteredLocal,
-      if (filter == LibrarySourceFilter.navidrome && server != null)
+      if ((filter == LibrarySourceFilter.navidrome ||
+              filter == LibrarySourceFilter.all) &&
+          server != null)
         ...remoteEntries,
     ];
 

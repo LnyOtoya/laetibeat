@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'persistence.dart';
 
-/// 歌曲来源名称。当前只有本地音乐和 Subsonic 有实际数据源。
+/// 歌曲来源名称。当前支持本地音乐、Subsonic 和洛雪。
 abstract final class SongSources {
   static const String allSources = '全部来源';
   static const String local = '本地音乐';
@@ -14,7 +14,7 @@ abstract final class SongSources {
   static const String lx = '洛雪音源';
 
   /// 当前真正可筛选的来源。未实现来源不放入设置，避免死选项。
-  static const List<String> all = <String>[allSources, local, subsonic];
+  static const List<String> all = <String>[allSources, local, subsonic, lx];
 }
 
 const String kDefaultSongSourceKey = 'mobile.defaultSongSource';
