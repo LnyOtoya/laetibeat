@@ -236,6 +236,8 @@
 - [x] `SongSources.all` 增加洛雪；曲库 / 专辑 / 艺术家 / 歌单子页统一读取来源过滤，不显示各自 chips
 - [x] 设置 > 外观新增“当前取色映射”：白底页面列出 M3EColorScheme 全部角色、名称与 ARGB 值，路由 `/settings/appearance/color-mapping`
 - [x] 媒体库去掉搜索框与旧入口，改为 `M3EExpandableSegmentedItem` 五项：曲库 / 专辑 / 艺术家 / 歌单 / 电台；默认折叠，可展开进入子项；颜色恢复为组件默认映射
+- [x] 曲库列表改用 `m3e_core.M3ESegmentedList.builder`：multiple + 首次 longPress 进入选择，选中后 tap 连续多选；使用给定 decoration 参数
+- [x] m3e_core 没有 FastScroller/Scrollbar；曲库移除滚动条，`M3ESegmentedListDecoration` 对齐官方参考：outer 24 / inner 16、gap 6、padding 4、margin 12×5
 - [x] Segment 展开内容改为自适应横向封面行：`M3EShapeContainer.square` 64dp，根据可用宽度计算显示个数，不横向滚动；点击 header / 内容区均展开折叠，最右侧 icon-only 圆形按钮进入详情页
 - [x] 设置 > 内容设置新增“音源配置”入口，跳转 `MobileMusicSourcesPage`
 - [x] `AppMorphingTabBar` bottom accessory：搜索态自动收起；extra action 的搜索态收起由 `hideExtraActionWhenSearching` 控制

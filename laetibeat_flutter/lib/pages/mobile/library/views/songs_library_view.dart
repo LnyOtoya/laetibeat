@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:laetibeat/shared/layout/app_bottom_inset.dart';
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/widgets/player/cover_provider.dart';
@@ -24,7 +25,7 @@ class SongsLibraryView extends ConsumerStatefulWidget {
 
 class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
   final Set<String> _selectedTrackIds = <String>{};
-  final Set<String> _dismissedTrackIds = <String>{};
+  final ScrollController _scrollController = ScrollController();
   late final M3EToolbarVisibilityController _toolbarVisibilityController;
   late final M3EToolbarScrollBehavior _toolbarScrollBehavior;
 
@@ -40,6 +41,7 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _toolbarVisibilityController.dispose();
     super.dispose();
   }
@@ -47,24 +49,6 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
   void _clearSelection() {
     if (_selectedTrackIds.isEmpty) return;
     setState(_selectedTrackIds.clear);
-  }
-
-  void _toggleSelection(String trackId) {
-    setState(() {
-      if (!_selectedTrackIds.add(trackId)) {
-        _selectedTrackIds.remove(trackId);
-      }
-    });
-    if (_selectedTrackIds.isNotEmpty) {
-      _toolbarVisibilityController.show();
-    }
-  }
-
-  void _dismissTrack(String trackId) {
-    setState(() {
-      _dismissedTrackIds.add(trackId);
-      _selectedTrackIds.remove(trackId);
-    });
   }
 
   List<rust.UiTrack> _currentTracks() {
@@ -79,8 +63,7 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
 
     if (includeLocal) {
       tracks.addAll(
-        (ref.read(musicLibraryProvider).value?.tracks ?? const <rust.UiTrack>[])
-            .where((track) => !_dismissedTrackIds.contains(track.id)),
+        ref.read(musicLibraryProvider).value?.tracks ?? const <rust.UiTrack>[],
       );
     }
 
@@ -93,9 +76,7 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
         final remote =
             ref.read(remoteAllTracksProvider(server.id)).value ?? const [];
         tracks.addAll(
-          remote
-              .map((track) => remoteTrackToUiTrack(track, server.id))
-              .where((track) => !_dismissedTrackIds.contains(track.id)),
+          remote.map((track) => remoteTrackToUiTrack(track, server.id)),
         );
       }
     }
@@ -355,8 +336,6 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
 
     final localTracks = includeLocal
         ? (localState?.tracks ?? const <rust.UiTrack>[])
-              .where((track) => !_dismissedTrackIds.contains(track.id))
-              .toList(growable: false)
         : const <rust.UiTrack>[];
 
     if (!includeRemote) {
@@ -408,9 +387,9 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
         ),
       ),
       data: (remoteTracks) {
-        final remoteUi = remoteTracks
-            .map((track) => remoteTrackToUiTrack(track, server.id))
-            .where((track) => !_dismissedTrackIds.contains(track.id));
+        final remoteUi = remoteTracks.map(
+          (track) => remoteTrackToUiTrack(track, server.id),
+        );
         final tracks = <rust.UiTrack>[...localTracks, ...remoteUi];
         return _buildTrackList(
           theme,
@@ -435,82 +414,75 @@ class _SongsLibraryViewState extends ConsumerState<SongsLibraryView> {
     final selectionActive = _selectedTrackIds.isNotEmpty;
     final scheme = theme.colorScheme;
     final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
+    final selectedIndices = <int>{
+      for (var index = 0; index < tracks.length; index++)
+        if (_selectedTrackIds.contains(tracks[index].id)) index,
+    };
 
     return M3EToolbarScrollWrapper(
       behavior: _toolbarScrollBehavior,
-      child: M3EList.scrollable(
-        color: scheme.surface,
-        variant: M3ECardVariant.filled,
+      child: m3e_core.M3ESegmentedList.builder(
+        controller: _scrollController,
         itemCount: tracks.length,
-        listPadding: EdgeInsets.fromLTRB(16, 0, 16, 16 + bottomInset),
+        selectionMode: m3e_core.M3ESelectionMode.multiple,
+        // First gesture must be a long press. Once selection exists, ordinary
+        // taps toggle more items without requiring another long press.
+        selectionTrigger: selectionActive
+            ? m3e_core.M3ESelectionTrigger.tap
+            : m3e_core.M3ESelectionTrigger.longPress,
+        selectedIndices: selectedIndices,
+        onSelectionChanged: (indices) {
+          setState(() {
+            _selectedTrackIds
+              ..clear()
+              ..addAll(<String>[for (final index in indices) tracks[index].id]);
+          });
+          if (_selectedTrackIds.isNotEmpty) {
+            _toolbarVisibilityController.show();
+          }
+        },
+        onTap: (index) {
+          if (!selectionActive) {
+            _playTracks(tracks, index);
+          }
+        },
         emptyBuilder: Center(child: Text(emptyText)),
-        colorBuilder: (int index) {
-          return _selectedTrackIds.contains(tracks[index].id)
-              ? scheme.secondaryContainer
-              : scheme.surface;
-        },
-        borderRadiusBuilder: (int index, M3ECardPosition position) {
-          return _selectedTrackIds.contains(tracks[index].id)
-              ? BorderRadius.circular(16)
-              : null;
-        },
+        listPadding: EdgeInsets.only(bottom: bottomInset),
+        decoration: const m3e_core.M3ESegmentedListDecoration(
+          outerRadius: 24,
+          innerRadius: 16,
+          pressedRadius: 8,
+          pressedScale: 0.98,
+          hoveredRadius: 16,
+          selectedRadius: 28,
+          gap: 6,
+          padding: EdgeInsets.all(4),
+          margin: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        ),
         itemBuilder: (BuildContext context, int index) {
           final track = tracks[index];
-          final selected = _selectedTrackIds.contains(track.id);
-
-          return Stack(
-            children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onLongPress: () => _toggleSelection(track.id),
-                onTap: selectionActive
-                    ? () => _toggleSelection(track.id)
-                    : () => _playTracks(tracks, index),
-                child: M3EListItem(
-                  selected: selected,
-                  headline: track.title,
-                  supportingText: track.artist,
-                  leading: _TrackCover(track: track),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _SourcePill(
-                        label: track.source == 'opensubsonic'
-                            ? 'Subsonic'
-                            : AppLocalizations.of(context).librarySourceLocal,
-                        remote: track.source == 'opensubsonic',
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        track.duration,
-                        style: theme.typeScale.labelMedium.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                  swipe: M3EListItemSwipe(
-                    mode: M3EListSwipeMode.dismiss,
-                    edge: M3EListSwipeEdge.end,
-                    onDismiss: (DismissDirection direction) async {
-                      _dismissTrack(track.id);
-                      return true;
-                    },
+          return m3e_core.M3EListItem(
+            headline: Text(track.title),
+            supportingText: Text(track.artist),
+            leading: _TrackCover(track: track),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                _SourcePill(
+                  label: track.source == 'opensubsonic'
+                      ? 'Subsonic'
+                      : AppLocalizations.of(context).librarySourceLocal,
+                  remote: track.source == 'opensubsonic',
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  track.duration,
+                  style: theme.typeScale.labelMedium.copyWith(
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
-              ),
-              if (selected)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: scheme.primary, width: 2),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+              ],
+            ),
           );
         },
       ),
