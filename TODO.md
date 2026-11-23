@@ -97,7 +97,8 @@
 ### Full Player
 
 - [x] Full Player 是 Root Navigator 上的真实 Route，覆盖整个 Shell（含 BottomOverlay）
-- [x] Full Player 关闭通过 Route Pop，兼容系统返回与 Android 预测性返回
+- [x] Full Player 关闭通过 Route Pop；普通返回路径正确
+- [ ] Predictive Back 下 Full Player 返回层级错误（Flutter 已知问题，见下）
 - [x] Shell 在 Full Player 打开期间保持存活；滚动位置、Tab、搜索、列表状态不得重建
 - [x] 第一版不做 Full Player 内部 Nested Navigator
 - [x] Queue 采用 Modal / Sheet；Lyrics 采用播放器内展示模式或按交互决定独立 Route；Artist / Album / Settings 走正常业务 Route
@@ -106,6 +107,25 @@
 - [x] MiniPlayer 点击 / 上拖阈值触发 `pushMobileFullPlayer`；pop 后回到 MiniPlayer 且 Shell 状态保持
 - [ ] 处理 Full Player 内子页面返回顺序：子页面 → Full Player → Shell
 - [ ] 不在 Full Player 打开时重新创建 Shell 或重新初始化播放器
+
+### 已知问题：Predictive Back + 多 Navigator 交错
+
+- 现象：Home → Library → MiniPlayer → FullPlayer 后，第一次侧滑返回仍停留在 FullPlayer，但底层已从 Library 变为 Home；第二次侧滑才退出 FullPlayer。
+- 当前路由栈：
+  - Root Navigator: `[MobileShellPage, FullPlayerRoute]`
+  - Shell 内 Tab Navigator: `[Home, Library]`
+- 根因：Flutter Predictive Back 在多个 Navigator 交错（interleaved routes）时会错误 pop 底层 nested Navigator 的路由，而不是最上层 Root Route。
+- 相关 issue：
+  - flutter/flutter#152578
+  - flutter/flutter#152323
+- `NavigatorPopHandler` 不能解决这个交错路由问题；它只处理 Shell 在最上层时的 nested 返回。
+- `AndroidManifest.xml` 当前为 `android:enableOnBackInvokedCallback="true"`。
+- 待选方案：
+  - A. 临时关闭 `enableOnBackInvokedCallback`，验证是否恢复正常（会失去 Predictive Back 预览）
+  - B. 扁平化 Navigator：单一 Root Navigator + Tab 状态容器
+  - C. Full Player 改到 Tab Navigator，Shell 隐藏 chrome（Hero 可能需重做）
+  - D. 自定义 Route 覆盖 `isCurrent`，处理祖先 Route current 状态
+- 当前状态：问题已记录，尚未修改代码；方案待定。
 
 ### 状态模型
 
