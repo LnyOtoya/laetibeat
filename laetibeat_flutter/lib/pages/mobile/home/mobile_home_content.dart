@@ -252,7 +252,10 @@ class _ContinueListeningCarousel extends StatelessWidget {
     ];
 
     return M3ECarousel(
-      type: M3ECarouselType.contained,
+      // Hero-left gives the focal first card more width while keeping the
+      // theme's item gap between cards.
+      type: M3ECarouselType.hero,
+      heroAlignment: M3ECarouselHeroAlignment.left,
       axis: Axis.horizontal,
       height: 228,
       childElementBorderRadius: AppRadii.xl,
