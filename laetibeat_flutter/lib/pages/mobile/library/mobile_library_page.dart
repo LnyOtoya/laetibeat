@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:laetibeat/shared/layout/app_bottom_inset.dart';
 import 'package:laetibeat/widgets/playlist_provider.dart';
 import 'package:laetibeat/widgets/remote_browser_provider.dart';
@@ -11,7 +12,6 @@ import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
-import '../search/mobile_search_page.dart';
 import 'mobile_library_subpages.dart';
 
 /// 媒体库首页。
@@ -20,18 +20,6 @@ import 'mobile_library_subpages.dart';
 /// 布局，后续在各自页面内接入来源筛选。
 class MobileLibraryPage extends ConsumerWidget {
   const MobileLibraryPage({super.key});
-
-  void _openSearchPage(BuildContext context) {
-    pushMobileRootPage(
-      context,
-      const MobileSearchPage(),
-      name: MobileRoutes.search,
-    );
-  }
-
-  void _openEntry(BuildContext context, _LibraryEntry entry) {
-    pushMobileRootPage(context, entry.page, name: entry.routeName);
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -79,40 +67,6 @@ class MobileLibraryPage extends ConsumerWidget {
         ? null
         : localPlaylists + remotePlaylists;
 
-    final sourceParts = <String>[
-      if (local?.directory != null) l10n.librarySourceLocal,
-      if (server != null) server.name,
-    ];
-    final subtitle = !localReady && server == null
-        ? '—'
-        : sourceParts.isEmpty
-        ? l10n.libraryNoSources
-        : sourceParts.join(' · ');
-
-    final entries = <_LibraryEntry>[
-      _LibraryEntry(
-        icon: M3EIcons.album,
-        label: l10n.libraryAlbums,
-        countText: _formatCount(albumsCount, l10n.libraryAlbumsCount),
-        routeName: MobileRoutes.libraryAlbums,
-        page: const MobileLibraryAlbumsPage(),
-      ),
-      _LibraryEntry(
-        icon: M3EIcons.person,
-        label: l10n.libraryArtists,
-        countText: _formatCount(artistsCount, l10n.libraryArtistsCount),
-        routeName: MobileRoutes.libraryArtists,
-        page: const MobileLibraryArtistsPage(),
-      ),
-      _LibraryEntry(
-        icon: M3EIcons.queue_music,
-        label: l10n.libraryPlaylists,
-        countText: _formatCount(playlistsCount, l10n.libraryPlaylistsCount),
-        routeName: MobileRoutes.libraryPlaylists,
-        page: const MobileLibraryPlaylistsPage(),
-      ),
-    ];
-
     return AppScaffold(
       background: AppSurfaceLevel.container,
       safeArea: false,
@@ -122,109 +76,72 @@ class MobileLibraryPage extends ConsumerWidget {
         shapeFamily: M3EAppBarShapeFamily.square,
         safeArea: true,
         titleText: l10n.libraryTitle,
-        subtitleText: subtitle,
+        actions: const <Widget>[_LibrarySourceSplitButton()],
       ),
       body: ListView(
         padding: EdgeInsets.only(
           top: AppSpacing.sm,
           bottom: AppSpacing.lg + bottomInset,
         ),
-        children: [
-          M3ESearchBar(
-            hintText: l10n.searchHint,
-            leading: const Icon(M3EIcons.search),
-            readOnly: true,
-            expandOnFocus: false,
-            constraints: const BoxConstraints.tightFor(height: 52),
-            margin: 0,
-            focusedMargin: 0,
-            backgroundColor: WidgetStatePropertyAll<Color?>(
-              AppSurfaceLevel.high.resolve(scheme),
-            ),
-            onTap: () => _openSearchPage(context),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          M3ECard(
-            variant: M3ECardVariant.filled,
-            color: AppColorRole.primaryContainer.resolve(scheme),
-            borderRadius: AppRadii.xxlAll,
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            expanded: true,
-            openBuilder: (_) => const MobileLibrarySongsPage(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: scheme.onPrimaryContainer.withValues(
-                          alpha: 0.12,
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        M3EIcons.music_note,
-                        size: 30,
-                        color: scheme.onPrimaryContainer,
-                      ),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      M3EIcons.arrow_forward,
-                      color: scheme.onPrimaryContainer,
-                    ),
-                  ],
+        children: <Widget>[
+          _LibrarySegmentedList(
+            segments: <_LibrarySegment>[
+              _LibrarySegment(
+                icon: M3EIcons.library_music,
+                title: '曲库',
+                supportingText: _formatCount(
+                  songsCount,
+                  l10n.librarySongsCount,
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                AppText(
-                  l10n.libraryAllSongs,
-                  role: AppTextRole.headlineMedium,
-                  colorRole: AppColorRole.onPrimaryContainer,
+                childText: '全部歌曲',
+                routeName: MobileRoutes.librarySongs,
+                page: const MobileLibrarySongsPage(),
+              ),
+              _LibrarySegment(
+                icon: M3EIcons.album,
+                title: '专辑',
+                supportingText: _formatCount(
+                  albumsCount,
+                  l10n.libraryAlbumsCount,
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                AppText(
-                  _formatCount(songsCount, l10n.librarySongsCount),
-                  role: AppTextRole.displaySmall,
-                  colorRole: AppColorRole.onPrimaryContainer,
+                childText: '全部专辑',
+                routeName: MobileRoutes.libraryAlbums,
+                page: const MobileLibraryAlbumsPage(),
+              ),
+              _LibrarySegment(
+                icon: M3EIcons.person,
+                title: '艺术家',
+                supportingText: _formatCount(
+                  artistsCount,
+                  l10n.libraryArtistsCount,
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          AppText(l10n.libraryBrowse, role: AppTextRole.titleLarge),
-          const SizedBox(height: AppSpacing.sm),
-          M3EList(
-            itemCount: entries.length,
-            color: AppSurfaceLevel.high.resolve(scheme),
-            variant: M3ECardVariant.filled,
-            // M3EList 会在行表面统一绑定点击；只设置 M3EListItem.onTap
-            // 不会生效。
-            onTap: (int index) => _openEntry(context, entries[index]),
-            itemBuilder: (BuildContext context, int index) {
-              final entry = entries[index];
-              return M3EListItem(
-                leading: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: scheme.secondaryContainer,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(entry.icon, color: scheme.onSecondaryContainer),
+                childText: '全部艺术家',
+                routeName: MobileRoutes.libraryArtists,
+                page: const MobileLibraryArtistsPage(),
+              ),
+              _LibrarySegment(
+                icon: M3EIcons.queue_music,
+                title: '歌单',
+                supportingText: _formatCount(
+                  playlistsCount,
+                  l10n.libraryPlaylistsCount,
                 ),
-                headline: entry.label,
-                trailingText: entry.countText,
-                trailing: Icon(
-                  M3EIcons.chevron_right,
-                  size: AppIconSize.sm,
-                  color: scheme.onSurfaceVariant,
-                ),
-                showDivider: index < entries.length - 1,
-                onTap: () => _openEntry(context, entry),
-              );
+                childText: '全部歌单',
+                routeName: MobileRoutes.libraryPlaylists,
+                page: const MobileLibraryPlaylistsPage(),
+              ),
+              _LibrarySegment(
+                icon: M3EIcons.radio,
+                title: '电台',
+                supportingText: '暂无',
+                childText: '暂无电台',
+                routeName: MobileRoutes.libraryPodcasts,
+              ),
+            ],
+            onOpen: (_LibrarySegment segment) {
+              final page = segment.page;
+              if (page == null) return;
+              pushMobileRootPage(context, page, name: segment.routeName);
             },
           ),
         ],
@@ -269,18 +186,138 @@ class MobileLibraryPage extends ConsumerWidget {
   }
 }
 
-class _LibraryEntry {
-  const _LibraryEntry({
+class _LibrarySourceSplitButton extends StatefulWidget {
+  const _LibrarySourceSplitButton();
+
+  @override
+  State<_LibrarySourceSplitButton> createState() =>
+      _LibrarySourceSplitButtonState();
+}
+
+class _LibrarySourceSplitButtonState extends State<_LibrarySourceSplitButton> {
+  static const String _local = '本地';
+  static const String _navidrome = 'Navidrome';
+  static const String _lx = '洛雪';
+
+  String _selected = _local;
+
+  @override
+  Widget build(BuildContext context) {
+    // The app bar action row is end-aligned with an intrinsic-width child, so
+    // a longer label naturally grows toward the left instead of overflowing.
+    return m3e_core.M3ESplitButton<String>(
+      style: m3e_core.M3EButtonStyle.tonal,
+      size: m3e_core.M3EButtonSize.md,
+      shape: m3e_core.M3EButtonShape.round,
+      label: _selected,
+      selectedValue: _selected,
+      leadingTooltip: '当前来源',
+      trailingTooltip: '选择来源',
+      decoration: m3e_core.M3ESplitButtonDecoration.styleFrom(),
+      items: const <m3e_core.M3ESplitButtonItem<String>>[
+        m3e_core.M3ESplitButtonItem<String>(value: _local, child: Text(_local)),
+        m3e_core.M3ESplitButtonItem<String>(
+          value: _navidrome,
+          child: Text(_navidrome),
+        ),
+        m3e_core.M3ESplitButtonItem<String>(value: _lx, child: Text(_lx)),
+      ],
+      onPressed: () {},
+      onSelected: (String value) {
+        setState(() => _selected = value);
+      },
+    );
+  }
+}
+
+class _LibrarySegment {
+  const _LibrarySegment({
     required this.icon,
-    required this.label,
-    required this.countText,
+    required this.title,
+    required this.supportingText,
+    required this.childText,
     required this.routeName,
-    required this.page,
+    this.page,
   });
 
   final IconData icon;
-  final String label;
-  final String countText;
+  final String title;
+  final String supportingText;
+  final String childText;
   final String routeName;
-  final Widget page;
+  final Widget? page;
+}
+
+class _LibrarySegmentedList extends StatefulWidget {
+  const _LibrarySegmentedList({required this.segments, required this.onOpen});
+
+  final List<_LibrarySegment> segments;
+  final ValueChanged<_LibrarySegment> onOpen;
+
+  @override
+  State<_LibrarySegmentedList> createState() => _LibrarySegmentedListState();
+}
+
+class _LibrarySegmentedListState extends State<_LibrarySegmentedList> {
+  final Set<int> _expanded = <int>{};
+
+  void _toggle(int index) {
+    setState(() {
+      if (!_expanded.remove(index)) {
+        _expanded.add(index);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = M3ETheme.of(context).colorScheme;
+
+    return Column(
+      children: <Widget>[
+        for (var index = 0; index < widget.segments.length; index++)
+          m3e_core.M3EExpandableSegmentedItem(
+            index: index,
+            totalCount: widget.segments.length,
+            isExpanded: _expanded.contains(index),
+            outerRadius: 24,
+            innerRadius: 4,
+            gap: 2,
+            selectedRadius: 28,
+            color: scheme.secondaryContainer,
+            childColor: scheme.surfaceContainer,
+            selectedColor: scheme.secondaryContainer,
+            trailingPillColor: scheme.surfaceContainerHighest,
+            onToggle: () => _toggle(index),
+            onChildTap: (_) => widget.onOpen(widget.segments[index]),
+            header: m3e_core.M3EListItem(
+              leading: Icon(
+                widget.segments[index].icon,
+                color: scheme.onSecondaryContainer,
+              ),
+              headline: Text(
+                widget.segments[index].title,
+                style: TextStyle(
+                  color: scheme.onSecondaryContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              supportingText: Text(
+                widget.segments[index].supportingText,
+                style: TextStyle(
+                  color: scheme.onSecondaryContainer.withValues(alpha: 0.78),
+                ),
+              ),
+            ),
+            children: <Widget>[
+              m3e_core.M3EListItem(
+                leading: Icon(widget.segments[index].icon),
+                headline: Text(widget.segments[index].childText),
+                enabled: widget.segments[index].page != null,
+              ),
+            ],
+          ),
+      ],
+    );
+  }
 }

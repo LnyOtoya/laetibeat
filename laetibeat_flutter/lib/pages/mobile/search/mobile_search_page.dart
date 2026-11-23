@@ -274,7 +274,8 @@ class _MobileSearchResultsPageState
     final l10n = AppLocalizations.of(context);
     final platforms = ref.read(lxPlatformsProvider).value ?? kLxPlatformOrder;
     final playable =
-        ref.read(lxRuntimeProvider).value?.playablePlatforms ?? const <String>[];
+        ref.read(lxRuntimeProvider).value?.playablePlatforms ??
+        const <String>[];
     final platform = _resolveLxPlatform(platforms, playable);
     if (platform == null) return;
     // 源还在初始化时等待，而不是把用户挡回去。
@@ -325,10 +326,7 @@ class _MobileSearchResultsPageState
     final lxPreparing =
         (runtimeAsync.isLoading && !runtimeAsync.hasValue) ||
         (runtimeAsync.value?.warming ?? false);
-    final activeLxPlatform = _resolveLxPlatform(
-      lxPlatforms,
-      playablePlatforms,
-    );
+    final activeLxPlatform = _resolveLxPlatform(lxPlatforms, playablePlatforms);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surfaceContainer,
@@ -882,9 +880,7 @@ class _SearchResults extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    unsupported
-                        ? l10n.lxPlaylistSearchUnsupported
-                        : message,
+                    unsupported ? l10n.lxPlaylistSearchUnsupported : message,
                     textAlign: TextAlign.center,
                   ),
                 ],

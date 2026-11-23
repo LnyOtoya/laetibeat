@@ -37,7 +37,7 @@ class _MobileHomePageState extends State<MobileHomePage> {
     final scheme = M3ETheme.of(context).colorScheme;
 
     return AppScaffold(
-      background: AppSurfaceLevel.base,
+      background: AppSurfaceLevel.container,
       applyPageGutter: false,
       safeArea: false,
       appBar: PreferredSize(
