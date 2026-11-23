@@ -126,10 +126,11 @@ class MobileHomeContent extends ConsumerWidget {
                   index++
                 ) ...<Widget>[
                   _LatestAlbumCard(album: latestAlbums[index]),
-                  const SizedBox(height: AppSpacing.xs),
-                  const M3EDivider(),
-                  if (index != latestAlbums.length - 1)
+                  if (index != latestAlbums.length - 1) ...<Widget>[
+                    const SizedBox(height: AppSpacing.xs),
+                    const M3EDivider(),
                     const SizedBox(height: AppSpacing.lg),
+                  ],
                 ],
                 const SizedBox(height: AppSpacing.xs),
                 Align(
@@ -267,12 +268,16 @@ class _ContinueListeningCarousel extends StatelessWidget {
           M3ECarouselItem(
             image: _TrackCover(track: queue[indices[position]]),
             applyDynamicTextContentTransform: false,
-            subtitle: AppText(
-              queue[indices[position]].title,
-              role: AppTextRole.titleMedium,
-              colorRole: AppColorRole.onSurface,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            subtitle: m3e_core.M3EButton(
+              style: m3e_core.M3EButtonStyle.filled,
+              size: m3e_core.M3EButtonSize.sm,
+              shape: m3e_core.M3EButtonShape.round,
+              onPressed: () => onTrackSelected(indices[position]),
+              child: Text(
+                queue[indices[position]].title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             showScrim: null,
             semanticLabel: queue[indices[position]].title,
