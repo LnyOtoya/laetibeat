@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -23,12 +24,14 @@ import '../../../widgets/settings/subsonic_provider.dart';
 class MobileHomeContent extends ConsumerWidget {
   const MobileHomeContent({super.key});
 
-  static const String _itemTitle = '继续听';
   static const String _latestTitle = '最新添加';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
+    final double pageGutter = AppLayout.gutterFor(
+      MediaQuery.sizeOf(context).width,
+    );
     final player = ref.watch(
       playerProvider.select((state) => (state.queue, state.currentIndex)),
     );
@@ -53,74 +56,103 @@ class MobileHomeContent extends ConsumerWidget {
       ),
       children: <Widget>[
         if (queue.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-            child: AppEmptyState(
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: pageGutter,
+              vertical: AppSpacing.xl,
+            ),
+            child: const AppEmptyState(
               title: '还没有继续播放的歌曲',
               message: '播放一首歌后，会出现在这里',
               icon: M3EIcons.music_note,
             ),
           )
         else
-          SizedBox(
-            height: 228,
-            child: _ContinueListeningCarousel(
-              queue: queue,
-              currentIndex: player.$2.clamp(0, queue.length - 1),
-              titleStyle: theme.typeScale.titleSmall.copyWith(
-                color: Colors.white,
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppLayout.carouselGutter,
+            ),
+            child: SizedBox(
+              height: 228,
+              child: _ContinueListeningCarousel(
+                queue: queue,
+                currentIndex: player.$2.clamp(0, queue.length - 1),
+                subtitleStyle: theme.typeScale.titleMedium.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+                onTrackSelected: (int index) {
+                  ref.read(playerProvider.notifier).play(index);
+                },
               ),
-              subtitleStyle: theme.typeScale.bodySmall.copyWith(
-                color: Colors.white.withValues(alpha: 0.9),
-              ),
-              onTrackSelected: (int index) {
-                ref.read(playerProvider.notifier).play(index);
-              },
             ),
           ),
+        if (queue.isNotEmpty) ...<Widget>[
+          const SizedBox(height: AppSpacing.xs),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppLayout.carouselGutter,
+            ),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: const _SeeMoreButton(),
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.xl),
-        const AppSectionHeader(title: _latestTitle),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: pageGutter),
+          child: const AppSectionHeader(title: _latestTitle),
+        ),
         if (latestAlbums.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-            child: AppEmptyState(
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: pageGutter,
+              vertical: AppSpacing.xl,
+            ),
+            child: const AppEmptyState(
               title: '暂无最近添加的专辑',
               message: '扫描本地音乐库或同步 Subsonic 后会出现在这里',
               icon: M3EIcons.album,
             ),
           )
         else
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              for (
-                var index = 0;
-                index < latestAlbums.length;
-                index++
-              ) ...<Widget>[
-                _LatestAlbumCard(album: latestAlbums[index]),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: pageGutter),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (
+                  var index = 0;
+                  index < latestAlbums.length;
+                  index++
+                ) ...<Widget>[
+                  _LatestAlbumCard(album: latestAlbums[index]),
+                  const SizedBox(height: AppSpacing.xs),
+                  const M3EDivider(),
+                  if (index != latestAlbums.length - 1)
+                    const SizedBox(height: AppSpacing.lg),
+                ],
                 const SizedBox(height: AppSpacing.xs),
-                const M3EDivider(),
-                if (index != latestAlbums.length - 1)
-                  const SizedBox(height: AppSpacing.lg),
-              ],
-              const SizedBox(height: AppSpacing.xs),
-              Align(
-                alignment: Alignment.centerRight,
-                child: M3EButton.text(
-                  onPressed: () {},
-                  size: M3EButtonSize.sm,
-                  child: const Text('查看更多'),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: const _SeeMoreButton(),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         const SizedBox(height: AppSpacing.xl),
-        const AppSectionHeader(title: '重拾旧爱'),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: pageGutter),
+          child: const AppSectionHeader(title: '重拾旧爱'),
+        ),
         if (longLostArtists.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-            child: AppEmptyState(
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: pageGutter,
+              vertical: AppSpacing.xl,
+            ),
+            child: const AppEmptyState(
               title: '还没有很久没听的艺术家',
               message: '播放记录积累后会出现在这里',
               icon: M3EIcons.person,
@@ -131,7 +163,7 @@ class MobileHomeContent extends ConsumerWidget {
             height: 156,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.zero,
+              padding: EdgeInsets.symmetric(horizontal: pageGutter),
               itemCount: longLostArtists.length,
               separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
               itemBuilder: (BuildContext context, int index) {
@@ -140,11 +172,17 @@ class MobileHomeContent extends ConsumerWidget {
             ),
           ),
         const SizedBox(height: AppSpacing.xl),
-        const AppSectionHeader(title: '为你推荐'),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: pageGutter),
+          child: const AppSectionHeader(title: '为你推荐'),
+        ),
         if (recommendedTracks.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-            child: AppEmptyState(
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: pageGutter,
+              vertical: AppSpacing.xl,
+            ),
+            child: const AppEmptyState(
               title: '还没有为你推荐的歌曲',
               message: '播放一些歌曲后，会根据收听记录生成推荐',
               icon: M3EIcons.music_note,
@@ -155,7 +193,7 @@ class MobileHomeContent extends ConsumerWidget {
             height: 156,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.zero,
+              padding: EdgeInsets.symmetric(horizontal: pageGutter),
               itemCount: recommendedTracks.length,
               separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
               itemBuilder: (BuildContext context, int index) {
@@ -175,18 +213,34 @@ class MobileHomeContent extends ConsumerWidget {
   }
 }
 
+class _SeeMoreButton extends StatelessWidget {
+  const _SeeMoreButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return m3e_core.M3EButton.icon(
+      style: m3e_core.M3EButtonStyle.tonal,
+      size: m3e_core.M3EButtonSize.sm,
+      shape: m3e_core.M3EButtonShape.round,
+      tooltip: '查看更多',
+      decoration: m3e_core.M3EButtonDecoration.styleFrom(),
+      icon: const Icon(M3EIcons.visibility),
+      label: const Text('查看更多'),
+      onPressed: () {},
+    );
+  }
+}
+
 class _ContinueListeningCarousel extends StatelessWidget {
   const _ContinueListeningCarousel({
     required this.queue,
     required this.currentIndex,
-    required this.titleStyle,
     required this.subtitleStyle,
     required this.onTrackSelected,
   });
 
   final List<rust.UiTrack> queue;
   final int currentIndex;
-  final TextStyle titleStyle;
   final TextStyle subtitleStyle;
   final ValueChanged<int> onTrackSelected;
 
@@ -207,19 +261,14 @@ class _ContinueListeningCarousel extends StatelessWidget {
         for (var position = 0; position < indices.length; position++)
           M3ECarouselItem(
             image: _TrackCover(track: queue[indices[position]]),
-            // Only the focal card gets the section title. M3E normally hides
-            // the title on non-large slots, so keep the fixed text visible.
             applyDynamicTextContentTransform: false,
-            title: position == 0
-                ? Text(MobileHomeContent._itemTitle, style: titleStyle)
-                : null,
             subtitle: Text(
               queue[indices[position]].title,
               style: subtitleStyle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            showScrim: const M3ECarouselScrim.gradient(),
+            showScrim: null,
             semanticLabel: queue[indices[position]].title,
             onTap: () => onTrackSelected(indices[position]),
           ),

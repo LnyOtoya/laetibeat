@@ -114,10 +114,14 @@
 ### Home 页重写
 
 - [x] 备份旧 `MobileHomeContent` 到 `backup/home/2026-11-23/`
-- [x] 顶部改为 `M3ECarousel`（contained、横向、无外层 section header）
-- [x] 仅第一张卡片显示 `继续听` title；其余卡片只显示歌曲名 + `M3ECarouselScrim.gradient()`
+- [x] 首页 gutter token 化：普通 section 使用 `AppLayout.gutterFor(width)`（手机 16）；继续听 carousel 使用 `AppLayout.carouselGutter = 8`；Home 页禁用 `AppPageBody` 全局 gutter，各 section 自行应用
+- [x] 顶部改为 `M3ECarousel`（contained、横向）
+- [x] Home 顶部改用 `M3EAppBar.top`：largeFlexible、regular、square、safeArea、默认展开、滚动不隐藏；展开标题“继续听”，折叠标题“首页”并在下方显示 subtitle“浏览音乐库近况”，使用 260ms fade + slide 过渡；折叠标题显式使用 `titleLarge`，避免过渡瞬间仍继承 `displaySmall` 导致标题块溢出
+- [x] 轮播图卡片内不再显示 `继续听`，只保留歌曲名
+- [x] 轮播图卡片只显示歌曲名（`titleMedium`，白色）；carousel scrim 设为 none
 - [x] 设置 `applyDynamicTextContentTransform: false`，避免 M3E 按 slot 大小隐藏 title
 - [x] 数据暂用当前播放队列；点击卡片播放对应曲目
+- [x] 轮播图右下角增加“查看更多”占位按钮（`m3e_core.M3EButton.icon`，tonal/sm/round，眼睛图标，按 `carouselGutter` 对齐）
 - [x] 最新添加：最多 3 张垂直卡片（非轮播），每张卡片下加 `M3EDivider`，末尾右下角“查看更多”占位；本地 + Subsonic、M3ECard、艺术家头像/来源/发行年份、添加相对时间、收藏占位按钮
 - [ ] 最新添加：真实收藏逻辑与专辑详情跳转
 - [x] 很久没听：`重拾旧爱` 横向 `cookie9Sided` shapes，艺术家名在下方；数据暂从 longTimeNoSee 推荐专辑按艺术家去重，头像暂用专辑封面

@@ -12,6 +12,9 @@ abstract final class AppLayout {
   /// Base page gutter for compact windows.
   static const double pageGutter = AppSpacing.lg;
 
+  /// Tighter gutter for edge-adjacent media carousels.
+  static const double carouselGutter = AppSpacing.sm;
+
   /// Standard page padding: horizontal gutter only.
   static const EdgeInsets page = EdgeInsets.symmetric(horizontal: pageGutter);
 
