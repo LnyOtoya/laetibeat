@@ -1,5 +1,3 @@
-import 'package:flutter_localizations/flutter_localizations.dart'
-    as flutter_l10n;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:laetibeat/design/design.dart';
@@ -17,7 +15,7 @@ class _FakePlayerNotifier extends PlayerNotifier {
 }
 
 void main() {
-  testWidgets('mobile shell uses the morphing bar for top-level tabs', (
+  testWidgets('mobile shell uses the floating nav bar for top-level tabs', (
     WidgetTester tester,
   ) async {
     addTearDown(() {
@@ -33,8 +31,6 @@ void main() {
           localizationsDelegates: <LocalizationsDelegate<dynamic>>[
             AppLocalizations.delegate,
             ...GlobalMaterialLocalizations.delegates,
-            flutter_l10n.GlobalMaterialLocalizations.delegate,
-            flutter_l10n.GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: AppLocalizations.supportedLocales,
           home: MobileShell(
@@ -58,7 +54,11 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.byType(AppMorphingTabBar), findsOneWidget);
+    expect(find.byType(AppFloatingNavBar), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('mobile_floating_nav_bar')),
+      findsOneWidget,
+    );
     expect(find.byType(M3ENavigationBar), findsNothing);
     expect(find.text(MobileRoutes.home), findsOneWidget);
 
@@ -66,6 +66,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(MobileRoutes.stats), findsOneWidget);
-    expect(find.byType(AppMorphingTabBar), findsOneWidget);
+    expect(find.byType(AppFloatingNavBar), findsOneWidget);
   });
 }

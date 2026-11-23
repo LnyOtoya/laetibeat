@@ -14,8 +14,6 @@ import 'library/mobile_library_subpages.dart';
 import 'mobile_navigation.dart';
 import 'player/mini_player.dart';
 import 'routes.dart';
-import 'search/mobile_search_browse_view.dart';
-import 'search/mobile_search_inline_view.dart';
 import 'search/mobile_search_page.dart';
 import 'settings/content/mobile_content_settings_page.dart';
 import 'settings/mobile_settings_page.dart';
@@ -24,7 +22,7 @@ import 'stats/mobile_stats_page.dart';
 /// 移动端 Shell。
 ///
 /// [child] 是 MaterialApp 的根 Navigator。所有页面都在这条 Navigator 上，
-/// Shell 负责底部导航、inline search、MiniPlayer 和底部 inset。
+/// Shell 负责底部导航、MiniPlayer 和底部 inset。
 class MobileShell extends ConsumerStatefulWidget {
   const MobileShell({super.key, required this.child});
 
@@ -41,40 +39,23 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     AppDestination.stats,
   ];
 
-  final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocusNode = FocusNode();
-  final GlobalKey<MobileSearchInlineViewState> _searchViewKey =
-      GlobalKey<MobileSearchInlineViewState>();
-
-  bool _isSearching = false;
-  bool _searchFieldFocused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _searchFocusNode.addListener(_onSearchFocusChanged);
-  }
-
-  @override
-  void dispose() {
-    _searchFocusNode.removeListener(_onSearchFocusChanged);
-    _searchController.dispose();
-    _searchFocusNode.dispose();
-    super.dispose();
-  }
-
-  void _onSearchFocusChanged() {
-    if (!mounted) return;
-    final focused = _searchFocusNode.hasFocus;
-    if (focused == _searchFieldFocused) return;
-    setState(() => _searchFieldFocused = focused);
-  }
-
-  List<AppMorphingTab> _destinations(AppLocalizations l10n) {
-    return <AppMorphingTab>[
-      AppMorphingTab(icon: M3EIcons.home, label: l10n.navHome),
-      AppMorphingTab(icon: M3EIcons.music_note, label: l10n.navLibrary),
-      AppMorphingTab(icon: M3EIcons.bar_chart, label: l10n.statisticsTitle),
+  List<AppFloatingNavTab> _destinations(AppLocalizations l10n) {
+    return <AppFloatingNavTab>[
+      AppFloatingNavTab(
+        icon: M3EIcons.home,
+        selectedIcon: M3EIcons.home,
+        label: l10n.navHome,
+      ),
+      AppFloatingNavTab(
+        icon: M3EIcons.music_note,
+        selectedIcon: M3EIcons.music_note,
+        label: l10n.navLibrary,
+      ),
+      AppFloatingNavTab(
+        icon: M3EIcons.bar_chart,
+        selectedIcon: M3EIcons.bar_chart,
+        label: l10n.statisticsTitle,
+      ),
     ];
   }
 
@@ -105,7 +86,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   }
 
   void _selectTab(AppDestination destination) {
-    if (_isSearching) _closeSearch();
     final NavigatorState? navigator = mobileNavigatorKey.currentState;
     if (navigator == null) return;
     final String? current = mobileCurrentRouteName.value;
@@ -131,55 +111,18 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         navigator.pushNamed(MobileRoutes.stats);
         return;
       case AppDestination.search:
-        if (current == MobileRoutes.search) return;
-        navigator.pushNamed(MobileRoutes.search);
+        _openSearch();
         return;
       default:
         return;
     }
   }
 
-  void _handleSearchToggle(bool value) {
-    if (value) {
-      if (_isSearching) return;
-      _searchFocusNode.unfocus();
-      setState(() {
-        _isSearching = true;
-        _searchFieldFocused = false;
-      });
-    } else {
-      _closeSearch();
-    }
-  }
-
-  void _closeSearch() {
-    if (!_isSearching) return;
-    _searchFocusNode.unfocus();
-    _searchController.clear();
-    setState(() {
-      _isSearching = false;
-      _searchFieldFocused = false;
-    });
-  }
-
-  void _clearSearchText() {
-    if (_searchController.text.isEmpty) {
-      _closeSearch();
-      return;
-    }
-    _searchController.clear();
-  }
-
-  void _selectGenre(String genre) {
-    _searchController.value = TextEditingValue(
-      text: genre,
-      selection: TextSelection.collapsed(offset: genre.length),
-    );
-    _searchFocusNode.requestFocus();
-  }
-
-  void _submitSearch(String query) {
-    _searchViewKey.currentState?.submit(query);
+  void _openSearch() {
+    final NavigatorState? navigator = mobileNavigatorKey.currentState;
+    if (navigator == null) return;
+    if (mobileCurrentRouteName.value == MobileRoutes.search) return;
+    navigator.pushNamed(MobileRoutes.search);
   }
 
   double _bottomOverlayInset(
@@ -190,7 +133,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     if (!showNavigationBar) return 0;
     final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
     return AppSpacing.sm +
-        AppComponentSize.morphingBar +
+        AppFloatingNavBar.height +
         safeBottom +
         (showMiniPlayer ? AppComponentSize.miniPlayerAccessory : 0);
   }
@@ -210,72 +153,45 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             _tabForRoute(routeName) ?? AppDestination.home;
         final int selectedIndex = _tabs.indexOf(tab);
         final bool showNavigationBar = _showNavigationBar(routeName);
-        final bool isHome = routeName == null || routeName == MobileRoutes.home;
-        final bool showMiniPlayer =
-            hasTrack && showNavigationBar && !isHome && !_searchFieldFocused;
+        final bool showMiniPlayer = hasTrack && showNavigationBar;
         final double bottomInset = _bottomOverlayInset(
           context,
           showNavigationBar: showNavigationBar,
           showMiniPlayer: showMiniPlayer,
         );
 
-        final bottomBar = showNavigationBar
-            ? AppMorphingTabBar(
-                key: const ValueKey('mobile_morphing_tab_bar'),
-                tabs: _destinations(l10n),
-                selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
-                onTabSelected: (int index) {
-                  if (index < 0 || index >= _tabs.length) return;
-                  _selectTab(_tabs[index]);
-                },
-                isSearching: _isSearching,
-                searchEditing: _searchFieldFocused,
-                onSearchToggle: _handleSearchToggle,
-                onSearchClear: _clearSearchText,
-                searchConfig: AppMorphingSearchConfig(
-                  hintText: l10n.searchHint,
-                  controller: _searchController,
-                  focusNode: _searchFocusNode,
-                  onSubmitted: _submitSearch,
-                  showClearButton: false,
-                ),
-                bottomAccessory: showMiniPlayer ? const MiniPlayer() : null,
-                hideBottomAccessoryWhenSearching: false,
-                floatAboveKeyboard: false,
+        final Widget? bottomBar = showNavigationBar
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (showMiniPlayer) const MiniPlayer(),
+                  AppFloatingNavBar(
+                    key: const ValueKey<String>('mobile_floating_nav_bar'),
+                    tabs: _destinations(l10n),
+                    selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
+                    onTabSelected: (int index) {
+                      if (index < 0 || index >= _tabs.length) return;
+                      _selectTab(_tabs[index]);
+                    },
+                    onSearchPressed: _openSearch,
+                    searchLabel: l10n.searchHint,
+                  ),
+                ],
               )
             : null;
 
         final body = Stack(
           children: <Widget>[
-            Positioned.fill(
-              child: Offstage(offstage: _isSearching, child: widget.child),
-            ),
-            if (_isSearching)
-              Positioned.fill(
-                child: _searchFieldFocused
-                    ? MobileSearchInlineView(
-                        key: _searchViewKey,
-                        controller: _searchController,
-                        focusNode: _searchFocusNode,
-                        onClose: _closeSearch,
-                      )
-                    : MobileSearchBrowseView(onGenreSelected: _selectGenre),
-              ),
+            Positioned.fill(child: widget.child),
             if (bottomBar != null)
               Positioned(left: 0, right: 0, bottom: 0, child: bottomBar),
           ],
         );
 
         return TapHapticDetector(
-          child: PopScope(
-            canPop: !_isSearching,
-            onPopInvokedWithResult: (bool didPop, Object? result) {
-              if (!didPop && _isSearching) _closeSearch();
-            },
-            child: Scaffold(
-              backgroundColor: theme.colorScheme.surfaceContainer,
-              body: AppBottomInsetScope(bottomInset: bottomInset, child: body),
-            ),
+          child: Scaffold(
+            backgroundColor: theme.colorScheme.surfaceContainer,
+            body: AppBottomInsetScope(bottomInset: bottomInset, child: body),
           ),
         );
       },

@@ -1,7 +1,7 @@
 # Laetibeat 项目蓝图
 
-> 最后更新：2026-11-22
-> 当前阶段：设计系统 token 化、Material You 官方取色与页面 gutter 契约已落地；具体页面尚未迁移，LX / 远端链路继续稳定性收尾
+> 最后更新：2026-11-23
+> 当前阶段：Flutter 主线继续；新 Shell / 播放器架构与 AOSP 取色策略已定，进入 UI 重写前的结构迁移（本轮只定架构，不写代码）
 
 ## 当前状态速览
 
@@ -18,6 +18,119 @@
 - 主要功能缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 - 设计系统：新增 `lib/design/`（颜色/字体/间距/圆角/尺寸/动效/断点 token、Material You 官方取色、`AppArtwork` / `AppText` / `AppMediaRow` 等基础组件）；页面级左右 gutter 统一为 `AppLayout.pageGutter` + `AppPageBody`；具体页面尚未迁移
+- 新 UI 方向：继续 Flutter；`m3e_core` / `material_3_expressive` 只作组件库；Shell、路由、主题与取色自管；MiniPlayer + NavBar 为悬浮 BottomOverlay；Full Player 为 Root Navigator Route（2026-11-23 定稿）
+
+## 新 UI 架构决策（2026-11-23 定稿）
+
+> 本轮先定架构，不写代码。目标是把「Shell / BottomOverlay / MiniPlayer / FullPlayer」职责拆清，并为后续 AOSP 取色与实现留出稳定边界。
+
+### 技术路线
+
+- [x] 继续 Flutter，不转 Kotlin Compose
+- [x] `m3e_core` 只作组件库：其组件读 `material_ui` 的 `Theme.of(context)`，不需要 `M3ETheme` / `M3EMaterialApp`
+- [x] `material_3_expressive` 只作组件库：组件需要 `M3ETheme` 祖先，但仅使用静态 `M3ETheme(data: ...)` 注入
+- [x] 不使用 `M3EMaterialApp`、`M3EThemeScope`、`M3EDynamicColorHost`、`M3ETheme(dynamicColoring: true)` 作为应用外壳
+- [x] Shell、Root Navigator、页面路由、主题生命周期、动态色、亮度全部自管
+- [x] 两套组件共享同一份 `ColorScheme`：`ThemeData(colorScheme:)` 给 `material_ui` / `m3e_core`，`M3EColorScheme.fromColorScheme(...)` 给 `material_3_expressive`
+- [ ] 新增 `AppThemeHost`：`Theme` + 静态 `M3ETheme` 放在 `MaterialApp.builder` 中、Root Navigator 之上，保证 dialog / sheet / menu overlay 也能拿到两套主题
+- [ ] 处理包内同名 `M3EColorScheme`：`m3e_core` 与 `material_3_expressive` 使用 import prefix 或 `show` / `hide`
+
+### 导航栏重设计
+
+- [x] 备份旧导航栏与测试到 `backup/navigation/2026-11-23/`
+- [x] 新增独立 `AppFloatingNavBar`：`M3EFabHorizontalFloatingToolbar` + 3 个可展开 tab + 独立 Search FAB
+- [x] Search 不参与 tab 选中；FAB 使用 `M3EFabSize.medium` + `M3EFabColor.primary`
+- [x] tab 宽度 token：`floatingNavTabCollapsed = 46` / `floatingNavTabExpanded = 100` / `floatingNavTabHeight = 48`；FAB = 56
+- [x] 组件使用 `motor` 的 `SingleMotionController` + `M3E.expressiveSpatialFast` 做 tab 展开/收起
+- [x] 新增直接依赖 `motor: ^1.1.0`（原先为 transitive）
+- [x] 组件文件 `lib/design/components/navigation/app_floating_nav_bar.dart` 已导出
+- [x] `MobileShell` 已迁移到 `AppFloatingNavBar`：3 tabs + Search FAB；移除旧 morphing tab bar 引用
+- [x] Search FAB 改为 push `MobileRoutes.search`（`MobileSearchPage`），移除 shell inline search 状态
+- [x] MiniPlayer 暂从 `bottomAccessory` 拆出，作为 nav 上方 Column 的临时迁移形态（下一步改 BottomOverlay）
+- [x] 更新 `mobile_shell_navigation_test` / 新增 `mobile_shell_search_fab_test`（未运行测试）
+- [x] 迁移后仅运行 `flutter analyze`：改动文件无问题；全项目剩余 29 条既有 info/warning，无新增 error
+- [x] 移除 Search FAB 的 `tooltip`：当前 Shell 在 Navigator/Overlay 外，`RawTooltip` 会报 `No Overlay widget found`；无障碍 label 保留在 Semantics
+- [x] MiniPlayer 的 `M3EIconButton.tooltip` 改为 `semanticLabel`，避免播放歌曲后同样触发 Overlay 缺失
+- [ ] 完成 BottomOverlay 架构：MiniPlayer 独立悬浮、NavBar 在上、slide/clip/hit-testing
+- [ ] 完成 FullPlayerRoute / 临时导航 / Shell 状态保活
+- [ ] 不自动进行 adb 截图/真机运行；需要真机时先询问
+
+### 颜色与 AOSP 对齐
+
+- [x] 现状确认：`MaterialYouThemeHost` 使用 `DynamicColorPlugin.getCorePalette()` 读取 AOSP 系统 tonal palettes，再经 MCU `DynamicScheme` 重建全部角色
+- [x] 现状确认：`material_3_expressive` 内置 `M3EDynamicColorHost` 只取 CorePalette 的 primary 当 seed，再 `ColorScheme.fromSeed`；会丢失 secondary / tertiary / neutral palettes
+- [x] 现状确认：`M3EThemeScope` 内置动态色还会对 error / success / warning 做 harmonize，不适合作为 AOSP 对齐路径
+- [x] 现状确认：`m3e_core` 的 `M3EColorScheme` 是从 seed 生成 / 混合 `systemColorScheme` 的工具，不是 AOSP 最终角色直通
+- [x] 决策：标准 Material 3 角色优先直接使用 AOSP 最终角色，或复刻 Compose 的固定 light/dark tone 映射；不再对标准角色使用 `fromSeed`
+- [x] 决策：`M3EColorScheme.fromColorScheme` 只负责接收标准角色并派生 M3E 扩展角色；扩展角色不声称与 AOSP 完全一致
+- [ ] 实现颜色来源方案：优先新增平台通道返回 AOSP 最终角色；若复杂度高，则实现 Compose 风格 `CorePalette -> 固定 tone -> ColorScheme`
+- [ ] 保留 `MaterialYouThemeHost` 作为回退（桌面 / 无动态色 / 旧 Android），但标准角色路径切换为直通映射
+- [ ] 建立 color debug 对比：AOSP 角色值 vs Flutter `ColorScheme` vs M3E 扩展角色
+- [ ] 明确 `harmonized()` 只影响 error / success / warning，不修改标准角色
+
+### Shell 与 BottomOverlay
+
+- [x] Root Navigator 结构：`AppShellRoute` 与 `FullPlayerRoute` 同级；Shell 必须作为持久 Route 留在栈中
+- [x] `AppShellRoute` 内部：页面层 full-bleed；MiniPlayer / NavBar 是悬浮覆盖层，不参与页面布局、不改变页面约束
+- [x] Shell 使用 `Stack(fit: expand)`：`Positioned.fill(NavigationHost)` + `Positioned(bottom: 0, left/right: 0, child: BottomOverlay)`
+- [x] `BottomOverlay` 内部再使用 `Stack`：MiniPlayer 在下、BottomNavBar 在上；Navigation Bar 最后绘制
+- [x] BottomOverlay 使用固定高度 `navBarHeight + miniPlayerHeight`；不再用 Column / 高度增长挤压页面
+- [x] MiniPlayer 隐藏方式：向下平移自身高度到 NavBar 后面 + `Clip.hardEdge` + `IgnorePointer` + `ExcludeSemantics`
+- [x] MiniPlayer 可见时页面不重排；页面内容可以滚动到悬浮层下面
+- [x] 页面级底部留白改为页面自己的 scroll padding / content padding，不由 Shell 强制改 layout
+- [x] 移除 `AppMorphingTabBar` 的 `bottomAccessory` 职责；MiniPlayer 改由 Shell 的 BottomOverlay 管理
+- [ ] 将 `MobileShell` 从 `MaterialApp.appBuilder` 包裹 Root Navigator 的结构，迁移为 Root Navigator 中的 `AppShellRoute`
+- [ ] 新增 `AppShellRoute` / `ShellLayout` / `BottomOverlay` / `FloatingChromeMetrics`
+- [ ] 拆分 `MiniPlayer` 与 `AppMorphingTabBar`，保留 NavBar 自身动效与搜索 morph
+- [ ] 用 `MiniPlayerPresentationController` 驱动 slide / clip / hit-testing
+- [ ] 当前歌曲出现时 MiniPlayer 从 NavBar 后滑出；无当前歌曲时滑回并清空 hit test
+- [ ] 保证 BottomOverlay 在 MiniPlayer 隐藏时，上方透明区域不拦截页面点击
+- [ ] 更新 `AppBottomInsetScope`：不再作为 Shell 强制页面 padding；改为可选的 floating chrome metrics
+- [ ] 更新 `mobile_shell_navigation_test` / `app_morphing_tab_bar_accessory_test` 以匹配新分层
+- [ ] 新增 Shell overlay / MiniPlayer slide / FullPlayer Route 回归测试
+
+### Full Player
+
+- [x] Full Player 是 Root Navigator 上的真实 Route，覆盖整个 Shell（含 BottomOverlay）
+- [x] Full Player 关闭通过 Route Pop，兼容系统返回与 Android 预测性返回
+- [x] Shell 在 Full Player 打开期间保持存活；滚动位置、Tab、搜索、列表状态不得重建
+- [x] 第一版不做 Full Player 内部 Nested Navigator
+- [x] Queue 采用 Modal / Sheet；Lyrics 采用播放器内展示模式或按交互决定独立 Route；Artist / Album / Settings 走正常业务 Route
+- [x] 只有 Full Player 内部出现独立页面历史且需要恢复时，才引入 Nested Navigator
+- [ ] 新增 `FullPlayerRoute` 与 Route Transition；封面使用 Hero / 共享元素，不把整个 MiniPlayer 当 Route
+- [ ] MiniPlayer 点击 / 上拖阈值触发 `push FullPlayerRoute`；pop 后回到 MiniPlayer 且 Shell 状态保持
+- [ ] 处理 Full Player 内子页面返回顺序：子页面 → Full Player → Shell
+- [ ] 不在 Full Player 打开时重新创建 Shell 或重新初始化播放器
+
+### 状态模型
+
+- [x] `PlaybackState`: `Idle` / `Playing` / `Paused`，只负责音乐播放
+- [x] `PlayerPresentationState`: `Hidden` / `Mini` / `Full`，只负责播放器界面展示
+- [x] 有当前歌曲时至少 `Mini`；暂停不改变 Presentation，MiniPlayer 不消失
+- [x] 关闭 Full Player 后回到 `Mini`，播放继续
+- [x] 动画进度不是状态：Hidden ↔ Mini 的 slide progress、Mini ↔ Full 的 route progress 单独管理
+- [x] 第一版 `Hidden` 表示无当前歌曲；若未来允许用户手动隐藏 Mini，必须单独建模，不能复用 `Hidden`
+- [ ] 新增全局 `PlayerController`（歌曲 / 播放状态 / 进度 / 队列 / 模式）
+- [ ] 新增 `PlayerPresentationController`（Hidden / Mini / Full 目标状态 + 各动画进度）
+- [ ] 播放器状态与页面生命周期解耦；页面 pop 不影响播放
+
+### 动画策略
+
+- [x] 第一版分离：MiniPlayer 使用独立 `AnimationController`；Full Player 使用 Route Transition
+- [x] 点击 Mini → push `FullPlayerRoute`；Mini 保持 Mini 状态，由 Route 覆盖，不需要先自己消失
+- [x] Hero 只负责封面 / 共享元素；整页展开仍由 Route Transition 负责
+- [x] 上拖 Mini 第一版采用阈值触发 push；不做手指连续跟手 morph
+- [ ] 只有当「拖动 Mini 连续展开 / 下拉 Full 连续收回 / 中断反向吸附」成为核心体验时，再引入共享 `PlayerExpansionController`
+- [ ] 共享 controller 必须同时解决：手势中断、Route 动画、系统返回、预测性返回、Mini hit testing
+
+### 本轮明确不做
+
+- [x] 不把 Compose / Kotlin 重写作为当前路线
+- [x] 不做 Full Player 内部 Nested Navigator
+- [x] 不做 Mini ↔ Full 单一连续 AnimationController
+- [x] 不让 BottomOverlay 高度变化挤压页面布局
+- [x] 不在 Shell 层强制页面 bottom padding
+
 
 ## 当前优先事项（2026-11-10）
 
@@ -63,9 +176,9 @@
 - [x] 新增 `test/app_morphing_tab_bar_compact_test.dart`：320dp 宽度下默认态与搜索态无溢出
 - [x] 新增 `test/app_morphing_tab_bar_search_action_test.dart`：`onSearchPressed` 外部搜索动作不触发 inline morph
 - [x] 新增 `test/mobile_shell_navigation_test.dart`：MobileShell 使用 morphing bar，Home → Stats 顶层切换
-- [x] 新增 `test/app_morphing_tab_bar_accessory_test.dart`：bottom accessory 渲染，搜索态收起并缩短整体高度
-- [x] `AppMorphingTabBar` 接入 shell：Home / Library / Stats 三个顶层 tab；MiniPlayer 作为 bottom accessory
-- [x] 浮动导航改为 `Stack` overlay，移除 `Scaffold.bottomNavigationBar` 的全宽背景板；`AppBottomInsetScope` 为页面提供底部留白
+- [x] 新增 `test/app_morphing_tab_bar_accessory_test.dart`：bottom accessory 渲染，搜索态收起并缩短整体高度（旧架构测试，待迁移到 BottomOverlay）
+- [x] `AppMorphingTabBar` 接入 shell：Home / Library / Stats 三个顶层 tab；MiniPlayer 作为 bottom accessory（已被 2026-11-23 独立 BottomOverlay 架构取代，待拆分）
+- [x] 浮动导航改为 `Stack` overlay，移除 `Scaffold.bottomNavigationBar` 的全宽背景板；`AppBottomInsetScope` 为页面提供底部留白（新架构改为页面 full-bleed，`AppBottomInsetScope` 仅保留为可选 floating chrome metrics）
 - [x] `AppMorphingTabBar` bottom accessory：搜索态自动收起；extra action 的搜索态收起由 `hideExtraActionWhenSearching` 控制
 - [x] 新增 `MobileSearchInlineView`：复用搜索历史与 `LibrarySearchSuggestions`，搜索框由 shell 的 controller/focusNode 驱动
 - [x] `MobileShell` inline search：搜索态替换 body、`PopScope` 返回关闭、提交后推入现有结果页
@@ -148,7 +261,7 @@
 - [ ] 页面迁移剩余：Search / Settings / Playback / Library 子页
 - [x] `AppMorphingTabBar` inline search 与路由联动：已用 `MobileSearchInlineView` 接入 shell，提交后进入现有结果页
 - [ ] 抽取搜索历史 store，消除 `MobileSearchPage` 与 `MobileSearchInlineView` 的重复逻辑
-- [x] Mini Player bottom accessory：已从 overlay 迁入 morphing bar 上方，搜索态自动收起；待真机验证视觉与键盘 inset
+- [x] ~~Mini Player bottom accessory：已从 overlay 迁入 morphing bar 上方，搜索态自动收起~~ 已被 2026-11-23 独立悬浮 BottomOverlay 架构取代，待拆分
 - [ ] 新增 `AppTopBar`，统一 AppBar leading/title/actions 与页面 gutter 对齐
 - [ ] 补齐交互组件：按钮、图标按钮、输入框、卡片、Chip、Bottom Sheet 的 token 封装
 - [ ] 统一 UI import 到 `material_ui`，清理 18 个 `package:flutter/material.dart` 文件

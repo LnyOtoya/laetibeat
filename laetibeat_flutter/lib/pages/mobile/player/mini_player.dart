@@ -53,13 +53,13 @@ class MiniPlayer extends ConsumerWidget {
                 M3EIconButton(
                   variant: M3EIconButtonVariant.standard,
                   icon: const Icon(M3EIcons.skip_previous),
-                  tooltip: AppLocalizations.of(context).previousTrack,
+                  semanticLabel: AppLocalizations.of(context).previousTrack,
                   onPressed: notifier.prev,
                 ),
                 M3EIconButton(
                   variant: M3EIconButtonVariant.filled,
                   icon: Icon(isPlaying ? M3EIcons.pause : M3EIcons.play_arrow),
-                  tooltip: isPlaying
+                  semanticLabel: isPlaying
                       ? AppLocalizations.of(context).pause
                       : AppLocalizations.of(context).play,
                   onPressed: notifier.toggle,
@@ -67,7 +67,7 @@ class MiniPlayer extends ConsumerWidget {
                 M3EIconButton(
                   variant: M3EIconButtonVariant.standard,
                   icon: const Icon(M3EIcons.skip_next),
-                  tooltip: AppLocalizations.of(context).nextTrack,
+                  semanticLabel: AppLocalizations.of(context).nextTrack,
                   onPressed: notifier.next,
                 ),
               ],

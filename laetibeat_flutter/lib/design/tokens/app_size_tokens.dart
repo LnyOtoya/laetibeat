@@ -24,6 +24,10 @@ abstract final class AppComponentSize {
   static const double morphingBar = 64;
   static const double morphingBarSmall = 52;
   static const double morphingPill = 64;
+  static const double floatingNavTabCollapsed = 46;
+  static const double floatingNavTabExpanded = 100;
+  static const double floatingNavTabHeight = 48;
+  static const double floatingNavFab = 56;
 }
 
 /// Content measures for readable layouts on wide windows.
