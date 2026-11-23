@@ -63,6 +63,9 @@
 - [x] 现状确认：`m3e_core` 的 `M3EColorScheme` 是从 seed 生成 / 混合 `systemColorScheme` 的工具，不是 AOSP 最终角色直通
 - [x] 决策：标准 Material 3 角色优先直接使用 AOSP 最终角色，或复刻 Compose 的固定 light/dark tone 映射；不再对标准角色使用 `fromSeed`
 - [x] 决策：`M3EColorScheme.fromColorScheme` 只负责接收标准角色并派生 M3E 扩展角色；扩展角色不声称与 AOSP 完全一致
+- [x] `MaterialYouThemeHost` 同时注入动态 `Theme` 和 `M3ETheme`，让 `m3e_core` 与 `material_3_expressive` 使用同一套 ColorScheme
+- [x] 移除 `M3EMaterialApp`：它在 `appBuilder` 的 child 内部又包了一层静态 `M3ETheme`，会 shadow 外层动态 host；改用 `MaterialApp` + `MaterialYouThemeHost`
+- [x] 标准 `MaterialApp` 使用 `theme` / `darkTheme` / `themeMode`，动态 host 根据当前 brightness 生成对应壁纸色
 - [ ] 实现颜色来源方案：优先新增平台通道返回 AOSP 最终角色；若复杂度高，则实现 Compose 风格 `CorePalette -> 固定 tone -> ColorScheme`
 - [ ] 保留 `MaterialYouThemeHost` 作为回退（桌面 / 无动态色 / 旧 Android），但标准角色路径切换为直通映射
 - [ ] 建立 color debug 对比：AOSP 角色值 vs Flutter `ColorScheme` vs M3E 扩展角色

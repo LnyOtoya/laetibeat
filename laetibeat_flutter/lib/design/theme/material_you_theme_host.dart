@@ -109,6 +109,19 @@ class _MaterialYouThemeHostState extends State<MaterialYouThemeHost>
       density: widget.density,
     );
 
-    return M3ETheme(data: data, child: widget.child);
+    // `m3e_core` widgets (FAB / floating toolbar / icon buttons) read
+    // `Theme.of(context)`, while `material_3_expressive` widgets read
+    // `M3ETheme.of(context)`. Project the same dynamic scheme onto both so the
+    // shell and the page components do not fall back to the brand seed.
+    final materialTheme = Theme.of(context).copyWith(
+      colorScheme: data.colorScheme.toColorScheme(),
+      scaffoldBackgroundColor: data.colorScheme.surface,
+      canvasColor: data.colorScheme.surface,
+    );
+
+    return Theme(
+      data: materialTheme,
+      child: M3ETheme(data: data, child: widget.child),
+    );
   }
 }

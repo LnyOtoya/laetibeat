@@ -1,9 +1,7 @@
-import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'
     as flutter_l10n;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_3_expressive/material_3_expressive.dart';
-import 'package:material_ui/material_ui.dart' show GlobalMaterialLocalizations;
+import 'package:material_ui/material_ui.dart';
 
 import '../design/design.dart';
 import '../l10n/generated/app_localizations.dart';
@@ -15,7 +13,6 @@ import '../widgets/player/player_error_listener.dart';
 import '../widgets/settings/settings_provider.dart';
 import 'app_form_factor.dart';
 import 'app_locale.dart';
-import 'theme/app_theme.dart';
 
 /// 应用根节点：只负责形态选择、主题装配与全局宿主。
 class LaetibeatApp extends ConsumerWidget {
@@ -26,46 +23,39 @@ class LaetibeatApp extends ConsumerWidget {
     final formFactor = ref.watch(appFormFactorProvider);
     final themeMode = ref.watch(appThemeModeProvider);
     final language = ref.watch(appLanguageProvider);
-    final followSystem = themeMode == AppThemeMode.system;
-    final initialTheme = followSystem
-        ? null
-        : (themeMode == AppThemeMode.dark ? Brightness.dark : Brightness.light);
-    final themeData = AppThemeFactory.dataFor(formFactor);
-
-    return M3EMaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Laetibeat',
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       locale: localeFor(language),
-      // M3EMaterialApp uses material_ui's MaterialApp/Cupertino types, so the
-      // Flutter-global delegates from flutter_localizations do not satisfy it.
-      // Use material_ui's global delegates plus our generated app delegate.
       localizationsDelegates: <LocalizationsDelegate<dynamic>>[
         AppLocalizations.delegate,
-        // M3EMaterialApp uses material_ui's Material/Cupertino localizations.
         ...GlobalMaterialLocalizations.delegates,
         // Some pages still use widgets from Flutter's material library.
         flutter_l10n.GlobalMaterialLocalizations.delegate,
         flutter_l10n.GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      data: themeData,
-      // Dynamic color is resolved by MaterialYouThemeHost below, using the
-      // official material_color_utilities dynamic schemes. Do not let M3E
-      // re-seed from only the palette primary here.
-      dynamicColoring: false,
-      autoTheming: followSystem,
-      initialTheme: initialTheme,
-      fontFamily: 'Google Sans Flex',
-      variableFont: const M3EVariableFontConfig(
-        enableOpsz: true,
-        syncWghtToWeight: true,
-        emphasizedGrad: 50,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: AppColorTokens.brandSeed,
+        fontFamily: 'Google Sans Flex',
       ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: AppColorTokens.brandSeed,
+        brightness: Brightness.dark,
+        fontFamily: 'Google Sans Flex',
+      ),
+      themeMode: switch (themeMode) {
+        AppThemeMode.light => ThemeMode.light,
+        AppThemeMode.dark => ThemeMode.dark,
+        AppThemeMode.system => ThemeMode.system,
+      },
       navigatorKey: formFactor == AppFormFactor.mobile
           ? mobileRootNavigatorKey
           : null,
-      appBuilder: (BuildContext context, Widget? child) {
+      builder: (BuildContext context, Widget? child) {
         final content = child ?? const SizedBox.shrink();
 
         // Resolve the Material You palette once and project it onto both the
