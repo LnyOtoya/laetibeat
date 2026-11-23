@@ -8,7 +8,6 @@ import 'package:material_ui/material_ui.dart' show GlobalMaterialLocalizations;
 import '../design/design.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../pages/desktop/desktop_app.dart';
-import '../pages/mobile/home/mobile_home_page.dart';
 import '../pages/mobile/mobile_app.dart';
 import '../pages/mobile/mobile_navigation.dart';
 import '../widgets/integration/media_integration_host.dart';
@@ -64,18 +63,10 @@ class LaetibeatApp extends ConsumerWidget {
         emphasizedGrad: 50,
       ),
       navigatorKey: formFactor == AppFormFactor.mobile
-          ? mobileNavigatorKey
-          : null,
-      navigatorObservers: formFactor == AppFormFactor.mobile
-          ? <NavigatorObserver>[mobileNavigatorObserver]
-          : const <NavigatorObserver>[],
-      onGenerateRoute: formFactor == AppFormFactor.mobile
-          ? mobileOnGenerateRoute
+          ? mobileRootNavigatorKey
           : null,
       appBuilder: (BuildContext context, Widget? child) {
-        final content = formFactor == AppFormFactor.mobile
-            ? MobileShell(child: child ?? const SizedBox.shrink())
-            : (child ?? const SizedBox.shrink());
+        final content = child ?? const SizedBox.shrink();
 
         // Resolve the Material You palette once and project it onto both the
         // expressive theme and material_ui's Theme for the whole navigator.
@@ -90,7 +81,7 @@ class LaetibeatApp extends ConsumerWidget {
       },
       home: switch (formFactor) {
         AppFormFactor.desktop => const DesktopApp(),
-        AppFormFactor.mobile => const MobileHomePage(),
+        AppFormFactor.mobile => const MobileShellPage(),
       },
     );
   }

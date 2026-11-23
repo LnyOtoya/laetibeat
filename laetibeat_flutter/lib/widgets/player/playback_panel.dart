@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
@@ -22,6 +22,7 @@ class PlaybackPanel extends ConsumerStatefulWidget {
     super.key,
     this.fullscreen = false,
     this.onOpenFullscreen,
+    this.heroTag,
   });
 
   //是否处于全屏布局
@@ -29,6 +30,9 @@ class PlaybackPanel extends ConsumerStatefulWidget {
 
   //由桌面/移动页面注入“打开全屏”导航，共享面板不直接创建平台页面
   final VoidCallback? onOpenFullscreen;
+
+  /// Optional shared-element tag for the large artwork.
+  final String? heroTag;
 
   @override
   ConsumerState<PlaybackPanel> createState() => _PlaybackPanelState();
@@ -400,11 +404,14 @@ class _PlaybackPanelState extends ConsumerState<PlaybackPanel> {
               key: const ValueKey('cover'),
               builder: (context, constraints) {
                 final width = math.min(_controlMaxWidth, constraints.maxWidth);
+                final cover = _cover(theme, bytes: bytes);
                 return Center(
                   child: SizedBox(
                     width: width,
                     height: constraints.maxHeight,
-                    child: _cover(theme, bytes: bytes),
+                    child: widget.heroTag == null
+                        ? cover
+                        : Hero(tag: widget.heroTag!, child: cover),
                   ),
                 );
               },

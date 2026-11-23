@@ -8,6 +8,7 @@ export 'layout/app_scaffold.dart';
 export 'layout/app_section_header.dart';
 export 'media/app_media_row.dart';
 export 'media/app_media_tile.dart';
+export 'navigation/app_bottom_overlay.dart';
 export 'navigation/app_floating_nav_bar.dart';
 export 'navigation/app_morphing_tab_bar.dart';
 export 'surfaces/app_surface.dart';

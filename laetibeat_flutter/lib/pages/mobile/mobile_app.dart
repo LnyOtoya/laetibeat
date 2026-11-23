@@ -125,19 +125,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     navigator.pushNamed(MobileRoutes.search);
   }
 
-  double _bottomOverlayInset(
-    BuildContext context, {
-    required bool showNavigationBar,
-    required bool showMiniPlayer,
-  }) {
-    if (!showNavigationBar) return 0;
-    final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
-    return AppSpacing.sm +
-        AppFloatingNavBar.height +
-        safeBottom +
-        (showMiniPlayer ? AppComponentSize.miniPlayerAccessory : 0);
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
@@ -154,31 +141,37 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         final int selectedIndex = _tabs.indexOf(tab);
         final bool showNavigationBar = _showNavigationBar(routeName);
         final bool showMiniPlayer = hasTrack && showNavigationBar;
-        final double bottomInset = _bottomOverlayInset(
-          context,
-          showNavigationBar: showNavigationBar,
-          showMiniPlayer: showMiniPlayer,
-        );
-
-        final Widget? bottomBar = showNavigationBar
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  if (showMiniPlayer) const MiniPlayer(),
-                  AppFloatingNavBar(
-                    key: const ValueKey<String>('mobile_floating_nav_bar'),
-                    tabs: _destinations(l10n),
-                    selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
-                    onTabSelected: (int index) {
-                      if (index < 0 || index >= _tabs.length) return;
-                      _selectTab(_tabs[index]);
-                    },
-                    onSearchPressed: _openSearch,
-                    searchLabel: l10n.searchHint,
-                  ),
-                ],
+        final AppFloatingNavBar? navBar = showNavigationBar
+            ? AppFloatingNavBar(
+                key: const ValueKey<String>('mobile_floating_nav_bar'),
+                tabs: _destinations(l10n),
+                selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
+                onTabSelected: (int index) {
+                  if (index < 0 || index >= _tabs.length) return;
+                  _selectTab(_tabs[index]);
+                },
+                onSearchPressed: _openSearch,
+                searchLabel: l10n.searchHint,
               )
             : null;
+
+        final double navigationBarHeight = navBar?.resolvedHeight(context) ?? 0;
+        final Widget? bottomBar = navBar == null
+            ? null
+            : AppBottomOverlay(
+                navigationBar: navBar,
+                navigationBarHeight: navigationBarHeight,
+                miniPlayer: const MiniPlayer(),
+                miniVisible: showMiniPlayer,
+                miniPlayerHeight: AppComponentSize.miniPlayerAccessory,
+              );
+
+        // This is a metric for page-owned scroll/content padding. The Shell
+        // never wraps the page in this padding, so page layout stays full-bleed.
+        final double floatingChromeInset = showNavigationBar
+            ? navigationBarHeight +
+                  (showMiniPlayer ? AppComponentSize.miniPlayerAccessory : 0)
+            : 0;
 
         final body = Stack(
           children: <Widget>[
@@ -191,10 +184,33 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         return TapHapticDetector(
           child: Scaffold(
             backgroundColor: theme.colorScheme.surfaceContainer,
-            body: AppBottomInsetScope(bottomInset: bottomInset, child: body),
+            body: AppBottomInsetScope(
+              bottomInset: floatingChromeInset,
+              child: body,
+            ),
           ),
         );
       },
+    );
+  }
+}
+
+/// Root Navigator 中的 App Shell Route。
+///
+/// Shell 自身和 Tab Navigator 都在这条 Root Route 里。Full Player 等页面
+/// 可以 push 到 Root Navigator，从而真正覆盖 Shell 和 BottomOverlay。
+class MobileShellPage extends StatelessWidget {
+  const MobileShellPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MobileShell(
+      child: Navigator(
+        key: mobileNavigatorKey,
+        observers: <NavigatorObserver>[mobileNavigatorObserver],
+        initialRoute: MobileRoutes.home,
+        onGenerateRoute: mobileOnGenerateRoute,
+      ),
     );
   }
 }

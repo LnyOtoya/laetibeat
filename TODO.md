@@ -78,15 +78,20 @@
 - [x] MiniPlayer 隐藏方式：向下平移自身高度到 NavBar 后面 + `Clip.hardEdge` + `IgnorePointer` + `ExcludeSemantics`
 - [x] MiniPlayer 可见时页面不重排；页面内容可以滚动到悬浮层下面
 - [x] 页面级底部留白改为页面自己的 scroll padding / content padding，不由 Shell 强制改 layout
-- [x] 移除 `AppMorphingTabBar` 的 `bottomAccessory` 职责；MiniPlayer 改由 Shell 的 BottomOverlay 管理
-- [ ] 将 `MobileShell` 从 `MaterialApp.appBuilder` 包裹 Root Navigator 的结构，迁移为 Root Navigator 中的 `AppShellRoute`
-- [ ] 新增 `AppShellRoute` / `ShellLayout` / `BottomOverlay` / `FloatingChromeMetrics`
-- [ ] 拆分 `MiniPlayer` 与 `AppMorphingTabBar`，保留 NavBar 自身动效与搜索 morph
-- [ ] 用 `MiniPlayerPresentationController` 驱动 slide / clip / hit-testing
-- [ ] 当前歌曲出现时 MiniPlayer 从 NavBar 后滑出；无当前歌曲时滑回并清空 hit test
-- [ ] 保证 BottomOverlay 在 MiniPlayer 隐藏时，上方透明区域不拦截页面点击
-- [ ] 更新 `AppBottomInsetScope`：不再作为 Shell 强制页面 padding；改为可选的 floating chrome metrics
+- [x] 移除 `AppMorphingTabBar` 的 `bottomAccessory` 职责；MiniPlayer 改由 `AppBottomOverlay` 管理
+- [x] 将 `MobileShell` 从 `MaterialApp.appBuilder` 包裹 Root Navigator 的结构，迁移为 Root Navigator 中的 `MobileShellPage`
+- [x] 新增 `mobileRootNavigatorKey` + `mobileNavigatorKey`：Root Navigator / Tab Navigator 分离
+- [x] Full Player 改由 `pushMobileRootRoute` 推到 Root Navigator，可覆盖 Shell
+- [x] 新增 `AppBottomOverlay`：固定高度、页面 full-bleed、NavBar 在 MiniPlayer 上层
+- [x] 使用 `AppBottomInsetScope` 提供悬浮 chrome 高度；页面自行用于 scroll/content padding，Shell 不包裹页面
+- [x] 拆分 `MiniPlayer` 与 `AppMorphingTabBar`：Shell 使用 `AppBottomOverlay` + `AppFloatingNavBar`
+- [x] `AppBottomOverlay` 内用 `AnimationController` 驱动 MiniPlayer slide / fade / clip / hit-testing
+- [x] MiniPlayer overlay 高度使用 `miniPlayerAccessory = 96`：`M3EToolbar.floating` 的 64 高 pill + 上下各 16 外部 padding
+- [x] 当前歌曲出现时 MiniPlayer 从 NavBar 后滑出；无当前歌曲时滑回并清空 hit test
+- [x] BottomOverlay 在 MiniPlayer 隐藏时，上方透明区域不拦截页面点击（IgnorePointer + Stack 无空白子节点）
+- [x] Shell 不再包裹/压缩页面；`AppBottomInsetScope` 仅提供悬浮 chrome 高度，供页面自己的 scroll/content padding 使用
 - [ ] 更新 `mobile_shell_navigation_test` / `app_morphing_tab_bar_accessory_test` 以匹配新分层
+- [x] 页面级底部 scroll padding：Shell 传 `floatingChromeInset`，Home/Library/Stats 等已有 padding 重新生效
 - [ ] 新增 Shell overlay / MiniPlayer slide / FullPlayer Route 回归测试
 
 ### Full Player
@@ -97,8 +102,8 @@
 - [x] 第一版不做 Full Player 内部 Nested Navigator
 - [x] Queue 采用 Modal / Sheet；Lyrics 采用播放器内展示模式或按交互决定独立 Route；Artist / Album / Settings 走正常业务 Route
 - [x] 只有 Full Player 内部出现独立页面历史且需要恢复时，才引入 Nested Navigator
-- [ ] 新增 `FullPlayerRoute` 与 Route Transition；封面使用 Hero / 共享元素，不把整个 MiniPlayer 当 Route
-- [ ] MiniPlayer 点击 / 上拖阈值触发 `push FullPlayerRoute`；pop 后回到 MiniPlayer 且 Shell 状态保持
+- [x] 新增 `mobileFullPlayerRoute`：PageRouteBuilder fade/slide 转场；封面使用 Hero 共享元素
+- [x] MiniPlayer 点击 / 上拖阈值触发 `pushMobileFullPlayer`；pop 后回到 MiniPlayer 且 Shell 状态保持
 - [ ] 处理 Full Player 内子页面返回顺序：子页面 → Full Player → Shell
 - [ ] 不在 Full Player 打开时重新创建 Shell 或重新初始化播放器
 

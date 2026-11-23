@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show SemanticsRole, lerpDouble;
 
 import 'package:m3e_core/m3e_core.dart';
@@ -49,6 +50,16 @@ class AppFloatingNavBar extends StatelessWidget {
 
   /// Total height of the floating toolbar variant, excluding safe-area padding.
   static const double height = AppComponentSize.navigationBar;
+
+  /// Height including the bottom safe area and bottom padding used by this
+  /// instance. Bottom overlays consume this to position the mini player above
+  /// the floating bar without re-laying out page content.
+  double resolvedHeight(BuildContext context) {
+    final double safeBottom = safeArea
+        ? MediaQuery.paddingOf(context).bottom
+        : 0;
+    return height + math.max(safeBottom, bottomPadding);
+  }
 
   final List<AppFloatingNavTab> tabs;
   final int selectedIndex;

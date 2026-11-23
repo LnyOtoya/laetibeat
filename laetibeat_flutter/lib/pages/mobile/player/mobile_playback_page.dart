@@ -1,9 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 
 import '../../../widgets/player/cover_provider.dart';
 import '../../../widgets/player/playback_panel.dart';
+
+/// Shared-element tag for the mini player → full player artwork transition.
+const String mobileNowPlayingCoverHeroTag = 'mobile_now_playing_cover';
 
 /// 移动端全屏播放页。只负责页面外壳，播放面板本身是共享展示核心。
 class MobilePlaybackPage extends ConsumerWidget {
@@ -18,7 +21,12 @@ class MobilePlaybackPage extends ConsumerWidget {
           final coverInfo = ref.watch(playbackCoverProvider).value;
           return Scaffold(
             backgroundColor: playbackPanelBackground(theme, coverInfo),
-            body: SafeArea(child: PlaybackPanel(fullscreen: true)),
+            body: SafeArea(
+              child: PlaybackPanel(
+                fullscreen: true,
+                heroTag: mobileNowPlayingCoverHeroTag,
+              ),
+            ),
           );
         },
       ),
