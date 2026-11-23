@@ -43,6 +43,7 @@ dependencies:
   # Material You dynamic color + the official Google color utilities.
   dynamic_color: ^2.1.0
   material_color_utilities: ^0.13.0
+  m3e_core: ^1.1.5
   window_manager: ^0.5.2
   media_kit: ^1.2.6
   media_kit_libs_linux: ^1.2.1
