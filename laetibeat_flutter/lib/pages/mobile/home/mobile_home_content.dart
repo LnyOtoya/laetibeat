@@ -1,260 +1,145 @@
-import 'dart:math' as math;
-
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../design/design.dart';
-import '../../../l10n/generated/app_localizations.dart';
+import '../../../src/rust/api/simple.dart' as rust;
 import '../../../widgets/player/cover_provider.dart';
 import '../../../widgets/player/player_provider.dart';
-import '../../../widgets/player/squish_button_pair.dart';
 
-/// 移动端首页：随机 Shape + 当前歌曲 + 播放控制。
-class MobileHomeContent extends ConsumerStatefulWidget {
+/// Mobile Home content.
+///
+/// The first section is a contained horizontal carousel for "继续听".
+/// The section title lives inside each carousel card, above the song name.
+/// Remaining Home sections will be added in later passes.
+class MobileHomeContent extends ConsumerWidget {
   const MobileHomeContent({super.key});
 
-  @override
-  ConsumerState<MobileHomeContent> createState() => _MobileHomeContentState();
-}
-
-class _MobileHomeContentState extends ConsumerState<MobileHomeContent> {
-  double? _dragValue;
+  static const String _itemTitle = '继续听';
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
-    final l10n = AppLocalizations.of(context);
-    final player = ref.watch(playerProvider);
-    final cover = ref.watch(playbackCoverProvider).value;
-    final track = player.current;
-    final isPlaying = player.isPlaying;
-    final total = player.duration.inMilliseconds;
-    final progress = total > 0
-        ? (player.position.inMilliseconds / total).clamp(0.0, 1.0)
-        : 0.0;
-    final sliderValue = _dragValue ?? progress;
-    final displayPosition = _dragValue == null
-        ? player.position
-        : Duration(milliseconds: (_dragValue! * total).round());
-    final notifier = ref.read(playerProvider.notifier);
+    final player = ref.watch(
+      playerProvider.select((state) => (state.queue, state.currentIndex)),
+    );
+    final List<rust.UiTrack> queue = player.$1;
 
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final contentWidth = math.min(
-          math.max(0.0, constraints.maxWidth),
-          AppComponentSize.controlMaxWidth,
-        );
-        final shapeHeight = math.min(
-          contentWidth,
-          math.max(220.0, constraints.maxHeight * 0.38),
-        );
-        return SingleChildScrollView(
-          padding: const EdgeInsets.only(
-            top: AppSpacing.xl,
-            bottom: AppSpacing.xxl,
-          ),
-          child: SizedBox(
-            height: math.max(
-              constraints.maxHeight - (AppSpacing.xl + AppSpacing.xxl),
-              0,
+    return ListView(
+      padding: const EdgeInsets.only(
+        top: AppSpacing.lg,
+        bottom: AppSpacing.xxl,
+      ),
+      children: <Widget>[
+        if (queue.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+            child: AppEmptyState(
+              title: '还没有继续播放的歌曲',
+              message: '播放一首歌后，会出现在这里',
+              icon: M3EIcons.music_note,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: _HomeHeroShape(
-                    width: contentWidth,
-                    height: shapeHeight,
-                    cover: cover,
-                  ),
-                ),
-                const Spacer(),
-                AppText(
-                  track?.title ?? l10n.nothingPlaying,
-                  role: AppTextRole.displayLarge,
-                  colorRole: AppColorRole.tertiary,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-                const Spacer(),
-                SquishButtonPair(
-                  expand: true,
-                  isPlaying: isPlaying,
-                  toggleEnabled: track != null,
-                  nextEnabled: player.queue.isNotEmpty,
-                  onToggle: notifier.toggle,
-                  onNext: notifier.next,
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    SizedBox.square(
-                      dimension: 84,
-                      child: M3EIconButton(
-                        icon: Icon(
-                          M3EIcons.skip_previous,
-                          color: player.queue.isEmpty
-                              ? theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.38,
-                                )
-                              : theme.colorScheme.onSecondaryContainer,
-                        ),
-                        variant: M3EIconButtonVariant.tonal,
-                        size: M3EIconButtonSize.lg,
-                        shape: M3EIconButtonShapeVariant.round,
-                        matchParentConstraints: true,
-                        tooltip: l10n.previousTrack,
-                        onPressed: player.queue.isEmpty ? null : notifier.prev,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.lg),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          isPlaying
-                              ? M3ESlider.wavy(
-                                  value: sliderValue,
-                                  trackThickness: 10,
-                                  onChanged: total > 0
-                                      ? (value) =>
-                                            setState(() => _dragValue = value)
-                                      : null,
-                                  onChangeEnd: total > 0
-                                      ? (value) {
-                                          setState(() => _dragValue = null);
-                                          notifier.seek(
-                                            Duration(
-                                              milliseconds: (value * total)
-                                                  .round(),
-                                            ),
-                                          );
-                                        }
-                                      : null,
-                                )
-                              : M3ESlider(
-                                  value: sliderValue,
-                                  trackThickness: 10,
-                                  onChanged: total > 0
-                                      ? (value) =>
-                                            setState(() => _dragValue = value)
-                                      : null,
-                                  onChangeEnd: total > 0
-                                      ? (value) {
-                                          setState(() => _dragValue = null);
-                                          notifier.seek(
-                                            Duration(
-                                              milliseconds: (value * total)
-                                                  .round(),
-                                            ),
-                                          );
-                                        }
-                                      : null,
-                                ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              AppText(
-                                _formatDuration(displayPosition),
-                                role: AppTextRole.labelMedium,
-                                colorRole: AppColorRole.onSurfaceVariant,
-                              ),
-                              AppText(
-                                _formatDuration(player.duration),
-                                role: AppTextRole.labelMedium,
-                                colorRole: AppColorRole.onSurfaceVariant,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          )
+        else
+          SizedBox(
+            height: 228,
+            child: _ContinueListeningCarousel(
+              queue: queue,
+              currentIndex: player.$2.clamp(0, queue.length - 1),
+              titleStyle: theme.typeScale.titleSmall.copyWith(
+                color: Colors.white,
+              ),
+              subtitleStyle: theme.typeScale.bodySmall.copyWith(
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
+              onTrackSelected: (int index) {
+                ref.read(playerProvider.notifier).play(index);
+              },
             ),
           ),
-        );
-      },
+      ],
     );
   }
-
-  static String _formatDuration(Duration duration) {
-    final totalSeconds = duration.inSeconds;
-    final hours = totalSeconds ~/ 3600;
-    final minutes = (totalSeconds % 3600) ~/ 60;
-    final seconds = totalSeconds % 60;
-    final two = seconds.toString().padLeft(2, '0');
-    if (hours > 0) {
-      return '$hours:${minutes.toString().padLeft(2, '0')}:$two';
-    }
-    return '$minutes:$two';
-  }
 }
 
-class _HomeHeroShape extends StatefulWidget {
-  const _HomeHeroShape({
-    required this.width,
-    required this.height,
-    required this.cover,
+class _ContinueListeningCarousel extends StatelessWidget {
+  const _ContinueListeningCarousel({
+    required this.queue,
+    required this.currentIndex,
+    required this.titleStyle,
+    required this.subtitleStyle,
+    required this.onTrackSelected,
   });
 
-  final double width;
-  final double height;
-  final PlaybackCover? cover;
-
-  @override
-  State<_HomeHeroShape> createState() => _HomeHeroShapeState();
-}
-
-class _HomeHeroShapeState extends State<_HomeHeroShape> {
-  static const List<M3EShapeKind> _kinds = <M3EShapeKind>[
-    M3EShapeKind.bun,
-    M3EShapeKind.puffy,
-  ];
-
-  late final M3EShapeKind _kind = _kinds[math.Random().nextInt(_kinds.length)];
+  final List<rust.UiTrack> queue;
+  final int currentIndex;
+  final TextStyle titleStyle;
+  final TextStyle subtitleStyle;
+  final ValueChanged<int> onTrackSelected;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = M3ETheme.of(context).colorScheme;
-    final bytes = widget.cover?.bytes;
-    final hasCover = bytes != null && bytes.isNotEmpty;
+    final List<int> indices = <int>[
+      for (var offset = 0; offset < queue.length; offset++)
+        (currentIndex + offset) % queue.length,
+    ];
 
-    return M3EShapeContainer(
-      kind: _kind,
-      width: widget.width,
-      height: widget.height,
-      gradient: hasCover
-          ? null
-          : LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[
-                scheme.primaryContainer,
-                scheme.tertiaryContainer,
-              ],
+    return M3ECarousel(
+      type: M3ECarouselType.contained,
+      axis: Axis.horizontal,
+      height: 228,
+      childElementBorderRadius: AppRadii.xl,
+      haptic: M3EHapticFeedback.light,
+      children: <M3ECarouselItem>[
+        for (var position = 0; position < indices.length; position++)
+          M3ECarouselItem(
+            image: _TrackCover(track: queue[indices[position]]),
+            // Only the focal card gets the section title. M3E normally hides
+            // the title on non-large slots, so keep the fixed text visible.
+            applyDynamicTextContentTransform: false,
+            title: position == 0
+                ? Text(MobileHomeContent._itemTitle, style: titleStyle)
+                : null,
+            subtitle: Text(
+              queue[indices[position]].title,
+              style: subtitleStyle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-      color: scheme.primaryContainer,
-      child: hasCover
-          ? Image.memory(
-              bytes,
-              width: widget.width,
-              height: widget.height,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-            )
-          : Center(
-              child: Icon(
-                M3EIcons.music_note,
-                size: math.min(widget.width, widget.height) * 0.28,
-                color: scheme.onPrimaryContainer,
-              ),
-            ),
+            showScrim: const M3ECarouselScrim.gradient(),
+            semanticLabel: queue[indices[position]].title,
+            onTap: () => onTrackSelected(indices[position]),
+          ),
+      ],
+    );
+  }
+}
+
+class _TrackCover extends ConsumerWidget {
+  const _TrackCover({required this.track});
+
+  final rust.UiTrack track;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bytes = ref.watch(trackCoverProvider(track)).value;
+    final scheme = M3ETheme.of(context).colorScheme;
+
+    if (bytes == null || bytes.isEmpty) {
+      return ColoredBox(
+        color: scheme.secondaryContainer,
+        child: Center(
+          child: Icon(
+            M3EIcons.music_note,
+            size: AppIconSize.xl,
+            color: scheme.onSecondaryContainer,
+          ),
+        ),
+      );
+    }
+
+    return SizedBox.expand(
+      child: Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
     );
   }
 }

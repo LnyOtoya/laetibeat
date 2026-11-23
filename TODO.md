@@ -108,6 +108,18 @@
 - [ ] 处理 Full Player 内子页面返回顺序：子页面 → Full Player → Shell
 - [ ] 不在 Full Player 打开时重新创建 Shell 或重新初始化播放器
 
+### Home 页重写
+
+- [x] 备份旧 `MobileHomeContent` 到 `backup/home/2026-11-23/`
+- [x] 顶部改为 `M3ECarousel`（contained、横向、无外层 section header）
+- [x] 仅第一张卡片显示 `继续听` title；其余卡片只显示歌曲名 + `M3ECarouselScrim.gradient()`
+- [x] 设置 `applyDynamicTextContentTransform: false`，避免 M3E 按 slot 大小隐藏 title
+- [x] 数据暂用当前播放队列；点击卡片播放对应曲目
+- [ ] 最新添加（最近添加的专辑）
+- [ ] 很久没听（很久没听的艺术家）
+- [ ] 为你推荐
+- [ ] 将“继续听”数据源替换为真实播放历史
+
 ### 已知问题：Predictive Back + 多 Navigator 交错
 
 - 现象：Home → Library → MiniPlayer → FullPlayer 后，第一次侧滑返回仍停留在 FullPlayer，但底层已从 Library 变为 Home；第二次侧滑才退出 FullPlayer。
