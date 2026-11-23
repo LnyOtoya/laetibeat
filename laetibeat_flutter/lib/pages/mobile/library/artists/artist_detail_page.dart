@@ -48,7 +48,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
     );
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       appBar: mobileLargeSubpageAppBar(
         context,
         variant: M3EAppBarVariant.small,

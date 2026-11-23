@@ -333,7 +333,7 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       appBar: mobileLargeSubpageAppBar(
         context,
         title: l10n.lxSourcesTitle,

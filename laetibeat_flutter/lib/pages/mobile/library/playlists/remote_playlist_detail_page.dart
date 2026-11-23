@@ -121,7 +121,7 @@ class RemotePlaylistDetailPage extends ConsumerWidget {
     final async = ref.watch(remotePlaylistDetailProvider(_key));
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       appBar: mobileLargeSubpageAppBar(
         context,
         title: async.value?.playlist.name ?? playlist.name,

@@ -52,7 +52,7 @@ class LocalAlbumDetailPage extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       extendBodyBehindAppBar: true,
       appBar: mobileLargeSubpageAppBar(
         context,

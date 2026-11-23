@@ -23,7 +23,7 @@ class MobileContentSettingsPage extends ConsumerWidget {
     final download = ref.watch(downloadLocationProvider);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       appBar: mobileLargeSubpageAppBar(context, title: l10n.settingsContent),
       body: SafeArea(
         top: false,

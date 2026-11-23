@@ -37,7 +37,7 @@ class _MobileHomePageState extends State<MobileHomePage> {
     final scheme = M3ETheme.of(context).colorScheme;
 
     return AppScaffold(
-      background: AppSurfaceLevel.container,
+      background: AppSurfaceLevel.base,
       applyPageGutter: false,
       safeArea: false,
       appBar: PreferredSize(
@@ -46,11 +46,7 @@ class _MobileHomePageState extends State<MobileHomePage> {
           animation: _appBarController,
           builder: (BuildContext context, Widget? child) {
             return M3EAppBar.top(
-              backgroundColor:
-                  (_appBarController.isCollapsed
-                          ? AppSurfaceLevel.container
-                          : AppSurfaceLevel.base)
-                      .resolve(scheme),
+              backgroundColor: AppSurfaceLevel.base.resolve(scheme),
               controller: _appBarController,
               variant: M3EAppBarVariant.largeFlexible,
               density: M3EAppBarDensity.regular,

@@ -156,7 +156,7 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
     final platformLabel = lxPlatformLabel(l10n, widget.platform);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       appBar: mobileLargeSubpageAppBar(
         context,
         title: widget.playlist.name,

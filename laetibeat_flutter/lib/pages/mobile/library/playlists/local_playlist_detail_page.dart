@@ -170,7 +170,7 @@ class LocalPlaylistDetailPage extends ConsumerWidget {
     final detailAsync = ref.watch(localPlaylistDetailProvider(playlistId));
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       appBar: mobileLargeSubpageAppBar(
         context,
         title: detailAsync.value?.playlist.name ?? l10n.libraryPlaylists,

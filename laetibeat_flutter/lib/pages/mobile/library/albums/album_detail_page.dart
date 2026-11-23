@@ -33,7 +33,7 @@ class AlbumDetailPage extends ConsumerWidget {
         .toList(growable: false);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       extendBodyBehindAppBar: true,
       appBar: mobileLargeSubpageAppBar(
         context,

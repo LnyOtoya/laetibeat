@@ -21,9 +21,9 @@ class MobileStatsPage extends StatelessWidget {
     final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       appBar: M3EAppBar.top(
-        backgroundColor: theme.colorScheme.surfaceContainer,
+        backgroundColor: theme.colorScheme.surface,
         titleText: l10n.statisticsTitle,
         automaticallyImplyLeading: showBackButton,
         leading: showBackButton

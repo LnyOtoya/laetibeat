@@ -21,7 +21,7 @@ class _MobileLibrarySubpage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       appBar: mobileLargeSubpageAppBar(
         context,
         title: title,

@@ -17,8 +17,7 @@ PreferredSizeWidget mobileLargeSubpageAppBar(
   M3EAppBarVariant variant = M3EAppBarVariant.large,
 }) {
   final theme = M3ETheme.of(context);
-  final resolvedBackground =
-      backgroundColor ?? theme.colorScheme.surfaceContainer;
+  final resolvedBackground = backgroundColor ?? theme.colorScheme.surface;
   // Used only for Scaffold's preferred extent; the real bar is built by the
   // stateful wrapper so it can own an M3EAppBarController.
   final measure = M3EAppBar.top(
@@ -97,8 +96,7 @@ class _AutoCollapseSubpageAppBarState
 
   void _onNotification(ScrollNotification notification) {
     if (!mounted || _snapping) return;
-    if (notification.depth != 0 ||
-        notification.metrics.axis != Axis.vertical) {
+    if (notification.depth != 0 || notification.metrics.axis != Axis.vertical) {
       return;
     }
 
@@ -142,13 +140,13 @@ class _AutoCollapseSubpageAppBarState
     // use that inherited font size to make the extra inset collapse too.
     return Builder(
       builder: (titleContext) {
-        final inheritedFontSize =
-            DefaultTextStyle.of(titleContext).style.fontSize;
+        final inheritedFontSize = DefaultTextStyle.of(
+          titleContext,
+        ).style.fontSize;
         final collapsedFontSize = theme.typeScale.titleLarge.fontSize ?? 22;
         final expandedFontSize = theme.typeScale.displaySmall.fontSize ?? 36;
         var expand = 1.0;
-        if (inheritedFontSize != null &&
-            expandedFontSize > collapsedFontSize) {
+        if (inheritedFontSize != null && expandedFontSize > collapsedFontSize) {
           expand =
               ((inheritedFontSize - collapsedFontSize) /
                       (expandedFontSize - collapsedFontSize))
@@ -166,9 +164,7 @@ class _AutoCollapseSubpageAppBarState
             maxLines: 1,
             softWrap: false,
             overflow: TextOverflow.ellipsis,
-            textAlign: widget.centerTitle
-                ? TextAlign.center
-                : TextAlign.start,
+            textAlign: widget.centerTitle ? TextAlign.center : TextAlign.start,
           ),
         );
       },

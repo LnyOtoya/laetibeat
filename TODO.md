@@ -116,7 +116,7 @@
 - [x] 备份旧 `MobileHomeContent` 到 `backup/home/2026-11-23/`
 - [x] 首页 gutter token 化：普通 section 使用 `AppLayout.gutterFor(width)`（手机 16）；继续听 carousel 使用 `AppLayout.carouselGutter = 8`；Home 页禁用 `AppPageBody` 全局 gutter，各 section 自行应用
 - [x] 最新添加 / 重拾旧爱 / 为你推荐 header 使用 `AppInsets.sectionHeader`：上 8、下 16
-- [x] 所有移动端页面背景恢复为 `surfaceContainer`（`AppSurfaceLevel.container` / `colorScheme.surfaceContainer`）；AppBar 保持原有映射
+- [x] 所有移动端页面背景映射为 `surface`（`AppSurfaceLevel.base` / `colorScheme.surface`）；所有页面 AppBar 背景统一为 `surface`（Home 展开/折叠、Library、Search、Stats、设置/详情共用 helper；取色映射页按需求保持纯白）
 - [x] Home 文本颜色全部走主题 role：主文本 `onSurface`，副标题/来源/时间 `onSurfaceVariant`；封面标题和 carousel 歌名不再硬编码白色；专辑封面底部 scrim 改用 `surface` 动态色
 - [x] 顶部改为 `M3ECarousel`（hero-left、横向）：首张更宽，item gap 不变
 - [x] Home 顶部改用 `M3EAppBar.top`：largeFlexible、regular、square、safeArea、默认展开、滚动不隐藏；展开标题“继续听”，折叠标题“首页”并在下方显示 subtitle“浏览音乐库近况”，使用 260ms fade + slide 过渡；折叠标题显式使用 `titleLarge`，避免过渡瞬间仍继承 `displaySmall` 导致标题块溢出
@@ -234,7 +234,7 @@
 - [x] 媒体库 AppBar 右侧增加 `m3e_core.M3ESplitButton` 来源选择：本地 / Navidrome / 洛雪，默认本地；滚动时 AppBar 不隐藏；SplitButton 直接使用 intrinsic 宽度，end-aligned 向左扩展
 - [x] `librarySourceFilterProvider` 串联来源选择：曲库 / 专辑 / 艺术家 / 歌单子页统一读取，不显示各自的来源 chips；本地 / Navidrome / 洛雪分别过滤
 - [x] 设置 > 外观新增“当前取色映射”：白底页面列出 M3EColorScheme 全部角色、名称与 ARGB 值，路由 `/settings/appearance/color-mapping`
-- [x] 媒体库去掉搜索框与旧入口，改为 `M3EExpandableSegmentedItem` 五项：曲库 / 专辑 / 艺术家 / 歌单 / 电台；默认折叠，可展开进入子项；父项 `secondaryContainer` + `onSecondaryContainer` 文本、子项 `surfaceContainer`、选中 `secondaryContainer`
+- [x] 媒体库去掉搜索框与旧入口，改为 `M3EExpandableSegmentedItem` 五项：曲库 / 专辑 / 艺术家 / 歌单 / 电台；默认折叠，可展开进入子项；颜色恢复为 `M3EExpandableSegmentedItem` 组件默认映射（父项 `surfaceContainer`、子项 `surfaceContainerLow`、选中 `secondaryContainer`）
 - [x] 设置 > 内容设置新增“音源配置”入口，跳转 `MobileMusicSourcesPage`
 - [x] `AppMorphingTabBar` bottom accessory：搜索态自动收起；extra action 的搜索态收起由 `hideExtraActionWhenSearching` 控制
 - [x] 新增 `MobileSearchInlineView`：复用搜索历史与 `LibrarySearchSuggestions`，搜索框由 shell 的 controller/focusNode 驱动

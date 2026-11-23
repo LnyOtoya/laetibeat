@@ -25,7 +25,7 @@ class MobileStorageSettingsPage extends ConsumerWidget {
     final usageAsync = ref.watch(cacheUsageProvider);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       appBar: mobileLargeSubpageAppBar(
         context,
         title: l10n.cacheManagement,

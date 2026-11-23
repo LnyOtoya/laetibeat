@@ -323,7 +323,7 @@ class _MobileOpensubsonicConfigPageState
     final String? syncStatus = _syncStatusText(sync);
 
     return Scaffold(
-      backgroundColor: scheme.surfaceContainer,
+      backgroundColor: scheme.surface,
       appBar: mobileLargeSubpageAppBar(
         context,
         title: 'Opensubsonic',

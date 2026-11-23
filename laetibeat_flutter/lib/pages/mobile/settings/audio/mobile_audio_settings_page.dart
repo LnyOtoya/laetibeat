@@ -21,7 +21,7 @@ class MobileAudioSettingsPage extends ConsumerWidget {
     final fade = ref.watch(fadeSettingsProvider);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       appBar: mobileLargeSubpageAppBar(
         context,
         title: l10n.settingsPlaybackAudio,

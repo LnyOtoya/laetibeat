@@ -10,7 +10,7 @@ M3EAppBar mobileTopAppBar(
   final theme = M3ETheme.of(context);
 
   return M3EAppBar.top(
-    backgroundColor: theme.colorScheme.surfaceContainer,
+    backgroundColor: theme.colorScheme.surface,
     variant: M3EAppBarVariant.small,
     hideMode: M3EAppBarHideMode.entire,
     density: M3EAppBarDensity.compact,

@@ -205,7 +205,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
 
         return TapHapticDetector(
           child: Scaffold(
-            backgroundColor: theme.colorScheme.surfaceContainer,
+            backgroundColor: theme.colorScheme.surface,
             body: AppBottomInsetScope(
               bottomInset: floatingChromeInset,
               child: body,

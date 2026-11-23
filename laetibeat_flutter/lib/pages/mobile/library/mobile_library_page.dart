@@ -69,10 +69,10 @@ class MobileLibraryPage extends ConsumerWidget {
         : localPlaylists + remotePlaylists;
 
     return AppScaffold(
-      background: AppSurfaceLevel.container,
+      background: AppSurfaceLevel.base,
       safeArea: false,
       appBar: M3EAppBar.top(
-        backgroundColor: AppSurfaceLevel.container.resolve(scheme),
+        backgroundColor: AppSurfaceLevel.base.resolve(scheme),
         variant: M3EAppBarVariant.largeFlexible,
         shapeFamily: M3EAppBarShapeFamily.square,
         safeArea: true,
@@ -259,8 +259,6 @@ class _LibrarySegmentedListState extends State<_LibrarySegmentedList> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = M3ETheme.of(context).colorScheme;
-
     return Column(
       children: <Widget>[
         for (var index = 0; index < widget.segments.length; index++)
@@ -272,30 +270,15 @@ class _LibrarySegmentedListState extends State<_LibrarySegmentedList> {
             innerRadius: 4,
             gap: 2,
             selectedRadius: 28,
-            color: scheme.secondaryContainer,
-            childColor: scheme.surfaceContainer,
-            selectedColor: scheme.secondaryContainer,
-            trailingPillColor: scheme.surfaceContainerHighest,
             onToggle: () => _toggle(index),
             onChildTap: (_) => widget.onOpen(widget.segments[index]),
             header: m3e_core.M3EListItem(
-              leading: Icon(
-                widget.segments[index].icon,
-                color: scheme.onSecondaryContainer,
-              ),
+              leading: Icon(widget.segments[index].icon),
               headline: Text(
                 widget.segments[index].title,
-                style: TextStyle(
-                  color: scheme.onSecondaryContainer,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-              supportingText: Text(
-                widget.segments[index].supportingText,
-                style: TextStyle(
-                  color: scheme.onSecondaryContainer.withValues(alpha: 0.78),
-                ),
-              ),
+              supportingText: Text(widget.segments[index].supportingText),
             ),
             children: <Widget>[
               m3e_core.M3EListItem(

@@ -162,9 +162,9 @@ class _MobileSearchPageState extends ConsumerState<MobileSearchPage> {
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       appBar: M3EAppBar.top(
-        backgroundColor: theme.colorScheme.surfaceContainer,
+        backgroundColor: theme.colorScheme.surface,
         density: M3EAppBarDensity.compact,
         shapeFamily: M3EAppBarShapeFamily.square,
         title: M3ESearchBar(
@@ -329,9 +329,9 @@ class _MobileSearchResultsPageState
     final activeLxPlatform = _resolveLxPlatform(lxPlatforms, playablePlatforms);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainer,
+      backgroundColor: theme.colorScheme.surface,
       appBar: M3EAppBar.top(
-        backgroundColor: theme.colorScheme.surfaceContainer,
+        backgroundColor: theme.colorScheme.surface,
         density: M3EAppBarDensity.compact,
         shapeFamily: M3EAppBarShapeFamily.square,
         title: Row(
