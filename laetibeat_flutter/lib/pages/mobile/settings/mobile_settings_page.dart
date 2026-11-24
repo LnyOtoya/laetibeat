@@ -1,3 +1,4 @@
+import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -5,17 +6,16 @@ import '../../../l10n/generated/app_localizations.dart';
 
 import '../mobile_navigation.dart';
 import '../routes.dart';
+import '../widgets/mobile_search_bar.dart';
 import 'appearance/mobile_appearance_settings_page.dart';
 import 'audio/mobile_audio_settings_page.dart';
 import 'content/mobile_content_settings_page.dart';
 import 'storage/mobile_storage_settings_page.dart';
-import '../widgets/mobile_search_bar.dart';
 
 /// 移动端设置页面。
 ///
 /// 顶部使用与 Search 页同款的搜索栏，不显示 AppBar。
-/// 只展示四大部分，每部分使用一个 connected filled card list，
-/// 只保留 headline / supporting，不显示叶子设置项。
+/// 设置入口使用 M3E expressive segmented column，只保留 headline / supporting。
 class MobileSettingsPage extends StatelessWidget {
   const MobileSettingsPage({super.key});
 
@@ -38,92 +38,64 @@ class MobileSettingsPage extends StatelessWidget {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                padding: const EdgeInsets.only(top: 8, bottom: 24),
                 children: [
-                  _SettingsGroup(
-                    onTap: (int index) {
-                      if (index == 0) {
-                        pushMobileRootPage(
-                          context,
-                          const MobileAppearanceSettingsPage(),
-                          name: MobileRoutes.appearanceSettings,
-                        );
-                      }
-                    },
-                    items: [
-                      M3EListItem(
-                        headline: l10n.settingsAppearance,
-                        supportingText: l10n.settingsAppearanceSupporting,
+                  m3e_core.M3ESegmentedColumn(
+                    decoration: const m3e_core.M3ESegmentedListDecoration(
+                      outerRadius: 24.0,
+                      innerRadius: 4.0,
+                      pressedRadius: 8.0,
+                      pressedScale: 0.98,
+                      hoveredRadius: 16.0,
+                      gap: 2.0,
+                      padding: EdgeInsets.all(12.0),
+                      margin: EdgeInsets.symmetric(
+                        horizontal: 12.0,
+                        vertical: 4.0,
+                      ),
+                    ),
+                    onTap: (int index) => _openSettings(context, index),
+                    children: [
+                      m3e_core.M3EListItem(
+                        headline: Text(l10n.settingsAppearance),
+                        supportingText: Text(
+                          l10n.settingsAppearanceSupporting,
+                        ),
                         leading: _SettingsLeadingAvatar(icon: M3EIcons.palette),
                       ),
-                    ],
-                  ),
-                  SizedBox(height: 12),
-                  _SettingsGroup(
-                    onTap: (int index) {
-                      if (index == 0) {
-                        pushMobileRootPage(
-                          context,
-                          const MobileAudioSettingsPage(),
-                          name: MobileRoutes.audioSettings,
-                        );
-                      } else if (index == 1) {
-                        pushMobileRootPage(
-                          context,
-                          const MobileContentSettingsPage(),
-                          name: MobileRoutes.contentSettings,
-                        );
-                      }
-                    },
-                    items: [
-                      M3EListItem(
-                        headline: l10n.settingsPlaybackAudio,
-                        supportingText: l10n.settingsPlaybackAudioSupporting,
+                      m3e_core.M3EListItem(
+                        headline: Text(l10n.settingsPlaybackAudio),
+                        supportingText: Text(
+                          l10n.settingsPlaybackAudioSupporting,
+                        ),
                         leading: _SettingsLeadingAvatar(
                           icon: M3EIcons.graphic_eq,
                         ),
                       ),
-                      M3EListItem(
-                        headline: l10n.settingsContent,
-                        supportingText: l10n.settingsContentSupporting,
+                      m3e_core.M3EListItem(
+                        headline: Text(l10n.settingsContent),
+                        supportingText: Text(l10n.settingsContentSupporting),
                         leading: _SettingsLeadingAvatar(
                           icon: M3EIcons.library_music,
                         ),
                       ),
-                    ],
-                  ),
-                  SizedBox(height: 12),
-                  _SettingsGroup(
-                    onTap: (int index) {
-                      if (index == 0) {
-                        pushMobileRootPage(
-                          context,
-                          const MobileStorageSettingsPage(),
-                          name: MobileRoutes.storageSettings,
-                        );
-                      }
-                    },
-                    items: [
-                      M3EListItem(
-                        headline: l10n.settingsStorage,
-                        supportingText: l10n.settingsStorageSupporting,
+                      m3e_core.M3EListItem(
+                        headline: Text(l10n.settingsStorage),
+                        supportingText: Text(l10n.settingsStorageSupporting),
                         leading: _SettingsLeadingAvatar(icon: M3EIcons.storage),
                       ),
-                      M3EListItem(
-                        headline: l10n.settingsBackupRestore,
-                        supportingText: l10n.settingsBackupRestoreSupporting,
+                      m3e_core.M3EListItem(
+                        headline: Text(l10n.settingsBackupRestore),
+                        supportingText: Text(
+                          l10n.settingsBackupRestoreSupporting,
+                        ),
                         leading: _SettingsLeadingAvatar(
                           icon: M3EIcons.settings_backup_restore,
                         ),
                       ),
-                    ],
-                  ),
-                  SizedBox(height: 12),
-                  _SettingsGroup(
-                    items: [
-                      M3EListItem(
-                        headline: l10n.settingsAbout,
-                        supportingText: l10n.settingsAboutSupporting,
+                      m3e_core.M3EListItem(
+                        headline: Text(l10n.settingsAbout),
+                        supportingText: Text(l10n.settingsAboutSupporting),
                         leading: _SettingsLeadingAvatar(icon: M3EIcons.info),
                       ),
                     ],
@@ -136,25 +108,36 @@ class MobileSettingsPage extends StatelessWidget {
       ),
     );
   }
-}
 
-class _SettingsGroup extends StatelessWidget {
-  const _SettingsGroup({required this.items, this.onTap});
-
-  final List<M3EListItem> items;
-  final ValueChanged<int>? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = M3ETheme.of(context);
-
-    return M3EList(
-      color: theme.colorScheme.surface,
-      variant: M3ECardVariant.filled,
-      onTap: onTap,
-      itemCount: items.length,
-      itemBuilder: (BuildContext context, int index) => items[index],
-    );
+  void _openSettings(BuildContext context, int index) {
+    switch (index) {
+      case 0:
+        pushMobileRootPage(
+          context,
+          const MobileAppearanceSettingsPage(),
+          name: MobileRoutes.appearanceSettings,
+        );
+      case 1:
+        pushMobileRootPage(
+          context,
+          const MobileAudioSettingsPage(),
+          name: MobileRoutes.audioSettings,
+        );
+      case 2:
+        pushMobileRootPage(
+          context,
+          const MobileContentSettingsPage(),
+          name: MobileRoutes.contentSettings,
+        );
+      case 3:
+        pushMobileRootPage(
+          context,
+          const MobileStorageSettingsPage(),
+          name: MobileRoutes.storageSettings,
+        );
+      default:
+        break;
+    }
   }
 }
 

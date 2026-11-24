@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../design/design.dart';
 import '../../../shared/layout/app_bottom_inset.dart';
+import '../routes.dart';
 import 'mobile_home_content.dart';
 
 /// 移动端首页。
@@ -54,6 +55,21 @@ class _MobileHomePageState extends State<MobileHomePage> {
               safeArea: true,
               hideOnScroll: false,
               hideMode: M3EAppBarHideMode.none,
+              actions: _appBarController.isCollapsed
+                  ? <Widget>[
+                      M3EIconButton(
+                        key: const ValueKey<String>('home-settings'),
+                        variant: M3EIconButtonVariant.standard,
+                        icon: const Icon(M3EIcons.settings),
+                        tooltip: '设置',
+                        onPressed: () {
+                          Navigator.of(
+                            context,
+                          ).pushNamed(MobileRoutes.settings);
+                        },
+                      ),
+                    ]
+                  : const <Widget>[],
               title: AnimatedBuilder(
                 animation: _appBarController,
                 builder: (BuildContext context, Widget? child) {

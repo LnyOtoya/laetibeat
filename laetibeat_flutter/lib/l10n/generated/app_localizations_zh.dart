@@ -27,6 +27,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navLibrary => '媒体库';
 
   @override
+  String get navRadio => '电台';
+
+  @override
   String get navSearch => '搜索';
 
   @override

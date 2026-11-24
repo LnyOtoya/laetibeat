@@ -8,6 +8,7 @@ abstract final class MobileRoutes {
   static const String libraryArtists = '/library/artists';
   static const String libraryAlbums = '/library/albums';
   static const String libraryPodcasts = '/library/podcasts';
+  static const String radio = '/radio';
   static const String search = '/search';
   static const String searchResults = '/search/results';
   static const String playback = '/player';

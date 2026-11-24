@@ -13,6 +13,7 @@ import 'library/mobile_library_page.dart';
 import 'library/mobile_library_subpages.dart';
 import 'mobile_navigation.dart';
 import 'player/mini_player.dart';
+import 'radio/mobile_radio_page.dart';
 import 'routes.dart';
 import 'search/mobile_search_page.dart';
 import 'settings/appearance/mobile_color_mapping_page.dart';
@@ -38,7 +39,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     AppDestination.home,
     AppDestination.library,
     AppDestination.stats,
-    AppDestination.settings,
+    AppDestination.radio,
   ];
 
   List<AppFloatingNavTab> _destinations(AppLocalizations l10n) {
@@ -59,9 +60,9 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         label: l10n.statisticsTitle,
       ),
       AppFloatingNavTab(
-        icon: M3EIcons.settings,
-        selectedIcon: M3EIcons.settings,
-        label: l10n.actionSettings,
+        icon: M3EIcons.radio,
+        selectedIcon: M3EIcons.radio,
+        label: l10n.navRadio,
       ),
     ];
   }
@@ -76,8 +77,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     if (route == MobileRoutes.stats) {
       return AppDestination.stats;
     }
-    if (route == MobileRoutes.settings || route.startsWith('/settings/')) {
-      return AppDestination.settings;
+    if (route == MobileRoutes.radio) {
+      return AppDestination.radio;
     }
     return null;
   }
@@ -91,7 +92,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       MobileRoutes.libraryArtists,
       MobileRoutes.libraryAlbums,
       MobileRoutes.stats,
-      MobileRoutes.settings,
+      MobileRoutes.radio,
     };
     return visible.contains(route);
   }
@@ -121,16 +122,9 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         if (current == MobileRoutes.stats) return;
         navigator.pushNamed(MobileRoutes.stats);
         return;
-      case AppDestination.settings:
-        if (current == MobileRoutes.settings) return;
-        if (current?.startsWith('/settings/') ?? false) {
-          navigator.popUntil(
-            (Route<dynamic> route) =>
-                route.isFirst || route.settings.name == MobileRoutes.settings,
-          );
-          return;
-        }
-        navigator.pushNamed(MobileRoutes.settings);
+      case AppDestination.radio:
+        if (current == MobileRoutes.radio) return;
+        navigator.pushNamed(MobileRoutes.radio);
         return;
       case AppDestination.search:
         _openSearch();
@@ -250,6 +244,7 @@ Route<dynamic>? mobileOnGenerateRoute(RouteSettings settings) {
     MobileRoutes.libraryArtists => const MobileLibraryArtistsPage(),
     MobileRoutes.libraryAlbums => const MobileLibraryAlbumsPage(),
     MobileRoutes.libraryPodcasts => const MobileLibraryPage(),
+    MobileRoutes.radio => const MobileRadioPage(),
     MobileRoutes.search => const MobileSearchPage(),
     MobileRoutes.stats => const MobileStatsPage(showBackButton: false),
     MobileRoutes.settings => const MobileSettingsPage(),

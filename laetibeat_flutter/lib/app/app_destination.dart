@@ -6,6 +6,7 @@
 enum AppDestination {
   home,
   library,
+  radio,
   search,
   stats,
   settings,

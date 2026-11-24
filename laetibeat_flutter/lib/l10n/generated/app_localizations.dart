@@ -134,6 +134,12 @@ abstract class AppLocalizations {
   /// **'Library'**
   String get navLibrary;
 
+  /// No description provided for @navRadio.
+  ///
+  /// In en, this message translates to:
+  /// **'Radio'**
+  String get navRadio;
+
   /// No description provided for @navSearch.
   ///
   /// In en, this message translates to:
