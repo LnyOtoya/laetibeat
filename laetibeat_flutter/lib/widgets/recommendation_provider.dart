@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/stats.dart' as rust_stats;
+import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 
 import 'player/playback_stats.dart';
 import 'remote_browser_provider.dart';
@@ -367,4 +369,163 @@ class _AlbumScore {
         (nowMs - lastPlayedAt) / const Duration(days: 1).inMilliseconds;
     return plays * (0.5 + 0.5 * completion) * (1 + days / 30);
   }
+}
+
+/// 最近聆听的 Subsonic 艺术家,用于“为你发现”。
+class DiscoveryArtist {
+  const DiscoveryArtist({
+    required this.sourceId,
+    required this.artistId,
+    required this.name,
+    this.coverId,
+  });
+
+  final String sourceId;
+  final String artistId;
+  final String name;
+  final String? coverId;
+}
+
+/// “为你发现”的艺术家与相似歌曲。
+class DiscoveryResult {
+  const DiscoveryResult({required this.artist, required this.tracks});
+
+  final DiscoveryArtist artist;
+  final List<rust.UiTrack> tracks;
+}
+
+/// 手动“换一个艺术家”的轮换计数。
+class DiscoveryRotationNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void next() => state++;
+}
+
+final discoveryRotationProvider =
+    NotifierProvider<DiscoveryRotationNotifier, int>(
+      DiscoveryRotationNotifier.new,
+    );
+
+/// 从最近播放事件中挑选一个 Subsonic 艺术家。
+///
+/// 事件按时间倒序,按 sourceId + artistId 去重;每天自动轮换一个,
+/// 手动点击标题栏按钮时在当前最近艺术家列表中再往后轮换。
+final recentDiscoveryArtistProvider = FutureProvider<DiscoveryArtist?>((
+  ref,
+) async {
+  ref.watch(statsRevisionProvider);
+  final rotation = ref.watch(discoveryRotationProvider);
+  final servers =
+      ref.watch(subsonicServersProvider).value ??
+      const <SubsonicServerConfig>[];
+  if (servers.isEmpty) return null;
+  final validSourceIds = {for (final server in servers) server.id};
+
+  List<rust_stats.UiPlayEvent> events;
+  try {
+    events = await rust_stats.queryRecentPlayEvents(limit: 240);
+  } catch (error) {
+    debugPrint('读取最近播放事件失败: $error');
+    return null;
+  }
+
+  final candidates = <DiscoveryArtist>[];
+  final seen = <String>{};
+  for (final event in events) {
+    if (event.source != 'opensubsonic' ||
+        !validSourceIds.contains(event.sourceId)) {
+      continue;
+    }
+    final metadata = _decodeDiscoveryMetadata(event.metadataJson);
+    final artistId = metadata?['artistId']?.toString().trim() ?? '';
+    if (artistId.isEmpty) continue;
+    if (!seen.add('${event.sourceId}\u0000$artistId')) continue;
+
+    final artistName = metadata?['artist']?.toString().trim() ?? '';
+    candidates.add(
+      DiscoveryArtist(
+        sourceId: event.sourceId,
+        artistId: artistId,
+        name: artistName.isEmpty ? '未知艺术家' : artistName,
+      ),
+    );
+  }
+  if (candidates.isEmpty) return null;
+
+  final index = (_discoveryDayIndex() + rotation) % candidates.length;
+  final selected = candidates[index];
+
+  String? coverId;
+  try {
+    final artists = await ref.read(
+      remoteArtistsProvider(selected.sourceId).future,
+    );
+    for (final artist in artists) {
+      if (artist.id == selected.artistId) {
+        coverId = artist.coverId;
+        break;
+      }
+    }
+  } catch (error) {
+    debugPrint('读取艺术家封面失败: $error');
+  }
+
+  return DiscoveryArtist(
+    sourceId: selected.sourceId,
+    artistId: selected.artistId,
+    name: selected.name,
+    coverId: coverId,
+  );
+});
+
+typedef DiscoverySongsKey = ({String sourceId, String artistId});
+
+/// getSimilarSongs2 返回的相似歌曲。
+final discoverySongsProvider = FutureProvider.autoDispose
+    .family<List<rust.UiTrack>, DiscoverySongsKey>((ref, key) async {
+      final tracks = await rust_subsonic.subsonicGetSimilarSongs(
+        sourceId: key.sourceId,
+        artistId: key.artistId,
+        count: 12,
+      );
+      return <rust.UiTrack>[
+        for (final track in tracks) remoteTrackToUiTrack(track, key.sourceId),
+      ];
+    });
+
+/// 首页“为你发现”区域的数据。
+final discoveryProvider = FutureProvider<DiscoveryResult?>((ref) async {
+  final artist = await ref.watch(recentDiscoveryArtistProvider.future);
+  if (artist == null) return null;
+
+  try {
+    final tracks = await ref.watch(
+      discoverySongsProvider((
+        sourceId: artist.sourceId,
+        artistId: artist.artistId,
+      )).future,
+    );
+    return DiscoveryResult(artist: artist, tracks: tracks);
+  } catch (error) {
+    debugPrint('加载相似歌曲失败: $error');
+    return DiscoveryResult(artist: artist, tracks: const <rust.UiTrack>[]);
+  }
+});
+
+Map<String, dynamic>? _decodeDiscoveryMetadata(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  try {
+    final decoded = jsonDecode(raw);
+    return decoded is Map<String, dynamic> ? decoded : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 当地日期序号;同一天稳定,跨天自动换一个。
+int _discoveryDayIndex() {
+  final now = DateTime.now();
+  final day = DateTime.utc(now.year, now.month, now.day);
+  return day.millisecondsSinceEpoch ~/ Duration.millisecondsPerDay;
 }

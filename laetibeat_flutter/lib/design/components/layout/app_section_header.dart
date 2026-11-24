@@ -13,12 +13,14 @@ class AppSectionHeader extends StatelessWidget {
     super.key,
     required this.title,
     this.subtitle,
+    this.leading,
     this.trailing,
     this.padding = const EdgeInsets.symmetric(vertical: AppSpacing.sm),
   });
 
   final String title;
   final String? subtitle;
+  final Widget? leading;
   final Widget? trailing;
   final EdgeInsetsGeometry padding;
 
@@ -55,6 +57,10 @@ class AppSectionHeader extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
+            if (leading != null) ...<Widget>[
+              leading!,
+              const SizedBox(width: AppSpacing.sm),
+            ],
             Expanded(child: titleColumn),
             if (trailing != null) ...<Widget>[
               const SizedBox(width: AppSpacing.sm),

@@ -19,6 +19,7 @@ import '../library/albums/album_detail_page.dart';
 import '../library/albums/local_album_detail_page.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
+import 'discovery_page.dart';
 
 /// Mobile Home content.
 ///
@@ -77,6 +78,8 @@ class MobileHomeContent extends ConsumerWidget {
               onAlbumSelected: (album) => _openAlbum(context, album),
             ),
           ),
+        const SizedBox(height: AppSpacing.xl),
+        const _DiscoverySection(),
         const SizedBox(height: AppSpacing.xl),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: pageGutter),
@@ -293,6 +296,340 @@ class _RecentSongCover extends ConsumerWidget {
                 ),
               ),
       ),
+    );
+  }
+}
+
+class _DiscoverySection extends ConsumerWidget {
+  const _DiscoverySection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final pageGutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+    final discovery = ref.watch(discoveryProvider);
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: pageGutter),
+      child: AppSurface(
+        level: AppSurfaceLevel.container,
+        borderRadius: AppRadii.xlAll,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: AppSectionHeader(
+                title: '为你发现',
+                leading: const _DiscoveryGlyph(),
+                padding: AppInsets.sectionHeader,
+                trailing: m3e_core.M3EButton.icon(
+                  style: m3e_core.M3EButtonStyle.tonal,
+                  size: m3e_core.M3EButtonSize.sm,
+                  shape: m3e_core.M3EButtonShape.round,
+                  tooltip: '换一个艺术家',
+                  icon: const Icon(M3EIcons.refresh),
+                  label: const Text('换一个'),
+                  onPressed: () {
+                    ref.read(discoveryRotationProvider.notifier).next();
+                  },
+                ),
+              ),
+            ),
+            discovery.when(
+              loading: () => Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                child: Center(
+                  child: M3ELoadingIndicator(
+                    color: theme.colorScheme.primary,
+                    containerColor: theme.colorScheme.surfaceContainerHighest,
+                  ),
+                ),
+              ),
+              error: (_, _) => const Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.xl,
+                ),
+                child: AppEmptyState(
+                  title: '暂时无法为你发现',
+                  message: '检查 Subsonic 连接后再试',
+                  icon: M3EIcons.auto_awesome,
+                ),
+              ),
+              data: (result) {
+                if (result == null || result.tracks.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.xl,
+                    ),
+                    child: AppEmptyState(
+                      title: '还没有为你发现的内容',
+                      message: '在 Subsonic 上播放一些歌曲后，会根据最近聆听的艺术家推荐',
+                      icon: M3EIcons.auto_awesome,
+                    ),
+                  );
+                }
+                return _DiscoveryContent(result: result);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscoveryGlyph extends StatelessWidget {
+  const _DiscoveryGlyph();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = M3ETheme.of(context).colorScheme;
+
+    return SizedBox.square(
+      dimension: 32,
+      child: M3EShapeContainer(
+        kind: M3EShapeKind.sunny,
+        color: scheme.primaryContainer,
+        child: Center(
+          child: Icon(
+            M3EIcons.auto_awesome,
+            size: AppIconSize.sm,
+            color: scheme.onPrimaryContainer,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscoveryContent extends ConsumerWidget {
+  const _DiscoveryContent({required this.result});
+
+  final DiscoveryResult result;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        SizedBox(
+          height: 240,
+          child: M3ECard(
+            variant: M3ECardVariant.filled,
+            padding: EdgeInsets.zero,
+            borderRadius: AppRadii.xlAll,
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                _DiscoveryArtistCover(
+                  sourceId: result.artist.sourceId,
+                  coverId: result.artist.coverId,
+                ),
+                const _DiscoveryScrim(),
+                Positioned(
+                  left: AppSpacing.lg,
+                  right: AppSpacing.lg,
+                  bottom: AppSpacing.lg,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        '根据最近聆听的歌手为你推荐',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.typeScale.titleSmall.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      m3e_core.M3EButton(
+                        style: m3e_core.M3EButtonStyle.filled,
+                        size: m3e_core.M3EButtonSize.sm,
+                        shape: m3e_core.M3EButtonShape.round,
+                        onPressed: () {
+                          pushMobileRootPage(
+                            context,
+                            DiscoveryPage(result: result),
+                            name: MobileRoutes.discovery,
+                          );
+                        },
+                        child: const Text('为你发现'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _DiscoverySongRow(tracks: result.tracks),
+      ],
+    );
+  }
+}
+
+class _DiscoveryScrim extends StatelessWidget {
+  const _DiscoveryScrim();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[
+              Colors.transparent,
+              Colors.black.withValues(alpha: 0.78),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscoverySongRow extends ConsumerWidget {
+  const _DiscoverySongRow({required this.tracks});
+
+  final List<rust.UiTrack> tracks;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final preview = tracks.take(3).toList(growable: false);
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        const double gap = AppSpacing.sm;
+        // 卡片放大到约 42% 视口宽：前两张完整显示，第三张露出一部分。
+        final cardWidth = constraints.maxWidth * 0.42;
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              for (var index = 0; index < preview.length; index++) ...<Widget>[
+                if (index > 0) const SizedBox(width: gap),
+                SizedBox(
+                  width: cardWidth,
+                  child: _DiscoverySongTile(
+                    track: preview[index],
+                    onTap: () {
+                      ref
+                          .read(playerProvider.notifier)
+                          .load(tracks, index, source: '为你发现');
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _DiscoverySongTile extends StatelessWidget {
+  const _DiscoverySongTile({required this.track, required this.onTap});
+
+  final rust.UiTrack track;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '${track.title} · ${track.artist}',
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: AppRadii.mdAll,
+          onTap: onTap,
+          child: ClipRRect(
+            borderRadius: AppRadii.mdAll,
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: _DiscoverySongCover(track: track),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscoveryArtistCover extends ConsumerWidget {
+  const _DiscoveryArtistCover({
+    required this.sourceId,
+    required this.coverId,
+  });
+
+  final String sourceId;
+  final String? coverId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    final bytes = ref
+        .watch(remoteCoverProvider((sourceId: sourceId, coverId: coverId)))
+        .value;
+
+    if (bytes == null || bytes.isEmpty) {
+      return ColoredBox(
+        color: scheme.secondaryContainer,
+        child: Center(
+          child: Icon(
+            M3EIcons.person,
+            size: AppIconSize.xl,
+            color: scheme.onSecondaryContainer,
+          ),
+        ),
+      );
+    }
+
+    return SizedBox.expand(
+      child: Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
+    );
+  }
+}
+
+class _DiscoverySongCover extends ConsumerWidget {
+  const _DiscoverySongCover({required this.track});
+
+  final rust.UiTrack track;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    final bytes = ref.watch(trackCoverProvider(track)).value;
+
+    if (bytes == null || bytes.isEmpty) {
+      return ColoredBox(
+        color: scheme.secondaryContainer,
+        child: Center(
+          child: Icon(
+            M3EIcons.music_note,
+            size: AppIconSize.lg,
+            color: scheme.onSecondaryContainer,
+          ),
+        ),
+      );
+    }
+
+    return SizedBox.expand(
+      child: Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
     );
   }
 }

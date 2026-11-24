@@ -221,6 +221,17 @@ Future<UiRemoteAlbumDetail> subsonicGetAlbum({
   albumId: albumId,
 );
 
+/// 获取相似歌曲(ID3 getSimilarSongs2)
+Future<List<UiRemoteTrack>> subsonicGetSimilarSongs({
+  required String sourceId,
+  required String artistId,
+  required int count,
+}) => RustLib.instance.api.crateApiSubsonicSubsonicGetSimilarSongs(
+  sourceId: sourceId,
+  artistId: artistId,
+  count: count,
+);
+
 /// ID3 搜索(search3)
 Future<UiRemoteSearchResult> subsonicSearch3({
   required String sourceId,

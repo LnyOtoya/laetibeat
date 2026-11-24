@@ -482,6 +482,19 @@ pub fn get_album(source_id: &str, album_id: &str) -> Result<RemoteAlbumDetail, S
     Ok(map_album_detail(album))
 }
 
+/// 获取相似歌曲(ID3 getSimilarSongs2)。
+pub fn get_similar_songs(
+    source_id: &str,
+    artist_id: &str,
+    count: i32,
+) -> Result<Vec<RemoteTrack>, String> {
+    let client = client(source_id)?;
+    let songs = runtime()?
+        .block_on(client.get_similar_songs2(artist_id, Some(count)))
+        .map_err(map_err)?;
+    Ok(songs.into_iter().map(map_track).collect())
+}
+
 /// ID3 搜索(search3):一次返回艺术家/专辑/曲目三类结果。
 /// 空查询直接返回空结果,不发请求。
 pub fn search3(

@@ -369,6 +369,16 @@ pub fn subsonic_get_album(
     })
 }
 
+/// 获取相似歌曲(ID3 getSimilarSongs2)
+pub fn subsonic_get_similar_songs(
+    source_id: String,
+    artist_id: String,
+    count: u32,
+) -> Result<Vec<UiRemoteTrack>, String> {
+    let tracks = remote::get_similar_songs(&source_id, &artist_id, count as i32)?;
+    Ok(tracks.into_iter().map(map_track).collect())
+}
+
 /// ID3 搜索(search3)
 pub fn subsonic_search3(
     source_id: String,
