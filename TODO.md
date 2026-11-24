@@ -1,7 +1,7 @@
 # Laetibeat 项目蓝图
 
-> 最后更新：2026-11-23
-> 当前阶段：Flutter 主线继续；新 Shell / 播放器架构与 AOSP 取色策略已定，进入 UI 重写前的结构迁移（本轮只定架构，不写代码）
+> 最后更新：2026-11-24
+> 当前阶段：Flutter 主线继续；2026-11-24 完成一轮全仓库代码审查，发现项见「2026-11-24 代码审查发现」；本轮只更新 TODO，不改实现
 
 ## 当前状态速览
 
@@ -19,6 +19,171 @@
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 - 设计系统：新增 `lib/design/`（颜色/字体/间距/圆角/尺寸/动效/断点 token、Material You 官方取色、`AppArtwork` / `AppText` / `AppMediaRow` 等基础组件）；页面级左右 gutter 统一为 `AppLayout.pageGutter` + `AppPageBody`；具体页面尚未迁移
 - 新 UI 方向：继续 Flutter；`m3e_core` / `material_3_expressive` 只作组件库；Shell、路由、主题与取色自管；MiniPlayer + NavBar 为悬浮 BottomOverlay；Full Player 为 Root Navigator Route（2026-11-23 定稿）
+
+## 2026-11-24 代码审查发现（只记录，不改实现）
+
+> 来源：全仓库静态阅读 + `cargo test` / `cargo clippy` + `flutter analyze` / `flutter test`。
+> 本轮只更新 TODO，不修改代码。部分问题与下方历史待办重复（material_ui 迁移、MPRIS、死代码、下载等），这里保留 2026-11-24 的审查证据与验收标准，修复时以对应条目为准，不重复安排多轮修复。
+
+### 验证基线
+
+- [x] `cargo test -p laetibeat_core -p laetibeat_lx -p laetibeat_remote --offline`：50 passed（core 8 / lx 39 / remote 3）
+- [x] `cargo clippy -p laetibeat_core -p laetibeat_lx -p laetibeat_remote --all-targets --offline`：仅风格 warning，无 error
+- [x] `flutter analyze --no-pub`：27 issues，0 error；2 warning + 25 info
+- [x] `flutter test --no-pub`：14 tests all passed
+- [ ] 上述通过不代表 P0 不存在：现有测试未覆盖播放暂停竞态、嵌套 Navigator 返回、OpenSubsonic 配置解析、LX 候选源选择、SAF 部分失败等路径
+
+### P0：正确性与用户可见问题
+
+- [ ] P0-1 移动端 OpenSubsonic 配置会覆盖协议/端口，且缺少 API Key 模式
+  - 位置：`laetibeat_flutter/lib/pages/mobile/settings/sources/opensubsonic/mobile_opensubsonic_config_page.dart:141-171`（`_buildConfig`）
+  - 现状：端口为空强制 `4533`；`baseUrl` 使用下拉框 `_scheme.name`；忽略用户在 URL 中输入的 `https://` 和 `:port`；`_buildConfig()` 固定 `authMode: SubsonicAuthMode.token`
+  - 影响：`https://music.example.com` 会变成 `https://music.example.com:4533`；`http://host:8080` 会变成 `http://host:4533`；API Key 用户无法在移动端配置
+  - 修复/验收：完整解析 URL，尊重 scheme/port/path；仅 http 且未指定端口时补默认 4533；暴露 API Key/Token 选择；补 URL 解析单元测试
+  - 对照：桌面 `laetibeat_flutter/lib/widgets/settings/subsonic_connection_sheet.dart` 已支持两种认证与完整 URL，可复用其逻辑
+
+- [ ] P0-2 Root Navigator + 嵌套 Navigator 的系统返回行为不一致
+  - 位置：`laetibeat_flutter/lib/pages/mobile/mobile_app.dart:230-236`（嵌套 Navigator）、`:85-97`（chrome 显隐）；`laetibeat_flutter/lib/pages/mobile/mobile_navigation.dart`
+  - 现状：业务页面全在 Shell 内部的嵌套 Navigator；代码中没有 `PopScope` / `NavigatorPopHandler` / `WillPopScope`；Flutter 的 `WidgetsApp.didPopRoute()` 只会对 root navigator 调 `maybePop()`
+  - 影响：三键返回可能直接从嵌套页面退出 App；预测性返回可能命中嵌套路由，出现 TODO 已记录的 FullPlayer/底层路由交错
+  - 修复/验收：在扁平化 Navigator 或 Shell 层 `PopScope` 代理两种方案中定稿；补“Library 详情/搜索/设置子页按系统返回回到上一层”的回归测试
+  - 关联：下方「已知问题：Predictive Back + 多 Navigator 交错」
+
+- [ ] P0-3 LX 源候选选择在进程重启后退化
+  - 位置：`laetibeat_lx/src/manager.rs:382-407`，关键 `.unwrap_or(true)` 在 `:396`
+  - 现状：`candidates_for()` 只看内存 `self.declarations`；持久化的 `record.declaration` 只在 `resolved_declaration()` 中用于 UI；重启后内存声明为空，所有已启用源都被视为候选
+  - 影响：首次播放任意平台时依次加载/执行不匹配平台的脚本；每源可能数秒甚至 30s 超时；与“持久化声明用于懒加载”目标矛盾
+  - 修复/验收：提供统一 `effective_declaration(record)`（内存优先，其次 hash 一致的持久化声明）；未知能力默认 `false`；补“重启后只尝试声明支持该平台的源”测试
+
+- [ ] P0-4 LX 共享 QuickJS Context 存在跨请求结果串扰风险
+  - 位置：`laetibeat_lx/src/runtime.rs:132-211`（`dispatch`）
+  - 现状：一个 `Context` 长期复用；`dispatch` 开始把 `__lx_result` 置为 undefined，但旧 `setTimeout` 与旧 Promise `.then` 仍可能保留并在下一次 `pump_timers()` 时写入旧结果
+  - 影响：偶发返回错误播放 URL/歌词，或“source did not produce a result”，难以复现
+  - 修复/验收：每次 dispatch 分配 id 并在 JS/Rust 两侧校验；或每次操作新建 Context；至少在该次 dispatch 结束时清理遗留 timer；补“旧定时器不得影响下一次结果”测试
+
+- [ ] P0-5 远端专辑 `created` 字段没有落库
+  - 位置：`laetibeat_core/src/remote_library.rs:41-55`（`remote_albums` 无 `created` 列）、`:134-143`（`RemoteAlbumRow` 无字段）；`laetibeat_flutter/rust/src/api/library.rs:140` 写死 `created: None`
+  - 影响：同步后的 Subsonic 专辑没有添加时间；移动首页“最新添加”会排到最后并显示“添加时间未知”；依赖 `created` 的排序/推荐失效
+  - 修复/验收：新增迁移（如 `SCHEMA_VERSION = 3`）增加 `created TEXT`，同步写入、查询透传；补“同步后 created 保留”测试
+
+- [ ] P0-6 远端 URL 解析期间点暂停，音频仍会起播
+  - 位置：`laetibeat_flutter/lib/widgets/player/player_provider.dart:465-500`（`load` 乐观 `isPlaying: true`）与 `:553-609`（`_openResolved` 解析后 `open(play: true)`）
+  - 影响：LX/Subsonic URL 解析期间用户点暂停，`toggle()` 暂停旧音频后，解析完成仍会起播；UI 与音频状态不一致
+  - 修复/验收：记录用户期望播放状态/generation；`open` 前再次校验；或先 `open(play: false)` 再按期望决定 `play()`；补快速“播放→暂停”竞态测试
+
+### P1：性能、内存与稳定性
+
+- [ ] P1-1 缓存预算同时作用于内存和磁盘，且默认值过大
+  - 位置：`laetibeat_flutter/lib/widgets/settings/cache_usage_service.dart:15`（默认 3584MB）、`:28-44`（权重拆分）、`:95-108`（同一预算套内存与磁盘）
+  - 影响：最坏情况下仅内存缓存就可能接近 3.5GB（本地 1024MB + Subsonic 2048MB + LX 512MB），Android 容易 OOM
+  - 修复/验收：拆分“磁盘缓存上限”（用户可见）与“内存缓存上限”（独立、较小）；内存上限建议几十到一百多 MB；缓存页文案与实际语义一致
+
+- [ ] P1-2 非 autoDispose 的 family Provider 让 LRU 失效
+  - 位置：`laetibeat_flutter/lib/widgets/player/cover_provider.dart:361,378`；`laetibeat_flutter/lib/widgets/player/lyric_provider.dart:324`；`laetibeat_flutter/lib/widgets/player/lx_search_provider.dart:287`
+  - 现状：`trackCoverProvider` / `remoteCoverProvider` / `trackLyricsProvider` / `lxSearchProvider` 默认 keepAlive 到容器销毁，每个访问过的 key 永久保留结果；底层 `FileCoverProvider._trim` 无法释放 Provider state 持有的字节
+  - 修复/验收：列表/搜索类 family 改 `.autoDispose`；仅当前播放曲目保留；或改为统一可淘汰缓存；补滚动大库/连续搜索后的内存回归检查
+
+- [ ] P1-3 播放面板每次进度更新都重建整棵树
+  - 位置：`laetibeat_flutter/lib/widgets/player/playback_panel.dart:51` 直接 `ref.watch(playerProvider)`；`laetibeat_flutter/lib/pages/desktop/player/device_panel.dart:17` 同样监听整个 `PlayerState`
+  - 影响：位置流每秒多次更新，`M3ETheme`、`LayoutBuilder`、封面、歌词、控制区全部重建；移动端尤其明显
+  - 修复/验收：进度条/时间单独 `select(position)`；按钮 `select(isPlaying)`；曲目信息 `select(current)`；设备/音频参数单独 Consumer；补 rebuild 次数或性能基准
+
+- [ ] P1-4 首页推荐与媒体库首页全量加载远端数据
+  - 位置：`laetibeat_flutter/lib/widgets/recommendation_provider.dart:125-129`（全部远端专辑 + 全部曲目）；`laetibeat_flutter/lib/pages/mobile/library/mobile_library_page.dart:87-98`（计数/预览加载全部曲目/专辑/艺术家/歌单）
+  - 影响：上万首 Subsonic 库时构造大量 FRB DTO、扫描整表，首页卡顿/内存上涨
+  - 修复/验收：SQL `COUNT(*)`、分页查询、首页专用聚合；推荐使用 SQL 侧专辑聚合，不把全部曲目拉到 Dart
+  - 关联：下方既有“远端同步支持增量、取消与进度节流；推荐避免全量加载远端曲目”
+
+- [ ] P1-5 LX 搜索在输入过程中反复请求且结果常驻
+  - 位置：`laetibeat_flutter/lib/pages/mobile/search/library_search_suggestions.dart:117-139`；`laetibeat_flutter/lib/widgets/player/lx_search_provider.dart:287`
+  - 现状：300ms 防抖后每个新查询都会请求非官方平台接口；`lxSearchProvider` 非 autoDispose
+  - 影响：输入 10 个字符可能产生 10 次请求并常驻 10 份结果；有被平台限流风险
+  - 修复/验收：提高防抖/最小查询长度；`autoDispose`；同平台请求取消/合并；建议只在提交或明确点击时触发网络建议
+
+- [ ] P1-6 缓存管理页每 3 秒递归扫描缓存目录
+  - 位置：`laetibeat_flutter/lib/pages/mobile/settings/storage/mobile_storage_settings_page.dart:72-135`；`laetibeat_flutter/lib/widgets/settings/cache_usage_service.dart:150-230`
+  - 影响：`remote_covers` / `lx_covers` 递归遍历 + SQLite 统计，GB 级缓存时 I/O 和耗电明显
+  - 修复/验收：改为变更后刷新/手动下拉刷新，或维护目录大小索引；移除无条件 3 秒全量扫描
+
+- [ ] P1-7 Subsonic 旧配置可能“复活”
+  - 位置：`laetibeat_flutter/lib/widgets/settings/subsonic_provider.dart:124-134,333`
+  - 现状：`saveConfigs([])` 只删除 `_serverKey`，未删除旧 `_serversKey`；`migrateLegacyIfNeeded()` 只判断 `_serverKey` 是否存在
+  - 影响：删除服务器后，下次启动可能再次迁移旧多服务器配置的第一项
+  - 修复/验收：迁移完成或删除配置时清除 `_serversKey` 与旧密钥，或写入“已迁移”标记；补删除后重启不复活测试
+
+- [ ] P1-8 快照/索引写入不是真正原子替换
+  - 位置：`laetibeat_flutter/lib/widgets/settings/persistence.dart:53-60`；`laetibeat_lx/src/store.rs:397-412`
+  - 现状：先删除目标文件再 `rename`，崩溃窗口会丢文件，与“原子写”注释不符
+  - 修复/验收：改为覆盖式原子替换（同目录临时文件 + 平台支持时直接 rename 覆盖）；补写入中断/损坏恢复测试
+
+- [ ] P1-9 `lx.request` 仍是同步阻塞实现，且每次新建 Client、先读完整响应再限大小
+  - 位置：`laetibeat_lx/src/http.rs:33-148`
+  - 现状：`reqwest::blocking`；每次请求新建 `Client`；`response.bytes()` 完整读取后才检查 `MAX_BODY_BYTES`；`formData` 未实现
+  - 影响：无法取消；连接复用差；大响应有内存风险；部分源脚本兼容性不足
+  - 修复/验收：迁移异步 request broker 并支持取消；复用 Client；流式读取边读边限制；实现 `formData` 或明确不支持
+  - 关联：下方既有 LX 剩余重点
+
+- [ ] P1-10 LX 脚本网络能力的安全边界需要明确
+  - 位置：`laetibeat_lx/src/preload.js`（`lx.request`）、`laetibeat_lx/src/http.rs:60`（仅限制 http/https，不限 host）
+  - 现状：用户导入的任意 JS 可请求 `localhost`/内网任意 http(s) 地址；Android 当前全局允许明文流量
+  - 影响：恶意/失控源可做内网探测（SSRF）；无源签名或导入权限提示
+  - 修复/验收：导入不可信源时明确警告；评估域名白名单/请求确认；Android 明文流量改按域名白名单（关联既有待办）
+
+- [ ] P1-11 `normalize_seconds` 两套阈值不一致，长音频时长会被误判
+  - 位置：`laetibeat_lx/src/search.rs:927-933`（阈值 10_000）、`laetibeat_lx/src/songlist.rs:1308-1314`（阈值 86_400）
+  - 影响：同一首 3 小时音频，搜索接口可能把 10800 秒当毫秒除以 1000 变成 10 秒；歌单接口却保留 10800 秒
+  - 修复/验收：统一时长归一化规则；优先按接口字段语义判断，不用单一阈值；补长音频/毫秒值测试
+
+### P2：UX、功能与工程债
+
+- [ ] P2-1 大量“能点但没功能”的控件
+  - 位置示例：`laetibeat_flutter/lib/pages/mobile/home/mobile_home_content.dart:234,658`（查看更多/收藏）；`laetibeat_flutter/lib/pages/mobile/library/albums/album_detail_page.dart:46,276`（收藏）；`laetibeat_flutter/lib/pages/mobile/library/artists/artist_detail_page.dart:60,108,117,232`（收藏/热门歌曲/随机播放）；`laetibeat_flutter/lib/pages/mobile/library/views/songs_library_view.dart:236`（批量收藏）；`laetibeat_flutter/lib/pages/mobile/library/widgets/library_layout_control_bar.dart:30`（排序）；`laetibeat_flutter/lib/pages/mobile/settings/mobile_settings_page.dart:97-129`（备份/关于）；`laetibeat_flutter/lib/pages/mobile/settings/content/mobile_content_settings_page.dart:46`（歌词恢复默认第三项 `onTap` 未处理）
+  - 修复/验收：实现、隐藏或明确禁用并标注“即将支持”，避免用户误以为功能存在
+
+- [ ] P2-2 桌面端与移动端功能分叉
+  - 现状：桌面设置 `playerAudio` / `storage` / `backup` / `changelog` 仍是 `SettingsPlaceholder`（`laetibeat_flutter/lib/pages/desktop/settings/settings_content.dart:21-31`）；桌面搜索无 LX；`ChartPage` / `PlaylistPage` 仍为 `Placeholder`；`linux_mpris.dart` 未接入，`mediaSessionServiceProvider` 始终 Noop；设置有下载目录但无下载写入
+  - 修复/验收：明确桌面端维护策略；要么补齐，要么在 UI 中移除/标注未支持功能，避免半成品入口
+
+- [ ] P2-3 i18n 覆盖不完整
+  - 现状：`lib/l10n` 约 346 个 key，但 `lib` 中约 398 处含中文字符串字面量、分布在 60 个文件（部分为日志/错误文案）
+  - 典型：`mobile_home_page.dart`、`mobile_home_content.dart`、`mobile_library_page.dart`、`desktop_title_bar.dart`、各类 Snackbar 与 Rust 返回的中文错误
+  - 修复/验收：先清理移动端主路径硬编码 UI 文案；Rust 改为错误码/错误枚举 + Dart 侧翻译
+
+- [ ] P2-4 `material_ui` 与 `flutter/material` 混用（已有条目，需继续推进）
+  - 现状：`flutter analyze` 仍报 15 个源文件 import 已弃用的 `package:flutter/material.dart`；`MaterialYouThemeHost` 注入的是 `material_ui` 的 `Theme`，旧 Flutter Material 组件读 fallback `ThemeData`
+  - 影响：默认颜色/字体/密度与设计系统不一致，动态取色覆盖不到旧组件
+  - 修复/验收：统一迁移到 `material_ui`；清理 `app.dart` 中为兼容旧组件加的 `flutter_localizations` 委托
+
+- [ ] P2-5 死代码、死测试与文档漂移
+  - 现状（已确认无业务引用）：`AppMorphingTabBar` + 6 个 morphing 测试、`MobileSearchInlineView` / `MobileSearchBrowseView`、`MobileWelcomeSection` / `MobileDailySection` / `mobile_home_constants.dart`、`AppThemeFactory`、`linux_mpris.dart`、`playback_settings.dart` / `library_settings.dart` / `notifications_settings.dart` / `audio_output_settings.dart`、`selectable_card_list.dart` / `squish_button_pair.dart`、`lib/pages/tmp.dart.bak`
+  - 文档：`ARCHITECTURE.md` 仍描述旧的嵌套 Navigator + `NavigatorPopHandler`、移动端目录选择返回 null、移动端 MediaKit 等，与当前代码不符
+  - 修复/验收：删除已确认不再使用的组件/测试；同步更新 `ARCHITECTURE.md` 与 TODO 历史勾选项；补一条“无引用文件”检查
+
+- [ ] P2-6 本地歌单快照丢失远端曲目元数据
+  - 位置：`laetibeat_flutter/lib/widgets/playlist_provider.dart:93-121`（`_trackFromPlaylistItem` 将 albumId/artistId/bitrate 置空）
+  - 影响：从歌单播放远端曲目时，统计聚合、推荐、音质推断退化
+  - 修复/验收：歌单条目 schema 增加 `album_id` / `artist_id` / `bitrate`，或播放时按 `source/sourceId/trackId` 回查远端库
+
+- [ ] P2-7 媒体库/搜索的“全部”语义与 LX 过滤不一致
+  - 位置：`laetibeat_flutter/lib/pages/mobile/library/views/songs_library_view.dart:54-85`（`lx` 分支不加入任何曲目）；`laetibeat_flutter/lib/pages/mobile/library/mobile_library_page.dart:53-72`（计数不随来源过滤）；`laetibeat_flutter/lib/pages/mobile/search/mobile_search_page.dart` 中 `all` 只含本地 + Subsonic
+  - 影响：选择“全部/洛雪”时计数与列表不一致；LX 歌曲/专辑/艺术家视图为空但歌单视图有 LX 订阅；用户容易误判
+  - 修复/验收：明确“全部”是否包含 LX；计数按当前过滤计算；LX 分类给出空态说明或隐藏不支持的子页
+
+- [ ] P2-8 播放进度未持久化；播完后的重播不进入统计
+  - 位置：`laetibeat_flutter/lib/widgets/player/player_provider.dart:251-271` 注释称恢复“进度”，但 `PlaybackStateSnapshot` 没有 position 字段；`toggle()` 播完后 seek(0) 直接播放，未重新开启 session
+  - 影响：重启后从曲首开始；顺序播放结束后点播放不计入新的播放统计
+  - 修复/验收：快照持久化 position；重播时调用 `_sessionTracker.onTrackChanged`；补恢复/重播测试
+
+- [ ] P2-9 SAF 扫描部分失败会永久缺失曲目
+  - 位置：`laetibeat_flutter/lib/widgets/settings/music_library_provider.dart:326-398`
+  - 现状：部分文件解析失败只计入 `failedFiles`，仍写快照并记录 scan version；失败文件不会自动重试
+  - 修复/验收：失败项保留待重试状态，或下次扫描强制重试；UI 可查看失败文件
+
+- [ ] P2-10 LX 其他待核实项
+  - `laetibeat_lx/src/search.rs:485` 把 Kugou 的 `Suffix` 追加到歌名；需确认该字段是版本信息还是文件格式，避免出现“Song mp3”
+  - `laetibeat_lx/src/songlist.rs:284-310`（`get_playlist_all`）最多 20 页，Migu 50/页，超大歌单会静默截断到约 1000 首
+  - `lx.request` 的 `formData` 仍未实现；需要盘点真实源兼容性
+  - `LxSourceStatus::Initializing` 在同步 `load_source` 下 UI 不可观测；`allow_update_alert` 无 UI 使用且 `__lx_on_update_alert` 为空实现
 
 ## 新 UI 架构决策（2026-11-23 定稿）
 
