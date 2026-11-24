@@ -1,34 +1,37 @@
 # Laetibeat 项目蓝图
 
 > 最后更新：2026-11-24
-> 当前阶段：Flutter 主线继续；2026-11-24 完成一轮全仓库代码审查，发现项见「2026-11-24 代码审查发现」；本轮只更新 TODO，不改实现
+> 当前阶段：Flutter 主线继续。同日已完成首页「最新发行 / 为你发现 / 最近加入 / 重拾旧爱」、设置入口页 segmented list、底部导航（移除设置、加入电台）与首页折叠态设置入口；本文件本轮只做状态校正与修复排期，不改代码
 
 ## 当前状态速览
 
 - 本地音乐：扫描、增量复用、专辑/艺术家聚合、播放、封面、歌词、统计、推荐
 - Navidrome：单服务端配置、手动同步、SQLite 快照、浏览/搜索/播放、封面/歌词、scrobble
-- 缓存：本地封面按需读取；远端封面内存 + 磁盘 LRU；歌词 SQLite 正负缓存；LX 歌词 SQLite 正缓存 + 封面磁盘 LRU；移动端缓存管理支持总上限滑块、三源明细与一键释放空间
-- 移动端：音乐库/搜索/设置/播放页/迷你播放器已完成；首页目前只保留播放器主视图，`mobile_welcome_section` / `mobile_daily_section` 组件尚未接入
-- 移动端 OpenSubsonic：连接、测试、扫描、歌单、艺术家简介、专辑/曲目浏览已接入真实数据
+- 缓存：本地封面按需读取；远端封面内存 + 磁盘 LRU；歌词 SQLite 正负缓存；LX 歌词 SQLite 正缓存 + 封面磁盘 LRU；移动端缓存管理支持总上限滑块、三源明细与一键释放空间；「为你发现」按天写入 SQLite 缓存（`discovery_cache`），打开优先读缓存
+- 移动端：音乐库/搜索/设置/播放页/迷你播放器已完成；首页现为「最新发行」轮播、「为你发现」、「最近加入」、「重拾旧爱」；`mobile_welcome_section` / `mobile_daily_section` 仍未接入，属于待清理旧组件
+- 移动端导航：底部 tab 为 首页 / 媒体库 / 统计 / 电台；设置入口移至首页 AppBar 折叠态；电台页目前只有空状态占位
+- 移动端设置：入口页已迁移到 `m3e_core.M3ESegmentedColumn`；具体设置子页尚未统一迁移
+- 移动端 OpenSubsonic：连接、测试、扫描、歌单、艺术家简介、专辑/曲目浏览已接入真实数据；「为你发现」使用最近聆听艺术家的 `getSimilarSongs2`
 - 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
 - 歌词：已接入 LRCLIB、LiriQo 搜索，支持逐字/逐行/静态标记、翻译与临时应用
 - 跨平台：Linux 桌面可用；Android UI 已解耦，audio_service 后台/锁屏/通知已验证；Windows/macOS 打包未开始
 - LX 音源：QuickJS、inited、HTTP、AES/RSA、setTimeout、SourceStore、SourceManager、FRB facade、移动端管理 UI、五平台独立搜索、`musicUrl` / `lyric` / `pic` 播放链路已打通
 - LX 剩余重点：脚本执行安全与中断、源生命周期与懒加载、异步 request broker、真实源联调
-- 主要功能缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一
+- 主要功能缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一、真实电台内容
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
-- 设计系统：新增 `lib/design/`（颜色/字体/间距/圆角/尺寸/动效/断点 token、Material You 官方取色、`AppArtwork` / `AppText` / `AppMediaRow` 等基础组件）；页面级左右 gutter 统一为 `AppLayout.pageGutter` + `AppPageBody`；具体页面尚未迁移
-- 新 UI 方向：继续 Flutter；`m3e_core` / `material_3_expressive` 只作组件库；Shell、路由、主题与取色自管；MiniPlayer + NavBar 为悬浮 BottomOverlay；Full Player 为 Root Navigator Route（2026-11-23 定稿）
+- 设计系统：新增 `lib/design/`（颜色/字体/间距/圆角/尺寸/动效/断点 token、Material You 官方取色、`AppArtwork` / `AppText` / `AppMediaRow` 等基础组件）；页面级左右 gutter 统一为 `AppLayout.pageGutter` + `AppPageBody`；具体页面尚未全部迁移
+- 新 UI 方向：继续 Flutter；`m3e_core` / `material_3_expressive` 只作组件库；Shell、路由、主题与取色自管；MiniPlayer + NavBar 为悬浮 BottomOverlay；Full Player 为 Root Navigator Route（2026-11-23 定稿；2026-11-24 导航内容有调整，见下方校正）
 
 ## 2026-11-24 代码审查发现（只记录，不改实现）
 
 > 来源：全仓库静态阅读 + `cargo test` / `cargo clippy` + `flutter analyze` / `flutter test`。
 > 本轮只更新 TODO，不修改代码。部分问题与下方历史待办重复（material_ui 迁移、MPRIS、死代码、下载等），这里保留 2026-11-24 的审查证据与验收标准，修复时以对应条目为准，不重复安排多轮修复。
+> 注意：行号以审查时快照为准；2026-11-24 晚间的首页、设置、导航改造已使部分 UI 行号失效，修复时请以文件路径 + 条目描述重新定位。
 
 ### 验证基线
 
-- [x] `cargo test -p laetibeat_core -p laetibeat_lx -p laetibeat_remote --offline`：50 passed（core 8 / lx 39 / remote 3）
-- [x] `cargo clippy -p laetibeat_core -p laetibeat_lx -p laetibeat_remote --all-targets --offline`：仅风格 warning，无 error
+- [x] `cargo test --workspace --offline`：53 passed（core 10 / lx 39 / remote 3 / rust_lib 1；含 P0-5 迁移、discovery cache 测试）
+- [x] `cargo clippy --workspace --offline --all-targets`：仅风格 warning，无 error
 - [x] `flutter analyze --no-pub`：27 issues，0 error；2 warning + 25 info
 - [x] `flutter test --no-pub`：14 tests all passed
 - [ ] 上述通过不代表 P0 不存在：现有测试未覆盖播放暂停竞态、嵌套 Navigator 返回、OpenSubsonic 配置解析、LX 候选源选择、SAF 部分失败等路径
@@ -91,6 +94,7 @@
   - 位置：`laetibeat_flutter/lib/widgets/recommendation_provider.dart:125-129`（全部远端专辑 + 全部曲目）；`laetibeat_flutter/lib/pages/mobile/library/mobile_library_page.dart:87-98`（计数/预览加载全部曲目/专辑/艺术家/歌单）
   - 影响：上万首 Subsonic 库时构造大量 FRB DTO、扫描整表，首页卡顿/内存上涨
   - 修复/验收：SQL `COUNT(*)`、分页查询、首页专用聚合；推荐使用 SQL 侧专辑聚合，不把全部曲目拉到 Dart
+  - 2026-11-24 现状：新增「为你发现」已改为按天读取/写入 `discovery_cache`，不再每次开屏请求 `getSimilarSongs2`；本条仍针对专辑级推荐和媒体库首页的全量加载
   - 关联：下方既有“远端同步支持增量、取消与进度节流；推荐避免全量加载远端曲目”
 
 - [ ] P1-5 LX 搜索在输入过程中反复请求且结果常驻
@@ -136,8 +140,9 @@
 ### P2：UX、功能与工程债
 
 - [ ] P2-1 大量“能点但没功能”的控件
-  - 位置示例：`laetibeat_flutter/lib/pages/mobile/home/mobile_home_content.dart:234,658`（查看更多/收藏）；`laetibeat_flutter/lib/pages/mobile/library/albums/album_detail_page.dart:46,276`（收藏）；`laetibeat_flutter/lib/pages/mobile/library/artists/artist_detail_page.dart:60,108,117,232`（收藏/热门歌曲/随机播放）；`laetibeat_flutter/lib/pages/mobile/library/views/songs_library_view.dart:236`（批量收藏）；`laetibeat_flutter/lib/pages/mobile/library/widgets/library_layout_control_bar.dart:30`（排序）；`laetibeat_flutter/lib/pages/mobile/settings/mobile_settings_page.dart:97-129`（备份/关于）；`laetibeat_flutter/lib/pages/mobile/settings/content/mobile_content_settings_page.dart:46`（歌词恢复默认第三项 `onTap` 未处理）
+  - 位置示例：`laetibeat_flutter/lib/pages/mobile/home/mobile_home_content.dart`（最近加入“查看更多”、歌曲收藏）；`laetibeat_flutter/lib/pages/mobile/library/albums/album_detail_page.dart`（收藏）；`laetibeat_flutter/lib/pages/mobile/library/artists/artist_detail_page.dart`（收藏/热门歌曲/随机播放）；`laetibeat_flutter/lib/pages/mobile/library/views/songs_library_view.dart`（批量收藏）；`laetibeat_flutter/lib/pages/mobile/library/widgets/library_layout_control_bar.dart`（排序）；`laetibeat_flutter/lib/pages/mobile/settings/mobile_settings_page.dart`（备份/关于）；`laetibeat_flutter/lib/pages/mobile/settings/content/mobile_content_settings_page.dart`（歌词恢复默认第三项 `onTap` 未处理）；`laetibeat_flutter/lib/pages/mobile/radio/mobile_radio_page.dart`（电台占位空状态）
   - 修复/验收：实现、隐藏或明确禁用并标注“即将支持”，避免用户误以为功能存在
+  - 2026-11-24 校正：首页旧“查看更多/收藏”行号已失效；设置页入口已改 segmented list；电台 tab 已接入但页面仍为占位
 
 - [ ] P2-2 桌面端与移动端功能分叉
   - 现状：桌面设置 `playerAudio` / `storage` / `backup` / `changelog` 仍是 `SettingsPlaceholder`（`laetibeat_flutter/lib/pages/desktop/settings/settings_content.dart:21-31`）；桌面搜索无 LX；`ChartPage` / `PlaylistPage` 仍为 `Placeholder`；`linux_mpris.dart` 未接入，`mediaSessionServiceProvider` 始终 Noop；设置有下载目录但无下载写入
@@ -184,6 +189,42 @@
   - `lx.request` 的 `formData` 仍未实现；需要盘点真实源兼容性
   - `LxSourceStatus::Initializing` 在同步 `load_source` 下 UI 不可观测；`allow_update_alert` 无 UI 使用且 `__lx_on_update_alert` 为空实现
 
+## 2026-11-24 首页 / 导航 / 设置校正
+
+> 本节用于覆盖上方「Home 页重写」「导航栏重设计」中已经过期的描述；那些历史记录保留作为演进记录，不再作为当前实现依据。
+
+### 已完成
+
+- [x] 首页 AppBar 展开标题改为「最新发行」；轮播改为按发行年份排序的最新发行专辑封面
+- [x] 首页新增「为你发现」：
+  - 最近聆听的 Subsonic 艺术家，每天轮换一个；
+  - 调用 `getSimilarSongs2`；
+  - 结果按天写入远端库 SQLite `discovery_cache`，打开程序优先读当天缓存；
+  - 播放事件后异步预取；只有点击「换一个」才强制重新请求并覆盖当天缓存；
+  - 大艺术家卡片 + 三个横向预览封面；完整列表进入 `DiscoveryPage`
+- [x] 「最新添加」改为「最近加入」，使用 `m3e_core.M3ESegmentedList` 展示 4 首歌曲，左侧封面改用 48dp `cookie9Sided`
+- [x] 移除首页最下方旧的「为你推荐」区域及相关 `_recommendedTracks` / `_RecommendedSong` / `_TrackCover`
+- [x] 设置入口页重写为 `m3e_core.M3ESegmentedColumn`，参数为 outer 24 / inner 4 / gap 2 / padding 12 / margin 12×4；条目改用 `m3e_core.M3EListItem`
+- [x] 底部导航由「首页 / 媒体库 / 统计 / 设置」改为「首页 / 媒体库 / 统计 / 电台」
+- [x] 设置入口移至首页 AppBar，仅在折叠态显示；展开态隐藏
+- [x] 新增 `MobileRoutes.radio`、`AppDestination.radio`、`MobileRadioPage`
+- [x] 新增 l10n `navRadio`（中/英）
+
+### 仍待处理
+
+- [ ] 电台页目前只有空状态占位，尚未接入 Subsonic `getInternetRadioStations` / 电台播放链路
+- [ ] 「为你发现」完整页的歌曲收藏按钮仍为占位，归入 P2-1
+- [ ] 设置入口页的备份/关于仍无实际页面或功能，归入 P2-1
+- [ ] Home 历史记录中的「继续听」「最新添加」「为你推荐」描述已过期，后续以本节为准
+
+### 修复排期（2026-11-24 讨论结论）
+
+- **第一批（低风险正确性）**：P0-3、P0-1、P0-6、P1-7、P1-11
+- **第二批（需先定方案）**：P0-2 导航返回、P0-4 QuickJS 结果隔离
+- **第三批（性能/内存）**：P1-1、P1-2、P1-3、P1-4
+- **第四批（工程债/安全）**：P1-5、P1-6、P1-8、P1-9、P1-10
+- **P2**：按 UX/功能价值另行排期，优先处理 P2-1 死入口与电台占位
+
 ## 新 UI 架构决策（2026-11-23 定稿）
 
 > 本轮先定架构，不写代码。目标是把「Shell / BottomOverlay / MiniPlayer / FullPlayer」职责拆清，并为后续 AOSP 取色与实现留出稳定边界。
@@ -200,6 +241,8 @@
 - [ ] 处理包内同名 `M3EColorScheme`：`m3e_core` 与 `material_3_expressive` 使用 import prefix 或 `show` / `hide`
 
 ### 导航栏重设计
+
+> 2026-11-24 现状校正：底部 tab 已是「首页 / 媒体库 / 统计 / 电台」4 tabs；Settings 已从底部移除、改由首页 AppBar 折叠态进入。以下 2026-11-23 记录保留为架构演进历史。
 
 - [x] 备份旧导航栏与测试到 `backup/navigation/2026-11-23/`
 - [x] 新增独立 `AppFloatingNavBar`：`M3EFabHorizontalFloatingToolbar` + 3 个可展开 tab + 独立 Search FAB
@@ -276,6 +319,8 @@
 - [ ] 不在 Full Player 打开时重新创建 Shell 或重新初始化播放器
 
 ### Home 页重写
+
+> 以下为 2026-11-23 首轮重写记录；其中「继续听 / 最新添加 / 为你推荐」等内容已在 2026-11-24 被「最新发行 / 为你发现 / 最近加入」取代，当前状态以「2026-11-24 首页 / 导航 / 设置校正」为准。
 
 - [x] 备份旧 `MobileHomeContent` 到 `backup/home/2026-11-23/`
 - [x] 首页 gutter token 化：普通 section 使用 `AppLayout.gutterFor(width)`（手机 16）；继续听 carousel 使用 `AppLayout.carouselGutter = 8`；Home 页禁用 `AppPageBody` 全局 gutter，各 section 自行应用
@@ -394,7 +439,7 @@
 - [x] 新增 `test/app_morphing_tab_bar_accessory_test.dart`：bottom accessory 渲染，搜索态收起并缩短整体高度（旧架构测试，待迁移到 BottomOverlay）
 - [x] `AppMorphingTabBar` 接入 shell：Home / Library / Stats 三个顶层 tab；MiniPlayer 作为 bottom accessory（已被 2026-11-23 独立 BottomOverlay 架构取代，待拆分）
 - [x] 浮动导航改为 `Stack` overlay，移除 `Scaffold.bottomNavigationBar` 的全宽背景板；`AppBottomInsetScope` 为页面提供底部留白（新架构改为页面 full-bleed，`AppBottomInsetScope` 仅保留为可选 floating chrome metrics）
-- [x] 底部导航加入 Settings 顶层 tab；Home/Library AppBar 移除设置与音源入口
+- [x] ~~底部导航加入 Settings 顶层 tab~~（2026-11-24 已移除；改为 Radio，设置入口移至首页 AppBar 折叠态）
 - [x] 媒体库 AppBar 右侧增加 `m3e_core.M3ESplitButton` 来源选择：本地 / Navidrome / 洛雪，默认本地；滚动时 AppBar 不隐藏；SplitButton 直接使用 intrinsic 宽度，end-aligned 向左扩展
 - [x] `librarySourceFilterProvider` 改为派生自外观设置 `defaultSongSourceProvider`：右上角 SplitButton 与设置页歌曲来源双向同步；支持全部 / 本地 / Navidrome / 洛雪
 - [x] `SongSources.all` 增加洛雪；曲库 / 专辑 / 艺术家 / 歌单子页统一读取来源过滤，不显示各自 chips
@@ -957,7 +1002,8 @@ LX 平台：酷我 / QQ / 网易 / 咪咕 / 酷狗
 - [x] 7.6 Android 后台播放、媒体会话、常驻通知（真机验证通过）
 - [ ] 7.7 Windows / macOS / Android 打包与适配测试
 - [x] 7.8 window_manager 平台门控与移动端启动配置
-- [x] 7.9 移动端页面体系：首页/音乐库/搜索/设置/外观/内容/音源配置
+- [x] 7.9 移动端页面体系：首页/音乐库/搜索/设置/外观/内容/音源配置/电台占位
+- [ ] 7.9.1 电台内容：接入 Subsonic `getInternetRadioStations` 与电台播放链路
 - [x] 7.10 移动端库分类：歌曲、歌单、艺术家、专辑；支持排序、宫格/列表切换
 - [x] 7.11 移动端详情页：专辑详情、艺术家详情、多碟分组、曲目列表
 - [x] 7.12 移动端搜索栏、AppBar、底部导航、预测性返回
