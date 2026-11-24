@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
@@ -92,12 +94,8 @@ class MiniPlayer extends ConsumerWidget {
                     ).previousTrack,
                     onPressed: notifier.prev,
                   ),
-                  M3EIconButton(
-                    variant: M3EIconButtonVariant.filled,
-                    icon: Icon(
-                      isPlaying ? M3EIcons.pause : M3EIcons.play_arrow,
-                      color: foreground,
-                    ),
+                  _ShapePlayPauseButton(
+                    isPlaying: isPlaying,
                     semanticLabel: isPlaying
                         ? AppLocalizations.of(context).pause
                         : AppLocalizations.of(context).play,
@@ -156,6 +154,177 @@ class MiniPlayer extends ConsumerWidget {
   }
 }
 
+/// Play/pause control whose background morphs between a circle and a
+/// rotating nine-sided cookie shape.
+class _ShapePlayPauseButton extends StatefulWidget {
+  const _ShapePlayPauseButton({
+    required this.isPlaying,
+    required this.semanticLabel,
+    required this.onPressed,
+  });
+
+  final bool isPlaying;
+  final String semanticLabel;
+  final VoidCallback onPressed;
+
+  @override
+  State<_ShapePlayPauseButton> createState() => _ShapePlayPauseButtonState();
+}
+
+class _ShapePlayPauseButtonState extends State<_ShapePlayPauseButton>
+    with TickerProviderStateMixin {
+  static const Duration _rotationDuration = Duration(seconds: 8);
+  static const double _shapeSize = 40;
+  static const double _buttonSize = 48;
+
+  late final AnimationController _morphController;
+  late final AnimationController _rotationController;
+  late final Morph _morph;
+
+  @override
+  void initState() {
+    super.initState();
+    _morph = Morph(
+      M3EShapeKind.circle.polygon,
+      M3EShapeKind.cookie9Sided.polygon,
+    );
+    _morphController = AnimationController(
+      vsync: this,
+      duration: AppMotion.standard,
+      value: widget.isPlaying ? 1 : 0,
+    );
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: _rotationDuration,
+    );
+    if (widget.isPlaying) {
+      _rotationController.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _ShapePlayPauseButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying == oldWidget.isPlaying) return;
+
+    if (widget.isPlaying) {
+      _morphController.forward();
+      _rotationController.repeat();
+    } else {
+      _morphController.reverse();
+      _rotationController.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _morphController.dispose();
+    _rotationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = M3ETheme.of(context).colorScheme;
+
+    return Semantics(
+      button: true,
+      label: widget.semanticLabel,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          M3EHaptics.trigger(M3EHapticFeedback.light);
+          widget.onPressed();
+        },
+        child: SizedBox.square(
+          dimension: _buttonSize,
+          child: Stack(
+            alignment: Alignment.center,
+            children: <Widget>[
+              AnimatedBuilder(
+                animation: Listenable.merge(<Listenable>[
+                  _morphController,
+                  _rotationController,
+                ]),
+                builder: (BuildContext context, Widget? child) {
+                  final double progress = Curves.easeInOutCubic.transform(
+                    _morphController.value,
+                  );
+                  final double rotation =
+                      _rotationController.value * 2 * math.pi;
+                  return Transform.rotate(
+                    angle: rotation,
+                    child: SizedBox.square(
+                      dimension: _shapeSize,
+                      child: CustomPaint(
+                        painter: _MorphShapePainter(
+                          morph: _morph,
+                          progress: progress,
+                          color: scheme.primary,
+                        ),
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              Icon(
+                widget.isPlaying ? M3EIcons.pause : M3EIcons.play_arrow,
+                size: 22,
+                color: scheme.onPrimary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MorphShapePainter extends CustomPainter {
+  const _MorphShapePainter({
+    required this.morph,
+    required this.progress,
+    required this.color,
+  });
+
+  final Morph morph;
+  final double progress;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Path path = morph.toPath(progress: progress);
+    final Rect bounds = path.getBounds();
+    if (bounds.isEmpty) return;
+
+    final Matrix4 matrix = Matrix4.diagonal3Values(
+      size.width / bounds.width,
+      size.height / bounds.height,
+      1,
+    );
+    final Path scaledPath = path.transform(matrix.storage);
+    final Rect scaledBounds = scaledPath.getBounds();
+    final Path centeredPath = scaledPath.shift(
+      Offset(size.width / 2, size.height / 2) - scaledBounds.center,
+    );
+
+    canvas.drawPath(
+      centeredPath,
+      Paint()
+        ..style = PaintingStyle.fill
+        ..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _MorphShapePainter oldDelegate) {
+    return oldDelegate.morph != morph ||
+        oldDelegate.progress != progress ||
+        oldDelegate.color != color;
+  }
+}
+
 class _MiniPlayerDragRegion extends StatefulWidget {
   const _MiniPlayerDragRegion({required this.child, required this.onOpen});
 
@@ -209,21 +378,20 @@ class _MiniCover extends StatelessWidget {
     final bytes = cover?.bytes;
     final hasArt = bytes != null && bytes.isNotEmpty;
 
-    return ClipOval(
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: hasArt
-            ? Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true)
-            : ColoredBox(
-                color: scheme.secondaryContainer,
-                child: Icon(
-                  M3EIcons.music_note,
-                  size: size * 0.5,
-                  color: scheme.onSecondaryContainer,
-                ),
+    return M3EShapeContainer.cookie4Sided(
+      width: size,
+      height: size,
+      clipBehavior: Clip.antiAlias,
+      child: hasArt
+          ? Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true)
+          : ColoredBox(
+              color: scheme.secondaryContainer,
+              child: Icon(
+                M3EIcons.music_note,
+                size: size * 0.5,
+                color: scheme.onSecondaryContainer,
               ),
-      ),
+            ),
     );
   }
 }
