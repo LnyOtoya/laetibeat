@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `format_error`, `init_lx_logging`, `manager_slot`, `map_entry`, `map_lx_playlist_detail`, `map_lx_playlist`, `map_lx_search_track`, `parse_cached_lyric`, `parse_lyric`, `with_manager`
+// These functions are ignored because they are not marked as `pub`: `format_error`, `manager_slot`, `map_entry`, `map_lx_playlist_detail`, `map_lx_playlist`, `map_lx_search_track`, `parse_cached_lyric`, `parse_lyric`, `publish_snapshot`, `snapshot_cell`, `with_manager`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`
 
 /// Initialize the filesystem-backed source store.
@@ -20,6 +20,10 @@ Future<void> initLxSourceStore({required String root}) =>
 Future<UiLxSourceEntry> importLxSource({required String script}) =>
     RustLib.instance.api.crateApiLxImportLxSource(script: script);
 
+/// List sources and their capabilities.
+///
+/// 只读快照，**不获取 manager 锁**：后台预热/解析播放地址期间 UI 依然能
+/// 秒回。能力来自本次进程已加载的声明，或上次成功加载后持久化的缓存。
 Future<List<UiLxSourceEntry>> listLxSources() =>
     RustLib.instance.api.crateApiLxListLxSources();
 

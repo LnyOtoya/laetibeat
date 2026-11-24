@@ -84,6 +84,8 @@ pub struct RemoteTrack {
     pub bit_rate: Option<i32>,
     pub suffix: Option<String>,
     pub size: Option<i64>,
+    /// 服务器记录的加入时间(ISO 8601)。
+    pub created: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -559,6 +561,7 @@ fn map_track(track: Child) -> RemoteTrack {
         bit_rate: track.bit_rate,
         suffix: track.suffix,
         size: track.size,
+        created: track.created,
     }
 }
 

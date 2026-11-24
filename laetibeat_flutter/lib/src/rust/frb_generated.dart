@@ -4138,8 +4138,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   UiRemoteTrack dco_decode_ui_remote_track(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 15)
-      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
+    if (arr.length != 16)
+      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
     return UiRemoteTrack(
       id: dco_decode_String(arr[0]),
       title: dco_decode_String(arr[1]),
@@ -4156,6 +4156,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       bitRate: dco_decode_opt_box_autoadd_i_32(arr[12]),
       suffix: dco_decode_opt_String(arr[13]),
       size: dco_decode_opt_box_autoadd_i_64(arr[14]),
+      created: dco_decode_opt_String(arr[15]),
     );
   }
 
@@ -5412,6 +5413,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_bitRate = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_suffix = sse_decode_opt_String(deserializer);
     var var_size = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_created = sse_decode_opt_String(deserializer);
     return UiRemoteTrack(
       id: var_id,
       title: var_title,
@@ -5428,6 +5430,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       bitRate: var_bitRate,
       suffix: var_suffix,
       size: var_size,
+      created: var_created,
     );
   }
 
@@ -6515,6 +6518,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_i_32(self.bitRate, serializer);
     sse_encode_opt_String(self.suffix, serializer);
     sse_encode_opt_box_autoadd_i_64(self.size, serializer);
+    sse_encode_opt_String(self.created, serializer);
   }
 
   @protected

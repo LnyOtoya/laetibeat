@@ -61,10 +61,9 @@
   - 影响：偶发返回错误播放 URL/歌词，或“source did not produce a result”，难以复现
   - 修复/验收：每次 dispatch 分配 id 并在 JS/Rust 两侧校验；或每次操作新建 Context；至少在该次 dispatch 结束时清理遗留 timer；补“旧定时器不得影响下一次结果”测试
 
-- [ ] P0-5 远端专辑 `created` 字段没有落库
-  - 位置：`laetibeat_core/src/remote_library.rs:41-55`（`remote_albums` 无 `created` 列）、`:134-143`（`RemoteAlbumRow` 无字段）；`laetibeat_flutter/rust/src/api/library.rs:140` 写死 `created: None`
-  - 影响：同步后的 Subsonic 专辑没有添加时间；移动首页“最新添加”会排到最后并显示“添加时间未知”；依赖 `created` 的排序/推荐失效
-  - 修复/验收：新增迁移（如 `SCHEMA_VERSION = 3`）增加 `created TEXT`，同步写入、查询透传；补“同步后 created 保留”测试
+- [x] P0-5 远端专辑/曲目 `created` 字段没有落库（2026-11-24 已修复）
+  - 修复：`SCHEMA_VERSION = 3` 为 `remote_albums` / `remote_tracks` 增加 `created TEXT`；同步写入专辑与曲目加入时间；`UiRemoteAlbum` / `UiRemoteTrack` 透传；补迁移与持久化测试
+  - 验收：`cargo test --workspace` 通过；移动首页“最近加入”优先使用曲目 `created`，缺失时回退专辑 `created`
 
 - [ ] P0-6 远端 URL 解析期间点暂停，音频仍会起播
   - 位置：`laetibeat_flutter/lib/widgets/player/player_provider.dart:465-500`（`load` 乐观 `isPlaying: true`）与 `:553-609`（`_openResolved` 解析后 `open(play: true)`）

@@ -52,6 +52,8 @@ pub struct UiRemoteTrack {
     pub bit_rate: Option<i32>,
     pub suffix: Option<String>,
     pub size: Option<i64>,
+    /// 服务器记录的加入时间(ISO 8601)。
+    pub created: Option<String>,
 }
 
 /// 远端歌单
@@ -447,5 +449,6 @@ fn map_track(track: remote::RemoteTrack) -> UiRemoteTrack {
         bit_rate: track.bit_rate,
         suffix: track.suffix,
         size: track.size,
+        created: track.created,
     }
 }

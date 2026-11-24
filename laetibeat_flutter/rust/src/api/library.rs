@@ -137,7 +137,7 @@ fn map_album(album: core_lib::RemoteAlbumRow) -> UiRemoteAlbum {
         song_count: album.song_count,
         duration_seconds: album.duration_seconds,
         year: album.year,
-        created: None,
+        created: album.created,
     }
 }
 
@@ -158,5 +158,6 @@ fn map_track(track: core_lib::RemoteTrackRow) -> UiRemoteTrack {
         bit_rate: track.bit_rate,
         suffix: track.suffix,
         size: track.size,
+        created: track.created,
     }
 }

@@ -470,6 +470,9 @@ class UiRemoteTrack {
   final String? suffix;
   final PlatformInt64? size;
 
+  /// 服务器记录的加入时间(ISO 8601)。
+  final String? created;
+
   const UiRemoteTrack({
     required this.id,
     required this.title,
@@ -486,6 +489,7 @@ class UiRemoteTrack {
     this.bitRate,
     this.suffix,
     this.size,
+    this.created,
   });
 
   @override
@@ -504,7 +508,8 @@ class UiRemoteTrack {
       genre.hashCode ^
       bitRate.hashCode ^
       suffix.hashCode ^
-      size.hashCode;
+      size.hashCode ^
+      created.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -525,7 +530,8 @@ class UiRemoteTrack {
           genre == other.genre &&
           bitRate == other.bitRate &&
           suffix == other.suffix &&
-          size == other.size;
+          size == other.size &&
+          created == other.created;
 }
 
 /// 服务器信息

@@ -159,6 +159,7 @@ fn sync_inner(
             song_count: album.song_count,
             duration_seconds: album.duration_seconds,
             year: album.year,
+            created: album.created.clone(),
         })
         .collect();
     core_lib::insert_albums(source_id, generation, &album_rows)?;
@@ -293,6 +294,7 @@ fn fetch_tracks_concurrently(
                         bit_rate: track.bit_rate,
                         suffix: track.suffix.clone(),
                         size: track.size,
+                        created: track.created.clone().or_else(|| album.created.clone()),
                     })
                     .collect();
 

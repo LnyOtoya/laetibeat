@@ -4098,6 +4098,7 @@ impl SseDecode for crate::api::subsonic::UiRemoteTrack {
         let mut var_bitRate = <Option<i32>>::sse_decode(deserializer);
         let mut var_suffix = <Option<String>>::sse_decode(deserializer);
         let mut var_size = <Option<i64>>::sse_decode(deserializer);
+        let mut var_created = <Option<String>>::sse_decode(deserializer);
         return crate::api::subsonic::UiRemoteTrack {
             id: var_id,
             title: var_title,
@@ -4114,6 +4115,7 @@ impl SseDecode for crate::api::subsonic::UiRemoteTrack {
             bit_rate: var_bitRate,
             suffix: var_suffix,
             size: var_size,
+            created: var_created,
         };
     }
 }
@@ -5257,6 +5259,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::subsonic::UiRemoteTrack {
             self.bit_rate.into_into_dart().into_dart(),
             self.suffix.into_into_dart().into_dart(),
             self.size.into_into_dart().into_dart(),
+            self.created.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -6179,6 +6182,7 @@ impl SseEncode for crate::api::subsonic::UiRemoteTrack {
         <Option<i32>>::sse_encode(self.bit_rate, serializer);
         <Option<String>>::sse_encode(self.suffix, serializer);
         <Option<i64>>::sse_encode(self.size, serializer);
+        <Option<String>>::sse_encode(self.created, serializer);
     }
 }
 

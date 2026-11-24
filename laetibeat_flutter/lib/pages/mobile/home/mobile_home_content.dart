@@ -658,10 +658,13 @@ List<rust.UiTrack> _recentSongs(
         const <rust_subsonic.UiRemoteTrack>[];
     for (final track in remoteTracks) {
       final albumId = track.albumId;
+      final addedAt =
+          DateTime.tryParse(track.created ?? '') ??
+          (albumId == null ? null : createdByAlbum[albumId]);
       entries.add(
         _RecentSong(
           track: remoteTrackToUiTrack(track, server.id),
-          addedAt: albumId == null ? null : createdByAlbum[albumId],
+          addedAt: addedAt,
         ),
       );
     }

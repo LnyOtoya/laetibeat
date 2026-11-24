@@ -6,7 +6,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// 远端音乐库结构版本;后续变更通过 PRAGMA user_version 迁移。
 /// v1: 艺术家/专辑/曲目 + 同步元数据。
 /// v2: 歌词缓存。
-const SCHEMA_VERSION: i64 = 2;
+/// v3: 专辑/曲目的服务器加入时间(created)。
+const SCHEMA_VERSION: i64 = 3;
 
 /// 歌词缓存文本总量上限(约 20MB)
 const LYRICS_CACHE_MAX_BYTES: i64 = 20 * 1024 * 1024;
@@ -51,6 +52,7 @@ CREATE TABLE IF NOT EXISTS remote_albums (
     song_count INTEGER,
     duration_seconds INTEGER,
     year INTEGER,
+    created TEXT,
     PRIMARY KEY (source_id, generation, id)
 );
 CREATE INDEX IF NOT EXISTS idx_remote_albums_artist
@@ -79,6 +81,7 @@ CREATE TABLE IF NOT EXISTS remote_tracks (
     bit_rate INTEGER,
     suffix TEXT,
     size INTEGER,
+    created TEXT,
     PRIMARY KEY (source_id, generation, id)
 );
 CREATE INDEX IF NOT EXISTS idx_remote_tracks_album
@@ -140,6 +143,8 @@ pub struct RemoteAlbumRow {
     pub song_count: Option<i64>,
     pub duration_seconds: Option<i64>,
     pub year: Option<i32>,
+    /// 服务器记录的加入时间(ISO 8601)。
+    pub created: Option<String>,
 }
 
 /// 远端曲目行
@@ -160,6 +165,8 @@ pub struct RemoteTrackRow {
     pub bit_rate: Option<i32>,
     pub suffix: Option<String>,
     pub size: Option<i64>,
+    /// 服务器记录的加入时间(ISO 8601)。
+    pub created: Option<String>,
 }
 
 /// 远端搜索的三类结果
@@ -223,10 +230,39 @@ fn migrate(conn: &Connection) -> Result<(), String> {
     if version < 2 {
         conn.execute_batch(SCHEMA_V2).map_err(map_err)?;
     }
+    if version < 3 {
+        ensure_column(conn, "remote_albums", "created", "TEXT")?;
+        ensure_column(conn, "remote_tracks", "created", "TEXT")?;
+    }
     if version < SCHEMA_VERSION {
         conn.pragma_update(None, "user_version", SCHEMA_VERSION)
             .map_err(map_err)?;
     }
+    Ok(())
+}
+
+/// 给已有表补列;迁移可重复执行。
+fn ensure_column(
+    conn: &Connection,
+    table: &str,
+    column: &str,
+    definition: &str,
+) -> Result<(), String> {
+    let mut stmt = conn
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .map_err(map_err)?;
+    let mut rows = stmt.query([]).map_err(map_err)?;
+    while let Some(row) = rows.next().map_err(map_err)? {
+        let name: String = row.get(1).map_err(map_err)?;
+        if name == column {
+            return Ok(());
+        }
+    }
+    conn.execute(
+        &format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"),
+        [],
+    )
+    .map_err(map_err)?;
     Ok(())
 }
 
@@ -344,8 +380,8 @@ fn insert_albums_on(
             .prepare(
                 "INSERT OR REPLACE INTO remote_albums (
                     source_id, generation, id, title, title_lower, artist, artist_lower,
-                    artist_id, cover_id, song_count, duration_seconds, year
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                    artist_id, cover_id, song_count, duration_seconds, year, created
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             )
             .map_err(map_err)?;
         for album in albums {
@@ -362,6 +398,7 @@ fn insert_albums_on(
                 album.song_count,
                 album.duration_seconds,
                 album.year,
+                album.created,
             ])
             .map_err(map_err)?;
         }
@@ -396,9 +433,9 @@ fn insert_tracks_on(
                     source_id, generation, id, album_id, artist_id,
                     title, title_lower, artist, artist_lower, album, album_lower,
                     cover_id, duration_seconds, track_number, disc_number,
-                    year, genre, bit_rate, suffix, size
+                    year, genre, bit_rate, suffix, size, created
                  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11,
-                           ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
+                           ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
             )
             .map_err(map_err)?;
         for track in tracks {
@@ -423,6 +460,7 @@ fn insert_tracks_on(
                 track.bit_rate,
                 track.suffix,
                 track.size,
+                track.created,
             ])
             .map_err(map_err)?;
         }
@@ -879,7 +917,7 @@ fn query_albums_on(
     artist_id: Option<&str>,
 ) -> Result<Vec<RemoteAlbumRow>, String> {
     let select = "SELECT a.id, a.title, a.artist, a.artist_id, a.cover_id,
-                         a.song_count, a.duration_seconds, a.year
+                         a.song_count, a.duration_seconds, a.year, a.created
                   FROM remote_albums a
                   JOIN remote_sync_meta m
                     ON m.source_id = a.source_id AND m.generation = a.generation
@@ -917,6 +955,7 @@ fn map_album_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RemoteAlbumRow> {
         song_count: row.get(5)?,
         duration_seconds: row.get(6)?,
         year: row.get(7)?,
+        created: row.get(8)?,
     })
 }
 
@@ -935,7 +974,7 @@ fn query_tracks_on(
         .prepare(
             "SELECT t.id, t.album_id, t.artist_id, t.title, t.artist, t.album,
                     t.cover_id, t.duration_seconds, t.track_number, t.disc_number,
-                    t.year, t.genre, t.bit_rate, t.suffix, t.size
+                    t.year, t.genre, t.bit_rate, t.suffix, t.size, t.created
              FROM remote_tracks t
              JOIN remote_sync_meta m
                ON m.source_id = t.source_id AND m.generation = t.generation
@@ -961,7 +1000,7 @@ fn query_all_tracks_on(conn: &Connection, source_id: &str) -> Result<Vec<RemoteT
         .prepare(
             "SELECT t.id, t.album_id, t.artist_id, t.title, t.artist, t.album,
                     t.cover_id, t.duration_seconds, t.track_number, t.disc_number,
-                    t.year, t.genre, t.bit_rate, t.suffix, t.size
+                    t.year, t.genre, t.bit_rate, t.suffix, t.size, t.created
              FROM remote_tracks t
              JOIN remote_sync_meta m
                ON m.source_id = t.source_id AND m.generation = t.generation
@@ -993,6 +1032,7 @@ fn map_track_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RemoteTrackRow> {
         bit_rate: row.get(12)?,
         suffix: row.get(13)?,
         size: row.get(14)?,
+        created: row.get(15)?,
     })
 }
 
@@ -1059,7 +1099,7 @@ fn search_on(
         let mut stmt = conn
             .prepare(
                 "SELECT a.id, a.title, a.artist, a.artist_id, a.cover_id,
-                        a.song_count, a.duration_seconds, a.year
+                        a.song_count, a.duration_seconds, a.year, a.created
                  FROM remote_albums a
                  JOIN remote_sync_meta m
                    ON m.source_id = a.source_id AND m.generation = a.generation
@@ -1084,7 +1124,7 @@ fn search_on(
             .prepare(
                 "SELECT t.id, t.album_id, t.artist_id, t.title, t.artist, t.album,
                         t.cover_id, t.duration_seconds, t.track_number, t.disc_number,
-                        t.year, t.genre, t.bit_rate, t.suffix, t.size
+                        t.year, t.genre, t.bit_rate, t.suffix, t.size, t.created
                  FROM remote_tracks t
                  JOIN remote_sync_meta m
                    ON m.source_id = t.source_id AND m.generation = t.generation
@@ -1144,6 +1184,7 @@ mod tests {
             song_count: Some(1),
             duration_seconds: Some(200),
             year: Some(2024),
+            created: Some("2024-01-02T03:04:05Z".to_string()),
         }
     }
 
@@ -1164,6 +1205,7 @@ mod tests {
             bit_rate: Some(320),
             suffix: Some("flac".to_string()),
             size: Some(1024),
+            created: Some("2024-01-02T03:04:05Z".to_string()),
         }
     }
 
@@ -1191,13 +1233,17 @@ mod tests {
         assert_eq!(meta.track_count, 1);
 
         assert_eq!(query_artists_on(&conn, "default").unwrap().len(), 1);
+        let albums = query_albums_on(&conn, "default", Some("a1")).unwrap();
+        assert_eq!(albums.len(), 1);
         assert_eq!(
-            query_albums_on(&conn, "default", Some("a1")).unwrap().len(),
-            1
+            albums[0].created.as_deref(),
+            Some("2024-01-02T03:04:05Z")
         );
+        let tracks = query_tracks_on(&conn, "default", "al1").unwrap();
+        assert_eq!(tracks[0].title, "Song One");
         assert_eq!(
-            query_tracks_on(&conn, "default", "al1").unwrap()[0].title,
-            "Song One"
+            tracks[0].created.as_deref(),
+            Some("2024-01-02T03:04:05Z")
         );
 
         // 搜索命中艺术家、专辑与曲目
@@ -1322,5 +1368,39 @@ mod tests {
             .unwrap()
             .unwrap();
         assert!(entry.raw_text.is_none());
+    }
+
+    #[test]
+    fn migrate_v2_adds_created_columns() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE remote_albums (id TEXT);
+             CREATE TABLE remote_tracks (id TEXT);
+             PRAGMA user_version = 2;",
+        )
+        .unwrap();
+
+        migrate(&conn).unwrap();
+
+        assert!(
+            table_columns(&conn, "remote_albums").contains(&"created".to_string())
+        );
+        assert!(
+            table_columns(&conn, "remote_tracks").contains(&"created".to_string())
+        );
+        let version: i64 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, SCHEMA_VERSION);
+    }
+
+    fn table_columns(conn: &Connection, table: &str) -> Vec<String> {
+        let mut stmt = conn
+            .prepare(&format!("PRAGMA table_info({table})"))
+            .unwrap();
+        stmt.query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .map(|row| row.unwrap())
+            .collect()
     }
 }
