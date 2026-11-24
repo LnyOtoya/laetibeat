@@ -331,7 +331,7 @@ class _DiscoverySection extends ConsumerWidget {
                   icon: const Icon(M3EIcons.refresh),
                   label: const Text('换一个'),
                   onPressed: () {
-                    ref.read(discoveryRotationProvider.notifier).next();
+                    ref.read(discoveryCacheServiceProvider).refresh();
                   },
                 ),
               ),

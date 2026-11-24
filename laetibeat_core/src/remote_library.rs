@@ -7,7 +7,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// v1: 艺术家/专辑/曲目 + 同步元数据。
 /// v2: 歌词缓存。
 /// v3: 专辑/曲目的服务器加入时间(created)。
-const SCHEMA_VERSION: i64 = 3;
+/// v4: 每日“为你发现”推荐缓存。
+const SCHEMA_VERSION: i64 = 4;
 
 /// 歌词缓存文本总量上限(约 20MB)
 const LYRICS_CACHE_MAX_BYTES: i64 = 20 * 1024 * 1024;
@@ -110,6 +111,18 @@ CREATE INDEX IF NOT EXISTS idx_lyrics_cache_fetched
     ON lyrics_cache(fetched_at);
 "#;
 
+const SCHEMA_V4: &str = r#"
+CREATE TABLE IF NOT EXISTS discovery_cache (
+    day_key INTEGER PRIMARY KEY,
+    source_id TEXT NOT NULL,
+    artist_id TEXT NOT NULL,
+    artist_name TEXT NOT NULL,
+    cover_id TEXT,
+    tracks_json TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+"#;
+
 /// 一次成功同步的元数据摘要
 #[derive(Debug, Clone)]
 pub struct SyncMeta {
@@ -177,6 +190,18 @@ pub struct RemoteSearchRows {
     pub tracks: Vec<RemoteTrackRow>,
 }
 
+/// 每日“为你发现”缓存行。
+#[derive(Debug, Clone)]
+pub struct DiscoveryCacheRow {
+    pub day_key: i64,
+    pub source_id: String,
+    pub artist_id: String,
+    pub artist_name: String,
+    pub cover_id: Option<String>,
+    pub tracks_json: String,
+    pub updated_at: i64,
+}
+
 /// 歌词缓存条目。raw_text 为 None 表示负缓存(确实没有歌词)。
 #[derive(Debug, Clone)]
 pub struct LyricsCacheEntry {
@@ -233,6 +258,9 @@ fn migrate(conn: &Connection) -> Result<(), String> {
     if version < 3 {
         ensure_column(conn, "remote_albums", "created", "TEXT")?;
         ensure_column(conn, "remote_tracks", "created", "TEXT")?;
+    }
+    if version < 4 {
+        conn.execute_batch(SCHEMA_V4).map_err(map_err)?;
     }
     if version < SCHEMA_VERSION {
         conn.pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -590,6 +618,11 @@ fn clear_library_on(conn: &Connection, source_id: &str) -> Result<(), String> {
     }
     tx.execute(
         "DELETE FROM remote_sync_meta WHERE source_id = ?1",
+        params![source_id],
+    )
+    .map_err(map_err)?;
+    tx.execute(
+        "DELETE FROM discovery_cache WHERE source_id = ?1",
         params![source_id],
     )
     .map_err(map_err)?;
@@ -1015,6 +1048,74 @@ fn query_all_tracks_on(conn: &Connection, source_id: &str) -> Result<Vec<RemoteT
     collect_rows(rows)
 }
 
+/// 读取某一天的“为你发现”缓存。
+pub fn get_discovery_cache(day_key: i64) -> Result<Option<DiscoveryCacheRow>, String> {
+    let conn = db()?;
+    get_discovery_cache_on(&conn, day_key)
+}
+
+fn get_discovery_cache_on(
+    conn: &Connection,
+    day_key: i64,
+) -> Result<Option<DiscoveryCacheRow>, String> {
+    conn.query_row(
+        "SELECT day_key, source_id, artist_id, artist_name, cover_id,
+                tracks_json, updated_at
+         FROM discovery_cache
+         WHERE day_key = ?1",
+        params![day_key],
+        map_discovery_cache_row,
+    )
+    .optional()
+    .map_err(map_err)
+}
+
+/// 写入某一天的“为你发现”缓存,并清理过旧记录。
+pub fn put_discovery_cache(entry: &DiscoveryCacheRow) -> Result<(), String> {
+    let conn = db()?;
+    put_discovery_cache_on(&conn, entry)
+}
+
+fn put_discovery_cache_on(conn: &Connection, entry: &DiscoveryCacheRow) -> Result<(), String> {
+    conn.execute(
+        "INSERT OR REPLACE INTO discovery_cache (
+            day_key, source_id, artist_id, artist_name, cover_id,
+            tracks_json, updated_at
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![
+            entry.day_key,
+            entry.source_id,
+            entry.artist_id,
+            entry.artist_name,
+            entry.cover_id,
+            entry.tracks_json,
+            entry.updated_at,
+        ],
+    )
+    .map_err(map_err)?;
+
+    if entry.day_key > 14 {
+        conn.execute(
+            "DELETE FROM discovery_cache WHERE day_key < ?1",
+            params![entry.day_key - 14],
+        )
+        .map_err(map_err)?;
+    }
+    Ok(())
+}
+
+fn map_discovery_cache_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<DiscoveryCacheRow> {
+    Ok(DiscoveryCacheRow {
+        day_key: row.get(0)?,
+        source_id: row.get(1)?,
+        artist_id: row.get(2)?,
+        artist_name: row.get(3)?,
+        cover_id: row.get(4)?,
+        tracks_json: row.get(5)?,
+        updated_at: row.get(6)?,
+    })
+}
+
 fn map_track_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RemoteTrackRow> {
     Ok(RemoteTrackRow {
         id: row.get(0)?,
@@ -1392,6 +1493,33 @@ mod tests {
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
         assert_eq!(version, SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn discovery_cache_roundtrip() {
+        let conn = Connection::open_in_memory().unwrap();
+        migrate(&conn).unwrap();
+
+        let entry = DiscoveryCacheRow {
+            day_key: 20_000,
+            source_id: "default".to_string(),
+            artist_id: "artist-1".to_string(),
+            artist_name: "Artist One".to_string(),
+            cover_id: Some("cover-1".to_string()),
+            tracks_json: r#"[{"id":"track-1"}]"#.to_string(),
+            updated_at: 1_700_000_000_000,
+        };
+        put_discovery_cache_on(&conn, &entry).unwrap();
+
+        let stored = get_discovery_cache_on(&conn, entry.day_key)
+            .unwrap()
+            .unwrap();
+        assert_eq!(stored.source_id, "default");
+        assert_eq!(stored.artist_id, "artist-1");
+        assert_eq!(stored.artist_name, "Artist One");
+        assert_eq!(stored.cover_id.as_deref(), Some("cover-1"));
+        assert_eq!(stored.tracks_json, entry.tracks_json);
+        assert_eq!(stored.updated_at, entry.updated_at);
     }
 
     fn table_columns(conn: &Connection, table: &str) -> Vec<String> {

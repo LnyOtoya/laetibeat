@@ -36,6 +36,7 @@ pub struct UiRemoteAlbum {
 
 /// 远端曲目
 #[frb(non_opaque)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct UiRemoteTrack {
     pub id: String,
     pub title: String,
@@ -54,6 +55,18 @@ pub struct UiRemoteTrack {
     pub size: Option<i64>,
     /// 服务器记录的加入时间(ISO 8601)。
     pub created: Option<String>,
+}
+
+/// 每日“为你发现”缓存。
+#[frb(non_opaque)]
+pub struct UiDiscoveryCache {
+    pub day_key: i64,
+    pub source_id: String,
+    pub artist_id: String,
+    pub artist_name: String,
+    pub cover_id: Option<String>,
+    pub tracks: Vec<UiRemoteTrack>,
+    pub updated_at: i64,
 }
 
 /// 远端歌单
@@ -377,6 +390,39 @@ pub fn subsonic_get_similar_songs(
 ) -> Result<Vec<UiRemoteTrack>, String> {
     let tracks = remote::get_similar_songs(&source_id, &artist_id, count as i32)?;
     Ok(tracks.into_iter().map(map_track).collect())
+}
+
+/// 读取某一天的“为你发现”缓存。
+pub fn get_discovery_cache(day_key: i64) -> Result<Option<UiDiscoveryCache>, String> {
+    let Some(row) = core_lib::get_discovery_cache(day_key)? else {
+        return Ok(None);
+    };
+    let tracks: Vec<UiRemoteTrack> = serde_json::from_str(&row.tracks_json)
+        .map_err(|error| format!("解析为你发现缓存失败: {error}"))?;
+    Ok(Some(UiDiscoveryCache {
+        day_key: row.day_key,
+        source_id: row.source_id,
+        artist_id: row.artist_id,
+        artist_name: row.artist_name,
+        cover_id: row.cover_id,
+        tracks,
+        updated_at: row.updated_at,
+    }))
+}
+
+/// 写入某一天的“为你发现”缓存。
+pub fn save_discovery_cache(cache: UiDiscoveryCache) -> Result<(), String> {
+    let tracks_json = serde_json::to_string(&cache.tracks)
+        .map_err(|error| format!("序列化为你发现缓存失败: {error}"))?;
+    core_lib::put_discovery_cache(&core_lib::DiscoveryCacheRow {
+        day_key: cache.day_key,
+        source_id: cache.source_id,
+        artist_id: cache.artist_id,
+        artist_name: cache.artist_name,
+        cover_id: cache.cover_id,
+        tracks_json,
+        updated_at: cache.updated_at,
+    })
 }
 
 /// ID3 搜索(search3)

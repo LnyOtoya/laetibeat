@@ -232,6 +232,14 @@ Future<List<UiRemoteTrack>> subsonicGetSimilarSongs({
   count: count,
 );
 
+/// 读取某一天的“为你发现”缓存。
+Future<UiDiscoveryCache?> getDiscoveryCache({required PlatformInt64 dayKey}) =>
+    RustLib.instance.api.crateApiSubsonicGetDiscoveryCache(dayKey: dayKey);
+
+/// 写入某一天的“为你发现”缓存。
+Future<void> saveDiscoveryCache({required UiDiscoveryCache cache}) =>
+    RustLib.instance.api.crateApiSubsonicSaveDiscoveryCache(cache: cache);
+
 /// ID3 搜索(search3)
 Future<UiRemoteSearchResult> subsonicSearch3({
   required String sourceId,
@@ -246,6 +254,50 @@ Future<UiRemoteSearchResult> subsonicSearch3({
   albumCount: albumCount,
   songCount: songCount,
 );
+
+/// 每日“为你发现”缓存。
+class UiDiscoveryCache {
+  final PlatformInt64 dayKey;
+  final String sourceId;
+  final String artistId;
+  final String artistName;
+  final String? coverId;
+  final List<UiRemoteTrack> tracks;
+  final PlatformInt64 updatedAt;
+
+  const UiDiscoveryCache({
+    required this.dayKey,
+    required this.sourceId,
+    required this.artistId,
+    required this.artistName,
+    this.coverId,
+    required this.tracks,
+    required this.updatedAt,
+  });
+
+  @override
+  int get hashCode =>
+      dayKey.hashCode ^
+      sourceId.hashCode ^
+      artistId.hashCode ^
+      artistName.hashCode ^
+      coverId.hashCode ^
+      tracks.hashCode ^
+      updatedAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiDiscoveryCache &&
+          runtimeType == other.runtimeType &&
+          dayKey == other.dayKey &&
+          sourceId == other.sourceId &&
+          artistId == other.artistId &&
+          artistName == other.artistName &&
+          coverId == other.coverId &&
+          tracks == other.tracks &&
+          updatedAt == other.updatedAt;
+}
 
 /// 远端专辑
 class UiRemoteAlbum {

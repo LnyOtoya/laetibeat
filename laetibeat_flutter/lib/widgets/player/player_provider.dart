@@ -8,6 +8,7 @@ import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 import '../../core/providers/playback_backend_provider.dart';
 import '../settings/persistence.dart';
 import '../settings/subsonic_provider.dart';
+import '../recommendation_provider.dart';
 import '../settings/fade_settings.dart';
 import '../settings/lx_settings.dart';
 import 'playback_backend.dart';
@@ -297,6 +298,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
       try {
         await ref.read(playbackStatsServiceProvider).record(event);
         ref.read(statsRevisionProvider.notifier).bump();
+        unawaited(ref.read(discoveryCacheServiceProvider).ensureToday());
       } catch (e) {
         debugPrint('记录播放事件失败: $e');
       }

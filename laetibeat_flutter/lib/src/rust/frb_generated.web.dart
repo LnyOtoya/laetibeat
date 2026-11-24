@@ -60,6 +60,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_box_autoadd_u_8(dynamic raw);
 
   @protected
+  UiDiscoveryCache dco_decode_box_autoadd_ui_discovery_cache(dynamic raw);
+
+  @protected
   UiLocalPlaylistDetail dco_decode_box_autoadd_ui_local_playlist_detail(
     dynamic raw,
   );
@@ -181,6 +184,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? dco_decode_opt_box_autoadd_u_8(dynamic raw);
 
   @protected
+  UiDiscoveryCache? dco_decode_opt_box_autoadd_ui_discovery_cache(dynamic raw);
+
+  @protected
   UiLocalPlaylistDetail? dco_decode_opt_box_autoadd_ui_local_playlist_detail(
     dynamic raw,
   );
@@ -208,6 +214,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiArtist dco_decode_ui_artist(dynamic raw);
+
+  @protected
+  UiDiscoveryCache dco_decode_ui_discovery_cache(dynamic raw);
 
   @protected
   UiHistorySummary dco_decode_ui_history_summary(dynamic raw);
@@ -343,6 +352,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_box_autoadd_u_8(SseDeserializer deserializer);
+
+  @protected
+  UiDiscoveryCache sse_decode_box_autoadd_ui_discovery_cache(
+    SseDeserializer deserializer,
+  );
 
   @protected
   UiLocalPlaylistDetail sse_decode_box_autoadd_ui_local_playlist_detail(
@@ -488,6 +502,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? sse_decode_opt_box_autoadd_u_8(SseDeserializer deserializer);
 
   @protected
+  UiDiscoveryCache? sse_decode_opt_box_autoadd_ui_discovery_cache(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   UiLocalPlaylistDetail? sse_decode_opt_box_autoadd_ui_local_playlist_detail(
     SseDeserializer deserializer,
   );
@@ -519,6 +538,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiArtist sse_decode_ui_artist(SseDeserializer deserializer);
+
+  @protected
+  UiDiscoveryCache sse_decode_ui_discovery_cache(SseDeserializer deserializer);
 
   @protected
   UiHistorySummary sse_decode_ui_history_summary(SseDeserializer deserializer);
@@ -690,6 +712,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_u_8(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_ui_discovery_cache(
+    UiDiscoveryCache self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_ui_local_playlist_detail(
@@ -875,6 +903,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_u_8(int? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_ui_discovery_cache(
+    UiDiscoveryCache? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_ui_local_playlist_detail(
     UiLocalPlaylistDetail? self,
     SseSerializer serializer,
@@ -912,6 +946,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_ui_artist(UiArtist self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ui_discovery_cache(
+    UiDiscoveryCache self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_ui_history_summary(

@@ -415,6 +415,7 @@ final recentDiscoveryArtistProvider = FutureProvider<DiscoveryArtist?>((
   ref,
 ) async {
   ref.watch(statsRevisionProvider);
+  ref.watch(discoveryDayProvider);
   final rotation = ref.watch(discoveryRotationProvider);
   final servers =
       ref.watch(subsonicServersProvider).value ??
@@ -481,37 +482,177 @@ final recentDiscoveryArtistProvider = FutureProvider<DiscoveryArtist?>((
 
 typedef DiscoverySongsKey = ({String sourceId, String artistId});
 
-/// getSimilarSongs2 返回的相似歌曲。
+/// 跨天时自动触发重新读取当天缓存。
+final discoveryDayProvider = StreamProvider<int>((ref) async* {
+  while (true) {
+    final now = DateTime.now();
+    final next = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).add(const Duration(days: 1));
+    await Future<void>.delayed(
+      next.difference(now) + const Duration(seconds: 1),
+    );
+    yield _discoveryDayIndex();
+  }
+});
+
+/// getSimilarSongs2 返回的原始远端歌曲。
 final discoverySongsProvider = FutureProvider.autoDispose
-    .family<List<rust.UiTrack>, DiscoverySongsKey>((ref, key) async {
-      final tracks = await rust_subsonic.subsonicGetSimilarSongs(
+    .family<List<rust_subsonic.UiRemoteTrack>, DiscoverySongsKey>((ref, key) {
+      return rust_subsonic.subsonicGetSimilarSongs(
         sourceId: key.sourceId,
         artistId: key.artistId,
         count: 12,
       );
-      return <rust.UiTrack>[
-        for (final track in tracks) remoteTrackToUiTrack(track, key.sourceId),
-      ];
     });
 
 /// 首页“为你发现”区域的数据。
+///
+/// 当天已有缓存时直接读取,不做网络请求;只有缓存不存在时才选择艺术家、
+/// 调用 getSimilarSongs2 并写入缓存。
 final discoveryProvider = FutureProvider<DiscoveryResult?>((ref) async {
+  final day = ref.watch(discoveryDayProvider);
+  final dayKey = day.value ?? _discoveryDayIndex();
+
+  final cached = await _loadDiscoveryCache(dayKey);
+  if (cached != null) return cached;
+
   final artist = await ref.watch(recentDiscoveryArtistProvider.future);
   if (artist == null) return null;
 
   try {
-    final tracks = await ref.watch(
+    final remoteTracks = await ref.watch(
       discoverySongsProvider((
         sourceId: artist.sourceId,
         artistId: artist.artistId,
       )).future,
     );
-    return DiscoveryResult(artist: artist, tracks: tracks);
+    final result = _toDiscoveryResult(artist, remoteTracks);
+    await _saveDiscoveryCache(dayKey, artist, remoteTracks);
+    return result;
   } catch (error) {
     debugPrint('加载相似歌曲失败: $error');
     return DiscoveryResult(artist: artist, tracks: const <rust.UiTrack>[]);
   }
 });
+
+Future<DiscoveryResult?> _loadDiscoveryCache(int dayKey) async {
+  try {
+    final cache = await rust_subsonic.getDiscoveryCache(dayKey: dayKey);
+    if (cache == null || cache.tracks.isEmpty) return null;
+    return DiscoveryResult(
+      artist: DiscoveryArtist(
+        sourceId: cache.sourceId,
+        artistId: cache.artistId,
+        name: cache.artistName,
+        coverId: cache.coverId,
+      ),
+      tracks: <rust.UiTrack>[
+        for (final track in cache.tracks)
+          remoteTrackToUiTrack(track, cache.sourceId),
+      ],
+    );
+  } catch (error) {
+    debugPrint('读取为你发现缓存失败: $error');
+    return null;
+  }
+}
+
+DiscoveryResult _toDiscoveryResult(
+  DiscoveryArtist artist,
+  List<rust_subsonic.UiRemoteTrack> remoteTracks,
+) {
+  return DiscoveryResult(
+    artist: artist,
+    tracks: <rust.UiTrack>[
+      for (final track in remoteTracks)
+        remoteTrackToUiTrack(track, artist.sourceId),
+    ],
+  );
+}
+
+Future<void> _saveDiscoveryCache(
+  int dayKey,
+  DiscoveryArtist artist,
+  List<rust_subsonic.UiRemoteTrack> tracks,
+) async {
+  if (tracks.isEmpty) return;
+  try {
+    await rust_subsonic.saveDiscoveryCache(
+      cache: rust_subsonic.UiDiscoveryCache(
+        dayKey: dayKey,
+        sourceId: artist.sourceId,
+        artistId: artist.artistId,
+        artistName: artist.name,
+        coverId: artist.coverId,
+        tracks: tracks,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+  } catch (error) {
+    debugPrint('写入为你发现缓存失败: $error');
+  }
+}
+
+/// “为你发现”缓存服务:播放后预取,手动换一个时强制刷新。
+class DiscoveryCacheService {
+  DiscoveryCacheService(this._ref);
+
+  final Ref _ref;
+  bool _prefetching = false;
+
+  /// 播放事件后异步补齐当天缓存;已有缓存时不做任何网络请求。
+  Future<void> ensureToday() async {
+    if (_prefetching) return;
+    _prefetching = true;
+    try {
+      final dayKey = _discoveryDayIndex();
+      final cache = await rust_subsonic.getDiscoveryCache(dayKey: dayKey);
+      if (cache != null && cache.tracks.isNotEmpty) return;
+
+      final artist = await _ref.read(recentDiscoveryArtistProvider.future);
+      if (artist == null) return;
+      final tracks = await _ref.read(
+        discoverySongsProvider((
+          sourceId: artist.sourceId,
+          artistId: artist.artistId,
+        )).future,
+      );
+      await _saveDiscoveryCache(dayKey, artist, tracks);
+      _ref.invalidate(discoveryProvider);
+    } catch (error) {
+      debugPrint('预取为你发现失败: $error');
+    } finally {
+      _prefetching = false;
+    }
+  }
+
+  /// 用户手动点击“换一个”:强制重新请求并覆盖当天缓存。
+  Future<void> refresh() async {
+    _ref.read(discoveryRotationProvider.notifier).next();
+    try {
+      final dayKey = _discoveryDayIndex();
+      final artist = await _ref.read(recentDiscoveryArtistProvider.future);
+      if (artist == null) return;
+      final tracks = await _ref.read(
+        discoverySongsProvider((
+          sourceId: artist.sourceId,
+          artistId: artist.artistId,
+        )).future,
+      );
+      await _saveDiscoveryCache(dayKey, artist, tracks);
+      _ref.invalidate(discoveryProvider);
+    } catch (error) {
+      debugPrint('刷新为你发现失败: $error');
+    }
+  }
+}
+
+final discoveryCacheServiceProvider = Provider<DiscoveryCacheService>(
+  (ref) => DiscoveryCacheService(ref),
+);
 
 Map<String, dynamic>? _decodeDiscoveryMetadata(String? raw) {
   if (raw == null || raw.isEmpty) return null;

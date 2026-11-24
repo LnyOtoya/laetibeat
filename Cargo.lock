@@ -2575,6 +2575,7 @@ dependencies = [
  "log",
  "rfd",
  "rustls-platform-verifier",
+ "serde",
  "serde_json",
 ]
 
