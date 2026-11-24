@@ -7,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../../shared/layout/app_bottom_inset.dart';
 import '../../../src/rust/api/simple.dart' as rust;
 import '../../../src/rust/api/subsonic.dart' as rust_subsonic;
 import '../../../widgets/player/cover_provider.dart';
@@ -49,11 +50,12 @@ class MobileHomeContent extends ConsumerWidget {
             .value ??
         const <RecommendedAlbum>[];
     final longLostArtists = _artistsFromRecommendations(longLostAlbums);
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
 
     return ListView(
-      padding: const EdgeInsets.only(
+      padding: EdgeInsets.only(
         top: AppSpacing.lg,
-        bottom: AppSpacing.xxl,
+        bottom: AppSpacing.xxl + bottomInset,
       ),
       children: <Widget>[
         if (newReleases.isEmpty)

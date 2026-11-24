@@ -2,7 +2,6 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../design/design.dart';
-import '../../../shared/layout/app_bottom_inset.dart';
 import '../routes.dart';
 import 'mobile_home_content.dart';
 
@@ -34,7 +33,6 @@ class _MobileHomePageState extends State<MobileHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     final scheme = M3ETheme.of(context).colorScheme;
 
     return AppScaffold(
@@ -140,13 +138,10 @@ class _MobileHomePageState extends State<MobileHomePage> {
           },
         ),
       ),
-      body: SafeArea(
+      body: const SafeArea(
         top: false,
         bottom: false,
-        child: Padding(
-          padding: EdgeInsets.only(bottom: bottomInset),
-          child: const MobileHomeContent(),
-        ),
+        child: MobileHomeContent(),
       ),
     );
   }

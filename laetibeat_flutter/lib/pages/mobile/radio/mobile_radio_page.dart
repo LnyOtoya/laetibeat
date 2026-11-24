@@ -3,7 +3,6 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
-import '../../../shared/layout/app_bottom_inset.dart';
 
 /// 移动端电台页面。
 ///
@@ -15,7 +14,6 @@ class MobileRadioPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
-    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -27,14 +25,11 @@ class MobileRadioPage extends StatelessWidget {
         shapeFamily: M3EAppBarShapeFamily.square,
         safeArea: true,
       ),
-      body: Padding(
-        padding: EdgeInsets.only(bottom: bottomInset),
-        child: const Center(
-          child: AppEmptyState(
-            title: '暂无电台',
-            message: '电台内容将在这里显示',
-            icon: M3EIcons.radio,
-          ),
+      body: const Center(
+        child: AppEmptyState(
+          title: '暂无电台',
+          message: '电台内容将在这里显示',
+          icon: M3EIcons.radio,
         ),
       ),
     );
