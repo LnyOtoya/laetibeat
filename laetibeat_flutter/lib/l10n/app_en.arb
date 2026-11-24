@@ -97,6 +97,8 @@
   "actionRename": "Rename",
   "appearanceTitle": "Appearance",
   "displayGroup": "Display",
+  "highRefreshRate": "High refresh rate",
+  "highRefreshRateSupporting": "Request the device's highest refresh rate; system power and thermal policies may still lower it",
   "songSource": "Song source",
   "songSourceSupporting": "Choose the default source filter for song lists",
   "songSort": "Song sorting",

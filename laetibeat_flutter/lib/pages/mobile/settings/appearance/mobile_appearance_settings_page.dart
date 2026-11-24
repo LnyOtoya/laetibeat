@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/widgets/settings/cover_shape_settings.dart';
+import 'package:laetibeat/widgets/settings/display_settings.dart';
 import 'package:laetibeat/widgets/settings/search_settings.dart';
 import 'package:laetibeat/widgets/settings/song_sort_settings.dart';
 import 'package:laetibeat/widgets/settings/song_source_settings.dart';
@@ -151,6 +152,7 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
+    final highRefreshRate = ref.watch(highRefreshRateProvider);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -167,21 +169,21 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
               variant: M3ECardVariant.filled,
               onTap: (int index) {
                 switch (index) {
-                  case 0:
-                    _pickTheme(context, ref);
                   case 1:
-                    _pickCoverShape(context, ref);
+                    _pickTheme(context, ref);
                   case 2:
-                    _pickSearchCoverShape(context, ref);
+                    _pickCoverShape(context, ref);
                   case 3:
-                    _pickSongSource(context, ref);
+                    _pickSearchCoverShape(context, ref);
                   case 4:
-                    _pickSongSort(context, ref);
+                    _pickSongSource(context, ref);
                   case 5:
-                    _pickLanguage(context, ref);
+                    _pickSongSort(context, ref);
                   case 6:
-                    _pickDefaultSearchSource(context, ref);
+                    _pickLanguage(context, ref);
                   case 7:
+                    _pickDefaultSearchSource(context, ref);
+                  case 8:
                     pushMobileRootPage(
                       context,
                       const MobileColorMappingPage(),
@@ -189,34 +191,44 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
                     );
                 }
               },
-              itemCount: 8,
+              itemCount: 9,
               itemBuilder: (BuildContext context, int index) {
                 return switch (index) {
                   0 => M3EListItem(
+                    headline: l10n.highRefreshRate,
+                    supportingText: l10n.highRefreshRateSupporting,
+                    trailing: M3ESwitch(
+                      value: highRefreshRate,
+                      onChanged: (value) => ref
+                          .read(highRefreshRateProvider.notifier)
+                          .setEnabled(value),
+                    ),
+                  ),
+                  1 => M3EListItem(
                     headline: l10n.appThemeTitle,
                     supportingText: l10n.appThemeSupporting,
                   ),
-                  1 => M3EListItem(
+                  2 => M3EListItem(
                     headline: l10n.coverShape,
                     supportingText: l10n.coverShapeSupporting,
                   ),
-                  2 => M3EListItem(
+                  3 => M3EListItem(
                     headline: l10n.searchCoverShape,
                     supportingText: l10n.searchCoverShapeSupporting,
                   ),
-                  3 => M3EListItem(
+                  4 => M3EListItem(
                     headline: l10n.songSource,
                     supportingText: l10n.songSourceSupporting,
                   ),
-                  4 => M3EListItem(
+                  5 => M3EListItem(
                     headline: l10n.songSort,
                     supportingText: l10n.songSortSupporting,
                   ),
-                  5 => M3EListItem(
+                  6 => M3EListItem(
                     headline: l10n.language,
                     supportingText: l10n.languageSupporting,
                   ),
-                  6 => M3EListItem(
+                  7 => M3EListItem(
                     headline: l10n.defaultSearchSource,
                     supportingText: l10n.defaultSearchSourceSupporting,
                   ),

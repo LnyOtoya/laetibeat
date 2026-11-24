@@ -58,6 +58,7 @@ dependencies:
   just_audio: ^0.10.6
   audio_service: ^0.18.19
   audio_session: ^0.2.4
+  refresh_rate: ^2.0.1
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.3

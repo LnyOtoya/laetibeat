@@ -22,6 +22,7 @@ import '../core/services/window_service.dart';
 import '../widgets/player/cover_provider.dart';
 import '../widgets/player/playback_backend.dart';
 import '../widgets/settings/cache_usage_service.dart';
+import '../widgets/settings/display_settings.dart';
 import '../widgets/settings/persistence.dart';
 import '../widgets/settings/subsonic_provider.dart';
 import 'app.dart';
@@ -151,6 +152,11 @@ Future<void> bootstrap() async {
   // 启动后套用用户保存的缓存上限；磁盘 LRU 扫描放在首帧之后，避免阻塞启动。
   unawaited(_applyStartupCacheLimits(container));
 
+  // 首帧后再请求高刷新率，确保 Flutter view/surface 已挂载。
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_applyStartupHighRefresh(container));
+  });
+
   // 预热洛雪运行时：源脚本初始化可能要十几秒（QuickJS + 脚本自检），
   // 放在后台跑，用户进搜索页时通常已经就绪，不必再等。
   unawaited(_prewarmLxRuntime(container));
@@ -178,6 +184,12 @@ Future<void> _applyStartupCacheLimits(ProviderContainer container) async {
   } catch (error) {
     debugPrint('应用启动缓存上限失败: $error');
   }
+}
+
+Future<void> _applyStartupHighRefresh(ProviderContainer container) async {
+  await applyHighRefreshRatePreference(
+    container.read(highRefreshRateProvider),
+  );
 }
 
 /// 在 runApp 之前为 Android 通知渠道选择语言。

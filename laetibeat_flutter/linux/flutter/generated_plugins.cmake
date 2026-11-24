@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   dynamic_color
   flutter_secure_storage_linux
   media_kit_libs_linux
+  refresh_rate
   screen_retriever_linux
   window_manager
 )

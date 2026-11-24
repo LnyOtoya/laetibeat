@@ -428,6 +428,18 @@ abstract class AppLocalizations {
   /// **'Display'**
   String get displayGroup;
 
+  /// No description provided for @highRefreshRate.
+  ///
+  /// In en, this message translates to:
+  /// **'High refresh rate'**
+  String get highRefreshRate;
+
+  /// No description provided for @highRefreshRateSupporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Request the device\'s highest refresh rate; system power and thermal policies may still lower it'**
+  String get highRefreshRateSupporting;
+
   /// No description provided for @songSource.
   ///
   /// In en, this message translates to:

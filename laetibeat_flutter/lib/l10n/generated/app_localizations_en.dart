@@ -188,6 +188,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get displayGroup => 'Display';
 
   @override
+  String get highRefreshRate => 'High refresh rate';
+
+  @override
+  String get highRefreshRateSupporting =>
+      'Request the device\'s highest refresh rate; system power and thermal policies may still lower it';
+
+  @override
   String get songSource => 'Song source';
 
   @override

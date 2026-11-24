@@ -186,6 +186,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get displayGroup => '显示';
 
   @override
+  String get highRefreshRate => '强制高刷新率';
+
+  @override
+  String get highRefreshRateSupporting => '请求设备支持的最高刷新率；系统省电和温控策略仍可能降低';
+
+  @override
   String get songSource => '歌曲来源';
 
   @override
