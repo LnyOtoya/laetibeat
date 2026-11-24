@@ -24,11 +24,11 @@ import '../routes.dart';
 ///
 /// Current sections:
 /// - 最新发行: newest-release album covers
-/// - 最新添加: recent local / Subsonic albums
+/// - 最近加入: recently added songs
 class MobileHomeContent extends ConsumerWidget {
   const MobileHomeContent({super.key});
 
-  static const String _latestTitle = '最新添加';
+  static const String _recentTitle = '最近加入';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,7 +41,7 @@ class MobileHomeContent extends ConsumerWidget {
         const <SubsonicServerConfig>[];
     final albumEntries = _collectAlbums(ref, library, servers);
     final newReleases = _newReleases(albumEntries);
-    final latestAlbums = _latestAlbums(albumEntries);
+    final recentSongs = _recentSongs(ref, library, servers);
     final longLostAlbums =
         ref
             .watch(albumRecommendationsProvider(RecommendMode.longTimeNoSee))
@@ -81,27 +81,29 @@ class MobileHomeContent extends ConsumerWidget {
         Padding(
           padding: EdgeInsets.symmetric(horizontal: pageGutter),
           child: AppSectionHeader(
-            title: _latestTitle,
+            title: _recentTitle,
             padding: AppInsets.sectionHeader,
-            trailing: latestAlbums.isEmpty ? null : const _SeeMoreButton(),
+            trailing: recentSongs.isEmpty ? null : const _SeeMoreButton(),
           ),
         ),
-        if (latestAlbums.isEmpty)
+        if (recentSongs.isEmpty)
           Padding(
             padding: EdgeInsets.symmetric(
               horizontal: pageGutter,
               vertical: AppSpacing.xl,
             ),
             child: const AppEmptyState(
-              title: '暂无最近添加的专辑',
+              title: '暂无最近加入的歌曲',
               message: '扫描本地音乐库或同步 Subsonic 后会出现在这里',
-              icon: M3EIcons.album,
+              icon: M3EIcons.music_note,
             ),
           )
         else
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: pageGutter),
-            child: _LatestAlbumCard(album: latestAlbums.first),
+          _RecentSongsList(
+            tracks: recentSongs,
+            onPlay: (index) => ref
+                .read(playerProvider.notifier)
+                .load(recentSongs, index, source: '最近加入'),
           ),
         const SizedBox(height: AppSpacing.xl),
         Padding(
@@ -216,6 +218,81 @@ class _SeeMoreButton extends StatelessWidget {
       icon: const Icon(M3EIcons.visibility),
       label: const Text('查看更多'),
       onPressed: () {},
+    );
+  }
+}
+
+class _RecentSongsList extends StatelessWidget {
+  const _RecentSongsList({required this.tracks, required this.onPlay});
+
+  final List<rust.UiTrack> tracks;
+  final ValueChanged<int> onPlay;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return m3e_core.M3ESegmentedList.builder(
+      itemCount: tracks.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      onTap: onPlay,
+      listPadding: EdgeInsets.zero,
+      decoration: const m3e_core.M3ESegmentedListDecoration(
+        outerRadius: 24,
+        innerRadius: 16,
+        pressedRadius: 8,
+        pressedScale: 0.98,
+        hoveredRadius: 16,
+        selectedRadius: 28,
+        gap: 6,
+        padding: EdgeInsets.all(4),
+        margin: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      ),
+      itemBuilder: (BuildContext context, int index) {
+        final track = tracks[index];
+        return m3e_core.M3EListItem(
+          headline: Text(track.title),
+          supportingText: Text(track.artist),
+          leading: _RecentSongCover(track: track),
+          trailing: M3EIconButton(
+            variant: M3EIconButtonVariant.standard,
+            size: M3EIconButtonSize.sm,
+            icon: const Icon(M3EIcons.favorite_border),
+            semanticLabel: l10n.addToFavorites,
+            onPressed: () {},
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _RecentSongCover extends ConsumerWidget {
+  const _RecentSongCover({required this.track});
+
+  final rust.UiTrack track;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    final bytes = ref.watch(trackCoverProvider(track)).value;
+    final hasArt = bytes != null && bytes.isNotEmpty;
+
+    return ClipRRect(
+      borderRadius: AppRadii.xsAll,
+      child: SizedBox.square(
+        dimension: 40,
+        child: hasArt
+            ? Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true)
+            : ColoredBox(
+                color: scheme.secondaryContainer,
+                child: Icon(
+                  M3EIcons.music_note,
+                  size: AppIconSize.sm,
+                  color: scheme.onSecondaryContainer,
+                ),
+              ),
+      ),
     );
   }
 }
@@ -540,9 +617,64 @@ List<_LatestAlbum> _collectAlbums(
   return entries;
 }
 
-List<_LatestAlbum> _latestAlbums(List<_LatestAlbum> entries) {
-  final sorted = <_LatestAlbum>[...entries]..sort(_compareByAddedAt);
-  return sorted.take(1).toList(growable: false);
+class _RecentSong {
+  const _RecentSong({required this.track, this.addedAt});
+
+  final rust.UiTrack track;
+  final DateTime? addedAt;
+}
+
+List<rust.UiTrack> _recentSongs(
+  WidgetRef ref,
+  MusicLibraryState? library,
+  List<SubsonicServerConfig> servers,
+) {
+  final entries = <_RecentSong>[];
+
+  if (library != null) {
+    for (final track in library.tracks) {
+      final modifiedMs = track.modifiedMs?.toInt();
+      entries.add(
+        _RecentSong(
+          track: track,
+          addedAt: modifiedMs != null && modifiedMs > 0
+              ? DateTime.fromMillisecondsSinceEpoch(modifiedMs)
+              : null,
+        ),
+      );
+    }
+  }
+
+  for (final server in servers) {
+    final albums =
+        ref.watch(remoteAllAlbumsProvider(server.id)).value ??
+        const <rust_subsonic.UiRemoteAlbum>[];
+    final createdByAlbum = <String, DateTime?>{
+      for (final album in albums)
+        album.id: DateTime.tryParse(album.created ?? ''),
+    };
+    final remoteTracks =
+        ref.watch(remoteAllTracksProvider(server.id)).value ??
+        const <rust_subsonic.UiRemoteTrack>[];
+    for (final track in remoteTracks) {
+      final albumId = track.albumId;
+      entries.add(
+        _RecentSong(
+          track: remoteTrackToUiTrack(track, server.id),
+          addedAt: albumId == null ? null : createdByAlbum[albumId],
+        ),
+      );
+    }
+  }
+
+  entries.sort((a, b) {
+    final aTime = a.addedAt?.millisecondsSinceEpoch ?? 0;
+    final bTime = b.addedAt?.millisecondsSinceEpoch ?? 0;
+    if (aTime != bTime) return bTime.compareTo(aTime);
+    return a.track.title.toLowerCase().compareTo(b.track.title.toLowerCase());
+  });
+
+  return entries.take(4).map((entry) => entry.track).toList(growable: false);
 }
 
 List<_LatestAlbum> _newReleases(List<_LatestAlbum> entries) {
@@ -567,134 +699,6 @@ int _compareByRelease(_LatestAlbum a, _LatestAlbum b) {
   final yearCompare = (b.year ?? 0).compareTo(a.year ?? 0);
   if (yearCompare != 0) return yearCompare;
   return _compareByAddedAt(a, b);
-}
-
-class _LatestAlbumCard extends StatelessWidget {
-  const _LatestAlbumCard({required this.album});
-
-  final _LatestAlbum album;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = M3ETheme.of(context);
-    final l10n = AppLocalizations.of(context);
-    final sourceAndYear =
-        '${album.sourceLabel} · ${album.year?.toString() ?? '未知年份'}';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            SizedBox.square(
-              dimension: 44,
-              child: ClipOval(child: _AlbumCover(album: album)),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  AppText(
-                    album.artist,
-                    role: AppTextRole.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: AppSpacing.xxs),
-                  AppText(
-                    sourceAndYear,
-                    role: AppTextRole.labelMedium,
-                    colorRole: AppColorRole.onSurfaceVariant,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          height: 200,
-          child: M3ECard(
-            variant: M3ECardVariant.filled,
-            padding: EdgeInsets.zero,
-            borderRadius: AppRadii.xlAll,
-            clipBehavior: Clip.antiAlias,
-            child: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                Positioned.fill(child: _AlbumCover(album: album)),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: <Color>[
-                          Colors.transparent,
-                          theme.colorScheme.surface.withValues(alpha: 0.88),
-                        ],
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: AppText(
-                        album.title,
-                        role: AppTextRole.titleMedium,
-                        colorRole: AppColorRole.onSurface,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: AppText(
-                _relativeAdded(album.addedAt),
-                role: AppTextRole.labelMedium,
-                colorRole: AppColorRole.onSurfaceVariant,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            M3EIconButton(
-              variant: M3EIconButtonVariant.standard,
-              size: M3EIconButtonSize.sm,
-              icon: const Icon(M3EIcons.favorite_border),
-              semanticLabel: l10n.addToFavorites,
-              onPressed: () {},
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  static String _relativeAdded(DateTime? date) {
-    if (date == null) return '添加时间未知';
-    final days = DateTime.now().difference(date).inDays;
-    if (days <= 0) return '今天';
-    if (days <= 12) return '$days 天前';
-    if (days < 365) {
-      final months = (days / 30).floor().clamp(1, 12);
-      return '$months 个月前';
-    }
-    final years = (days / 365).floor().clamp(1, 99);
-    return '$years 年前';
-  }
 }
 
 class _AlbumCover extends ConsumerWidget {
