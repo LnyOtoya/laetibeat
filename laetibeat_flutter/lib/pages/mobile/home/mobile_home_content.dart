@@ -49,7 +49,6 @@ class MobileHomeContent extends ConsumerWidget {
             .value ??
         const <RecommendedAlbum>[];
     final longLostArtists = _artistsFromRecommendations(longLostAlbums);
-    final recommendedTracks = _recommendedTracks(ref);
 
     return ListView(
       padding: const EdgeInsets.only(
@@ -138,46 +137,6 @@ class MobileHomeContent extends ConsumerWidget {
               separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
               itemBuilder: (BuildContext context, int index) {
                 return _LongLostArtist(album: longLostArtists[index]);
-              },
-            ),
-          ),
-        const SizedBox(height: AppSpacing.xl),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: pageGutter),
-          child: const AppSectionHeader(
-            title: '为你推荐',
-            padding: AppInsets.sectionHeader,
-          ),
-        ),
-        if (recommendedTracks.isEmpty)
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: pageGutter,
-              vertical: AppSpacing.xl,
-            ),
-            child: const AppEmptyState(
-              title: '还没有为你推荐的歌曲',
-              message: '播放一些歌曲后，会根据收听记录生成推荐',
-              icon: M3EIcons.music_note,
-            ),
-          )
-        else
-          SizedBox(
-            height: 156,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: pageGutter),
-              itemCount: recommendedTracks.length,
-              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
-              itemBuilder: (BuildContext context, int index) {
-                return _RecommendedSong(
-                  track: recommendedTracks[index],
-                  onTap: () {
-                    ref
-                        .read(playerProvider.notifier)
-                        .load(recommendedTracks, index, source: '为你推荐');
-                  },
-                );
               },
             ),
           ),
@@ -281,17 +240,23 @@ class _RecentSongCover extends ConsumerWidget {
     final bytes = ref.watch(trackCoverProvider(track)).value;
     final hasArt = bytes != null && bytes.isNotEmpty;
 
-    return ClipRRect(
-      borderRadius: AppRadii.xsAll,
-      child: SizedBox.square(
-        dimension: 40,
+    return SizedBox.square(
+      dimension: AppSpacing.xxxl,
+      child: M3EShapeContainer(
+        kind: M3EShapeKind.cookie9Sided,
+        color: scheme.secondaryContainer,
         child: hasArt
-            ? Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true)
-            : ColoredBox(
-                color: scheme.secondaryContainer,
+            ? SizedBox.expand(
+                child: Image.memory(
+                  bytes,
+                  fit: BoxFit.cover,
+                  gaplessPlayback: true,
+                ),
+              )
+            : Center(
                 child: Icon(
                   M3EIcons.music_note,
-                  size: AppIconSize.sm,
+                  size: AppIconSize.md,
                   color: scheme.onSecondaryContainer,
                 ),
               ),
@@ -707,59 +672,7 @@ List<RecommendedAlbum> _artistsFromRecommendations(
   return artists;
 }
 
-List<rust.UiTrack> _recommendedTracks(WidgetRef ref) {
-  final albums =
-      ref
-          .watch(albumRecommendationsProvider(RecommendMode.neverPlayed))
-          .value ??
-      const <RecommendedAlbum>[];
-  final seen = <String>{};
-  final tracks = <rust.UiTrack>[];
-  for (final album in albums) {
-    for (final track in album.tracks) {
-      if (!seen.add(track.id)) continue;
-      tracks.add(track);
-      if (tracks.length >= 10) return tracks;
-    }
-  }
-  return tracks;
-}
 
-class _RecommendedSong extends StatelessWidget {
-  const _RecommendedSong({required this.track, required this.onTap});
-
-  final rust.UiTrack track;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: SizedBox(
-        width: 112,
-        child: Column(
-          children: <Widget>[
-            M3EShapeContainer.square(
-              width: 112,
-              height: 112,
-              color: M3ETheme.of(context).colorScheme.secondaryContainer,
-              child: _TrackCover(track: track),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            AppText(
-              track.title,
-              role: AppTextRole.labelLarge,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _LongLostArtist extends StatelessWidget {
   const _LongLostArtist({required this.album});
@@ -833,34 +746,7 @@ class _RecommendedAlbumCover extends ConsumerWidget {
   }
 }
 
-class _TrackCover extends ConsumerWidget {
-  const _TrackCover({required this.track});
 
-  final rust.UiTrack track;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bytes = ref.watch(trackCoverProvider(track)).value;
-    final scheme = M3ETheme.of(context).colorScheme;
-
-    if (bytes == null || bytes.isEmpty) {
-      return ColoredBox(
-        color: scheme.secondaryContainer,
-        child: Center(
-          child: Icon(
-            M3EIcons.music_note,
-            size: AppIconSize.xl,
-            color: scheme.onSecondaryContainer,
-          ),
-        ),
-      );
-    }
-
-    return SizedBox.expand(
-      child: Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
-    );
-  }
-}
 
 class _LatestAlbum {
   const _LatestAlbum({
