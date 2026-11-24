@@ -1,7 +1,8 @@
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
+import 'package:material_ui/material_ui.dart';
 
+import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../widgets/player/cover_provider.dart';
 import '../../../widgets/player/playback_panel.dart';
@@ -12,6 +13,10 @@ import 'mobile_playback_page.dart';
 /// 移动端全局迷你播放器。
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
+
+  /// 与导航栏保持一致的屏幕左右留白。
+  static const double _horizontalMargin = AppSpacing.xxl;
+  static const double _height = 64;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,63 +39,114 @@ class MiniPlayer extends ConsumerWidget {
               ? theme.colorScheme.onSurface
               : theme.colorScheme.onSecondaryContainer;
 
-          final Widget toolbar = M3EToolbar.floating(
-            colorStyle: M3EToolbarColorStyle.standard,
-            axis: Axis.horizontal,
-            backgroundColor: background,
-            foregroundColor: foreground,
-            leading: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _openPlayer(context),
-              child: Hero(
-                tag: mobileNowPlayingCoverHeroTag,
-                child: _MiniCover(cover: cover),
+          final Widget player = Material(
+            color: background,
+            elevation: 3,
+            shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.24),
+            shape: RoundedRectangleBorder(borderRadius: AppRadii.lgAll),
+            clipBehavior: Clip.antiAlias,
+            child: SizedBox(
+              height: _height,
+              child: Row(
+                children: <Widget>[
+                  const SizedBox(width: AppSpacing.sm),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _openPlayer(context),
+                    child: Hero(
+                      tag: mobileNowPlayingCoverHeroTag,
+                      child: _MiniCover(cover: cover),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        _tappableTitle(
+                          context,
+                          track.title,
+                          theme.typeScale.titleSmall.copyWith(
+                            color: foreground,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        _tappableTitle(
+                          context,
+                          track.artist,
+                          theme.typeScale.bodySmall.copyWith(
+                            color: foreground.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  M3EIconButton(
+                    variant: M3EIconButtonVariant.standard,
+                    icon: Icon(M3EIcons.skip_previous, color: foreground),
+                    semanticLabel: AppLocalizations.of(
+                      context,
+                    ).previousTrack,
+                    onPressed: notifier.prev,
+                  ),
+                  M3EIconButton(
+                    variant: M3EIconButtonVariant.filled,
+                    icon: Icon(
+                      isPlaying ? M3EIcons.pause : M3EIcons.play_arrow,
+                      color: foreground,
+                    ),
+                    semanticLabel: isPlaying
+                        ? AppLocalizations.of(context).pause
+                        : AppLocalizations.of(context).play,
+                    onPressed: notifier.toggle,
+                  ),
+                  M3EIconButton(
+                    variant: M3EIconButtonVariant.standard,
+                    icon: Icon(M3EIcons.skip_next, color: foreground),
+                    semanticLabel: AppLocalizations.of(context).nextTrack,
+                    onPressed: notifier.next,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
               ),
             ),
-            title: _tappableTitle(context, track.title),
-            subtitle: _tappableTitle(context, track.artist),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                M3EIconButton(
-                  variant: M3EIconButtonVariant.standard,
-                  icon: const Icon(M3EIcons.skip_previous),
-                  semanticLabel: AppLocalizations.of(context).previousTrack,
-                  onPressed: notifier.prev,
-                ),
-                M3EIconButton(
-                  variant: M3EIconButtonVariant.filled,
-                  icon: Icon(isPlaying ? M3EIcons.pause : M3EIcons.play_arrow),
-                  semanticLabel: isPlaying
-                      ? AppLocalizations.of(context).pause
-                      : AppLocalizations.of(context).play,
-                  onPressed: notifier.toggle,
-                ),
-                M3EIconButton(
-                  variant: M3EIconButtonVariant.standard,
-                  icon: const Icon(M3EIcons.skip_next),
-                  semanticLabel: AppLocalizations.of(context).nextTrack,
-                  onPressed: notifier.next,
-                ),
-              ],
-            ),
           );
+
           return _MiniPlayerDragRegion(
             onOpen: () => _openPlayer(context),
-            child: toolbar,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: _horizontalMargin,
+              ),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: player,
+                ),
+              ),
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _tappableTitle(BuildContext context, String text) {
+  Widget _tappableTitle(BuildContext context, String text, TextStyle style) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _openPlayer(context),
       child: SizedBox(
         width: double.infinity,
-        child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: style,
+        ),
       ),
     );
   }

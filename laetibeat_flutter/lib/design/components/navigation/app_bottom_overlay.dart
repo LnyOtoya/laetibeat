@@ -26,8 +26,8 @@ class AppBottomOverlay extends StatefulWidget {
   final Widget miniPlayer;
   final bool miniVisible;
 
-  /// Height reserved for the mini player, including the floating toolbar's
-  /// own outer screen padding (M3EToolbar.floating uses 16px top/bottom).
+  /// Height reserved for the mini player, including its outer vertical
+  /// padding above and below the rounded player surface.
   final double miniPlayerHeight;
 
   @override
