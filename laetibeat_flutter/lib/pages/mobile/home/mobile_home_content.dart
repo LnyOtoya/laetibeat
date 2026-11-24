@@ -67,27 +67,21 @@ class MobileHomeContent extends ConsumerWidget {
             ),
           )
         else
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppLayout.carouselGutter,
-            ),
-            child: SizedBox(
-              height: 228,
-              child: _ContinueListeningCarousel(
-                queue: queue,
-                currentIndex: player.$2.clamp(0, queue.length - 1),
-                onTrackSelected: (int index) {
-                  ref.read(playerProvider.notifier).play(index);
-                },
-              ),
+          SizedBox(
+            height: 228,
+            child: _ContinueListeningCarousel(
+              queue: queue,
+              currentIndex: player.$2.clamp(0, queue.length - 1),
+              edgeInset: pageGutter,
+              onTrackSelected: (int index) {
+                ref.read(playerProvider.notifier).play(index);
+              },
             ),
           ),
         if (queue.isNotEmpty) ...<Widget>[
           const SizedBox(height: AppSpacing.xs),
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppLayout.carouselGutter,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: pageGutter),
             child: Align(
               alignment: Alignment.centerRight,
               child: const _SeeMoreButton(),
@@ -97,9 +91,10 @@ class MobileHomeContent extends ConsumerWidget {
         const SizedBox(height: AppSpacing.xl),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: pageGutter),
-          child: const AppSectionHeader(
+          child: AppSectionHeader(
             title: _latestTitle,
             padding: AppInsets.sectionHeader,
+            trailing: latestAlbums.isEmpty ? null : const _SeeMoreButton(),
           ),
         ),
         if (latestAlbums.isEmpty)
@@ -117,28 +112,7 @@ class MobileHomeContent extends ConsumerWidget {
         else
           Padding(
             padding: EdgeInsets.symmetric(horizontal: pageGutter),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (
-                  var index = 0;
-                  index < latestAlbums.length;
-                  index++
-                ) ...<Widget>[
-                  _LatestAlbumCard(album: latestAlbums[index]),
-                  if (index != latestAlbums.length - 1) ...<Widget>[
-                    const SizedBox(height: AppSpacing.xs),
-                    const M3EDivider(),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
-                ],
-                const SizedBox(height: AppSpacing.xs),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: const _SeeMoreButton(),
-                ),
-              ],
-            ),
+            child: _LatestAlbumCard(album: latestAlbums.first),
           ),
         const SizedBox(height: AppSpacing.xl),
         Padding(
@@ -240,11 +214,13 @@ class _ContinueListeningCarousel extends StatelessWidget {
   const _ContinueListeningCarousel({
     required this.queue,
     required this.currentIndex,
+    required this.edgeInset,
     required this.onTrackSelected,
   });
 
   final List<rust.UiTrack> queue;
   final int currentIndex;
+  final double edgeInset;
   final ValueChanged<int> onTrackSelected;
 
   @override
@@ -253,37 +229,49 @@ class _ContinueListeningCarousel extends StatelessWidget {
       for (var offset = 0; offset < queue.length; offset++)
         (currentIndex + offset) % queue.length,
     ];
+    final baseTheme = M3ETheme.of(context);
 
-    return M3ECarousel(
-      // Hero-left gives the focal first card more width while keeping the
-      // theme's item gap between cards.
-      type: M3ECarouselType.hero,
-      heroAlignment: M3ECarouselHeroAlignment.left,
-      axis: Axis.horizontal,
-      height: 228,
-      childElementBorderRadius: AppRadii.xl,
-      haptic: M3EHapticFeedback.light,
-      children: <M3ECarouselItem>[
-        for (var position = 0; position < indices.length; position++)
-          M3ECarouselItem(
-            image: _TrackCover(track: queue[indices[position]]),
-            applyDynamicTextContentTransform: false,
-            subtitle: m3e_core.M3EButton(
-              style: m3e_core.M3EButtonStyle.filled,
-              size: m3e_core.M3EButtonSize.sm,
-              shape: m3e_core.M3EButtonShape.round,
-              onPressed: () => onTrackSelected(indices[position]),
-              child: Text(
-                queue[indices[position]].title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+    // M3ECarousel 的 hero 布局把容器左右内边距写死为 16 - itemGap / 2。
+    // 把 itemGap 设为 32 可让容器内边距归零，滚动视口因此占满整宽；
+    // 再用 itemPadding 把 page gutter 补回每个 item 的起始边。
+    final carouselTheme = baseTheme.carouselTheme.copyWith(
+      itemGap: AppSpacing.xxl,
+    );
+
+    return M3ETheme(
+      data: baseTheme.copyWith(carouselTheme: carouselTheme),
+      child: M3ECarousel(
+        // Hero-left gives the focal first card more width while keeping the
+        // theme's item gap between cards.
+        type: M3ECarouselType.hero,
+        heroAlignment: M3ECarouselHeroAlignment.left,
+        axis: Axis.horizontal,
+        height: 228,
+        childElementBorderRadius: AppRadii.xl,
+        haptic: M3EHapticFeedback.light,
+        itemPadding: EdgeInsetsDirectional.only(start: edgeInset),
+        children: <M3ECarouselItem>[
+          for (var position = 0; position < indices.length; position++)
+            M3ECarouselItem(
+              image: _TrackCover(track: queue[indices[position]]),
+              applyDynamicTextContentTransform: false,
+              subtitle: m3e_core.M3EButton(
+                style: m3e_core.M3EButtonStyle.filled,
+                size: m3e_core.M3EButtonSize.sm,
+                shape: m3e_core.M3EButtonShape.round,
+                onPressed: () => onTrackSelected(indices[position]),
+                child: Text(
+                  queue[indices[position]].title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              showScrim: null,
+              semanticLabel: queue[indices[position]].title,
+              onTap: () => onTrackSelected(indices[position]),
             ),
-            showScrim: null,
-            semanticLabel: queue[indices[position]].title,
-            onTap: () => onTrackSelected(indices[position]),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -546,7 +534,7 @@ List<_LatestAlbum> _latestAlbums(
     return a.title.toLowerCase().compareTo(b.title.toLowerCase());
   });
 
-  return entries.take(3).toList(growable: false);
+  return entries.take(1).toList(growable: false);
 }
 
 class _LatestAlbumCard extends StatelessWidget {
