@@ -112,7 +112,7 @@ class _MobileHomePageState extends State<MobileHomePage> {
                             ],
                           )
                         : const Text(
-                            '继续听',
+                            '最新发行',
                             key: ValueKey<String>('expanded'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,

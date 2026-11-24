@@ -15,11 +15,15 @@ import '../../../widgets/recommendation_provider.dart';
 import '../../../widgets/remote_browser_provider.dart';
 import '../../../widgets/settings/music_library_provider.dart';
 import '../../../widgets/settings/subsonic_provider.dart';
+import '../library/albums/album_detail_page.dart';
+import '../library/albums/local_album_detail_page.dart';
+import '../mobile_navigation.dart';
+import '../routes.dart';
 
 /// Mobile Home content.
 ///
 /// Current sections:
-/// - 继续听: contained horizontal carousel
+/// - 最新发行: newest-release album covers
 /// - 最新添加: recent local / Subsonic albums
 class MobileHomeContent extends ConsumerWidget {
   const MobileHomeContent({super.key});
@@ -31,15 +35,13 @@ class MobileHomeContent extends ConsumerWidget {
     final double pageGutter = AppLayout.gutterFor(
       MediaQuery.sizeOf(context).width,
     );
-    final player = ref.watch(
-      playerProvider.select((state) => (state.queue, state.currentIndex)),
-    );
-    final List<rust.UiTrack> queue = player.$1;
     final library = ref.watch(musicLibraryProvider).value;
     final servers =
         ref.watch(subsonicServersProvider).value ??
         const <SubsonicServerConfig>[];
-    final latestAlbums = _latestAlbums(ref, library, servers);
+    final albumEntries = _collectAlbums(ref, library, servers);
+    final newReleases = _newReleases(albumEntries);
+    final latestAlbums = _latestAlbums(albumEntries);
     final longLostAlbums =
         ref
             .watch(albumRecommendationsProvider(RecommendMode.longTimeNoSee))
@@ -54,40 +56,27 @@ class MobileHomeContent extends ConsumerWidget {
         bottom: AppSpacing.xxl,
       ),
       children: <Widget>[
-        if (queue.isEmpty)
+        if (newReleases.isEmpty)
           Padding(
             padding: EdgeInsets.symmetric(
               horizontal: pageGutter,
               vertical: AppSpacing.xl,
             ),
             child: const AppEmptyState(
-              title: '还没有继续播放的歌曲',
-              message: '播放一首歌后，会出现在这里',
-              icon: M3EIcons.music_note,
+              title: '暂无最新发行',
+              message: '扫描本地音乐库或同步 Subsonic 后会出现在这里',
+              icon: M3EIcons.album,
             ),
           )
         else
           SizedBox(
             height: 228,
-            child: _ContinueListeningCarousel(
-              queue: queue,
-              currentIndex: player.$2.clamp(0, queue.length - 1),
+            child: _NewReleaseCarousel(
+              albums: newReleases,
               edgeInset: pageGutter,
-              onTrackSelected: (int index) {
-                ref.read(playerProvider.notifier).play(index);
-              },
+              onAlbumSelected: (album) => _openAlbum(context, album),
             ),
           ),
-        if (queue.isNotEmpty) ...<Widget>[
-          const SizedBox(height: AppSpacing.xs),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: pageGutter),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: const _SeeMoreButton(),
-            ),
-          ),
-        ],
         const SizedBox(height: AppSpacing.xl),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: pageGutter),
@@ -190,6 +179,27 @@ class MobileHomeContent extends ConsumerWidget {
       ],
     );
   }
+
+  void _openAlbum(BuildContext context, _LatestAlbum album) {
+    final localAlbum = album.localAlbum;
+    if (localAlbum != null) {
+      pushMobileRootPage(
+        context,
+        LocalAlbumDetailPage(album: localAlbum),
+        name: MobileRoutes.albumDetail,
+      );
+      return;
+    }
+    final remoteAlbum = album.remoteAlbum;
+    final sourceId = album.remoteSourceId;
+    if (remoteAlbum != null && sourceId != null) {
+      pushMobileRootPage(
+        context,
+        AlbumDetailPage(sourceId: sourceId, album: remoteAlbum),
+        name: MobileRoutes.albumDetail,
+      );
+    }
+  }
 }
 
 class _SeeMoreButton extends StatelessWidget {
@@ -210,25 +220,19 @@ class _SeeMoreButton extends StatelessWidget {
   }
 }
 
-class _ContinueListeningCarousel extends StatelessWidget {
-  const _ContinueListeningCarousel({
-    required this.queue,
-    required this.currentIndex,
+class _NewReleaseCarousel extends StatelessWidget {
+  const _NewReleaseCarousel({
+    required this.albums,
     required this.edgeInset,
-    required this.onTrackSelected,
+    required this.onAlbumSelected,
   });
 
-  final List<rust.UiTrack> queue;
-  final int currentIndex;
+  final List<_LatestAlbum> albums;
   final double edgeInset;
-  final ValueChanged<int> onTrackSelected;
+  final ValueChanged<_LatestAlbum> onAlbumSelected;
 
   @override
   Widget build(BuildContext context) {
-    final List<int> indices = <int>[
-      for (var offset = 0; offset < queue.length; offset++)
-        (currentIndex + offset) % queue.length,
-    ];
     final baseTheme = M3ETheme.of(context);
 
     // M3ECarousel 的 hero 布局把容器左右内边距写死为 16 - itemGap / 2。
@@ -241,8 +245,8 @@ class _ContinueListeningCarousel extends StatelessWidget {
     return M3ETheme(
       data: baseTheme.copyWith(carouselTheme: carouselTheme),
       child: M3ECarousel(
-        // Hero-left gives the focal first card more width while keeping the
-        // theme's item gap between cards.
+        // Hero-left gives the focal first album cover more width while keeping
+        // the theme's item gap between cards.
         type: M3ECarouselType.hero,
         heroAlignment: M3ECarouselHeroAlignment.left,
         axis: Axis.horizontal,
@@ -251,24 +255,24 @@ class _ContinueListeningCarousel extends StatelessWidget {
         haptic: M3EHapticFeedback.light,
         itemPadding: EdgeInsetsDirectional.only(start: edgeInset),
         children: <M3ECarouselItem>[
-          for (var position = 0; position < indices.length; position++)
+          for (final album in albums)
             M3ECarouselItem(
-              image: _TrackCover(track: queue[indices[position]]),
+              image: _AlbumCover(album: album, iconSize: AppIconSize.xl),
               applyDynamicTextContentTransform: false,
               subtitle: m3e_core.M3EButton(
                 style: m3e_core.M3EButtonStyle.filled,
                 size: m3e_core.M3EButtonSize.sm,
                 shape: m3e_core.M3EButtonShape.round,
-                onPressed: () => onTrackSelected(indices[position]),
+                onPressed: () => onAlbumSelected(album),
                 child: Text(
-                  queue[indices[position]].title,
+                  album.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               showScrim: null,
-              semanticLabel: queue[indices[position]].title,
-              onTap: () => onTrackSelected(indices[position]),
+              semanticLabel: '${album.title} · ${album.artist}',
+              onTap: () => onAlbumSelected(album),
             ),
         ],
       ),
@@ -453,8 +457,10 @@ class _LatestAlbum {
     required this.sourceLabel,
     required this.addedAt,
     this.localTrack,
+    this.localAlbum,
     this.remoteSourceId,
     this.remoteCoverId,
+    this.remoteAlbum,
   });
 
   final String id;
@@ -465,11 +471,13 @@ class _LatestAlbum {
   final DateTime? addedAt;
 
   final rust.UiTrack? localTrack;
+  final rust.UiAlbum? localAlbum;
   final String? remoteSourceId;
   final String? remoteCoverId;
+  final rust_subsonic.UiRemoteAlbum? remoteAlbum;
 }
 
-List<_LatestAlbum> _latestAlbums(
+List<_LatestAlbum> _collectAlbums(
   WidgetRef ref,
   MusicLibraryState? library,
   List<SubsonicServerConfig> servers,
@@ -502,6 +510,7 @@ List<_LatestAlbum> _latestAlbums(
               ? null
               : DateTime.fromMillisecondsSinceEpoch(latestMs),
           localTrack: coverTrack,
+          localAlbum: album,
         ),
       );
     }
@@ -522,19 +531,42 @@ List<_LatestAlbum> _latestAlbums(
           addedAt: DateTime.tryParse(album.created ?? ''),
           remoteSourceId: server.id,
           remoteCoverId: album.coverId,
+          remoteAlbum: album,
         ),
       );
     }
   }
 
-  entries.sort((a, b) {
-    final aTime = a.addedAt?.millisecondsSinceEpoch ?? 0;
-    final bTime = b.addedAt?.millisecondsSinceEpoch ?? 0;
-    if (aTime != bTime) return bTime.compareTo(aTime);
-    return a.title.toLowerCase().compareTo(b.title.toLowerCase());
-  });
+  return entries;
+}
 
-  return entries.take(1).toList(growable: false);
+List<_LatestAlbum> _latestAlbums(List<_LatestAlbum> entries) {
+  final sorted = <_LatestAlbum>[...entries]..sort(_compareByAddedAt);
+  return sorted.take(1).toList(growable: false);
+}
+
+List<_LatestAlbum> _newReleases(List<_LatestAlbum> entries) {
+  final withYear = entries
+      .where((album) => album.year != null && album.year! > 0)
+      .toList(growable: false);
+  final candidates = withYear.isEmpty
+      ? (<_LatestAlbum>[...entries]..sort(_compareByAddedAt))
+      : (<_LatestAlbum>[...withYear]..sort(_compareByRelease));
+
+  return candidates.take(10).toList(growable: false);
+}
+
+int _compareByAddedAt(_LatestAlbum a, _LatestAlbum b) {
+  final aTime = a.addedAt?.millisecondsSinceEpoch ?? 0;
+  final bTime = b.addedAt?.millisecondsSinceEpoch ?? 0;
+  if (aTime != bTime) return bTime.compareTo(aTime);
+  return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+}
+
+int _compareByRelease(_LatestAlbum a, _LatestAlbum b) {
+  final yearCompare = (b.year ?? 0).compareTo(a.year ?? 0);
+  if (yearCompare != 0) return yearCompare;
+  return _compareByAddedAt(a, b);
 }
 
 class _LatestAlbumCard extends StatelessWidget {
@@ -666,9 +698,13 @@ class _LatestAlbumCard extends StatelessWidget {
 }
 
 class _AlbumCover extends ConsumerWidget {
-  const _AlbumCover({required this.album});
+  const _AlbumCover({
+    required this.album,
+    this.iconSize = AppIconSize.lg,
+  });
 
   final _LatestAlbum album;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -681,7 +717,7 @@ class _AlbumCover extends ConsumerWidget {
         child: Center(
           child: Icon(
             M3EIcons.album,
-            size: AppIconSize.lg,
+            size: iconSize,
             color: scheme.onSecondaryContainer,
           ),
         ),
