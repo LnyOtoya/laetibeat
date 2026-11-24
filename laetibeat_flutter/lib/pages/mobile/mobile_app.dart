@@ -253,5 +253,8 @@ Route<dynamic>? mobileOnGenerateRoute(RouteSettings settings) {
     _ => const MobileHomePage(),
   };
 
-  return MaterialPageRoute<void>(settings: settings, builder: (_) => page);
+  return MaterialPageRoute<void>(
+    settings: settings,
+    builder: (_) => MobileNestedRoutePopGate(child: page),
+  );
 }

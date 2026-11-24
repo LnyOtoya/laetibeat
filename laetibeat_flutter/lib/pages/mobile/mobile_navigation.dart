@@ -21,6 +21,38 @@ final ValueNotifier<String?> mobileCurrentRouteName = ValueNotifier<String?>(
   MobileRoutes.home,
 );
 
+/// Root Navigator 上的 Full Player 是否正在显示。
+///
+/// 嵌套 Tab 路由通过 [MobileNestedRoutePopGate] 监听它：Full Player 打开期间
+/// 禁止嵌套 route 参与 predictive back，让根 Navigator 的 Full Player 接管
+/// 返回手势。
+final ValueNotifier<bool> mobileFullPlayerOpen = ValueNotifier<bool>(false);
+
+/// 放在嵌套 Navigator 的 route 页面内容层，而不是 Navigator 外层。
+///
+/// PopScope 必须位于对应 [ModalRoute] 的子树中：它会把自身注册到最近的
+/// MaterialPageRoute，更新该 route 的 popDisposition，从而让
+/// ModalRoute.popGestureEnabled 返回 false。
+class MobileNestedRoutePopGate extends StatelessWidget {
+  const MobileNestedRoutePopGate({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: mobileFullPlayerOpen,
+      builder: (BuildContext context, bool fullPlayerOpen, Widget? child) {
+        return PopScope<Object?>(
+          canPop: !fullPlayerOpen,
+          child: child!,
+        );
+      },
+      child: child,
+    );
+  }
+}
+
 class MobileNavigatorObserver extends NavigatorObserver {
   void _setRoute(Route<dynamic>? route) {
     final String? name = route?.settings.name;
@@ -78,7 +110,7 @@ Future<T?> pushMobileRootPage<T>(
   return navigator.push<T>(
     MaterialPageRoute<T>(
       settings: name == null ? null : RouteSettings(name: name),
-      builder: (_) => page,
+      builder: (_) => MobileNestedRoutePopGate(child: page),
     ),
   );
 }
@@ -145,10 +177,16 @@ Route<T> mobileFullPlayerRoute<T>(Widget page) {
 }
 
 /// Push the full player on the Root Navigator so it covers the Shell.
-Future<T?> pushMobileFullPlayer<T>(BuildContext context, Widget page) {
+Future<T?> pushMobileFullPlayer<T>(BuildContext context, Widget page) async {
   final NavigatorState? navigator = mobileRootNavigatorKey.currentState;
-  if (navigator == null) {
-    return Future<T?>.value(null);
+  if (navigator == null || mobileFullPlayerOpen.value) {
+    return null;
   }
-  return navigator.push<T>(mobileFullPlayerRoute<T>(page));
+
+  mobileFullPlayerOpen.value = true;
+  try {
+    return await navigator.push<T>(mobileFullPlayerRoute<T>(page));
+  } finally {
+    mobileFullPlayerOpen.value = false;
+  }
 }
