@@ -1,6 +1,6 @@
 # Laetibeat 项目蓝图
 
-> 最后更新：2026-11-24
+> 最后更新：2026-11-25
 > 当前阶段：Flutter 主线继续。同日已完成首页「最新发行 / 为你发现 / 最近加入 / 重拾旧爱」、设置入口页 segmented list、底部导航（移除设置、加入电台）与首页折叠态设置入口；本文件本轮只做状态校正与修复排期，不改代码
 
 ## 当前状态速览
@@ -21,6 +21,7 @@
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 - 设计系统：新增 `lib/design/`（颜色/字体/间距/圆角/尺寸/动效/断点 token、Material You 官方取色、`AppArtwork` / `AppText` / `AppMediaRow` 等基础组件）；页面级左右 gutter 统一为 `AppLayout.pageGutter` + `AppPageBody`；具体页面尚未全部迁移
 - 新 UI 方向：继续 Flutter；`m3e_core` / `material_3_expressive` 只作组件库；Shell、路由、主题与取色自管；MiniPlayer + NavBar 为悬浮 BottomOverlay；Full Player 为 Root Navigator Route（2026-11-23 定稿；2026-11-24 导航内容有调整，见下方校正）
+- 多音源计划：网易云直连 + 洛雪后备解析、MeloX-Android 多平台实现调研，见 `PLAN.md`
 
 ## 2026-11-24 代码审查发现（只记录，不改实现）
 
