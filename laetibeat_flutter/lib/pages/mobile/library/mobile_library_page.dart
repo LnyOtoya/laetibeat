@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:laetibeat/shared/layout/app_bottom_inset.dart';
 import 'package:laetibeat/widgets/recommendation_provider.dart';
-import 'package:laetibeat/widgets/settings/song_source_settings.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -12,6 +11,7 @@ import '../home/discovery_page.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
 import '../widgets/mobile_large_subpage_app_bar.dart';
+import 'library_source_filter.dart';
 import 'mobile_library_subpages.dart';
 
 /// 媒体库首页。
@@ -30,10 +30,22 @@ class MobileLibraryPage extends StatelessWidget {
 
     final localSegments = <_LibrarySegment>[
       _LibrarySegment(
+        icon: M3EIcons.cloud,
+        title: '私服歌曲',
+        routeName: MobileRoutes.librarySongs,
+        page: const MobileLibrarySongsPage(
+          sourceFilter: LibrarySourceFilter.navidrome,
+          title: '私服歌曲',
+        ),
+      ),
+      _LibrarySegment(
         icon: M3EIcons.library_music,
         title: '歌曲',
         routeName: MobileRoutes.librarySongs,
-        page: const MobileLibrarySongsPage(),
+        page: const MobileLibrarySongsPage(
+          sourceFilter: LibrarySourceFilter.local,
+          title: '歌曲',
+        ),
       ),
       _LibrarySegment(
         icon: M3EIcons.person,
@@ -137,7 +149,7 @@ class MobileLibraryPage extends StatelessWidget {
         shapeFamily: M3EAppBarShapeFamily.square,
         safeArea: true,
         titleText: l10n.libraryTitle,
-        actions: const <Widget>[_LibrarySourceSplitButton()],
+        actions: const <Widget>[],
       ),
       body: ListView(
         padding: EdgeInsets.only(
@@ -160,46 +172,6 @@ class MobileLibraryPage extends StatelessWidget {
       ),
     );
   }
-}
-
-class _LibrarySourceSplitButton extends ConsumerWidget {
-  const _LibrarySourceSplitButton();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final source = ref.watch(defaultSongSourceProvider);
-
-    return m3e_core.M3ESplitButton<String>(
-      style: m3e_core.M3EButtonStyle.tonal,
-      size: m3e_core.M3EButtonSize.md,
-      shape: m3e_core.M3EButtonShape.round,
-      label: _labelForSongSource(source),
-      selectedValue: source,
-      leadingTooltip: '当前来源',
-      trailingTooltip: '选择来源',
-      decoration: m3e_core.M3ESplitButtonDecoration.styleFrom(),
-      items: <m3e_core.M3ESplitButtonItem<String>>[
-        for (final value in SongSources.all)
-          m3e_core.M3ESplitButtonItem<String>(
-            value: value,
-            child: Text(_labelForSongSource(value)),
-          ),
-      ],
-      onPressed: () {},
-      onSelected: (String value) {
-        ref.read(defaultSongSourceProvider.notifier).setSource(value);
-      },
-    );
-  }
-}
-
-String _labelForSongSource(String source) {
-  return switch (source) {
-    SongSources.local => '本地',
-    SongSources.subsonic => 'Navidrome',
-    SongSources.lx => '洛雪',
-    _ => '全部',
-  };
 }
 
 class _LibrarySegment {

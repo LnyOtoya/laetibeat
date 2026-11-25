@@ -1,8 +1,10 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../l10n/generated/app_localizations.dart';
 import '../widgets/mobile_large_subpage_app_bar.dart';
+import 'library_source_filter.dart';
 import 'views/albums_library_view.dart';
 import 'views/artists_library_view.dart';
 import 'views/playlists_library_view.dart';
@@ -33,13 +35,26 @@ class _MobileLibrarySubpage extends StatelessWidget {
 }
 
 class MobileLibrarySongsPage extends StatelessWidget {
-  const MobileLibrarySongsPage({super.key});
+  const MobileLibrarySongsPage({super.key, this.sourceFilter, this.title});
+
+  /// 当入口需要固定来源时注入；为空则使用全局来源设置。
+  final LibrarySourceFilter? sourceFilter;
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
+    final Widget content = sourceFilter == null
+        ? const SongsLibraryView()
+        : ProviderScope(
+            overrides: [
+              librarySourceFilterProvider.overrideWithValue(sourceFilter!),
+            ],
+            child: const SongsLibraryView(),
+          );
+
     return _MobileLibrarySubpage(
-      title: AppLocalizations.of(context).libraryAllSongs,
-      child: const SongsLibraryView(),
+      title: title ?? AppLocalizations.of(context).libraryAllSongs,
+      child: content,
     );
   }
 }

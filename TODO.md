@@ -23,6 +23,41 @@
 - 新 UI 方向：继续 Flutter；`m3e_core` / `material_3_expressive` 只作组件库；Shell、路由、主题与取色自管；MiniPlayer + NavBar 为悬浮 BottomOverlay；Full Player 为 Root Navigator Route（2026-11-23 定稿；2026-11-24 导航内容有调整，见下方校正）
 - 多音源计划：网易云直连 + 洛雪后备解析、MeloX-Android 多平台实现调研，见 `PLAN.md`
 
+## 2026-11-25 最终结构定稿（Rust / Dart 边界）
+
+> 方案：首版网易云通过用户可配置的 Node API（Vercel / VPS / NAS）接入；Rust 负责领域、网络、解析、缓存和数据库，Dart 负责 UI、设置、安全存储和播放引擎。Rust 内置网易云直连暂缓。
+
+### 分层
+
+- Rust：
+  - `laetibeat_core`：本地扫描 / 统计 / 歌单 / 远端库 SQLite
+  - `laetibeat_remote`：OpenSubsonic / LRCLIB / LiriQo
+  - `laetibeat_netease`（新增）：Node API 客户端、登录、搜索、歌单、日推、歌词、封面、播放 URL
+  - `laetibeat_lx`：QuickJS / LX 脚本运行时
+  - `laetibeat_resolver`（新增）：local / Subsonic / NetEase / LX fallback 解析链、缓存、错误分类
+  - `rust_lib_laetibeat`：FRB DTO 与 API 门面
+- Dart：
+  - 页面 / 导航 / 主题 / Riverpod state
+  - 设置页：API Base URL、Token、测试连接、登录 QR、洛雪后备开关
+  - `flutter_secure_storage`：Cookie / Token
+  - `PlayerNotifier` / `PlaybackBackend` / audio_service / 通知
+  - `PlaybackTrack` 扩展 headers / expiresAt
+  - 封面/歌词渲染、错误文案本地化
+
+### 边界原则
+
+- Dart 不直接调用网易云 Node API；统一走 Rust。
+- Rust 不持久化用户 Cookie；Dart 通过安全存储持有，调用时传入。
+- Rust 返回类型化错误，Dart 负责本地化提示。
+- fallback 不改变曲目身份；统计/歌单/队列仍按网易云曲目记录。
+
+### 本轮已完成
+
+- [x] 媒体库移除右上角 SplitButton。
+- [x] 本地音乐新增「私服歌曲」，放在「歌曲」上方。
+- [x] 进入「私服歌曲」默认 Navidrome；进入「歌曲」默认本地歌曲。
+- [x] 设置中增加「在线音乐 / 网易云音乐」配置入口；当前仅保存 API 地址与后备开关，未接 API 时不显示内容。
+
 ## 2026-11-24 代码审查发现（只记录，不改实现）
 
 > 来源：全仓库静态阅读 + `cargo test` / `cargo clippy` + `flutter analyze` / `flutter test`。

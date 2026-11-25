@@ -7,10 +7,11 @@
 ## 目标
 
 1. 将洛雪从“顶层音源提供者”降级为“网易云曲目的后备播放解析器”。
-2. 新增网易云音乐作为正式在线 Provider。
+2. 新增网易云音乐作为正式在线 Provider，首版通过用户可配置的 Node API 后端接入。
 3. 用户可关闭洛雪后备，只走网易云直连（需要用户自己的网易云会员）。
 4. fallback 不改变曲目身份；统计、歌单、队列仍属于网易云曲目。
 5. 保持本地音乐、OpenSubsonic、LX 旧曲目兼容。
+6. 首版不移植 Rust 内置网易云客户端；保留 `NetEaseBackend` 抽象，后续可替换为 Rust 直连。
 
 ---
 
@@ -50,7 +51,8 @@
 
 ### 待决策
 
-- [ ] 网易云接官方 SDK/OpenAPI，还是第三方 API？
+- [x] 网易云首版采用用户可配置的第三方 Node API（Vercel / VPS / NAS）；官方 SDK/OpenAPI 暂缓。
+- [x] 首版不移植 Rust 内置网易云客户端；保留 `NetEaseBackend` 抽象。
 - [ ] 先做搜索 + 播放，还是直接做完整媒体库？
 - [ ] LX 完全移出音源列表，还是保留独立 LX 搜索入口？
 - [ ] 后备解析是全局开关，还是播放失败时询问？
@@ -66,7 +68,87 @@
 
 ---
 
-## 二、MeloX-Android 调研结论
+## 二、网易云 API 部署形态决策（2026-11-25）
+
+> 已确定：首版不移植 Rust 内置网易云客户端；先使用用户可配置的 Node API 后端。Vercel / VPS / NAS 都只是部署位置，App 只认一个 HTTPS Base URL。
+
+### 2.1 决定的架构
+
+```text
+Laetibeat
+  └─ 网易云 API Base URL（用户配置）
+        ├─ Vercel
+        ├─ 自己的 VPS
+        └─ 自己的 NAS + 域名 / Cloudflare Tunnel
+```
+
+请求链路：
+
+- 登录、搜索、歌单、歌词、播放 URL：手机 → 用户配置的 Node API → 网易云。
+- 音频流：手机 → 网易云 CDN，不经过 Node API。
+- 网易云看到的出口 IP 是 Node API 所在主机的 IP，不是手机 IP，也不是域名本身。
+- 自定义域名只是入口；Vercel 的自定义域名不会改变 Vercel 出口 IP，NAS 的域名不会改变家庭宽带出口 IP。
+
+### 2.2 支持的部署形态
+
+| 部署 | 入口 | 网易云出口 IP | 说明 |
+|---|---|---|---|
+| Vercel | `*.vercel.app` / 自定义域名 | Vercel 出口 IP | 最省事；可能需要 `realIP` / `randomCNIP`，存在共享 IP/频率问题 |
+| VPS | 自定义域名 | VPS 固定 IP | 稳定、可控；需要维护和 HTTPS |
+| NAS + 公网 IPv4 | 域名 + 端口转发 | 家庭公网 IP | 隐私好；需要 DDNS、HTTPS、端口转发 |
+| NAS + IPv6 | AAAA 域名 | 家庭 IPv6 | 部分手机网络没有 IPv6 |
+| NAS + Cloudflare Tunnel | 自定义域名 | 家庭公网 IP | 无需公网 IP；入站走 Cloudflare，出站仍从 NAS 发出 |
+| 本地 Docker | 局域网地址 | 局域网出口 | 仅同网使用；移动端建议 HTTPS |
+
+补充：
+
+- Vercel 默认不保证独立静态出口 IP；不同项目也可能共享出口 IP 池。
+- NAS 家庭宽带可能是动态 IP、CGNAT 或没有公网 IPv4，需要 DDNS 或 Tunnel。
+- VPS 固定 IP 通常比 Vercel/NAS 更可控，但仍有成本。
+- 音频不经过 Node API，所以 NAS 上行带宽不是主要瓶颈。
+
+### 2.3 App 侧配置
+
+- [ ] `baseUrl`：用户填写，必须 HTTPS。
+- [ ] `apiToken`：可选，自定义 Header。
+- [ ] 测试连接。
+- [ ] 二维码 / 短信登录。
+- [ ] Cookie 存 `flutter_secure_storage`，不要上传到第三方。
+- [ ] Cookie 优先放 POST body，不要放 URL query。
+- [ ] 禁止跟随到非配置域名的重定向。
+- [ ] `allowLxFallback` 开关。
+- [ ] 失败提示：检查 API 地址 / 登录状态 / 洛雪后备。
+
+Node API 参考文档：`reference/neteaseapi.md`。
+
+### 2.4 安全与运维
+
+- [ ] 公网暴露必须有访问令牌 / 反向代理鉴权 / 限流。
+- [ ] 强制 HTTPS。
+- [ ] 不暴露 NAS 管理后台。
+- [ ] Node API 容器隔离、非 root 运行。
+- [ ] Node API 镜像版本与 App 兼容检查。
+- [ ] 不记录 Cookie、完整请求 URL 或账号敏感信息。
+- [ ] 配置 API 地址时提示：只填写自己信任的服务。
+
+### 2.5 频率与风控
+
+- 每用户独立实例可以避免“多人共用一个 Vercel”的共享压力。
+- 但网易云仍按账号、Cookie、出口 IP、地区、登录频率做风控。
+- Vercel 出口 IP 可能共享；NAS 家庭 IP 可能动态或 CGNAT；VPS 固定 IP 更可控。
+- 仍需客户端缓存、请求退避、避免重复登录、播放 URL 过期后重新解析。
+- Vercel 可能需要 `realIP` / `randomCNIP`；NAS/VPS 在国内通常不需要，但要实测。
+
+### 2.6 暂不做
+
+- [ ] Rust 内置网易云直连（暂缓）。
+- [ ] 官方 SDK/OpenAPI 接入（暂缓）。
+- [ ] `unblock` / `song/url/match` 灰色歌曲解锁（默认不做）。
+- [ ] 云盘、评论、动态、播客、MV、电台等非核心接口。
+
+---
+
+## 三、MeloX-Android 调研结论
 
 ### 项目定位
 
@@ -190,7 +272,7 @@ Kuwo      -> kw
 
 ---
 
-## 三、推荐实施阶段
+## 四、推荐实施阶段
 
 ### Phase 0：验证网易云 → LX `wy` 可行性
 
@@ -208,14 +290,22 @@ Kuwo      -> kw
 - [ ] 修 P0-3（候选源退化）和 P0-4（Context 串扰）。
 - [ ] 先不接网易云直连，用测试曲目验证 fallback。
 
-### Phase 2：网易云直连 Provider
+### Phase 2A：网易云 Node API Provider（首版）
 
-- [ ] Cookie/登录态安全存储。
-- [ ] 搜索、歌词、封面、音质。
-- [ ] 直连 URL 解析。
+- [ ] 增加网易云 API 服务配置：Base URL、可选 Token、测试连接。
+- [ ] 支持 Vercel / VPS / NAS；App 只认 Base URL，不区分部署来源。
+- [ ] 登录：二维码 / 短信，Cookie 存 `flutter_secure_storage`。
+- [ ] 接入搜索、歌曲详情、歌单、每日推荐、歌词、`/song/url/v1`。
+- [ ] 解析音质、试听、URL 过期、headers。
 - [ ] 错误分类：登录 / 会员 / 版权 / 地区 / 无音源 / 网络。
 - [ ] 串联 `NetEaseDirectResolver` + `LxFallbackResolver`。
-- [ ] 保留 headers 和 URL 过期时间。
+- [ ] 客户端缓存、请求退避、避免重复登录；不在 URL 中携带 Cookie。
+
+### Phase 2B：Rust 内置直连（暂缓）
+
+- [ ] 定义 `NetEaseBackend` 接口，支持 `RemoteNodeBackend` / `NativeRustBackend` 切换。
+- [ ] Node API 稳定后，再评估把核心接口移植进 Rust。
+- [ ] 不移植 200+ 接口，只移植核心 8～12 个。
 
 ### Phase 3：网易云完整在线库
 
@@ -225,8 +315,9 @@ Kuwo      -> kw
 
 ---
 
-## 四、参考文件
+## 五、参考文件
 
+- `reference/neteaseapi.md`（网易云 Node API Enhanced 文档；部署在 Vercel/VPS/NAS 的后端）
 - `reference/MeloX-Android/docs/multi-provider-architecture.md`
 - `reference/MeloX-Android/docs/PLAYBACK-FALLBACK.md`
 - `reference/MeloX-Android/docs/THIRD-PARTY-RESOLVERS.md`
@@ -242,6 +333,6 @@ Kuwo      -> kw
 
 ---
 
-## 五、一句话结论
+## 六、一句话结论
 
-**MeloX-Android 已证明“网易云作为主音源、LX 作为最后一级后备解析器”可行；但它靠的是大量自研逆向协议客户端，而不是一个万能 SDK。Laetibeat 应借鉴其 Provider/Capability、PlaybackResolution 和 fallback 顺序，先做“网易云直连 + LX `wy` 后备”这个最小闭环。**
+**MeloX-Android 已证明“网易云作为主音源、LX 作为最后一级后备解析器”可行；但它靠的是大量自研逆向协议客户端，而不是一个万能 SDK。Laetibeat 首版应通过用户可配置的 Node API（Vercel / VPS / NAS）接入网易云，借鉴其 Provider/Capability、PlaybackResolution 和 fallback 顺序，先做“网易云直连 + LX `wy` 后备”这个最小闭环；Rust 内置直连留到后续。**
