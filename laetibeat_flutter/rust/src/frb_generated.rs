@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 978242262;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1119834250;
 
 // Section: executor
 
@@ -952,6 +952,76 @@ fn wire__crate__api__playlists__mark_local_playlist_subscribed_impl(
         },
     )
 }
+fn wire__crate__api__netease__netease_album_detail_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "netease_album_detail",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_base_url = <String>::sse_decode(&mut deserializer);
+            let api_album_id = <u64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok =
+                        crate::api::netease::netease_album_detail(api_base_url, api_album_id)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__netease__netease_artist_detail_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "netease_artist_detail",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_base_url = <String>::sse_decode(&mut deserializer);
+            let api_artist_id = <u64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok =
+                        crate::api::netease::netease_artist_detail(api_base_url, api_artist_id)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__netease__netease_daily_recommendations_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1237,6 +1307,88 @@ fn wire__crate__api__netease__netease_search_impl(
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok = crate::api::netease::netease_search(
+                        api_base_url,
+                        api_keywords,
+                        api_limit,
+                        api_offset,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__netease__netease_search_albums_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "netease_search_albums",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_base_url = <String>::sse_decode(&mut deserializer);
+            let api_keywords = <String>::sse_decode(&mut deserializer);
+            let api_limit = <Option<u32>>::sse_decode(&mut deserializer);
+            let api_offset = <Option<u32>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::netease::netease_search_albums(
+                        api_base_url,
+                        api_keywords,
+                        api_limit,
+                        api_offset,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__netease__netease_search_artists_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "netease_search_artists",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_base_url = <String>::sse_decode(&mut deserializer);
+            let api_keywords = <String>::sse_decode(&mut deserializer);
+            let api_limit = <Option<u32>>::sse_decode(&mut deserializer);
+            let api_offset = <Option<u32>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::netease::netease_search_artists(
                         api_base_url,
                         api_keywords,
                         api_limit,
@@ -3857,6 +4009,34 @@ impl SseDecode for Vec<crate::api::lyrics::UiLyricsSearchResult> {
     }
 }
 
+impl SseDecode for Vec<crate::api::netease::UiNeteaseAlbum> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::netease::UiNeteaseAlbum>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::netease::UiNeteaseArtist> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::netease::UiNeteaseArtist>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::netease::UiNeteasePlaylist> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4539,6 +4719,70 @@ impl SseDecode for crate::api::lyrics::UiLyricsSearchResult {
     }
 }
 
+impl SseDecode for crate::api::netease::UiNeteaseAlbum {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <u64>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_artist = <String>::sse_decode(deserializer);
+        let mut var_artistId = <u64>::sse_decode(deserializer);
+        let mut var_coverUrl = <Option<String>>::sse_decode(deserializer);
+        let mut var_trackCount = <u32>::sse_decode(deserializer);
+        let mut var_publishTimeMs = <Option<i64>>::sse_decode(deserializer);
+        return crate::api::netease::UiNeteaseAlbum {
+            id: var_id,
+            name: var_name,
+            artist: var_artist,
+            artist_id: var_artistId,
+            cover_url: var_coverUrl,
+            track_count: var_trackCount,
+            publish_time_ms: var_publishTimeMs,
+        };
+    }
+}
+
+impl SseDecode for crate::api::netease::UiNeteaseAlbumDetail {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_album = <crate::api::netease::UiNeteaseAlbum>::sse_decode(deserializer);
+        let mut var_tracks = <Vec<crate::api::simple::UiTrack>>::sse_decode(deserializer);
+        return crate::api::netease::UiNeteaseAlbumDetail {
+            album: var_album,
+            tracks: var_tracks,
+        };
+    }
+}
+
+impl SseDecode for crate::api::netease::UiNeteaseArtist {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <u64>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_coverUrl = <Option<String>>::sse_decode(deserializer);
+        let mut var_albumSize = <u32>::sse_decode(deserializer);
+        let mut var_alias = <Vec<String>>::sse_decode(deserializer);
+        return crate::api::netease::UiNeteaseArtist {
+            id: var_id,
+            name: var_name,
+            cover_url: var_coverUrl,
+            album_size: var_albumSize,
+            alias: var_alias,
+        };
+    }
+}
+
+impl SseDecode for crate::api::netease::UiNeteaseArtistDetail {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_artist = <crate::api::netease::UiNeteaseArtist>::sse_decode(deserializer);
+        let mut var_tracks = <Vec<crate::api::simple::UiTrack>>::sse_decode(deserializer);
+        return crate::api::netease::UiNeteaseArtistDetail {
+            artist: var_artist,
+            tracks: var_tracks,
+        };
+    }
+}
+
 impl SseDecode for crate::api::netease::UiNeteaseCaptchaResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -5148,239 +5392,256 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        27 => wire__crate__api__netease__netease_daily_recommendations_impl(
+        27 => {
+            wire__crate__api__netease__netease_album_detail_impl(port, ptr, rust_vec_len, data_len)
+        }
+        28 => {
+            wire__crate__api__netease__netease_artist_detail_impl(port, ptr, rust_vec_len, data_len)
+        }
+        29 => wire__crate__api__netease__netease_daily_recommendations_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        28 => wire__crate__api__netease__netease_get_cover_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__netease__netease_login_cellphone_impl(
+        30 => wire__crate__api__netease__netease_get_cover_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__netease__netease_login_cellphone_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        30 => wire__crate__api__netease__netease_lyric_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__netease__netease_playlist_tracks_impl(
+        32 => wire__crate__api__netease__netease_lyric_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__netease__netease_playlist_tracks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        32 => wire__crate__api__netease__netease_qr_check_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__netease__netease_qr_create_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__netease__netease_search_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__netease__netease_search_playlists_impl(
+        34 => wire__crate__api__netease__netease_qr_check_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__netease__netease_qr_create_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__netease__netease_search_impl(port, ptr, rust_vec_len, data_len),
+        37 => {
+            wire__crate__api__netease__netease_search_albums_impl(port, ptr, rust_vec_len, data_len)
+        }
+        38 => wire__crate__api__netease__netease_search_artists_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        36 => {
+        39 => wire__crate__api__netease__netease_search_playlists_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        40 => {
             wire__crate__api__netease__netease_send_captcha_impl(port, ptr, rust_vec_len, data_len)
         }
-        37 => {
+        41 => {
             wire__crate__api__netease__netease_song_detail_impl(port, ptr, rust_vec_len, data_len)
         }
-        38 => wire__crate__api__netease__netease_song_url_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__netease__netease_status_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__netease__netease_user_playlists_impl(
+        42 => wire__crate__api__netease__netease_song_url_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__netease__netease_status_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__netease__netease_user_playlists_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        41 => wire__crate__api__simple__parse_saf_track_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__simple__pick_directory_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__subsonic__ping_subsonic_impl(port, ptr, rust_vec_len, data_len),
-        44 => {
+        45 => wire__crate__api__simple__parse_saf_track_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__simple__pick_directory_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__subsonic__ping_subsonic_impl(port, ptr, rust_vec_len, data_len),
+        48 => {
             wire__crate__api__stats__query_all_track_stats_impl(port, ptr, rust_vec_len, data_len)
         }
-        45 => {
+        49 => {
             wire__crate__api__stats__query_history_summary_impl(port, ptr, rust_vec_len, data_len)
         }
-        46 => wire__crate__api__stats__query_history_summary_all_impl(
+        50 => wire__crate__api__stats__query_history_summary_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        47 => wire__crate__api__stats__query_recent_play_events_impl(
+        51 => wire__crate__api__stats__query_recent_play_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        48 => {
+        52 => {
             wire__crate__api__library__query_remote_albums_impl(port, ptr, rust_vec_len, data_len)
         }
-        49 => wire__crate__api__library__query_remote_all_tracks_impl(
+        53 => wire__crate__api__library__query_remote_all_tracks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        50 => {
+        54 => {
             wire__crate__api__library__query_remote_artists_impl(port, ptr, rust_vec_len, data_len)
         }
-        51 => {
+        55 => {
             wire__crate__api__library__query_remote_tracks_impl(port, ptr, rust_vec_len, data_len)
         }
-        52 => wire__crate__api__stats__query_track_stats_impl(port, ptr, rust_vec_len, data_len),
-        53 => wire__crate__api__metadata__read_cover_impl(port, ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__metadata__read_cover_fd_impl(port, ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__metadata__read_lyrics_impl(port, ptr, rust_vec_len, data_len),
-        56 => wire__crate__api__metadata__read_lyrics_fd_impl(port, ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__stats__record_play_event_impl(port, ptr, rust_vec_len, data_len),
-        58 => wire__crate__api__subsonic__register_subsonic_impl(port, ptr, rust_vec_len, data_len),
-        59 => wire__crate__api__playlists__remove_local_playlist_item_impl(
+        56 => wire__crate__api__stats__query_track_stats_impl(port, ptr, rust_vec_len, data_len),
+        57 => wire__crate__api__metadata__read_cover_impl(port, ptr, rust_vec_len, data_len),
+        58 => wire__crate__api__metadata__read_cover_fd_impl(port, ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__metadata__read_lyrics_impl(port, ptr, rust_vec_len, data_len),
+        60 => wire__crate__api__metadata__read_lyrics_fd_impl(port, ptr, rust_vec_len, data_len),
+        61 => wire__crate__api__stats__record_play_event_impl(port, ptr, rust_vec_len, data_len),
+        62 => wire__crate__api__subsonic__register_subsonic_impl(port, ptr, rust_vec_len, data_len),
+        63 => wire__crate__api__playlists__remove_local_playlist_item_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        60 => wire__crate__api__lx__remove_lx_source_impl(port, ptr, rust_vec_len, data_len),
-        61 => wire__crate__api__subsonic__remove_subsonic_impl(port, ptr, rust_vec_len, data_len),
-        62 => wire__crate__api__playlists__rename_local_playlist_impl(
+        64 => wire__crate__api__lx__remove_lx_source_impl(port, ptr, rust_vec_len, data_len),
+        65 => wire__crate__api__subsonic__remove_subsonic_impl(port, ptr, rust_vec_len, data_len),
+        66 => wire__crate__api__playlists__rename_local_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        63 => wire__crate__api__playlists__reorder_local_playlist_items_impl(
+        67 => wire__crate__api__playlists__reorder_local_playlist_items_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        64 => wire__crate__api__playlists__replace_local_playlist_tracks_impl(
+        68 => wire__crate__api__playlists__replace_local_playlist_tracks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        65 => wire__crate__api__library__resolve_local_lyrics_cached_impl(
+        69 => wire__crate__api__library__resolve_local_lyrics_cached_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        66 => wire__crate__api__lx__resolve_lx_lyric_impl(port, ptr, rust_vec_len, data_len),
-        67 => wire__crate__api__lx__resolve_lx_music_url_impl(port, ptr, rust_vec_len, data_len),
-        68 => wire__crate__api__lx__resolve_lx_pic_impl(port, ptr, rust_vec_len, data_len),
-        69 => {
+        70 => wire__crate__api__lx__resolve_lx_lyric_impl(port, ptr, rust_vec_len, data_len),
+        71 => wire__crate__api__lx__resolve_lx_music_url_impl(port, ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__lx__resolve_lx_pic_impl(port, ptr, rust_vec_len, data_len),
+        73 => {
             wire__crate__api__subsonic__save_discovery_cache_impl(port, ptr, rust_vec_len, data_len)
         }
-        70 => wire__crate__api__simple__scan_local_music_folder_impl(
+        74 => wire__crate__api__simple__scan_local_music_folder_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        71 => wire__crate__api__lx__search_lx_music_impl(port, ptr, rust_vec_len, data_len),
-        72 => wire__crate__api__lx__search_lx_playlists_impl(port, ptr, rust_vec_len, data_len),
-        73 => wire__crate__api__lyrics__search_lyrics_impl(port, ptr, rust_vec_len, data_len),
-        74 => {
+        75 => wire__crate__api__lx__search_lx_music_impl(port, ptr, rust_vec_len, data_len),
+        76 => wire__crate__api__lx__search_lx_playlists_impl(port, ptr, rust_vec_len, data_len),
+        77 => wire__crate__api__lyrics__search_lyrics_impl(port, ptr, rust_vec_len, data_len),
+        78 => {
             wire__crate__api__library__search_remote_library_impl(port, ptr, rust_vec_len, data_len)
         }
-        75 => wire__crate__api__lx__set_lx_active_source_impl(port, ptr, rust_vec_len, data_len),
-        76 => {
+        79 => wire__crate__api__lx__set_lx_active_source_impl(port, ptr, rust_vec_len, data_len),
+        80 => {
             wire__crate__api__lx__set_lx_allow_update_alert_impl(port, ptr, rust_vec_len, data_len)
         }
-        77 => wire__crate__api__lx__set_lx_source_enabled_impl(port, ptr, rust_vec_len, data_len),
-        78 => wire__crate__api__lx__set_lx_source_priority_impl(port, ptr, rust_vec_len, data_len),
-        79 => wire__crate__api__subsonic__subsonic_create_playlist_impl(
+        81 => wire__crate__api__lx__set_lx_source_enabled_impl(port, ptr, rust_vec_len, data_len),
+        82 => wire__crate__api__lx__set_lx_source_priority_impl(port, ptr, rust_vec_len, data_len),
+        83 => wire__crate__api__subsonic__subsonic_create_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        80 => wire__crate__api__subsonic__subsonic_delete_playlist_impl(
+        84 => wire__crate__api__subsonic__subsonic_delete_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        81 => {
+        85 => {
             wire__crate__api__subsonic__subsonic_get_album_impl(port, ptr, rust_vec_len, data_len)
         }
-        82 => {
+        86 => {
             wire__crate__api__subsonic__subsonic_get_artist_impl(port, ptr, rust_vec_len, data_len)
         }
-        83 => wire__crate__api__subsonic__subsonic_get_artist_biography_impl(
+        87 => wire__crate__api__subsonic__subsonic_get_artist_biography_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        84 => {
+        88 => {
             wire__crate__api__subsonic__subsonic_get_artists_impl(port, ptr, rust_vec_len, data_len)
         }
-        85 => wire__crate__api__subsonic__subsonic_get_cover_art_impl(
+        89 => wire__crate__api__subsonic__subsonic_get_cover_art_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        86 => {
+        90 => {
             wire__crate__api__subsonic__subsonic_get_lyrics_impl(port, ptr, rust_vec_len, data_len)
         }
-        87 => wire__crate__api__subsonic__subsonic_get_lyrics_cached_impl(
+        91 => wire__crate__api__subsonic__subsonic_get_lyrics_cached_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        88 => wire__crate__api__subsonic__subsonic_get_playlist_impl(
+        92 => wire__crate__api__subsonic__subsonic_get_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        89 => wire__crate__api__subsonic__subsonic_get_playlists_impl(
+        93 => wire__crate__api__subsonic__subsonic_get_playlists_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        90 => wire__crate__api__subsonic__subsonic_get_similar_songs_impl(
+        94 => wire__crate__api__subsonic__subsonic_get_similar_songs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        91 => wire__crate__api__subsonic__subsonic_get_user_name_impl(
+        95 => wire__crate__api__subsonic__subsonic_get_user_name_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        92 => wire__crate__api__subsonic__subsonic_scrobble_impl(port, ptr, rust_vec_len, data_len),
-        93 => wire__crate__api__subsonic__subsonic_search3_impl(port, ptr, rust_vec_len, data_len),
-        94 => {
+        96 => wire__crate__api__subsonic__subsonic_scrobble_impl(port, ptr, rust_vec_len, data_len),
+        97 => wire__crate__api__subsonic__subsonic_search3_impl(port, ptr, rust_vec_len, data_len),
+        98 => {
             wire__crate__api__subsonic__subsonic_stream_url_impl(port, ptr, rust_vec_len, data_len)
         }
-        95 => wire__crate__api__subsonic__subsonic_update_playlist_impl(
+        99 => wire__crate__api__subsonic__subsonic_update_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        96 => wire__crate__api__lx__supported_lx_search_platforms_impl(
+        100 => wire__crate__api__lx__supported_lx_search_platforms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        97 => wire__crate__api__sync__sync_subsonic_library_impl(port, ptr, rust_vec_len, data_len),
-        98 => wire__crate__api__subsonic__test_subsonic_connection_impl(
+        101 => {
+            wire__crate__api__sync__sync_subsonic_library_impl(port, ptr, rust_vec_len, data_len)
+        }
+        102 => wire__crate__api__subsonic__test_subsonic_connection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        99 => wire__crate__api__sync__ui_remote_sync_progress_default_impl(
+        103 => wire__crate__api__sync__ui_remote_sync_progress_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -5854,6 +6115,98 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::lyrics::UiLyricsSearchResult>
     for crate::api::lyrics::UiLyricsSearchResult
 {
     fn into_into_dart(self) -> crate::api::lyrics::UiLyricsSearchResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::netease::UiNeteaseAlbum {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.artist.into_into_dart().into_dart(),
+            self.artist_id.into_into_dart().into_dart(),
+            self.cover_url.into_into_dart().into_dart(),
+            self.track_count.into_into_dart().into_dart(),
+            self.publish_time_ms.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::netease::UiNeteaseAlbum
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::netease::UiNeteaseAlbum>
+    for crate::api::netease::UiNeteaseAlbum
+{
+    fn into_into_dart(self) -> crate::api::netease::UiNeteaseAlbum {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::netease::UiNeteaseAlbumDetail {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.album.into_into_dart().into_dart(),
+            self.tracks.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::netease::UiNeteaseAlbumDetail
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::netease::UiNeteaseAlbumDetail>
+    for crate::api::netease::UiNeteaseAlbumDetail
+{
+    fn into_into_dart(self) -> crate::api::netease::UiNeteaseAlbumDetail {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::netease::UiNeteaseArtist {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.cover_url.into_into_dart().into_dart(),
+            self.album_size.into_into_dart().into_dart(),
+            self.alias.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::netease::UiNeteaseArtist
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::netease::UiNeteaseArtist>
+    for crate::api::netease::UiNeteaseArtist
+{
+    fn into_into_dart(self) -> crate::api::netease::UiNeteaseArtist {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::netease::UiNeteaseArtistDetail {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.artist.into_into_dart().into_dart(),
+            self.tracks.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::netease::UiNeteaseArtistDetail
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::netease::UiNeteaseArtistDetail>
+    for crate::api::netease::UiNeteaseArtistDetail
+{
+    fn into_into_dart(self) -> crate::api::netease::UiNeteaseArtistDetail {
         self
     }
 }
@@ -6675,6 +7028,26 @@ impl SseEncode for Vec<crate::api::lyrics::UiLyricsSearchResult> {
     }
 }
 
+impl SseEncode for Vec<crate::api::netease::UiNeteaseAlbum> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::netease::UiNeteaseAlbum>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::netease::UiNeteaseArtist> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::netease::UiNeteaseArtist>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::netease::UiNeteasePlaylist> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -7139,6 +7512,46 @@ impl SseEncode for crate::api::lyrics::UiLyricsSearchResult {
         <bool>::sse_encode(self.has_translation, serializer);
         <Option<String>>::sse_encode(self.translation, serializer);
         <String>::sse_encode(self.text, serializer);
+    }
+}
+
+impl SseEncode for crate::api::netease::UiNeteaseAlbum {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u64>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <String>::sse_encode(self.artist, serializer);
+        <u64>::sse_encode(self.artist_id, serializer);
+        <Option<String>>::sse_encode(self.cover_url, serializer);
+        <u32>::sse_encode(self.track_count, serializer);
+        <Option<i64>>::sse_encode(self.publish_time_ms, serializer);
+    }
+}
+
+impl SseEncode for crate::api::netease::UiNeteaseAlbumDetail {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::netease::UiNeteaseAlbum>::sse_encode(self.album, serializer);
+        <Vec<crate::api::simple::UiTrack>>::sse_encode(self.tracks, serializer);
+    }
+}
+
+impl SseEncode for crate::api::netease::UiNeteaseArtist {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u64>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <Option<String>>::sse_encode(self.cover_url, serializer);
+        <u32>::sse_encode(self.album_size, serializer);
+        <Vec<String>>::sse_encode(self.alias, serializer);
+    }
+}
+
+impl SseEncode for crate::api::netease::UiNeteaseArtistDetail {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::netease::UiNeteaseArtist>::sse_encode(self.artist, serializer);
+        <Vec<crate::api::simple::UiTrack>>::sse_encode(self.tracks, serializer);
     }
 }
 

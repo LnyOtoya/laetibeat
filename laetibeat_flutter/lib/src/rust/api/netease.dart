@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'simple.dart';
 
-// These functions are ignored because they are not marked as `pub`: `client`, `map_captcha_result`, `map_login_result`, `map_lyric`, `map_playlist`, `map_qr_check`, `map_qr_code`, `map_status`, `map_stream`, `map_track`
+// These functions are ignored because they are not marked as `pub`: `client`, `map_album`, `map_artist`, `map_captcha_result`, `map_login_result`, `map_lyric`, `map_playlist`, `map_qr_check`, `map_qr_code`, `map_status`, `map_stream`, `map_track`
 
 /// 测试 API 是否可达，以及当前是否已登录。
 Future<UiNeteaseStatus> neteaseStatus({
@@ -79,6 +79,50 @@ Future<List<UiNeteasePlaylist>> neteaseSearchPlaylists({
   keywords: keywords,
   limit: limit,
   offset: offset,
+);
+
+/// 搜索专辑。
+Future<List<UiNeteaseAlbum>> neteaseSearchAlbums({
+  required String baseUrl,
+  required String keywords,
+  int? limit,
+  int? offset,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseSearchAlbums(
+  baseUrl: baseUrl,
+  keywords: keywords,
+  limit: limit,
+  offset: offset,
+);
+
+/// 搜索艺人。
+Future<List<UiNeteaseArtist>> neteaseSearchArtists({
+  required String baseUrl,
+  required String keywords,
+  int? limit,
+  int? offset,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseSearchArtists(
+  baseUrl: baseUrl,
+  keywords: keywords,
+  limit: limit,
+  offset: offset,
+);
+
+/// 专辑详情与歌曲。
+Future<UiNeteaseAlbumDetail> neteaseAlbumDetail({
+  required String baseUrl,
+  required BigInt albumId,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseAlbumDetail(
+  baseUrl: baseUrl,
+  albumId: albumId,
+);
+
+/// 艺人详情与热门歌曲。
+Future<UiNeteaseArtistDetail> neteaseArtistDetail({
+  required String baseUrl,
+  required BigInt artistId,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseArtistDetail(
+  baseUrl: baseUrl,
+  artistId: artistId,
 );
 
 /// 按歌曲 id 获取详情。
@@ -154,6 +198,120 @@ Future<UiNeteaseLyric> neteaseLyric({
 /// 下载封面字节。cover_id 是网易云返回的封面 URL。
 Future<Uint8List> neteaseGetCover({required String url}) =>
     RustLib.instance.api.crateApiNeteaseNeteaseGetCover(url: url);
+
+class UiNeteaseAlbum {
+  final BigInt id;
+  final String name;
+  final String artist;
+  final BigInt artistId;
+  final String? coverUrl;
+  final int trackCount;
+  final PlatformInt64? publishTimeMs;
+
+  const UiNeteaseAlbum({
+    required this.id,
+    required this.name,
+    required this.artist,
+    required this.artistId,
+    this.coverUrl,
+    required this.trackCount,
+    this.publishTimeMs,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      artist.hashCode ^
+      artistId.hashCode ^
+      coverUrl.hashCode ^
+      trackCount.hashCode ^
+      publishTimeMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiNeteaseAlbum &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          artist == other.artist &&
+          artistId == other.artistId &&
+          coverUrl == other.coverUrl &&
+          trackCount == other.trackCount &&
+          publishTimeMs == other.publishTimeMs;
+}
+
+class UiNeteaseAlbumDetail {
+  final UiNeteaseAlbum album;
+  final List<UiTrack> tracks;
+
+  const UiNeteaseAlbumDetail({required this.album, required this.tracks});
+
+  @override
+  int get hashCode => album.hashCode ^ tracks.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiNeteaseAlbumDetail &&
+          runtimeType == other.runtimeType &&
+          album == other.album &&
+          tracks == other.tracks;
+}
+
+class UiNeteaseArtist {
+  final BigInt id;
+  final String name;
+  final String? coverUrl;
+  final int albumSize;
+  final List<String> alias;
+
+  const UiNeteaseArtist({
+    required this.id,
+    required this.name,
+    this.coverUrl,
+    required this.albumSize,
+    required this.alias,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      coverUrl.hashCode ^
+      albumSize.hashCode ^
+      alias.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiNeteaseArtist &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          coverUrl == other.coverUrl &&
+          albumSize == other.albumSize &&
+          alias == other.alias;
+}
+
+class UiNeteaseArtistDetail {
+  final UiNeteaseArtist artist;
+  final List<UiTrack> tracks;
+
+  const UiNeteaseArtistDetail({required this.artist, required this.tracks});
+
+  @override
+  int get hashCode => artist.hashCode ^ tracks.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiNeteaseArtistDetail &&
+          runtimeType == other.runtimeType &&
+          artist == other.artist &&
+          tracks == other.tracks;
+}
 
 class UiNeteaseCaptchaResult {
   final int code;

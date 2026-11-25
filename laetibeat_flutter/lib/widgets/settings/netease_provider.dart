@@ -127,6 +127,76 @@ final neteasePlaylistSearchProvider = FutureProvider.autoDispose
       );
     });
 
+/// 网易云专辑搜索。
+final neteaseAlbumSearchProvider = FutureProvider.autoDispose
+    .family<List<rust_netease.UiNeteaseAlbum>, NeteaseSearchKey>((
+      ref,
+      key,
+    ) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      return rust_netease.neteaseSearchAlbums(
+        baseUrl: baseUrl,
+        keywords: key.keywords,
+        limit: key.limit,
+        offset: key.offset,
+      );
+    });
+
+/// 网易云艺人搜索。
+final neteaseArtistSearchProvider = FutureProvider.autoDispose
+    .family<List<rust_netease.UiNeteaseArtist>, NeteaseSearchKey>((
+      ref,
+      key,
+    ) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      return rust_netease.neteaseSearchArtists(
+        baseUrl: baseUrl,
+        keywords: key.keywords,
+        limit: key.limit,
+        offset: key.offset,
+      );
+    });
+
+/// 网易云专辑详情。
+final neteaseAlbumDetailProvider = FutureProvider.autoDispose
+    .family<rust_netease.UiNeteaseAlbumDetail, BigInt>((ref, albumId) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      return rust_netease.neteaseAlbumDetail(
+        baseUrl: baseUrl,
+        albumId: albumId,
+      );
+    });
+
+/// 网易云艺人详情。
+final neteaseArtistDetailProvider = FutureProvider.autoDispose
+    .family<rust_netease.UiNeteaseArtistDetail, BigInt>((ref, artistId) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      return rust_netease.neteaseArtistDetail(
+        baseUrl: baseUrl,
+        artistId: artistId,
+      );
+    });
+
+/// 网易云图片（歌单/专辑/艺人封面）字节。
+final neteaseImageProvider = FutureProvider.autoDispose
+    .family<Uint8List?, String>((ref, url) async {
+      if (url.isEmpty) return null;
+      final bytes = await rust_netease.neteaseGetCover(url: url);
+      return bytes.isEmpty ? null : bytes;
+    });
+
 /// 从 UiTrack 中取出网易云 songId，兼容旧数据与 sourceExtraJson。
 String neteaseSongIdFromTrack(rust.UiTrack track) {
   final extra = track.sourceExtraJson;

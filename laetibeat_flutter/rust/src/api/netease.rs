@@ -1,7 +1,8 @@
 use flutter_rust_bridge::frb;
 use laetibeat_netease::{
-    NeteaseCaptchaResult, NeteaseClient, NeteaseLoginResult, NeteaseLyric, NeteasePlaylist,
-    NeteaseQrCheck, NeteaseQrCode, NeteaseStatus, NeteaseStream, NeteaseTrack,
+    NeteaseAlbum, NeteaseArtist, NeteaseCaptchaResult, NeteaseClient, NeteaseLoginResult,
+    NeteaseLyric, NeteasePlaylist, NeteaseQrCheck, NeteaseQrCode, NeteaseStatus, NeteaseStream,
+    NeteaseTrack,
 };
 
 use crate::api::simple::UiTrack;
@@ -24,6 +25,38 @@ pub struct UiNeteasePlaylist {
     pub cover_url: Option<String>,
     pub track_count: u32,
     pub creator: Option<String>,
+}
+
+#[frb(non_opaque)]
+pub struct UiNeteaseAlbum {
+    pub id: u64,
+    pub name: String,
+    pub artist: String,
+    pub artist_id: u64,
+    pub cover_url: Option<String>,
+    pub track_count: u32,
+    pub publish_time_ms: Option<i64>,
+}
+
+#[frb(non_opaque)]
+pub struct UiNeteaseArtist {
+    pub id: u64,
+    pub name: String,
+    pub cover_url: Option<String>,
+    pub album_size: u32,
+    pub alias: Vec<String>,
+}
+
+#[frb(non_opaque)]
+pub struct UiNeteaseAlbumDetail {
+    pub album: UiNeteaseAlbum,
+    pub tracks: Vec<UiTrack>,
+}
+
+#[frb(non_opaque)]
+pub struct UiNeteaseArtistDetail {
+    pub artist: UiNeteaseArtist,
+    pub tracks: Vec<UiTrack>,
 }
 
 /// 播放 URL 解析结果。
@@ -154,6 +187,68 @@ pub fn netease_search_playlists(
         .search_playlists(&keywords, limit.unwrap_or(30), offset.unwrap_or(0))
         .map_err(|error| error.to_string())?;
     Ok(playlists.into_iter().map(map_playlist).collect())
+}
+
+/// 搜索专辑。
+pub fn netease_search_albums(
+    base_url: String,
+    keywords: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<Vec<UiNeteaseAlbum>, String> {
+    let albums = client(&base_url)?
+        .search_albums(&keywords, limit.unwrap_or(30), offset.unwrap_or(0))
+        .map_err(|error| error.to_string())?;
+    Ok(albums.into_iter().map(map_album).collect())
+}
+
+/// 搜索艺人。
+pub fn netease_search_artists(
+    base_url: String,
+    keywords: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<Vec<UiNeteaseArtist>, String> {
+    let artists = client(&base_url)?
+        .search_artists(&keywords, limit.unwrap_or(30), offset.unwrap_or(0))
+        .map_err(|error| error.to_string())?;
+    Ok(artists.into_iter().map(map_artist).collect())
+}
+
+/// 专辑详情与歌曲。
+pub fn netease_album_detail(
+    base_url: String,
+    album_id: u64,
+) -> Result<UiNeteaseAlbumDetail, String> {
+    let detail = client(&base_url)?
+        .album_detail(album_id)
+        .map_err(|error| error.to_string())?;
+    Ok(UiNeteaseAlbumDetail {
+        album: map_album(detail.album),
+        tracks: detail
+            .tracks
+            .into_iter()
+            .map(|track| map_track(&base_url, track))
+            .collect(),
+    })
+}
+
+/// 艺人详情与热门歌曲。
+pub fn netease_artist_detail(
+    base_url: String,
+    artist_id: u64,
+) -> Result<UiNeteaseArtistDetail, String> {
+    let detail = client(&base_url)?
+        .artist_detail(artist_id)
+        .map_err(|error| error.to_string())?;
+    Ok(UiNeteaseArtistDetail {
+        artist: map_artist(detail.artist),
+        tracks: detail
+            .tracks
+            .into_iter()
+            .map(|track| map_track(&base_url, track))
+            .collect(),
+    })
 }
 
 /// 按歌曲 id 获取详情。
@@ -312,6 +407,28 @@ fn map_captcha_result(result: NeteaseCaptchaResult) -> UiNeteaseCaptchaResult {
     UiNeteaseCaptchaResult {
         code: result.code,
         message: result.message,
+    }
+}
+
+fn map_album(album: NeteaseAlbum) -> UiNeteaseAlbum {
+    UiNeteaseAlbum {
+        id: album.id,
+        name: album.name,
+        artist: album.artist,
+        artist_id: album.artist_id,
+        cover_url: album.cover_url,
+        track_count: album.track_count,
+        publish_time_ms: album.publish_time_ms,
+    }
+}
+
+fn map_artist(artist: NeteaseArtist) -> UiNeteaseArtist {
+    UiNeteaseArtist {
+        id: artist.id,
+        name: artist.name,
+        cover_url: artist.cover_url,
+        album_size: artist.album_size,
+        alias: artist.alias,
     }
 }
 

@@ -19,9 +19,11 @@ import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../library/albums/album_detail_page.dart';
 import '../library/artists/artist_detail_page.dart';
+import '../library/netease/netease_album_artist_pages.dart';
 import '../library/netease/netease_playlists_page.dart';
 import '../library/playlists/local_playlist_detail_page.dart';
 import '../library/playlists/lx_playlist_preview_page.dart';
@@ -685,8 +687,9 @@ class _SearchResults extends ConsumerWidget {
         case MobileSearchCategory.playlists:
           return _NeteasePlaylistResults(query: query);
         case MobileSearchCategory.albums:
+          return _NeteaseAlbumResults(query: query);
         case MobileSearchCategory.artists:
-          return _empty(l10n, message: '网易云当前支持歌曲和歌单搜索');
+          return _NeteaseArtistResults(query: query);
       }
     }
     final isPlaylistCategory = category == MobileSearchCategory.playlists;
@@ -1261,6 +1264,164 @@ class _SearchResults extends ConsumerWidget {
     ];
     if (tracks.isEmpty) return;
     ref.read(playerProvider.notifier).load(tracks, 0, source: album.title);
+  }
+}
+
+class _NeteaseAlbumResults extends ConsumerWidget {
+  const _NeteaseAlbumResults({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final results = ref.watch(
+      neteaseAlbumSearchProvider((keywords: query, limit: 50, offset: 0)),
+    );
+
+    return results.when(
+      loading: _loading,
+      error: (error, _) => _NeteaseSearchError(message: '$error'),
+      data: (albums) {
+        if (albums.isEmpty) {
+          return _empty(l10n, message: l10n.searchNoAlbumResults);
+        }
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          children: <Widget>[
+            M3EList(
+              color: theme.colorScheme.surface,
+              variant: M3ECardVariant.filled,
+              itemCount: albums.length,
+              onTap: (int index) => pushMobileRootPage(
+                context,
+                NeteaseAlbumDetailPage(album: albums[index]),
+                name: MobileRoutes.libraryAlbums,
+              ),
+              itemBuilder: (BuildContext context, int index) {
+                final album = albums[index];
+                return M3EListItem(
+                  headline: album.name,
+                  supportingText: '${album.artist} · ${album.trackCount} 首',
+                  leading: _NeteaseSearchImage(url: album.coverUrl),
+                  trailing: _sourceChip('网易云', 'wy'),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _NeteaseArtistResults extends ConsumerWidget {
+  const _NeteaseArtistResults({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final results = ref.watch(
+      neteaseArtistSearchProvider((keywords: query, limit: 50, offset: 0)),
+    );
+
+    return results.when(
+      loading: _loading,
+      error: (error, _) => _NeteaseSearchError(message: '$error'),
+      data: (artists) {
+        if (artists.isEmpty) {
+          return _empty(l10n, message: l10n.searchNoArtistResults);
+        }
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          children: <Widget>[
+            M3EList(
+              color: theme.colorScheme.surface,
+              variant: M3ECardVariant.filled,
+              itemCount: artists.length,
+              onTap: (int index) => pushMobileRootPage(
+                context,
+                NeteaseArtistDetailPage(artist: artists[index]),
+                name: MobileRoutes.libraryArtists,
+              ),
+              itemBuilder: (BuildContext context, int index) {
+                final artist = artists[index];
+                return M3EListItem(
+                  headline: artist.name,
+                  supportingText: artist.alias.isEmpty
+                      ? '${artist.albumSize} 张专辑'
+                      : '${artist.alias.join(' / ')} · ${artist.albumSize} 张专辑',
+                  leading: _NeteaseSearchImage(
+                    url: artist.coverUrl,
+                    circular: true,
+                  ),
+                  trailing: _sourceChip('网易云', 'wy'),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _NeteaseSearchImage extends ConsumerWidget {
+  const _NeteaseSearchImage({required this.url, this.circular = false});
+
+  final String? url;
+  final bool circular;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final value = url;
+    final bytes = value == null || value.isEmpty
+        ? null
+        : ref.watch(neteaseImageProvider(value)).value;
+    return ClipRRect(
+      borderRadius: circular ? BorderRadius.circular(22) : AppRadii.smAll,
+      child: SizedBox.square(
+        dimension: 44,
+        child: bytes == null || bytes.isEmpty
+            ? ColoredBox(
+                color: theme.colorScheme.secondaryContainer,
+                child: Icon(
+                  circular ? M3EIcons.person : M3EIcons.album,
+                  size: 20,
+                  color: theme.colorScheme.onSecondaryContainer,
+                ),
+              )
+            : Image.memory(bytes, fit: BoxFit.cover),
+      ),
+    );
+  }
+}
+
+class _NeteaseSearchError extends StatelessWidget {
+  const _NeteaseSearchError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: Center(
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: theme.typeScale.bodyMedium.copyWith(
+            color: theme.colorScheme.error,
+          ),
+        ),
+      ),
+    );
   }
 }
 

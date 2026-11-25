@@ -61,6 +61,38 @@ pub struct NeteasePlaylist {
 }
 
 #[derive(Debug, Clone)]
+pub struct NeteaseAlbum {
+    pub id: u64,
+    pub name: String,
+    pub artist: String,
+    pub artist_id: u64,
+    pub cover_url: Option<String>,
+    pub track_count: u32,
+    pub publish_time_ms: Option<i64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NeteaseArtist {
+    pub id: u64,
+    pub name: String,
+    pub cover_url: Option<String>,
+    pub album_size: u32,
+    pub alias: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NeteaseAlbumDetail {
+    pub album: NeteaseAlbum,
+    pub tracks: Vec<NeteaseTrack>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NeteaseArtistDetail {
+    pub artist: NeteaseArtist,
+    pub tracks: Vec<NeteaseTrack>,
+}
+
+#[derive(Debug, Clone)]
 pub struct NeteaseStream {
     pub url: Option<String>,
     pub bitrate: Option<u64>,
@@ -303,6 +335,78 @@ impl NeteaseClient {
         Ok(playlists.into_iter().map(NeteasePlaylist::from).collect())
     }
 
+    pub fn search_albums(
+        &self,
+        keywords: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<NeteaseAlbum>> {
+        let envelope: SearchAlbumEnvelope = self.get_json(
+            "/cloudsearch",
+            &[
+                ("keywords", keywords.to_string()),
+                ("type", "10".to_string()),
+                ("limit", limit.to_string()),
+                ("offset", offset.to_string()),
+            ],
+        )?;
+        let albums = envelope
+            .result
+            .and_then(|result| result.albums)
+            .ok_or_else(|| NeteaseError::Api("搜索响应缺少专辑".to_string()))?;
+        Ok(albums.into_iter().map(NeteaseAlbum::from).collect())
+    }
+
+    pub fn search_artists(
+        &self,
+        keywords: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<NeteaseArtist>> {
+        let envelope: SearchArtistEnvelope = self.get_json(
+            "/cloudsearch",
+            &[
+                ("keywords", keywords.to_string()),
+                ("type", "100".to_string()),
+                ("limit", limit.to_string()),
+                ("offset", offset.to_string()),
+            ],
+        )?;
+        let artists = envelope
+            .result
+            .and_then(|result| result.artists)
+            .ok_or_else(|| NeteaseError::Api("搜索响应缺少艺人".to_string()))?;
+        Ok(artists.into_iter().map(NeteaseArtist::from).collect())
+    }
+
+    pub fn album_detail(&self, album_id: u64) -> Result<NeteaseAlbumDetail> {
+        let envelope: AlbumDetailEnvelope =
+            self.get_json("/album", &[("id", album_id.to_string())])?;
+        let album = envelope
+            .album
+            .ok_or_else(|| NeteaseError::Api("专辑响应缺少 album".to_string()))?;
+        Ok(NeteaseAlbumDetail {
+            album: NeteaseAlbum::from(album),
+            tracks: envelope.songs.into_iter().map(NeteaseTrack::from).collect(),
+        })
+    }
+
+    pub fn artist_detail(&self, artist_id: u64) -> Result<NeteaseArtistDetail> {
+        let envelope: ArtistDetailEnvelope =
+            self.get_json("/artists", &[("id", artist_id.to_string())])?;
+        let artist = envelope
+            .artist
+            .ok_or_else(|| NeteaseError::Api("艺人响应缺少 artist".to_string()))?;
+        Ok(NeteaseArtistDetail {
+            artist: NeteaseArtist::from(artist),
+            tracks: envelope
+                .hot_songs
+                .into_iter()
+                .map(NeteaseTrack::from)
+                .collect(),
+        })
+    }
+
     pub fn song_detail(&self, song_ids: &[String]) -> Result<Vec<NeteaseTrack>> {
         if song_ids.is_empty() {
             return Ok(Vec::new());
@@ -523,6 +627,36 @@ impl From<UserPlaylist> for NeteasePlaylist {
     }
 }
 
+impl From<AlbumInfo> for NeteaseAlbum {
+    fn from(album: AlbumInfo) -> Self {
+        Self {
+            id: album.id,
+            name: album.name,
+            artist: album
+                .artist
+                .as_ref()
+                .map(|artist| artist.name.clone())
+                .unwrap_or_default(),
+            artist_id: album.artist.as_ref().map(|artist| artist.id).unwrap_or(0),
+            cover_url: album.pic_url,
+            track_count: album.size.unwrap_or(0),
+            publish_time_ms: album.publish_time,
+        }
+    }
+}
+
+impl From<ArtistInfo> for NeteaseArtist {
+    fn from(artist: ArtistInfo) -> Self {
+        Self {
+            id: artist.id,
+            name: artist.name,
+            cover_url: artist.pic_url,
+            album_size: artist.album_size.unwrap_or(0),
+            alias: artist.alias,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct LoginStatusEnvelope {
     data: Option<LoginStatusData>,
@@ -547,6 +681,64 @@ struct Profile {
     nickname: Option<String>,
     #[serde(rename = "avatarUrl")]
     avatar_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SearchAlbumEnvelope {
+    result: Option<SearchAlbumResult>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SearchAlbumResult {
+    albums: Option<Vec<AlbumInfo>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SearchArtistEnvelope {
+    result: Option<SearchArtistResult>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SearchArtistResult {
+    artists: Option<Vec<ArtistInfo>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AlbumInfo {
+    id: u64,
+    name: String,
+    #[serde(rename = "picUrl")]
+    pic_url: Option<String>,
+    artist: Option<Artist>,
+    size: Option<u32>,
+    #[serde(rename = "publishTime")]
+    publish_time: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ArtistInfo {
+    id: u64,
+    name: String,
+    #[serde(rename = "picUrl")]
+    pic_url: Option<String>,
+    #[serde(rename = "albumSize")]
+    album_size: Option<u32>,
+    #[serde(default)]
+    alias: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AlbumDetailEnvelope {
+    album: Option<AlbumInfo>,
+    #[serde(default)]
+    songs: Vec<Song>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ArtistDetailEnvelope {
+    artist: Option<ArtistInfo>,
+    #[serde(rename = "hotSongs", default)]
+    hot_songs: Vec<Song>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -827,6 +1019,18 @@ mod tests {
             .search_playlists("周杰伦", 3, 0)
             .expect("search playlists");
         assert!(!playlists.is_empty());
+
+        let albums = client.search_albums("周杰伦", 3, 0).expect("search albums");
+        assert!(!albums.is_empty());
+        let album = client.album_detail(albums[0].id).expect("album detail");
+        assert!(!album.tracks.is_empty());
+
+        let artists = client
+            .search_artists("周杰伦", 3, 0)
+            .expect("search artists");
+        assert!(!artists.is_empty());
+        let artist = client.artist_detail(artists[0].id).expect("artist detail");
+        assert!(!artist.tracks.is_empty());
 
         let lyric = client.lyric(&free.id.to_string()).expect("lyric");
         assert!(!lyric.lyric.is_empty());
