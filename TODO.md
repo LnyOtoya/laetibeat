@@ -59,6 +59,30 @@
 - [x] 设置中增加「在线音乐 / 网易云音乐」配置入口；当前仅保存 API 地址与后备开关，未接 API 时不显示内容。
 - [x] 设置新增「在线音乐」单选页；媒体库「在线音乐」分组跟随所选来源，当前仅网易云，未接 API 时显示空占位。
 
+## 2026-11-25 Phase A：网易云无登录链路（进行中）
+
+> 本地 NAS API：`http://192.168.31.51:3000/`
+> 已验证：`/login/status`、`/search`、`/song/detail`、`/lyric/new`、`/check/music`、`/recommend/songs` 均可访问；免费歌曲 `fee=0` 未登录返回完整 320k URL，`fee=1` 未登录返回 45 秒试听（`freeTrialInfo`）。局域网内不需要 `realIP` / `randomCNIP`。
+
+### 本轮已完成
+
+- [x] Rust 新增 `laetibeat_netease`：连接测试、搜索、歌曲详情、歌词、播放 URL、每日推荐。
+- [x] FRB 暴露网易云 API，Dart 不直接请求 Node API。
+- [x] 设置页增加“测试连接”，区分服务可达 / 未登录 / 已登录。
+- [x] 媒体库“每日推荐”接入 `/recommend/songs` 真实数据。
+- [x] 免费歌曲可播放；`freeTrialInfo` 或缺失 URL 标记为试听。
+- [x] 曲目身份：`source=netease`、`id=netease:<songId>`，`sourceExtraJson` 保留 songId/albumId/duration/fee。
+- [x] 封面：Rust 下载 + Dart `NeteaseCoverProvider` 内存缓存。
+- [x] 本地联调：`LAETIBEAT_NETEASE_API=http://192.168.31.51:3000 cargo test -p laetibeat_netease live_probe -- --ignored` 通过。
+
+### 下一步
+
+- [ ] 搜索页接入 `neteaseSearchProvider`（Rust API 已就绪）。
+- [ ] 歌词 UI 接入 `neteaseLyric`（Rust API 已就绪）。
+- [ ] 二维码登录、Cookie 安全存储、用户歌单、VIP 完整 URL。
+- [ ] 试听失败后接入 LX `wy` fallback。
+- [ ] 其他在线音乐入口（艺人/专辑/电台）仍是占位。
+
 ## 2026-11-24 代码审查发现（只记录，不改实现）
 
 > 来源：全仓库静态阅读 + `cargo test` / `cargo clippy` + `flutter analyze` / `flutter test`。

@@ -3,10 +3,12 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
+import 'package:laetibeat/src/rust/api/netease.dart' as rust_netease;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 import '../../core/providers/playback_backend_provider.dart';
 import '../settings/persistence.dart';
+import '../settings/netease_provider.dart';
 import '../settings/subsonic_provider.dart';
 import '../recommendation_provider.dart';
 import '../settings/fade_settings.dart';
@@ -22,6 +24,9 @@ class PlayerState {
   final List<rust.UiTrack> queue;
   final int currentIndex;
   final bool isPlaying;
+
+  /// 当前曲目是否只是试听片段（网易云未登录/无会员）。
+  final bool isPreview;
   final Duration position;
   final Duration duration;
   final Duration bufferedPosition;
@@ -53,6 +58,7 @@ class PlayerState {
     this.queue = const <rust.UiTrack>[],
     this.currentIndex = 0,
     this.isPlaying = false,
+    this.isPreview = false,
     this.position = Duration.zero,
     this.duration = Duration.zero,
     this.bufferedPosition = Duration.zero,
@@ -78,6 +84,7 @@ class PlayerState {
     List<rust.UiTrack>? queue,
     int? currentIndex,
     bool? isPlaying,
+    bool? isPreview,
     Duration? position,
     Duration? duration,
     Duration? bufferedPosition,
@@ -95,6 +102,7 @@ class PlayerState {
       queue: queue ?? this.queue,
       currentIndex: currentIndex ?? this.currentIndex,
       isPlaying: isPlaying ?? this.isPlaying,
+      isPreview: isPreview ?? this.isPreview,
       position: position ?? this.position,
       duration: duration ?? this.duration,
       bufferedPosition: bufferedPosition ?? this.bufferedPosition,
@@ -218,8 +226,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
     _subs.add(
       _backend.phaseStream.listen((phase) {
         // 错误后引擎可能紧接着发 idle；不要让通知栏状态把错误吞掉。
-        if (state.phase == PlaybackPhase.error &&
-            phase == PlaybackPhase.idle) {
+        if (state.phase == PlaybackPhase.error && phase == PlaybackPhase.idle) {
           return;
         }
         state = state.copyWith(phase: phase);
@@ -428,6 +435,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
         duration: state.duration > Duration.zero
             ? state.duration
             : _durationOf(track),
+        isPreview: playbackTrack.isPreview,
         errorMessage: null,
       );
       // 真正开始播放时才开启统计会话(懒加载恢复不算播放)
@@ -476,6 +484,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
       queue: List<rust.UiTrack>.of(tracks),
       currentIndex: idx,
       isPlaying: true,
+      isPreview: false,
       position: Duration.zero,
       duration: _durationOf(tracks[idx]),
       source: source ?? state.source,
@@ -533,6 +542,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
     state = state.copyWith(
       currentIndex: idx,
       isPlaying: true,
+      isPreview: false,
       position: Duration.zero,
       duration: _durationOf(track),
       source: source,
@@ -556,7 +566,9 @@ class PlayerNotifier extends Notifier<PlayerState> {
     final generation = ++_openGeneration;
     try {
       // 远端要先解析 stream URL;期间暂停旧音频,避免旧曲继续出声
-      if (track.source == 'opensubsonic' || track.source == 'lx') {
+      if (track.source == 'opensubsonic' ||
+          track.source == 'lx' ||
+          track.source == 'netease') {
         await _backend.pause();
         if (generation != _openGeneration) return;
       }
@@ -565,7 +577,10 @@ class PlayerNotifier extends Notifier<PlayerState> {
       if (generation != _openGeneration) return;
       await _prepareVolumeForOpen();
       await _backend.open(playbackTrack);
-      state = state.copyWith(errorMessage: null);
+      state = state.copyWith(
+        isPreview: playbackTrack.isPreview,
+        errorMessage: null,
+      );
       _reportNowPlaying(track);
       await _fadeAfterOpen();
     } catch (e) {
@@ -730,6 +745,26 @@ class PlayerNotifier extends Notifier<PlayerState> {
     rust.UiTrack t, {
     bool refreshLx = false,
   }) async {
+    if (t.source == 'netease') {
+      final baseUrl = ref.read(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置网易云 API 地址');
+      }
+      final stream = await rust_netease.neteaseSongUrl(
+        baseUrl: baseUrl,
+        songId: neteaseSongIdFromTrack(t),
+        level: 'exhigh',
+      );
+      final url = stream.url;
+      if (url == null || url.isEmpty) {
+        throw StateError(stream.message ?? '网易云没有返回可播放地址');
+      }
+      return PlaybackTrack(
+        uri: url,
+        fallbackDuration: _durationOf(t),
+        isPreview: stream.isTrial,
+      );
+    }
     if (t.source == 'lx' && t.sourceId.isNotEmpty) {
       final music = lxMusicInfoFromTrack(t);
       final preferred = ref.read(lxDefaultQualityProvider);

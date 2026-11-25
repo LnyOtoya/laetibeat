@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/metadata.dart' as rust_meta;
+import 'package:laetibeat/src/rust/api/netease.dart' as rust_netease;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 import 'package:saf/saf.dart';
@@ -314,6 +315,44 @@ class RemoteCoverProvider {
   }
 }
 
+/// 网易云封面：coverId 是网易云 CDN URL，由 Rust 下载并在这里做内存 LRU。
+class NeteaseCoverProvider {
+  int _maxCacheBytes = 32 * 1024 * 1024;
+  final Map<String, Uint8List> _cache = <String, Uint8List>{};
+  int _cachedBytes = 0;
+
+  void setMaxBytes(int bytes) {
+    _maxCacheBytes = bytes;
+    _trim();
+  }
+
+  void _trim() {
+    while (_cachedBytes > _maxCacheBytes && _cache.isNotEmpty) {
+      final oldestKey = _cache.keys.first;
+      final removed = _cache.remove(oldestKey);
+      _cachedBytes -= removed?.length ?? 0;
+    }
+  }
+
+  Future<Uint8List?> cover(rust.UiTrack track) async {
+    final url = track.coverId;
+    if (url == null || url.isEmpty) return null;
+
+    final cached = _cache.remove(url);
+    if (cached != null) {
+      _cache[url] = cached;
+      return cached;
+    }
+
+    final bytes = await rust_netease.neteaseGetCover(url: url);
+    if (bytes.isEmpty) return null;
+    _cache[url] = bytes;
+    _cachedBytes += bytes.length;
+    _trim();
+    return bytes;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Riverpod 接线
 // ---------------------------------------------------------------------------
@@ -331,6 +370,10 @@ final lxCoverSourceProvider = Provider<LxCoverProvider>((ref) {
   return LxCoverProvider();
 });
 
+final neteaseCoverSourceProvider = Provider<NeteaseCoverProvider>((ref) {
+  return NeteaseCoverProvider();
+});
+
 /// 当前播放曲目的封面信息(字节 + 主色)。随当前曲目切换而刷新。
 /// 只订阅 current,避免 position 每 tick 更新 state 时反复重跑。
 /// 无封面 / 取色失败时返回 null,UI 回退占位图标并保留应用默认配色。
@@ -342,6 +385,10 @@ final playbackCoverProvider = FutureProvider<PlaybackCover?>((ref) async {
   final coverId = track.coverId;
   if (track.source == 'lx') {
     bytes = await ref.read(lxCoverSourceProvider).cover(track);
+  } else if (track.source == 'netease' &&
+      coverId != null &&
+      coverId.isNotEmpty) {
+    bytes = await ref.read(neteaseCoverSourceProvider).cover(track);
   } else if (track.source == 'opensubsonic' &&
       coverId != null &&
       coverId.isNotEmpty) {
@@ -365,6 +412,9 @@ final trackCoverProvider = FutureProvider.family<Uint8List?, rust.UiTrack>((
   final coverId = track.coverId;
   if (track.source == 'lx') {
     return ref.read(lxCoverSourceProvider).cover(track);
+  }
+  if (track.source == 'netease' && coverId != null && coverId.isNotEmpty) {
+    return ref.read(neteaseCoverSourceProvider).cover(track);
   }
   if (track.source == 'opensubsonic' && coverId != null && coverId.isNotEmpty) {
     return ref.read(remoteCoverSourceProvider).cover(track.sourceId, coverId);

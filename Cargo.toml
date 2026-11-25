@@ -2,6 +2,7 @@
 members = [
     "laetibeat_core",
     "laetibeat_remote",
+    "laetibeat_netease",
     "laetibeat_flutter/rust",
     "laetibeat_lx"
 ]

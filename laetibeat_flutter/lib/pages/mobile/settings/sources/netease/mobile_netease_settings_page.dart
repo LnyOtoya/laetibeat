@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:laetibeat/src/rust/api/netease.dart' as rust_netease;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -22,6 +23,9 @@ class _MobileNeteaseSettingsPageState
   late final TextEditingController _urlController;
   late bool _allowLxFallback;
   bool _saving = false;
+  bool _testing = false;
+  String? _statusText;
+  bool _statusIsError = false;
 
   @override
   void initState() {
@@ -63,6 +67,44 @@ class _MobileNeteaseSettingsPageState
     }
   }
 
+  Future<void> _testConnection() async {
+    final raw = normalizeNeteaseBaseUrl(_urlController.text);
+    final uri = Uri.tryParse(raw);
+    if (raw.isEmpty ||
+        uri == null ||
+        uri.host.isEmpty ||
+        !(uri.scheme == 'http' || uri.scheme == 'https')) {
+      M3ESnackbar.show(context, message: '请先填写有效的 API 地址');
+      return;
+    }
+
+    setState(() {
+      _testing = true;
+      _statusText = '正在连接…';
+      _statusIsError = false;
+    });
+    try {
+      final status = await rust_netease.neteaseStatus(baseUrl: raw);
+      if (!mounted) return;
+      setState(() {
+        _statusText = status.loggedIn
+            ? '连接成功，已登录：${status.nickname ?? status.userId ?? ''}'
+            : '连接成功，当前未登录';
+        _statusIsError = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _statusText = '连接失败：$error';
+        _statusIsError = true;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _testing = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
@@ -93,7 +135,7 @@ class _MobileNeteaseSettingsPageState
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      '网易云 API 尚未接入。当前仅保存配置，媒体库不会显示在线内容。',
+                      '当前支持搜索、每日推荐和免费歌曲播放。登录、个人歌单与 VIP 完整音质尚未接入。',
                       style: theme.typeScale.bodyMedium.copyWith(
                         color: scheme.onSecondaryContainer,
                       ),
@@ -125,11 +167,61 @@ class _MobileNeteaseSettingsPageState
               },
             ),
             const SizedBox(height: AppSpacing.lg),
-            M3EButton(
-              label: Text(_saving ? '保存中…' : '保存'),
-              enabled: !_saving,
-              onPressed: _save,
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: M3EButton(
+                    style: M3EButtonStyle.tonal,
+                    label: Text(_testing ? '测试中…' : '测试连接'),
+                    enabled: !_testing,
+                    onPressed: _testConnection,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: M3EButton(
+                    label: Text(_saving ? '保存中…' : '保存'),
+                    enabled: !_saving,
+                    onPressed: _save,
+                  ),
+                ),
+              ],
             ),
+            if (_statusText != null) ...<Widget>[
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: _statusIsError
+                      ? scheme.errorContainer
+                      : scheme.secondaryContainer,
+                  borderRadius: AppRadii.lgAll,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Icon(
+                      _statusIsError ? M3EIcons.error : M3EIcons.check_circle,
+                      size: AppIconSize.md,
+                      color: _statusIsError
+                          ? scheme.onErrorContainer
+                          : scheme.onSecondaryContainer,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        _statusText!,
+                        style: theme.typeScale.bodyMedium.copyWith(
+                          color: _statusIsError
+                              ? scheme.onErrorContainer
+                              : scheme.onSecondaryContainer,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

@@ -19,9 +19,13 @@ class PlaybackTrack {
   /// 从元数据粗读出的时长,用于引擎给出真实时长前的兜底展示
   final Duration fallbackDuration;
 
+  /// 当前 URL 是否只是试听片段（网易云未登录/无会员时会出现）。
+  final bool isPreview;
+
   const PlaybackTrack({
     required this.uri,
     this.fallbackDuration = Duration.zero,
+    this.isPreview = false,
   });
 }
 
@@ -131,8 +135,7 @@ class MediaKitBackend implements PlaybackBackend {
 
   @override
   Stream<PlaybackPhase> get phaseStream => _player.stream.buffering.map(
-    (buffering) =>
-        buffering ? PlaybackPhase.buffering : PlaybackPhase.ready,
+    (buffering) => buffering ? PlaybackPhase.buffering : PlaybackPhase.ready,
   );
 
   @override

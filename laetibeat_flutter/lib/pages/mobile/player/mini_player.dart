@@ -34,6 +34,9 @@ class MiniPlayer extends ConsumerWidget {
           final isPlaying = ref.watch(
             playerProvider.select((state) => state.isPlaying),
           );
+          final isPreview = ref.watch(
+            playerProvider.select((state) => state.isPreview),
+          );
           final cover = ref.watch(playbackCoverProvider).value;
           final notifier = ref.read(playerProvider.notifier);
           final background = playbackPanelBackground(theme, cover);
@@ -77,7 +80,7 @@ class MiniPlayer extends ConsumerWidget {
                         const SizedBox(height: 2),
                         _tappableTitle(
                           context,
-                          track.artist,
+                          isPreview ? '${track.artist} · 试听' : track.artist,
                           theme.typeScale.bodySmall.copyWith(
                             color: foreground.withValues(alpha: 0.8),
                           ),
@@ -89,9 +92,7 @@ class MiniPlayer extends ConsumerWidget {
                   M3EIconButton(
                     variant: M3EIconButtonVariant.standard,
                     icon: Icon(M3EIcons.skip_previous, color: foreground),
-                    semanticLabel: AppLocalizations.of(
-                      context,
-                    ).previousTrack,
+                    semanticLabel: AppLocalizations.of(context).previousTrack,
                     onPressed: notifier.prev,
                   ),
                   _ShapePlayPauseButton(

@@ -7,6 +7,7 @@ import 'api/library.dart';
 import 'api/lx.dart';
 import 'api/lyrics.dart';
 import 'api/metadata.dart';
+import 'api/netease.dart';
 import 'api/playlists.dart';
 import 'api/simple.dart';
 import 'api/stats.dart';
@@ -260,6 +261,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiLyricsSearchResult dco_decode_ui_lyrics_search_result(dynamic raw);
+
+  @protected
+  UiNeteaseLyric dco_decode_ui_netease_lyric(dynamic raw);
+
+  @protected
+  UiNeteaseStatus dco_decode_ui_netease_status(dynamic raw);
+
+  @protected
+  UiNeteaseStream dco_decode_ui_netease_stream(dynamic raw);
 
   @protected
   UiPlayEvent dco_decode_ui_play_event(dynamic raw);
@@ -600,6 +610,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UiLyricsSearchResult sse_decode_ui_lyrics_search_result(
     SseDeserializer deserializer,
   );
+
+  @protected
+  UiNeteaseLyric sse_decode_ui_netease_lyric(SseDeserializer deserializer);
+
+  @protected
+  UiNeteaseStatus sse_decode_ui_netease_status(SseDeserializer deserializer);
+
+  @protected
+  UiNeteaseStream sse_decode_ui_netease_stream(SseDeserializer deserializer);
 
   @protected
   UiPlayEvent sse_decode_ui_play_event(SseDeserializer deserializer);
@@ -1032,6 +1051,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_ui_lyrics_search_result(
     UiLyricsSearchResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_netease_lyric(
+    UiNeteaseLyric self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_netease_status(
+    UiNeteaseStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_netease_stream(
+    UiNeteaseStream self,
     SseSerializer serializer,
   );
 

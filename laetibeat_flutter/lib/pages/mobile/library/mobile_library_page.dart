@@ -12,6 +12,7 @@ import '../routes.dart';
 import '../widgets/mobile_large_subpage_app_bar.dart';
 import 'library_source_filter.dart';
 import 'mobile_library_subpages.dart';
+import 'netease/netease_daily_page.dart';
 
 /// 媒体库首页。
 ///
@@ -166,11 +167,9 @@ class MobileLibraryPage extends ConsumerWidget {
         icon: M3EIcons.auto_awesome,
         title: '每日推荐',
         routeName: MobileRoutes.discovery,
-        page: _LibraryPlaceholderPage(
-          title: '每日推荐',
-          message: message,
-          icon: M3EIcons.auto_awesome,
-        ),
+        page: switch (source) {
+          OnlineMusicSource.netease => const NeteaseDailyPage(),
+        },
       ),
       _LibrarySegment(
         icon: M3EIcons.album,
