@@ -4,8 +4,13 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../design/design.dart';
+import '../../../../../widgets/settings/netease_provider.dart';
+import '../../../../../widgets/settings/netease_session.dart';
 import '../../../../../widgets/settings/netease_settings.dart';
+import '../../../mobile_navigation.dart';
+import '../../../routes.dart';
 import '../../../widgets/mobile_large_subpage_app_bar.dart';
+import 'mobile_netease_login_page.dart';
 
 /// 网易云在线音源配置页。
 ///
@@ -58,6 +63,8 @@ class _MobileNeteaseSettingsPageState
       await ref
           .read(neteaseSettingsProvider.notifier)
           .save(apiBaseUrl: raw, allowLxFallback: _allowLxFallback);
+      ref.invalidate(neteaseStatusProvider);
+      ref.invalidate(neteaseDailyProvider);
       if (!mounted) return;
       M3ESnackbar.show(context, message: '已保存');
     } finally {
@@ -84,7 +91,11 @@ class _MobileNeteaseSettingsPageState
       _statusIsError = false;
     });
     try {
-      final status = await rust_netease.neteaseStatus(baseUrl: raw);
+      final cookie = await ref.read(neteaseCookieProvider.future);
+      final status = await rust_netease.neteaseStatus(
+        baseUrl: raw,
+        cookie: cookie,
+      );
       if (!mounted) return;
       setState(() {
         _statusText = status.loggedIn
@@ -103,6 +114,86 @@ class _MobileNeteaseSettingsPageState
         setState(() => _testing = false);
       }
     }
+  }
+
+  Future<void> _openLogin() async {
+    await pushMobileRootPage<bool>(
+      context,
+      const MobileNeteaseLoginPage(),
+      name: MobileRoutes.neteaseLogin,
+    );
+    ref.invalidate(neteaseStatusProvider);
+    ref.invalidate(neteaseDailyProvider);
+  }
+
+  Future<void> _logout() async {
+    await ref.read(neteaseCookieProvider.notifier).clear();
+    ref.invalidate(neteaseStatusProvider);
+    ref.invalidate(neteaseDailyProvider);
+    if (!mounted) return;
+    M3ESnackbar.show(context, message: '已退出网易云');
+  }
+
+  Widget _buildAccountCard(M3EThemeData theme) {
+    final scheme = theme.colorScheme;
+    final cookie = ref.watch(neteaseCookieProvider);
+    final status = ref.watch(neteaseStatusProvider);
+    final loggedIn = cookie.value != null;
+    final nickname = status.value?.nickname;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: AppRadii.lgAll,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(
+                loggedIn ? M3EIcons.account_circle : M3EIcons.login,
+                size: AppIconSize.lg,
+                color: loggedIn ? scheme.primary : scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      loggedIn ? (nickname ?? '网易云账号') : '未登录网易云',
+                      style: theme.typeScale.titleSmall,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      loggedIn
+                          ? (status.isLoading
+                                ? '正在获取账号信息…'
+                                : '已登录，可使用个人歌单和会员音质')
+                          : '登录后可获取个人歌单、个性化日推和会员完整音质',
+                      style: theme.typeScale.bodySmall.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            alignment: Alignment.centerRight,
+            child: M3EButton(
+              style: M3EButtonStyle.tonal,
+              label: Text(loggedIn ? '退出登录' : '登录'),
+              onPressed: loggedIn ? _logout : _openLogin,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -135,7 +226,7 @@ class _MobileNeteaseSettingsPageState
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      '当前支持搜索、每日推荐和免费歌曲播放。登录、个人歌单与 VIP 完整音质尚未接入。',
+                      '支持二维码与手机验证码登录。登录后每日推荐、播放 URL 会自动携带 Cookie。',
                       style: theme.typeScale.bodyMedium.copyWith(
                         color: scheme.onSecondaryContainer,
                       ),
@@ -144,6 +235,8 @@ class _MobileNeteaseSettingsPageState
                 ],
               ),
             ),
+            const SizedBox(height: AppSpacing.lg),
+            _buildAccountCard(theme),
             const SizedBox(height: AppSpacing.lg),
             TextField(
               controller: _urlController,

@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -205402776;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -632540151;
 
 // Section: executor
 
@@ -975,11 +975,14 @@ fn wire__crate__api__netease__netease_daily_recommendations_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_base_url = <String>::sse_decode(&mut deserializer);
+            let api_cookie = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
-                    let output_ok =
-                        crate::api::netease::netease_daily_recommendations(api_base_url)?;
+                    let output_ok = crate::api::netease::netease_daily_recommendations(
+                        api_base_url,
+                        api_cookie,
+                    )?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -1013,6 +1016,47 @@ fn wire__crate__api__netease__netease_get_cover_impl(
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok = crate::api::netease::netease_get_cover(api_url)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__netease__netease_login_cellphone_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "netease_login_cellphone",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_base_url = <String>::sse_decode(&mut deserializer);
+            let api_phone = <String>::sse_decode(&mut deserializer);
+            let api_captcha = <String>::sse_decode(&mut deserializer);
+            let api_countrycode = <Option<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::netease::netease_login_cellphone(
+                        api_base_url,
+                        api_phone,
+                        api_captcha,
+                        api_countrycode,
+                    )?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -1053,6 +1097,73 @@ fn wire__crate__api__netease__netease_lyric_impl(
         },
     )
 }
+fn wire__crate__api__netease__netease_qr_check_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "netease_qr_check",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_base_url = <String>::sse_decode(&mut deserializer);
+            let api_key = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::netease::netease_qr_check(api_base_url, api_key)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__netease__netease_qr_create_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "netease_qr_create",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_base_url = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::netease::netease_qr_create(api_base_url)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__netease__netease_search_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1087,6 +1198,45 @@ fn wire__crate__api__netease__netease_search_impl(
                         api_keywords,
                         api_limit,
                         api_offset,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__netease__netease_send_captcha_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "netease_send_captcha",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_base_url = <String>::sse_decode(&mut deserializer);
+            let api_phone = <String>::sse_decode(&mut deserializer);
+            let api_countrycode = <Option<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::netease::netease_send_captcha(
+                        api_base_url,
+                        api_phone,
+                        api_countrycode,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -1193,10 +1343,11 @@ fn wire__crate__api__netease__netease_status_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_base_url = <String>::sse_decode(&mut deserializer);
+            let api_cookie = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::netease::netease_status(api_base_url)?;
+                    let output_ok = crate::api::netease::netease_status(api_base_url, api_cookie)?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -4247,6 +4398,32 @@ impl SseDecode for crate::api::lyrics::UiLyricsSearchResult {
     }
 }
 
+impl SseDecode for crate::api::netease::UiNeteaseCaptchaResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_code = <i32>::sse_decode(deserializer);
+        let mut var_message = <String>::sse_decode(deserializer);
+        return crate::api::netease::UiNeteaseCaptchaResult {
+            code: var_code,
+            message: var_message,
+        };
+    }
+}
+
+impl SseDecode for crate::api::netease::UiNeteaseLoginResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_cookie = <String>::sse_decode(deserializer);
+        let mut var_nickname = <Option<String>>::sse_decode(deserializer);
+        let mut var_userId = <Option<u64>>::sse_decode(deserializer);
+        return crate::api::netease::UiNeteaseLoginResult {
+            cookie: var_cookie,
+            nickname: var_nickname,
+            user_id: var_userId,
+        };
+    }
+}
+
 impl SseDecode for crate::api::netease::UiNeteaseLyric {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4257,6 +4434,34 @@ impl SseDecode for crate::api::netease::UiNeteaseLyric {
             lyric: var_lyric,
             translated: var_translated,
             word_by_word: var_wordByWord,
+        };
+    }
+}
+
+impl SseDecode for crate::api::netease::UiNeteaseQrCheck {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_code = <i32>::sse_decode(deserializer);
+        let mut var_message = <String>::sse_decode(deserializer);
+        let mut var_cookie = <Option<String>>::sse_decode(deserializer);
+        return crate::api::netease::UiNeteaseQrCheck {
+            code: var_code,
+            message: var_message,
+            cookie: var_cookie,
+        };
+    }
+}
+
+impl SseDecode for crate::api::netease::UiNeteaseQrCode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_key = <String>::sse_decode(deserializer);
+        let mut var_qrUrl = <String>::sse_decode(deserializer);
+        let mut var_qrImageBase64 = <Option<String>>::sse_decode(deserializer);
+        return crate::api::netease::UiNeteaseQrCode {
+            key: var_key,
+            qr_url: var_qrUrl,
+            qr_image_base64: var_qrImageBase64,
         };
     }
 }
@@ -4791,203 +4996,214 @@ fn pde_ffi_dispatcher_primary_impl(
             data_len,
         ),
         28 => wire__crate__api__netease__netease_get_cover_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__netease__netease_lyric_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__netease__netease_search_impl(port, ptr, rust_vec_len, data_len),
-        31 => {
+        29 => wire__crate__api__netease__netease_login_cellphone_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        30 => wire__crate__api__netease__netease_lyric_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__netease__netease_qr_check_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__netease__netease_qr_create_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__netease__netease_search_impl(port, ptr, rust_vec_len, data_len),
+        34 => {
+            wire__crate__api__netease__netease_send_captcha_impl(port, ptr, rust_vec_len, data_len)
+        }
+        35 => {
             wire__crate__api__netease__netease_song_detail_impl(port, ptr, rust_vec_len, data_len)
         }
-        32 => wire__crate__api__netease__netease_song_url_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__netease__netease_status_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__simple__parse_saf_track_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__simple__pick_directory_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__subsonic__ping_subsonic_impl(port, ptr, rust_vec_len, data_len),
-        37 => {
+        36 => wire__crate__api__netease__netease_song_url_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__netease__netease_status_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__simple__parse_saf_track_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__simple__pick_directory_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__subsonic__ping_subsonic_impl(port, ptr, rust_vec_len, data_len),
+        41 => {
             wire__crate__api__stats__query_all_track_stats_impl(port, ptr, rust_vec_len, data_len)
         }
-        38 => {
+        42 => {
             wire__crate__api__stats__query_history_summary_impl(port, ptr, rust_vec_len, data_len)
         }
-        39 => wire__crate__api__stats__query_history_summary_all_impl(
+        43 => wire__crate__api__stats__query_history_summary_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        40 => wire__crate__api__stats__query_recent_play_events_impl(
+        44 => wire__crate__api__stats__query_recent_play_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        41 => {
+        45 => {
             wire__crate__api__library__query_remote_albums_impl(port, ptr, rust_vec_len, data_len)
         }
-        42 => wire__crate__api__library__query_remote_all_tracks_impl(
+        46 => wire__crate__api__library__query_remote_all_tracks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        43 => {
+        47 => {
             wire__crate__api__library__query_remote_artists_impl(port, ptr, rust_vec_len, data_len)
         }
-        44 => {
+        48 => {
             wire__crate__api__library__query_remote_tracks_impl(port, ptr, rust_vec_len, data_len)
         }
-        45 => wire__crate__api__stats__query_track_stats_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__metadata__read_cover_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__metadata__read_cover_fd_impl(port, ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__metadata__read_lyrics_impl(port, ptr, rust_vec_len, data_len),
-        49 => wire__crate__api__metadata__read_lyrics_fd_impl(port, ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__stats__record_play_event_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__subsonic__register_subsonic_impl(port, ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__playlists__remove_local_playlist_item_impl(
+        49 => wire__crate__api__stats__query_track_stats_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__metadata__read_cover_impl(port, ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__metadata__read_cover_fd_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__metadata__read_lyrics_impl(port, ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__metadata__read_lyrics_fd_impl(port, ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__stats__record_play_event_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__subsonic__register_subsonic_impl(port, ptr, rust_vec_len, data_len),
+        56 => wire__crate__api__playlists__remove_local_playlist_item_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        53 => wire__crate__api__lx__remove_lx_source_impl(port, ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__subsonic__remove_subsonic_impl(port, ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__playlists__rename_local_playlist_impl(
+        57 => wire__crate__api__lx__remove_lx_source_impl(port, ptr, rust_vec_len, data_len),
+        58 => wire__crate__api__subsonic__remove_subsonic_impl(port, ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__playlists__rename_local_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        56 => wire__crate__api__playlists__reorder_local_playlist_items_impl(
+        60 => wire__crate__api__playlists__reorder_local_playlist_items_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        57 => wire__crate__api__playlists__replace_local_playlist_tracks_impl(
+        61 => wire__crate__api__playlists__replace_local_playlist_tracks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        58 => wire__crate__api__library__resolve_local_lyrics_cached_impl(
+        62 => wire__crate__api__library__resolve_local_lyrics_cached_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        59 => wire__crate__api__lx__resolve_lx_lyric_impl(port, ptr, rust_vec_len, data_len),
-        60 => wire__crate__api__lx__resolve_lx_music_url_impl(port, ptr, rust_vec_len, data_len),
-        61 => wire__crate__api__lx__resolve_lx_pic_impl(port, ptr, rust_vec_len, data_len),
-        62 => {
+        63 => wire__crate__api__lx__resolve_lx_lyric_impl(port, ptr, rust_vec_len, data_len),
+        64 => wire__crate__api__lx__resolve_lx_music_url_impl(port, ptr, rust_vec_len, data_len),
+        65 => wire__crate__api__lx__resolve_lx_pic_impl(port, ptr, rust_vec_len, data_len),
+        66 => {
             wire__crate__api__subsonic__save_discovery_cache_impl(port, ptr, rust_vec_len, data_len)
         }
-        63 => wire__crate__api__simple__scan_local_music_folder_impl(
+        67 => wire__crate__api__simple__scan_local_music_folder_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        64 => wire__crate__api__lx__search_lx_music_impl(port, ptr, rust_vec_len, data_len),
-        65 => wire__crate__api__lx__search_lx_playlists_impl(port, ptr, rust_vec_len, data_len),
-        66 => wire__crate__api__lyrics__search_lyrics_impl(port, ptr, rust_vec_len, data_len),
-        67 => {
+        68 => wire__crate__api__lx__search_lx_music_impl(port, ptr, rust_vec_len, data_len),
+        69 => wire__crate__api__lx__search_lx_playlists_impl(port, ptr, rust_vec_len, data_len),
+        70 => wire__crate__api__lyrics__search_lyrics_impl(port, ptr, rust_vec_len, data_len),
+        71 => {
             wire__crate__api__library__search_remote_library_impl(port, ptr, rust_vec_len, data_len)
         }
-        68 => wire__crate__api__lx__set_lx_active_source_impl(port, ptr, rust_vec_len, data_len),
-        69 => {
+        72 => wire__crate__api__lx__set_lx_active_source_impl(port, ptr, rust_vec_len, data_len),
+        73 => {
             wire__crate__api__lx__set_lx_allow_update_alert_impl(port, ptr, rust_vec_len, data_len)
         }
-        70 => wire__crate__api__lx__set_lx_source_enabled_impl(port, ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__lx__set_lx_source_priority_impl(port, ptr, rust_vec_len, data_len),
-        72 => wire__crate__api__subsonic__subsonic_create_playlist_impl(
+        74 => wire__crate__api__lx__set_lx_source_enabled_impl(port, ptr, rust_vec_len, data_len),
+        75 => wire__crate__api__lx__set_lx_source_priority_impl(port, ptr, rust_vec_len, data_len),
+        76 => wire__crate__api__subsonic__subsonic_create_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        73 => wire__crate__api__subsonic__subsonic_delete_playlist_impl(
+        77 => wire__crate__api__subsonic__subsonic_delete_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        74 => {
+        78 => {
             wire__crate__api__subsonic__subsonic_get_album_impl(port, ptr, rust_vec_len, data_len)
         }
-        75 => {
+        79 => {
             wire__crate__api__subsonic__subsonic_get_artist_impl(port, ptr, rust_vec_len, data_len)
         }
-        76 => wire__crate__api__subsonic__subsonic_get_artist_biography_impl(
+        80 => wire__crate__api__subsonic__subsonic_get_artist_biography_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        77 => {
+        81 => {
             wire__crate__api__subsonic__subsonic_get_artists_impl(port, ptr, rust_vec_len, data_len)
         }
-        78 => wire__crate__api__subsonic__subsonic_get_cover_art_impl(
+        82 => wire__crate__api__subsonic__subsonic_get_cover_art_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        79 => {
+        83 => {
             wire__crate__api__subsonic__subsonic_get_lyrics_impl(port, ptr, rust_vec_len, data_len)
         }
-        80 => wire__crate__api__subsonic__subsonic_get_lyrics_cached_impl(
+        84 => wire__crate__api__subsonic__subsonic_get_lyrics_cached_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        81 => wire__crate__api__subsonic__subsonic_get_playlist_impl(
+        85 => wire__crate__api__subsonic__subsonic_get_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        82 => wire__crate__api__subsonic__subsonic_get_playlists_impl(
+        86 => wire__crate__api__subsonic__subsonic_get_playlists_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        83 => wire__crate__api__subsonic__subsonic_get_similar_songs_impl(
+        87 => wire__crate__api__subsonic__subsonic_get_similar_songs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        84 => wire__crate__api__subsonic__subsonic_get_user_name_impl(
+        88 => wire__crate__api__subsonic__subsonic_get_user_name_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        85 => wire__crate__api__subsonic__subsonic_scrobble_impl(port, ptr, rust_vec_len, data_len),
-        86 => wire__crate__api__subsonic__subsonic_search3_impl(port, ptr, rust_vec_len, data_len),
-        87 => {
+        89 => wire__crate__api__subsonic__subsonic_scrobble_impl(port, ptr, rust_vec_len, data_len),
+        90 => wire__crate__api__subsonic__subsonic_search3_impl(port, ptr, rust_vec_len, data_len),
+        91 => {
             wire__crate__api__subsonic__subsonic_stream_url_impl(port, ptr, rust_vec_len, data_len)
         }
-        88 => wire__crate__api__subsonic__subsonic_update_playlist_impl(
+        92 => wire__crate__api__subsonic__subsonic_update_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        89 => wire__crate__api__lx__supported_lx_search_platforms_impl(
+        93 => wire__crate__api__lx__supported_lx_search_platforms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        90 => wire__crate__api__sync__sync_subsonic_library_impl(port, ptr, rust_vec_len, data_len),
-        91 => wire__crate__api__subsonic__test_subsonic_connection_impl(
+        94 => wire__crate__api__sync__sync_subsonic_library_impl(port, ptr, rust_vec_len, data_len),
+        95 => wire__crate__api__subsonic__test_subsonic_connection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        92 => wire__crate__api__sync__ui_remote_sync_progress_default_impl(
+        96 => wire__crate__api__sync__ui_remote_sync_progress_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -5465,6 +5681,49 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::lyrics::UiLyricsSearchResult>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::netease::UiNeteaseCaptchaResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.code.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::netease::UiNeteaseCaptchaResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::netease::UiNeteaseCaptchaResult>
+    for crate::api::netease::UiNeteaseCaptchaResult
+{
+    fn into_into_dart(self) -> crate::api::netease::UiNeteaseCaptchaResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::netease::UiNeteaseLoginResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.cookie.into_into_dart().into_dart(),
+            self.nickname.into_into_dart().into_dart(),
+            self.user_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::netease::UiNeteaseLoginResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::netease::UiNeteaseLoginResult>
+    for crate::api::netease::UiNeteaseLoginResult
+{
+    fn into_into_dart(self) -> crate::api::netease::UiNeteaseLoginResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::netease::UiNeteaseLyric {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -5483,6 +5742,50 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::netease::UiNeteaseLyric>
     for crate::api::netease::UiNeteaseLyric
 {
     fn into_into_dart(self) -> crate::api::netease::UiNeteaseLyric {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::netease::UiNeteaseQrCheck {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.code.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+            self.cookie.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::netease::UiNeteaseQrCheck
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::netease::UiNeteaseQrCheck>
+    for crate::api::netease::UiNeteaseQrCheck
+{
+    fn into_into_dart(self) -> crate::api::netease::UiNeteaseQrCheck {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::netease::UiNeteaseQrCode {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.key.into_into_dart().into_dart(),
+            self.qr_url.into_into_dart().into_dart(),
+            self.qr_image_base64.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::netease::UiNeteaseQrCode
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::netease::UiNeteaseQrCode>
+    for crate::api::netease::UiNeteaseQrCode
+{
+    fn into_into_dart(self) -> crate::api::netease::UiNeteaseQrCode {
         self
     }
 }
@@ -6628,12 +6931,47 @@ impl SseEncode for crate::api::lyrics::UiLyricsSearchResult {
     }
 }
 
+impl SseEncode for crate::api::netease::UiNeteaseCaptchaResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.code, serializer);
+        <String>::sse_encode(self.message, serializer);
+    }
+}
+
+impl SseEncode for crate::api::netease::UiNeteaseLoginResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.cookie, serializer);
+        <Option<String>>::sse_encode(self.nickname, serializer);
+        <Option<u64>>::sse_encode(self.user_id, serializer);
+    }
+}
+
 impl SseEncode for crate::api::netease::UiNeteaseLyric {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.lyric, serializer);
         <Option<String>>::sse_encode(self.translated, serializer);
         <Option<String>>::sse_encode(self.word_by_word, serializer);
+    }
+}
+
+impl SseEncode for crate::api::netease::UiNeteaseQrCheck {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.code, serializer);
+        <String>::sse_encode(self.message, serializer);
+        <Option<String>>::sse_encode(self.cookie, serializer);
+    }
+}
+
+impl SseEncode for crate::api::netease::UiNeteaseQrCode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.key, serializer);
+        <String>::sse_encode(self.qr_url, serializer);
+        <Option<String>>::sse_encode(self.qr_image_base64, serializer);
     }
 }
 

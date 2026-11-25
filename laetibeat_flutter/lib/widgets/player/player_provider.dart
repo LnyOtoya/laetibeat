@@ -9,6 +9,7 @@ import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 import '../../core/providers/playback_backend_provider.dart';
 import '../settings/persistence.dart';
 import '../settings/netease_provider.dart';
+import '../settings/netease_session.dart';
 import '../settings/subsonic_provider.dart';
 import '../recommendation_provider.dart';
 import '../settings/fade_settings.dart';
@@ -750,10 +751,12 @@ class PlayerNotifier extends Notifier<PlayerState> {
       if (baseUrl.isEmpty) {
         throw StateError('请先在设置中配置网易云 API 地址');
       }
+      final cookie = await ref.read(neteaseCookieProvider.future);
       final stream = await rust_netease.neteaseSongUrl(
         baseUrl: baseUrl,
         songId: neteaseSongIdFromTrack(t),
         level: 'exhigh',
+        cookie: cookie,
       );
       final url = stream.url;
       if (url == null || url.isEmpty) {

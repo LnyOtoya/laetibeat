@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/netease.dart' as rust_netease;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 
+import 'netease_session.dart';
 import 'netease_settings.dart';
 
 /// 当前配置的网易云 Node API 地址。
@@ -20,7 +21,8 @@ final neteaseStatusProvider =
       if (baseUrl.isEmpty) {
         throw StateError('请先配置网易云 API 地址');
       }
-      return rust_netease.neteaseStatus(baseUrl: baseUrl);
+      final cookie = await ref.watch(neteaseCookieProvider.future);
+      return rust_netease.neteaseStatus(baseUrl: baseUrl, cookie: cookie);
     });
 
 /// 网易云每日推荐。未登录时使用网易云返回的匿名推荐。
@@ -31,7 +33,11 @@ final neteaseDailyProvider = FutureProvider.autoDispose<List<rust.UiTrack>>((
   if (baseUrl.isEmpty) {
     throw StateError('请先配置网易云 API 地址');
   }
-  return rust_netease.neteaseDailyRecommendations(baseUrl: baseUrl);
+  final cookie = await ref.watch(neteaseCookieProvider.future);
+  return rust_netease.neteaseDailyRecommendations(
+    baseUrl: baseUrl,
+    cookie: cookie,
+  );
 });
 
 typedef NeteaseSearchKey = ({String keywords, int limit, int offset});

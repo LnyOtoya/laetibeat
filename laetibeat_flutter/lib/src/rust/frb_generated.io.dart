@@ -263,7 +263,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UiLyricsSearchResult dco_decode_ui_lyrics_search_result(dynamic raw);
 
   @protected
+  UiNeteaseCaptchaResult dco_decode_ui_netease_captcha_result(dynamic raw);
+
+  @protected
+  UiNeteaseLoginResult dco_decode_ui_netease_login_result(dynamic raw);
+
+  @protected
   UiNeteaseLyric dco_decode_ui_netease_lyric(dynamic raw);
+
+  @protected
+  UiNeteaseQrCheck dco_decode_ui_netease_qr_check(dynamic raw);
+
+  @protected
+  UiNeteaseQrCode dco_decode_ui_netease_qr_code(dynamic raw);
 
   @protected
   UiNeteaseStatus dco_decode_ui_netease_status(dynamic raw);
@@ -612,7 +624,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  UiNeteaseCaptchaResult sse_decode_ui_netease_captcha_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  UiNeteaseLoginResult sse_decode_ui_netease_login_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   UiNeteaseLyric sse_decode_ui_netease_lyric(SseDeserializer deserializer);
+
+  @protected
+  UiNeteaseQrCheck sse_decode_ui_netease_qr_check(SseDeserializer deserializer);
+
+  @protected
+  UiNeteaseQrCode sse_decode_ui_netease_qr_code(SseDeserializer deserializer);
 
   @protected
   UiNeteaseStatus sse_decode_ui_netease_status(SseDeserializer deserializer);
@@ -1055,8 +1083,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_ui_netease_captcha_result(
+    UiNeteaseCaptchaResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_netease_login_result(
+    UiNeteaseLoginResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_ui_netease_lyric(
     UiNeteaseLyric self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_netease_qr_check(
+    UiNeteaseQrCheck self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_netease_qr_code(
+    UiNeteaseQrCode self,
     SseSerializer serializer,
   );
 

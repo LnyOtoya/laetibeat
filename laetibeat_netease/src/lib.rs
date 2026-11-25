@@ -5,7 +5,7 @@
 //! That keeps the first implementation independent from the eventual native
 //! Rust provider.
 
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use reqwest::blocking::Client;
 use reqwest::Url;
@@ -71,6 +71,33 @@ pub struct NeteaseLyric {
 }
 
 #[derive(Debug, Clone)]
+pub struct NeteaseQrCode {
+    pub key: String,
+    pub qr_url: String,
+    pub qr_image_base64: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NeteaseQrCheck {
+    pub code: i32,
+    pub message: String,
+    pub cookie: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NeteaseLoginResult {
+    pub cookie: String,
+    pub nickname: Option<String>,
+    pub user_id: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NeteaseCaptchaResult {
+    pub code: i32,
+    pub message: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct NeteaseClient {
     base_url: String,
     http: Client,
@@ -102,8 +129,15 @@ impl NeteaseClient {
         &self.base_url
     }
 
-    pub fn status(&self) -> Result<NeteaseStatus> {
-        let envelope: LoginStatusEnvelope = self.get_json("/login/status", &[])?;
+    pub fn status(&self, cookie: Option<&str>) -> Result<NeteaseStatus> {
+        let timestamp = now_millis();
+        let envelope: LoginStatusEnvelope = match cookie.filter(|value| !value.trim().is_empty()) {
+            Some(cookie) => self.post_form_json(
+                "/login/status",
+                &[("cookie", cookie.to_string()), ("timestamp", timestamp)],
+            )?,
+            None => self.get_json("/login/status", &[("timestamp", timestamp)])?,
+        };
         let data = envelope
             .data
             .ok_or_else(|| NeteaseError::Api("登录状态响应缺少 data".to_string()))?;
@@ -119,6 +153,105 @@ impl NeteaseClient {
                 .and_then(|item| item.user_id)
                 .or_else(|| account.as_ref().and_then(|item| item.id)),
             avatar_url: profile.and_then(|item| item.avatar_url),
+        })
+    }
+
+    pub fn qr_key(&self) -> Result<String> {
+        let envelope: QrKeyEnvelope =
+            self.get_json("/login/qr/key", &[("timestamp", now_millis())])?;
+        envelope
+            .data
+            .and_then(|data| data.unikey)
+            .filter(|key| !key.trim().is_empty())
+            .ok_or_else(|| NeteaseError::Api("二维码 key 响应缺少 unikey".to_string()))
+    }
+
+    pub fn qr_create(&self, key: &str) -> Result<NeteaseQrCode> {
+        let envelope: QrCreateEnvelope = self.get_json(
+            "/login/qr/create",
+            &[
+                ("key", key.to_string()),
+                ("qrimg", "true".to_string()),
+                ("timestamp", now_millis()),
+            ],
+        )?;
+        let data = envelope
+            .data
+            .ok_or_else(|| NeteaseError::Api("二维码响应缺少 data".to_string()))?;
+        let qr_url = data
+            .qrurl
+            .filter(|value| !value.trim().is_empty())
+            .ok_or_else(|| NeteaseError::Api("二维码响应缺少 qrurl".to_string()))?;
+        Ok(NeteaseQrCode {
+            key: key.to_string(),
+            qr_url,
+            qr_image_base64: data.qrimg.filter(|value| !value.trim().is_empty()),
+        })
+    }
+
+    pub fn qr_check(&self, key: &str) -> Result<NeteaseQrCheck> {
+        let response: QrCheckResponse = self.get_json(
+            "/login/qr/check",
+            &[
+                ("key", key.to_string()),
+                ("timestamp", now_millis()),
+                ("noCookie", "true".to_string()),
+            ],
+        )?;
+        Ok(NeteaseQrCheck {
+            code: response.code.unwrap_or(0),
+            message: response.message.unwrap_or_default(),
+            cookie: response.cookie.filter(|value| !value.trim().is_empty()),
+        })
+    }
+
+    pub fn send_captcha(&self, phone: &str, countrycode: &str) -> Result<NeteaseCaptchaResult> {
+        let response: ApiCodeResponse = self.post_form_json(
+            "/captcha/sent",
+            &[
+                ("phone", phone.to_string()),
+                ("countrycode", countrycode.to_string()),
+                ("timestamp", now_millis()),
+            ],
+        )?;
+        Ok(NeteaseCaptchaResult {
+            code: response.code.unwrap_or(0),
+            message: response.message.unwrap_or_default(),
+        })
+    }
+
+    pub fn login_cellphone(
+        &self,
+        phone: &str,
+        captcha: &str,
+        countrycode: &str,
+    ) -> Result<NeteaseLoginResult> {
+        let response: LoginResponse = self.post_form_json(
+            "/login/cellphone",
+            &[
+                ("phone", phone.to_string()),
+                ("captcha", captcha.to_string()),
+                ("countrycode", countrycode.to_string()),
+                ("timestamp", now_millis()),
+            ],
+        )?;
+        let code = response.code.unwrap_or(0);
+        let cookie = response
+            .cookie
+            .filter(|value| !value.trim().is_empty())
+            .ok_or_else(|| {
+                NeteaseError::Api(
+                    response
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| format!("登录失败（code {code}）")),
+                )
+            })?;
+        let profile = response.profile;
+        Ok(NeteaseLoginResult {
+            cookie,
+            nickname: profile.as_ref().and_then(|item| item.nickname.clone()),
+            user_id: profile.and_then(|item| item.user_id),
         })
     }
 
@@ -148,8 +281,14 @@ impl NeteaseClient {
         Ok(envelope.songs.into_iter().map(NeteaseTrack::from).collect())
     }
 
-    pub fn daily_recommendations(&self) -> Result<Vec<NeteaseTrack>> {
-        let envelope: DailyEnvelope = self.get_json("/recommend/songs", &[])?;
+    pub fn daily_recommendations(&self, cookie: Option<&str>) -> Result<Vec<NeteaseTrack>> {
+        let envelope: DailyEnvelope = match cookie.filter(|value| !value.trim().is_empty()) {
+            Some(cookie) => self.post_form_json(
+                "/recommend/songs",
+                &[("cookie", cookie.to_string()), ("timestamp", now_millis())],
+            )?,
+            None => self.get_json("/recommend/songs", &[])?,
+        };
         let songs = envelope
             .data
             .map(|data| data.daily_songs)
@@ -163,11 +302,21 @@ impl NeteaseClient {
         level: &str,
         cookie: Option<&str>,
     ) -> Result<NeteaseStream> {
-        let mut query = vec![("id", song_id.to_string()), ("level", level.to_string())];
-        if let Some(cookie) = cookie.filter(|value| !value.trim().is_empty()) {
-            query.push(("cookie", cookie.to_string()));
-        }
-        let envelope: SongUrlEnvelope = self.get_json("/song/url/v1", &query)?;
+        let envelope: SongUrlEnvelope = match cookie.filter(|value| !value.trim().is_empty()) {
+            Some(cookie) => self.post_form_json(
+                "/song/url/v1",
+                &[
+                    ("id", song_id.to_string()),
+                    ("level", level.to_string()),
+                    ("cookie", cookie.to_string()),
+                    ("timestamp", now_millis()),
+                ],
+            )?,
+            None => self.get_json(
+                "/song/url/v1",
+                &[("id", song_id.to_string()), ("level", level.to_string())],
+            )?,
+        };
         let data = envelope
             .data
             .into_iter()
@@ -217,6 +366,24 @@ impl NeteaseClient {
         let bytes = response.bytes()?;
         serde_json::from_slice(&bytes).map_err(NeteaseError::from)
     }
+
+    fn post_form_json<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        form: &[(&str, String)],
+    ) -> Result<T> {
+        let url = format!("{}{}", self.base_url, path);
+        let response = self.http.post(url).form(form).send()?.error_for_status()?;
+        let bytes = response.bytes()?;
+        serde_json::from_slice(&bytes).map_err(NeteaseError::from)
+    }
+}
+
+fn now_millis() -> String {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis().to_string())
+        .unwrap_or_else(|_| "0".to_string())
 }
 
 impl From<Song> for NeteaseTrack {
@@ -282,6 +449,48 @@ struct Profile {
     nickname: Option<String>,
     #[serde(rename = "avatarUrl")]
     avatar_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct QrKeyEnvelope {
+    data: Option<QrKeyData>,
+}
+
+#[derive(Debug, Deserialize)]
+struct QrKeyData {
+    unikey: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct QrCreateEnvelope {
+    data: Option<QrCreateData>,
+}
+
+#[derive(Debug, Deserialize)]
+struct QrCreateData {
+    qrurl: Option<String>,
+    qrimg: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct QrCheckResponse {
+    code: Option<i32>,
+    message: Option<String>,
+    cookie: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiCodeResponse {
+    code: Option<i32>,
+    message: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LoginResponse {
+    code: Option<i32>,
+    message: Option<String>,
+    cookie: Option<String>,
+    profile: Option<Profile>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -438,11 +647,11 @@ mod tests {
         let base = std::env::var("LAETIBEAT_NETEASE_API")
             .expect("set LAETIBEAT_NETEASE_API to the Node API base URL");
         let client = NeteaseClient::new(base).expect("client");
-        let status = client.status().expect("status");
+        let status = client.status(None).expect("status");
         assert!(status.reachable);
         assert!(!status.logged_in, "this probe expects an anonymous API");
 
-        let daily = client.daily_recommendations().expect("daily");
+        let daily = client.daily_recommendations(None).expect("daily");
         assert!(!daily.is_empty());
 
         let free = daily
@@ -459,5 +668,20 @@ mod tests {
 
         let lyric = client.lyric(&free.id.to_string()).expect("lyric");
         assert!(!lyric.lyric.is_empty());
+    }
+
+    /// 二维码接口联调：不扫码，只验证 key/create/check 形状。
+    #[test]
+    #[ignore]
+    fn live_qr_probe() {
+        let base = std::env::var("LAETIBEAT_NETEASE_API")
+            .expect("set LAETIBEAT_NETEASE_API to the Node API base URL");
+        let client = NeteaseClient::new(base).expect("client");
+        let key = client.qr_key().expect("qr key");
+        let qr = client.qr_create(&key).expect("qr create");
+        assert!(!qr.qr_url.is_empty());
+        assert!(qr.qr_image_base64.is_some());
+        let check = client.qr_check(&key).expect("qr check");
+        assert!(matches!(check.code, 800 | 801 | 802));
     }
 }

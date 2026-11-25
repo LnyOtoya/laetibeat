@@ -59,7 +59,7 @@
 - [x] 设置中增加「在线音乐 / 网易云音乐」配置入口；当前仅保存 API 地址与后备开关，未接 API 时不显示内容。
 - [x] 设置新增「在线音乐」单选页；媒体库「在线音乐」分组跟随所选来源，当前仅网易云，未接 API 时显示空占位。
 
-## 2026-11-25 Phase A：网易云无登录链路（进行中）
+## 2026-11-25 Phase A：网易云无登录链路（已完成）
 
 > 本地 NAS API：`http://192.168.31.51:3000/`
 > 已验证：`/login/status`、`/search`、`/song/detail`、`/lyric/new`、`/check/music`、`/recommend/songs` 均可访问；免费歌曲 `fee=0` 未登录返回完整 320k URL，`fee=1` 未登录返回 45 秒试听（`freeTrialInfo`）。局域网内不需要 `realIP` / `randomCNIP`。
@@ -82,6 +82,23 @@
 - [ ] 二维码登录、Cookie 安全存储、用户歌单、VIP 完整 URL。
 - [ ] 试听失败后接入 LX `wy` fallback。
 - [ ] 其他在线音乐入口（艺人/专辑/电台）仍是占位。
+
+## 2026-11-25 Phase B1：网易云登录与 Cookie（已实现，待登录实测）
+
+> 同时支持二维码登录和手机验证码登录；Cookie 由 Dart 安全存储，Rust 无状态接收。
+
+- [x] Rust：`/login/qr/key`、`/login/qr/create`、`/login/qr/check`，所有请求带时间戳。
+- [x] Rust：`/captcha/sent`、`/login/cellphone`，手机号/验证码用 POST body。
+- [x] Rust：`/login/status`、`/recommend/songs`、`/song/url/v1` 支持可选 Cookie。
+- [x] FRB：二维码创建/轮询、验证码发送、手机登录、带 Cookie 状态。
+- [x] Dart：Cookie 存 `flutter_secure_storage`，不落 Rust DB、不打印。
+- [x] Dart：网易云设置页显示登录入口、账号昵称、退出登录。
+- [x] Dart：二维码登录页，轮询 800/801/802/803，803 保存 Cookie。
+- [x] Dart：手机验证码登录页，发送验证码、倒计时、登录、保存 Cookie。
+- [x] 登录后每日推荐、播放 URL 自动带 Cookie。
+- [ ] 实测：二维码扫码登录、真实手机验证码登录。
+- [ ] 实测：登录后 `fee=1` 歌曲是否返回完整 URL；非会员仍显示试听。
+- [x] 二维码接口联调：`live_qr_probe` 已通过（key/create/check 形状）。
 
 ## 2026-11-24 代码审查发现（只记录，不改实现）
 

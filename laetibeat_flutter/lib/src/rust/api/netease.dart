@@ -7,11 +7,53 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'simple.dart';
 
-// These functions are ignored because they are not marked as `pub`: `client`, `map_lyric`, `map_status`, `map_stream`, `map_track`
+// These functions are ignored because they are not marked as `pub`: `client`, `map_captcha_result`, `map_login_result`, `map_lyric`, `map_qr_check`, `map_qr_code`, `map_status`, `map_stream`, `map_track`
 
 /// 测试 API 是否可达，以及当前是否已登录。
-Future<UiNeteaseStatus> neteaseStatus({required String baseUrl}) =>
-    RustLib.instance.api.crateApiNeteaseNeteaseStatus(baseUrl: baseUrl);
+Future<UiNeteaseStatus> neteaseStatus({
+  required String baseUrl,
+  String? cookie,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseStatus(
+  baseUrl: baseUrl,
+  cookie: cookie,
+);
+
+/// 生成二维码登录 key 与二维码图片。
+Future<UiNeteaseQrCode> neteaseQrCreate({required String baseUrl}) =>
+    RustLib.instance.api.crateApiNeteaseNeteaseQrCreate(baseUrl: baseUrl);
+
+/// 轮询二维码登录状态。
+Future<UiNeteaseQrCheck> neteaseQrCheck({
+  required String baseUrl,
+  required String key,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseQrCheck(
+  baseUrl: baseUrl,
+  key: key,
+);
+
+/// 发送手机验证码。
+Future<UiNeteaseCaptchaResult> neteaseSendCaptcha({
+  required String baseUrl,
+  required String phone,
+  String? countrycode,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseSendCaptcha(
+  baseUrl: baseUrl,
+  phone: phone,
+  countrycode: countrycode,
+);
+
+/// 手机验证码登录，成功后返回 Cookie。
+Future<UiNeteaseLoginResult> neteaseLoginCellphone({
+  required String baseUrl,
+  required String phone,
+  required String captcha,
+  String? countrycode,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseLoginCellphone(
+  baseUrl: baseUrl,
+  phone: phone,
+  captcha: captcha,
+  countrycode: countrycode,
+);
 
 /// 搜索单曲。目前只请求单曲类型。
 Future<List<UiTrack>> neteaseSearch({
@@ -36,10 +78,13 @@ Future<List<UiTrack>> neteaseSongDetail({
 );
 
 /// 每日推荐。未登录时返回网易云提供的默认/匿名推荐。
-Future<List<UiTrack>> neteaseDailyRecommendations({required String baseUrl}) =>
-    RustLib.instance.api.crateApiNeteaseNeteaseDailyRecommendations(
-      baseUrl: baseUrl,
-    );
+Future<List<UiTrack>> neteaseDailyRecommendations({
+  required String baseUrl,
+  String? cookie,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseDailyRecommendations(
+  baseUrl: baseUrl,
+  cookie: cookie,
+);
 
 /// 获取播放 URL。level 默认 exhigh。
 Future<UiNeteaseStream> neteaseSongUrl({
@@ -67,6 +112,48 @@ Future<UiNeteaseLyric> neteaseLyric({
 Future<Uint8List> neteaseGetCover({required String url}) =>
     RustLib.instance.api.crateApiNeteaseNeteaseGetCover(url: url);
 
+class UiNeteaseCaptchaResult {
+  final int code;
+  final String message;
+
+  const UiNeteaseCaptchaResult({required this.code, required this.message});
+
+  @override
+  int get hashCode => code.hashCode ^ message.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiNeteaseCaptchaResult &&
+          runtimeType == other.runtimeType &&
+          code == other.code &&
+          message == other.message;
+}
+
+class UiNeteaseLoginResult {
+  final String cookie;
+  final String? nickname;
+  final BigInt? userId;
+
+  const UiNeteaseLoginResult({
+    required this.cookie,
+    this.nickname,
+    this.userId,
+  });
+
+  @override
+  int get hashCode => cookie.hashCode ^ nickname.hashCode ^ userId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiNeteaseLoginResult &&
+          runtimeType == other.runtimeType &&
+          cookie == other.cookie &&
+          nickname == other.nickname &&
+          userId == other.userId;
+}
+
 /// 网易云歌词。
 class UiNeteaseLyric {
   final String lyric;
@@ -87,6 +174,54 @@ class UiNeteaseLyric {
           lyric == other.lyric &&
           translated == other.translated &&
           wordByWord == other.wordByWord;
+}
+
+class UiNeteaseQrCheck {
+  final int code;
+  final String message;
+  final String? cookie;
+
+  const UiNeteaseQrCheck({
+    required this.code,
+    required this.message,
+    this.cookie,
+  });
+
+  @override
+  int get hashCode => code.hashCode ^ message.hashCode ^ cookie.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiNeteaseQrCheck &&
+          runtimeType == other.runtimeType &&
+          code == other.code &&
+          message == other.message &&
+          cookie == other.cookie;
+}
+
+class UiNeteaseQrCode {
+  final String key;
+  final String qrUrl;
+  final String? qrImageBase64;
+
+  const UiNeteaseQrCode({
+    required this.key,
+    required this.qrUrl,
+    this.qrImageBase64,
+  });
+
+  @override
+  int get hashCode => key.hashCode ^ qrUrl.hashCode ^ qrImageBase64.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiNeteaseQrCode &&
+          runtimeType == other.runtimeType &&
+          key == other.key &&
+          qrUrl == other.qrUrl &&
+          qrImageBase64 == other.qrImageBase64;
 }
 
 /// 网易云 Node API 的连接/登录状态。

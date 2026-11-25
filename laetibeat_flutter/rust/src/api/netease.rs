@@ -1,5 +1,8 @@
 use flutter_rust_bridge::frb;
-use laetibeat_netease::{NeteaseClient, NeteaseLyric, NeteaseStatus, NeteaseStream, NeteaseTrack};
+use laetibeat_netease::{
+    NeteaseCaptchaResult, NeteaseClient, NeteaseLoginResult, NeteaseLyric, NeteaseQrCheck,
+    NeteaseQrCode, NeteaseStatus, NeteaseStream, NeteaseTrack,
+};
 
 use crate::api::simple::UiTrack;
 
@@ -35,16 +38,84 @@ pub struct UiNeteaseLyric {
     pub word_by_word: Option<String>,
 }
 
+#[frb(non_opaque)]
+pub struct UiNeteaseQrCode {
+    pub key: String,
+    pub qr_url: String,
+    pub qr_image_base64: Option<String>,
+}
+
+#[frb(non_opaque)]
+pub struct UiNeteaseQrCheck {
+    pub code: i32,
+    pub message: String,
+    pub cookie: Option<String>,
+}
+
+#[frb(non_opaque)]
+pub struct UiNeteaseLoginResult {
+    pub cookie: String,
+    pub nickname: Option<String>,
+    pub user_id: Option<u64>,
+}
+
+#[frb(non_opaque)]
+pub struct UiNeteaseCaptchaResult {
+    pub code: i32,
+    pub message: String,
+}
+
 fn client(base_url: &str) -> Result<NeteaseClient, String> {
     NeteaseClient::new(base_url).map_err(|error| error.to_string())
 }
 
 /// 测试 API 是否可达，以及当前是否已登录。
-pub fn netease_status(base_url: String) -> Result<UiNeteaseStatus, String> {
+pub fn netease_status(base_url: String, cookie: Option<String>) -> Result<UiNeteaseStatus, String> {
     let status = client(&base_url)?
-        .status()
+        .status(cookie.as_deref())
         .map_err(|error| error.to_string())?;
     Ok(map_status(status))
+}
+
+/// 生成二维码登录 key 与二维码图片。
+pub fn netease_qr_create(base_url: String) -> Result<UiNeteaseQrCode, String> {
+    let client = client(&base_url)?;
+    let key = client.qr_key().map_err(|error| error.to_string())?;
+    let qr = client.qr_create(&key).map_err(|error| error.to_string())?;
+    Ok(map_qr_code(qr))
+}
+
+/// 轮询二维码登录状态。
+pub fn netease_qr_check(base_url: String, key: String) -> Result<UiNeteaseQrCheck, String> {
+    let check = client(&base_url)?
+        .qr_check(&key)
+        .map_err(|error| error.to_string())?;
+    Ok(map_qr_check(check))
+}
+
+/// 发送手机验证码。
+pub fn netease_send_captcha(
+    base_url: String,
+    phone: String,
+    countrycode: Option<String>,
+) -> Result<UiNeteaseCaptchaResult, String> {
+    let result = client(&base_url)?
+        .send_captcha(&phone, countrycode.as_deref().unwrap_or("86"))
+        .map_err(|error| error.to_string())?;
+    Ok(map_captcha_result(result))
+}
+
+/// 手机验证码登录，成功后返回 Cookie。
+pub fn netease_login_cellphone(
+    base_url: String,
+    phone: String,
+    captcha: String,
+    countrycode: Option<String>,
+) -> Result<UiNeteaseLoginResult, String> {
+    let result = client(&base_url)?
+        .login_cellphone(&phone, &captcha, countrycode.as_deref().unwrap_or("86"))
+        .map_err(|error| error.to_string())?;
+    Ok(map_login_result(result))
 }
 
 /// 搜索单曲。目前只请求单曲类型。
@@ -78,9 +149,12 @@ pub fn netease_song_detail(
 }
 
 /// 每日推荐。未登录时返回网易云提供的默认/匿名推荐。
-pub fn netease_daily_recommendations(base_url: String) -> Result<Vec<UiTrack>, String> {
+pub fn netease_daily_recommendations(
+    base_url: String,
+    cookie: Option<String>,
+) -> Result<Vec<UiTrack>, String> {
     let tracks = client(&base_url)?
-        .daily_recommendations()
+        .daily_recommendations(cookie.as_deref())
         .map_err(|error| error.to_string())?;
     Ok(tracks
         .into_iter()
@@ -149,6 +223,37 @@ fn map_lyric(lyric: NeteaseLyric) -> UiNeteaseLyric {
         lyric: lyric.lyric,
         translated: lyric.translated,
         word_by_word: lyric.word_by_word,
+    }
+}
+
+fn map_qr_code(qr: NeteaseQrCode) -> UiNeteaseQrCode {
+    UiNeteaseQrCode {
+        key: qr.key,
+        qr_url: qr.qr_url,
+        qr_image_base64: qr.qr_image_base64,
+    }
+}
+
+fn map_qr_check(check: NeteaseQrCheck) -> UiNeteaseQrCheck {
+    UiNeteaseQrCheck {
+        code: check.code,
+        message: check.message,
+        cookie: check.cookie,
+    }
+}
+
+fn map_login_result(result: NeteaseLoginResult) -> UiNeteaseLoginResult {
+    UiNeteaseLoginResult {
+        cookie: result.cookie,
+        nickname: result.nickname,
+        user_id: result.user_id,
+    }
+}
+
+fn map_captcha_result(result: NeteaseCaptchaResult) -> UiNeteaseCaptchaResult {
+    UiNeteaseCaptchaResult {
+        code: result.code,
+        message: result.message,
     }
 }
 
