@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -180,9 +179,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
         body: CustomScrollView(
           controller: _scrollController,
           slivers: <Widget>[
-            SliverToBoxAdapter(
-              child: _ArtistHero(bytes: coverBytes, contentColor: contentColor),
-            ),
+            SliverToBoxAdapter(child: _ArtistHero(bytes: coverBytes)),
             SliverToBoxAdapter(
               child: _ArtistSummary(
                 name: widget.artist.name,
@@ -311,19 +308,16 @@ class _ArtistAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-/// 艺人页头部：模糊封面色背景 + 大圆形艺人头像，延伸至状态栏。
+/// 顶部大封面：直接铺满上方区域，底部透明渐隐到内容区。
 class _ArtistHero extends StatelessWidget {
-  const _ArtistHero({required this.bytes, required this.contentColor});
+  const _ArtistHero({required this.bytes});
 
   final Uint8List? bytes;
-  final Color contentColor;
-
-  static const double _avatarSize = 176;
 
   @override
   Widget build(BuildContext context) {
     final scheme = M3ETheme.of(context).colorScheme;
-    final double height = math.min(MediaQuery.sizeOf(context).width * 0.9, 500);
+    final double height = math.min(MediaQuery.sizeOf(context).width, 520);
     final hasArt = bytes != null && bytes!.isNotEmpty;
 
     return SizedBox(
@@ -332,83 +326,41 @@ class _ArtistHero extends StatelessWidget {
         fit: StackFit.expand,
         children: <Widget>[
           if (hasArt)
-            ImageFiltered(
-              imageFilter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-              child: Transform.scale(
-                scale: 1.25,
-                child: Image.memory(
-                  bytes!,
-                  fit: BoxFit.cover,
-                  gaplessPlayback: true,
-                  cacheWidth: 640,
-                ),
+            ShaderMask(
+              blendMode: BlendMode.dstIn,
+              shaderCallback: (Rect rect) => const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[
+                  Colors.white,
+                  Colors.white,
+                  Colors.white70,
+                  Colors.transparent,
+                ],
+                stops: <double>[0, 0.55, 0.78, 1],
+              ).createShader(rect),
+              child: Image.memory(
+                bytes!,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                cacheWidth: 900,
               ),
             )
           else
             ColoredBox(color: scheme.surfaceContainerHighest),
-          DecoratedBox(
+          // 顶部轻微压暗，保证状态栏和顶部按钮可读。
+          const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: <Color>[
-                  Colors.black.withValues(alpha: 0.35),
-                  Colors.black.withValues(alpha: 0.12),
-                  contentColor,
-                ],
-                stops: const <double>[0, 0.55, 1],
+                colors: <Color>[Color(0x59000000), Color(0x00000000)],
+                stops: <double>[0, 0.32],
               ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-              child: _ArtistAvatar(bytes: bytes, size: _avatarSize),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ArtistAvatar extends StatelessWidget {
-  const _ArtistAvatar({required this.bytes, required this.size});
-
-  final Uint8List? bytes;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = M3ETheme.of(context).colorScheme;
-    final hasArt = bytes != null && bytes!.isNotEmpty;
-
-    return Container(
-      width: size,
-      height: size,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: scheme.secondaryContainer,
-        border: Border.all(
-          color: scheme.surface.withValues(alpha: 0.9),
-          width: 3,
-        ),
-        boxShadow: AppElevation.shadowLevel2,
-      ),
-      child: hasArt
-          ? Image.memory(
-              bytes!,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-              cacheWidth: 640,
-            )
-          : Icon(
-              M3EIcons.person,
-              size: size * 0.42,
-              color: scheme.onSecondaryContainer,
-            ),
     );
   }
 }
