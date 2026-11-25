@@ -13,6 +13,7 @@ import '../widgets/mobile_large_subpage_app_bar.dart';
 import 'library_source_filter.dart';
 import 'mobile_library_subpages.dart';
 import 'netease/netease_daily_page.dart';
+import 'netease/netease_playlists_page.dart';
 
 /// 媒体库首页。
 ///
@@ -157,11 +158,9 @@ class MobileLibraryPage extends ConsumerWidget {
         icon: M3EIcons.queue_music,
         title: '我的在线歌单',
         routeName: MobileRoutes.libraryPlaylists,
-        page: _LibraryPlaceholderPage(
-          title: '我的在线歌单',
-          message: message,
-          icon: M3EIcons.queue_music,
-        ),
+        page: switch (source) {
+          OnlineMusicSource.netease => const NeteasePlaylistsPage(),
+        },
       ),
       _LibrarySegment(
         icon: M3EIcons.auto_awesome,

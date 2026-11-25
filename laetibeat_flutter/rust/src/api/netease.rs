@@ -1,7 +1,7 @@
 use flutter_rust_bridge::frb;
 use laetibeat_netease::{
-    NeteaseCaptchaResult, NeteaseClient, NeteaseLoginResult, NeteaseLyric, NeteaseQrCheck,
-    NeteaseQrCode, NeteaseStatus, NeteaseStream, NeteaseTrack,
+    NeteaseCaptchaResult, NeteaseClient, NeteaseLoginResult, NeteaseLyric, NeteasePlaylist,
+    NeteaseQrCheck, NeteaseQrCode, NeteaseStatus, NeteaseStream, NeteaseTrack,
 };
 
 use crate::api::simple::UiTrack;
@@ -15,6 +15,15 @@ pub struct UiNeteaseStatus {
     pub nickname: Option<String>,
     pub user_id: Option<u64>,
     pub avatar_url: Option<String>,
+}
+
+#[frb(non_opaque)]
+pub struct UiNeteasePlaylist {
+    pub id: u64,
+    pub name: String,
+    pub cover_url: Option<String>,
+    pub track_count: u32,
+    pub creator: Option<String>,
 }
 
 /// 播放 URL 解析结果。
@@ -148,6 +157,42 @@ pub fn netease_song_detail(
         .collect())
 }
 
+/// 当前登录用户的歌单列表。
+pub fn netease_user_playlists(
+    base_url: String,
+    uid: u64,
+    cookie: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<Vec<UiNeteasePlaylist>, String> {
+    let playlists = client(&base_url)?
+        .user_playlists(uid, &cookie, limit.unwrap_or(100), offset.unwrap_or(0))
+        .map_err(|error| error.to_string())?;
+    Ok(playlists.into_iter().map(map_playlist).collect())
+}
+
+/// 歌单全部歌曲。
+pub fn netease_playlist_tracks(
+    base_url: String,
+    playlist_id: u64,
+    cookie: Option<String>,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<Vec<UiTrack>, String> {
+    let tracks = client(&base_url)?
+        .playlist_tracks(
+            playlist_id,
+            cookie.as_deref(),
+            limit.unwrap_or(1000),
+            offset.unwrap_or(0),
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(tracks
+        .into_iter()
+        .map(|track| map_track(&base_url, track))
+        .collect())
+}
+
 /// 每日推荐。未登录时返回网易云提供的默认/匿名推荐。
 pub fn netease_daily_recommendations(
     base_url: String,
@@ -254,6 +299,16 @@ fn map_captcha_result(result: NeteaseCaptchaResult) -> UiNeteaseCaptchaResult {
     UiNeteaseCaptchaResult {
         code: result.code,
         message: result.message,
+    }
+}
+
+fn map_playlist(playlist: NeteasePlaylist) -> UiNeteasePlaylist {
+    UiNeteasePlaylist {
+        id: playlist.id,
+        name: playlist.name,
+        cover_url: playlist.cover_url,
+        track_count: playlist.track_count,
+        creator: playlist.creator,
     }
 }
 

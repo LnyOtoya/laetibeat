@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/netease.dart' as rust_netease;
@@ -39,6 +40,57 @@ final neteaseDailyProvider = FutureProvider.autoDispose<List<rust.UiTrack>>((
     cookie: cookie,
   );
 });
+
+/// 当前登录用户的网易云歌单。
+final neteaseUserPlaylistsProvider =
+    FutureProvider.autoDispose<List<rust_netease.UiNeteasePlaylist>>((
+      ref,
+    ) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      final cookie = await ref.watch(neteaseCookieProvider.future);
+      if (cookie == null || cookie.isEmpty) {
+        throw StateError('请先登录网易云');
+      }
+      final status = await rust_netease.neteaseStatus(
+        baseUrl: baseUrl,
+        cookie: cookie,
+      );
+      final uid = status.userId;
+      if (uid == null) {
+        throw StateError('没有获取到网易云用户 ID');
+      }
+      return rust_netease.neteaseUserPlaylists(
+        baseUrl: baseUrl,
+        uid: uid,
+        cookie: cookie,
+      );
+    });
+
+/// 歌单全部歌曲。
+final neteasePlaylistTracksProvider = FutureProvider.autoDispose
+    .family<List<rust.UiTrack>, BigInt>((ref, playlistId) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      final cookie = await ref.watch(neteaseCookieProvider.future);
+      return rust_netease.neteasePlaylistTracks(
+        baseUrl: baseUrl,
+        playlistId: playlistId,
+        cookie: cookie,
+      );
+    });
+
+/// 网易云歌单封面字节。
+final neteasePlaylistCoverProvider = FutureProvider.autoDispose
+    .family<Uint8List?, String>((ref, url) async {
+      if (url.isEmpty) return null;
+      final bytes = await rust_netease.neteaseGetCover(url: url);
+      return bytes.isEmpty ? null : bytes;
+    });
 
 typedef NeteaseSearchKey = ({String keywords, int limit, int offset});
 

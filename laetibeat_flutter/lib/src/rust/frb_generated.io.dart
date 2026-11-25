@@ -136,6 +136,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UiNeteasePlaylist> dco_decode_list_ui_netease_playlist(dynamic raw);
+
+  @protected
   List<UiPlayEvent> dco_decode_list_ui_play_event(dynamic raw);
 
   @protected
@@ -270,6 +273,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiNeteaseLyric dco_decode_ui_netease_lyric(dynamic raw);
+
+  @protected
+  UiNeteasePlaylist dco_decode_ui_netease_playlist(dynamic raw);
 
   @protected
   UiNeteaseQrCheck dco_decode_ui_netease_qr_check(dynamic raw);
@@ -467,6 +473,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UiNeteasePlaylist> sse_decode_list_ui_netease_playlist(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<UiPlayEvent> sse_decode_list_ui_play_event(SseDeserializer deserializer);
 
   @protected
@@ -635,6 +646,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiNeteaseLyric sse_decode_ui_netease_lyric(SseDeserializer deserializer);
+
+  @protected
+  UiNeteasePlaylist sse_decode_ui_netease_playlist(
+    SseDeserializer deserializer,
+  );
 
   @protected
   UiNeteaseQrCheck sse_decode_ui_netease_qr_check(SseDeserializer deserializer);
@@ -879,6 +895,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_ui_netease_playlist(
+    List<UiNeteasePlaylist> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_ui_play_event(
     List<UiPlayEvent> self,
     SseSerializer serializer,
@@ -1097,6 +1119,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_ui_netease_lyric(
     UiNeteaseLyric self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_netease_playlist(
+    UiNeteasePlaylist self,
     SseSerializer serializer,
   );
 

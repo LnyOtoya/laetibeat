@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'simple.dart';
 
-// These functions are ignored because they are not marked as `pub`: `client`, `map_captcha_result`, `map_login_result`, `map_lyric`, `map_qr_check`, `map_qr_code`, `map_status`, `map_stream`, `map_track`
+// These functions are ignored because they are not marked as `pub`: `client`, `map_captcha_result`, `map_login_result`, `map_lyric`, `map_playlist`, `map_qr_check`, `map_qr_code`, `map_status`, `map_stream`, `map_track`
 
 /// 测试 API 是否可达，以及当前是否已登录。
 Future<UiNeteaseStatus> neteaseStatus({
@@ -75,6 +75,36 @@ Future<List<UiTrack>> neteaseSongDetail({
 }) => RustLib.instance.api.crateApiNeteaseNeteaseSongDetail(
   baseUrl: baseUrl,
   songIds: songIds,
+);
+
+/// 当前登录用户的歌单列表。
+Future<List<UiNeteasePlaylist>> neteaseUserPlaylists({
+  required String baseUrl,
+  required BigInt uid,
+  required String cookie,
+  int? limit,
+  int? offset,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseUserPlaylists(
+  baseUrl: baseUrl,
+  uid: uid,
+  cookie: cookie,
+  limit: limit,
+  offset: offset,
+);
+
+/// 歌单全部歌曲。
+Future<List<UiTrack>> neteasePlaylistTracks({
+  required String baseUrl,
+  required BigInt playlistId,
+  String? cookie,
+  int? limit,
+  int? offset,
+}) => RustLib.instance.api.crateApiNeteaseNeteasePlaylistTracks(
+  baseUrl: baseUrl,
+  playlistId: playlistId,
+  cookie: cookie,
+  limit: limit,
+  offset: offset,
 );
 
 /// 每日推荐。未登录时返回网易云提供的默认/匿名推荐。
@@ -174,6 +204,41 @@ class UiNeteaseLyric {
           lyric == other.lyric &&
           translated == other.translated &&
           wordByWord == other.wordByWord;
+}
+
+class UiNeteasePlaylist {
+  final BigInt id;
+  final String name;
+  final String? coverUrl;
+  final int trackCount;
+  final String? creator;
+
+  const UiNeteasePlaylist({
+    required this.id,
+    required this.name,
+    this.coverUrl,
+    required this.trackCount,
+    this.creator,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      coverUrl.hashCode ^
+      trackCount.hashCode ^
+      creator.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiNeteasePlaylist &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          coverUrl == other.coverUrl &&
+          trackCount == other.trackCount &&
+          creator == other.creator;
 }
 
 class UiNeteaseQrCheck {

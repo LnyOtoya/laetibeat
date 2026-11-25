@@ -52,6 +52,15 @@ pub struct NeteaseTrack {
 }
 
 #[derive(Debug, Clone)]
+pub struct NeteasePlaylist {
+    pub id: u64,
+    pub name: String,
+    pub cover_url: Option<String>,
+    pub track_count: u32,
+    pub creator: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct NeteaseStream {
     pub url: Option<String>,
     pub bitrate: Option<u64>,
@@ -281,6 +290,61 @@ impl NeteaseClient {
         Ok(envelope.songs.into_iter().map(NeteaseTrack::from).collect())
     }
 
+    pub fn user_playlists(
+        &self,
+        uid: u64,
+        cookie: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<NeteasePlaylist>> {
+        let envelope: UserPlaylistEnvelope = self.post_form_json(
+            "/user/playlist",
+            &[
+                ("uid", uid.to_string()),
+                ("limit", limit.to_string()),
+                ("offset", offset.to_string()),
+                ("cookie", cookie.to_string()),
+                ("timestamp", now_millis()),
+            ],
+        )?;
+        Ok(envelope
+            .playlist
+            .into_iter()
+            .map(NeteasePlaylist::from)
+            .collect())
+    }
+
+    pub fn playlist_tracks(
+        &self,
+        playlist_id: u64,
+        cookie: Option<&str>,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<NeteaseTrack>> {
+        let envelope: PlaylistTracksEnvelope = match cookie.filter(|value| !value.trim().is_empty())
+        {
+            Some(cookie) => self.post_form_json(
+                "/playlist/track/all",
+                &[
+                    ("id", playlist_id.to_string()),
+                    ("limit", limit.to_string()),
+                    ("offset", offset.to_string()),
+                    ("cookie", cookie.to_string()),
+                    ("timestamp", now_millis()),
+                ],
+            )?,
+            None => self.get_json(
+                "/playlist/track/all",
+                &[
+                    ("id", playlist_id.to_string()),
+                    ("limit", limit.to_string()),
+                    ("offset", offset.to_string()),
+                ],
+            )?,
+        };
+        Ok(envelope.songs.into_iter().map(NeteaseTrack::from).collect())
+    }
+
     pub fn daily_recommendations(&self, cookie: Option<&str>) -> Result<Vec<NeteaseTrack>> {
         let envelope: DailyEnvelope = match cookie.filter(|value| !value.trim().is_empty()) {
             Some(cookie) => self.post_form_json(
@@ -425,6 +489,18 @@ impl From<Song> for NeteaseTrack {
     }
 }
 
+impl From<UserPlaylist> for NeteasePlaylist {
+    fn from(playlist: UserPlaylist) -> Self {
+        Self {
+            id: playlist.id,
+            name: playlist.name,
+            cover_url: playlist.cover_img_url,
+            track_count: playlist.track_count.unwrap_or(0),
+            creator: playlist.creator.and_then(|creator| creator.nickname),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct LoginStatusEnvelope {
     data: Option<LoginStatusData>,
@@ -491,6 +567,34 @@ struct LoginResponse {
     message: Option<String>,
     cookie: Option<String>,
     profile: Option<Profile>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UserPlaylistEnvelope {
+    #[serde(default)]
+    playlist: Vec<UserPlaylist>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UserPlaylist {
+    id: u64,
+    name: String,
+    #[serde(rename = "coverImgUrl")]
+    cover_img_url: Option<String>,
+    #[serde(rename = "trackCount")]
+    track_count: Option<u32>,
+    creator: Option<PlaylistCreator>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PlaylistCreator {
+    nickname: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PlaylistTracksEnvelope {
+    #[serde(default)]
+    songs: Vec<Song>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -637,6 +741,27 @@ mod tests {
         assert_eq!(track.album, "男女情歌对唱冠军全记录");
         assert_eq!(track.duration_ms, 319039);
         assert_eq!(track.album_id, 512175);
+    }
+
+    #[test]
+    fn maps_user_playlist_shape() {
+        let envelope: UserPlaylistEnvelope = serde_json::from_str(
+            r#"{
+                "playlist": [{
+                    "id": 123,
+                    "name": "我喜欢的音乐",
+                    "coverImgUrl": "https://example.com/p.jpg",
+                    "trackCount": 42,
+                    "creator": {"nickname": "tester"}
+                }]
+            }"#,
+        )
+        .expect("user playlist json");
+        let playlist = NeteasePlaylist::from(envelope.playlist.into_iter().next().unwrap());
+        assert_eq!(playlist.id, 123);
+        assert_eq!(playlist.name, "我喜欢的音乐");
+        assert_eq!(playlist.track_count, 42);
+        assert_eq!(playlist.creator.as_deref(), Some("tester"));
     }
 
     /// 手动联调测试：
