@@ -1,14 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:laetibeat/shared/layout/app_bottom_inset.dart';
+import 'package:laetibeat/widgets/recommendation_provider.dart';
 import 'package:laetibeat/widgets/settings/song_source_settings.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../home/discovery_page.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
+import '../widgets/mobile_large_subpage_app_bar.dart';
 import 'mobile_library_subpages.dart';
 
 /// 媒体库首页。
@@ -25,22 +28,16 @@ class MobileLibraryPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
 
-    final librarySegments = <_LibrarySegment>[
+    final localSegments = <_LibrarySegment>[
       _LibrarySegment(
         icon: M3EIcons.library_music,
-        title: '曲库',
+        title: '歌曲',
         routeName: MobileRoutes.librarySongs,
         page: const MobileLibrarySongsPage(),
       ),
       _LibrarySegment(
-        icon: M3EIcons.album,
-        title: '专辑',
-        routeName: MobileRoutes.libraryAlbums,
-        page: const MobileLibraryAlbumsPage(),
-      ),
-      _LibrarySegment(
         icon: M3EIcons.person,
-        title: '艺术家',
+        title: '艺人',
         routeName: MobileRoutes.libraryArtists,
         page: const MobileLibraryArtistsPage(),
       ),
@@ -51,9 +48,57 @@ class MobileLibraryPage extends StatelessWidget {
         page: const MobileLibraryPlaylistsPage(),
       ),
       _LibrarySegment(
+        icon: M3EIcons.album,
+        title: '专辑',
+        routeName: MobileRoutes.libraryAlbums,
+        page: const MobileLibraryAlbumsPage(),
+      ),
+      _LibrarySegment(
+        icon: M3EIcons.download,
+        title: '已下载',
+        routeName: MobileRoutes.libraryDownloads,
+        page: const _LibraryPlaceholderPage(
+          title: '已下载',
+          message: '下载管理将在这里显示',
+          icon: M3EIcons.download,
+        ),
+      ),
+    ];
+
+    final onlineSegments = <_LibrarySegment>[
+      _LibrarySegment(
+        icon: M3EIcons.person,
+        title: '艺人',
+        routeName: MobileRoutes.libraryArtists,
+        page: const MobileLibraryArtistsPage(),
+      ),
+      _LibrarySegment(
+        icon: M3EIcons.queue_music,
+        title: '我的在线歌单',
+        routeName: MobileRoutes.libraryPlaylists,
+        page: const MobileLibraryPlaylistsPage(),
+      ),
+      _LibrarySegment(
+        icon: M3EIcons.auto_awesome,
+        title: '每日推荐',
+        routeName: MobileRoutes.discovery,
+        page: const _DailyRecommendationsPage(),
+      ),
+      _LibrarySegment(
+        icon: M3EIcons.album,
+        title: '专辑',
+        routeName: MobileRoutes.libraryAlbums,
+        page: const MobileLibraryAlbumsPage(),
+      ),
+      _LibrarySegment(
         icon: M3EIcons.radio,
         title: '电台',
         routeName: MobileRoutes.libraryPodcasts,
+        page: const _LibraryPlaceholderPage(
+          title: '电台',
+          message: '电台内容将在这里显示',
+          icon: M3EIcons.radio,
+        ),
       ),
     ];
 
@@ -63,7 +108,7 @@ class MobileLibraryPage extends StatelessWidget {
       pushMobileRootPage(context, page, name: segment.routeName);
     }
 
-    Widget buildSection(String title, Key key) {
+    Widget buildSection(String title, Key key, List<_LibrarySegment> segments) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -76,7 +121,7 @@ class MobileLibraryPage extends StatelessWidget {
           ),
           _LibrarySegmentedList(
             key: key,
-            segments: librarySegments,
+            segments: segments,
             onOpen: openSegment,
           ),
         ],
@@ -100,9 +145,17 @@ class MobileLibraryPage extends StatelessWidget {
           bottom: AppSpacing.lg + bottomInset,
         ),
         children: <Widget>[
-          buildSection('本地音乐', const ValueKey<String>('library_group_local')),
+          buildSection(
+            '本地音乐',
+            const ValueKey<String>('library_group_local'),
+            localSegments,
+          ),
           const SizedBox(height: AppSpacing.xl),
-          buildSection('在线音乐', const ValueKey<String>('library_group_online')),
+          buildSection(
+            '在线音乐',
+            const ValueKey<String>('library_group_online'),
+            onlineSegments,
+          ),
         ],
       ),
     );
@@ -214,6 +267,56 @@ class _LibrarySegmentedList extends StatelessWidget {
               : null,
         );
       },
+    );
+  }
+}
+
+class _DailyRecommendationsPage extends ConsumerWidget {
+  const _DailyRecommendationsPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final discovery = ref.watch(discoveryProvider);
+    return discovery.when(
+      data: (result) => result == null
+          ? const _LibraryPlaceholderPage(
+              title: '每日推荐',
+              message: '播放一些在线歌曲后，这里会生成每日推荐',
+              icon: M3EIcons.auto_awesome,
+            )
+          : DiscoveryPage(result: result),
+      loading: () => const _LibraryPlaceholderPage(
+        title: '每日推荐',
+        message: '正在生成推荐…',
+        icon: M3EIcons.auto_awesome,
+      ),
+      error: (error, _) => _LibraryPlaceholderPage(
+        title: '每日推荐',
+        message: error.toString(),
+        icon: M3EIcons.auto_awesome,
+      ),
+    );
+  }
+}
+
+class _LibraryPlaceholderPage extends StatelessWidget {
+  const _LibraryPlaceholderPage({
+    required this.title,
+    required this.message,
+    required this.icon,
+  });
+
+  final String title;
+  final String message;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    return Scaffold(
+      backgroundColor: theme.colorScheme.surface,
+      appBar: mobileLargeSubpageAppBar(context, title: title),
+      body: AppEmptyState(title: title, message: message, icon: icon),
     );
   }
 }
