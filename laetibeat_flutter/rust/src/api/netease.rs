@@ -143,6 +143,19 @@ pub fn netease_search(
         .collect())
 }
 
+/// 搜索歌单。
+pub fn netease_search_playlists(
+    base_url: String,
+    keywords: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<Vec<UiNeteasePlaylist>, String> {
+    let playlists = client(&base_url)?
+        .search_playlists(&keywords, limit.unwrap_or(30), offset.unwrap_or(0))
+        .map_err(|error| error.to_string())?;
+    Ok(playlists.into_iter().map(map_playlist).collect())
+}
+
 /// 按歌曲 id 获取详情。
 pub fn netease_song_detail(
     base_url: String,

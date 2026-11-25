@@ -109,6 +109,24 @@ final neteaseSearchProvider = FutureProvider.autoDispose
       );
     });
 
+/// 网易云歌单搜索。
+final neteasePlaylistSearchProvider = FutureProvider.autoDispose
+    .family<List<rust_netease.UiNeteasePlaylist>, NeteaseSearchKey>((
+      ref,
+      key,
+    ) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      return rust_netease.neteaseSearchPlaylists(
+        baseUrl: baseUrl,
+        keywords: key.keywords,
+        limit: key.limit,
+        offset: key.offset,
+      );
+    });
+
 /// 从 UiTrack 中取出网易云 songId，兼容旧数据与 sourceExtraJson。
 String neteaseSongIdFromTrack(rust.UiTrack track) {
   final extra = track.sourceExtraJson;

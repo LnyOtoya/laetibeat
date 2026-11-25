@@ -281,6 +281,28 @@ impl NeteaseClient {
         Ok(songs.into_iter().map(NeteaseTrack::from).collect())
     }
 
+    pub fn search_playlists(
+        &self,
+        keywords: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<NeteasePlaylist>> {
+        let envelope: SearchPlaylistEnvelope = self.get_json(
+            "/cloudsearch",
+            &[
+                ("keywords", keywords.to_string()),
+                ("type", "1000".to_string()),
+                ("limit", limit.to_string()),
+                ("offset", offset.to_string()),
+            ],
+        )?;
+        let playlists = envelope
+            .result
+            .and_then(|result| result.playlists)
+            .ok_or_else(|| NeteaseError::Api("搜索响应缺少歌单".to_string()))?;
+        Ok(playlists.into_iter().map(NeteasePlaylist::from).collect())
+    }
+
     pub fn song_detail(&self, song_ids: &[String]) -> Result<Vec<NeteaseTrack>> {
         if song_ids.is_empty() {
             return Ok(Vec::new());
@@ -598,6 +620,16 @@ struct PlaylistTracksEnvelope {
 }
 
 #[derive(Debug, Deserialize)]
+struct SearchPlaylistEnvelope {
+    result: Option<SearchPlaylistResult>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SearchPlaylistResult {
+    playlists: Option<Vec<UserPlaylist>>,
+}
+
+#[derive(Debug, Deserialize)]
 struct SearchEnvelope {
     result: Option<SearchResult>,
 }
@@ -790,6 +822,11 @@ mod tests {
 
         let search = client.search("海阔天空", 3, 0).expect("search");
         assert!(!search.is_empty());
+
+        let playlists = client
+            .search_playlists("周杰伦", 3, 0)
+            .expect("search playlists");
+        assert!(!playlists.is_empty());
 
         let lyric = client.lyric(&free.id.to_string()).expect("lyric");
         assert!(!lyric.lyric.is_empty());

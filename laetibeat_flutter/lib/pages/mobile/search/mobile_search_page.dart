@@ -22,6 +22,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../library/albums/album_detail_page.dart';
 import '../library/artists/artist_detail_page.dart';
+import '../library/netease/netease_playlists_page.dart';
 import '../library/playlists/local_playlist_detail_page.dart';
 import '../library/playlists/lx_playlist_preview_page.dart';
 import '../library/playlists/playlist_actions.dart';
@@ -678,10 +679,15 @@ class _SearchResults extends ConsumerWidget {
       );
     }
     if (filter == MobileSearchSourceFilter.netease) {
-      if (category == MobileSearchCategory.songs) {
-        return _NeteaseSongsResults(query: query);
+      switch (category) {
+        case MobileSearchCategory.songs:
+          return _NeteaseSongsResults(query: query);
+        case MobileSearchCategory.playlists:
+          return _NeteasePlaylistResults(query: query);
+        case MobileSearchCategory.albums:
+        case MobileSearchCategory.artists:
+          return _empty(l10n, message: '网易云当前支持歌曲和歌单搜索');
       }
-      return _empty(l10n, message: '网易云当前仅支持歌曲搜索');
     }
     final isPlaylistCategory = category == MobileSearchCategory.playlists;
     final isLxFilter = filter == MobileSearchSourceFilter.lx;
@@ -1255,6 +1261,102 @@ class _SearchResults extends ConsumerWidget {
     ];
     if (tracks.isEmpty) return;
     ref.read(playerProvider.notifier).load(tracks, 0, source: album.title);
+  }
+}
+
+class _NeteasePlaylistResults extends ConsumerWidget {
+  const _NeteasePlaylistResults({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final results = ref.watch(
+      neteasePlaylistSearchProvider((keywords: query, limit: 50, offset: 0)),
+    );
+
+    return results.when(
+      loading: _loading,
+      error: (error, _) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Center(
+          child: Text(
+            '$error',
+            textAlign: TextAlign.center,
+            style: theme.typeScale.bodyMedium.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
+        ),
+      ),
+      data: (playlists) {
+        if (playlists.isEmpty) {
+          return _empty(l10n, message: l10n.searchNoPlaylistResults);
+        }
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          children: <Widget>[
+            M3EList(
+              color: theme.colorScheme.surface,
+              variant: M3ECardVariant.filled,
+              itemCount: playlists.length,
+              onTap: (int index) {
+                pushMobileRootPage(
+                  context,
+                  NeteasePlaylistDetailPage(playlist: playlists[index]),
+                  name: MobileRoutes.libraryPlaylists,
+                );
+              },
+              itemBuilder: (BuildContext context, int index) {
+                final playlist = playlists[index];
+                return M3EListItem(
+                  headline: playlist.name,
+                  supportingText: [
+                    if (playlist.creator != null) playlist.creator!,
+                    '${playlist.trackCount} 首',
+                  ].join(' · '),
+                  leading: _NeteaseSearchPlaylistCover(url: playlist.coverUrl),
+                  trailing: _sourceChip('网易云', 'wy'),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _NeteaseSearchPlaylistCover extends ConsumerWidget {
+  const _NeteaseSearchPlaylistCover({required this.url});
+
+  final String? url;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final value = url;
+    final bytes = value == null || value.isEmpty
+        ? null
+        : ref.watch(neteasePlaylistCoverProvider(value)).value;
+    return M3EShapeContainer(
+      kind: ref.watch(searchCoverShapeProvider),
+      width: 44,
+      height: 44,
+      clipBehavior: Clip.antiAlias,
+      child: ColoredBox(
+        color: theme.colorScheme.secondaryContainer,
+        child: bytes == null || bytes.isEmpty
+            ? Icon(
+                M3EIcons.queue_music,
+                size: 20,
+                color: theme.colorScheme.onSecondaryContainer,
+              )
+            : Image.memory(bytes, fit: BoxFit.cover),
+      ),
+    );
   }
 }
 

@@ -68,6 +68,19 @@ Future<List<UiTrack>> neteaseSearch({
   offset: offset,
 );
 
+/// 搜索歌单。
+Future<List<UiNeteasePlaylist>> neteaseSearchPlaylists({
+  required String baseUrl,
+  required String keywords,
+  int? limit,
+  int? offset,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseSearchPlaylists(
+  baseUrl: baseUrl,
+  keywords: keywords,
+  limit: limit,
+  offset: offset,
+);
+
 /// 按歌曲 id 获取详情。
 Future<List<UiTrack>> neteaseSongDetail({
   required String baseUrl,
