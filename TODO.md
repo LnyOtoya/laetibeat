@@ -73,12 +73,12 @@
 - [x] 免费歌曲可播放；`freeTrialInfo` 或缺失 URL 标记为试听。
 - [x] 曲目身份：`source=netease`、`id=netease:<songId>`，`sourceExtraJson` 保留 songId/albumId/duration/fee。
 - [x] 封面：Rust 下载 + Dart `NeteaseCoverProvider` 内存缓存。
+- [x] 歌词：`NeteaseLyricProvider` 接入，支持 LRC、翻译和逐字 `yrc`。
 - [x] 本地联调：`LAETIBEAT_NETEASE_API=http://192.168.31.51:3000 cargo test -p laetibeat_netease live_probe -- --ignored` 通过。
 
 ### 下一步
 
 - [ ] 搜索页接入 `neteaseSearchProvider`（Rust API 已就绪）。
-- [ ] 歌词 UI 接入 `neteaseLyric`（Rust API 已就绪）。
 - [ ] 二维码登录、Cookie 安全存储、用户歌单、VIP 完整 URL。
 - [ ] 试听失败后接入 LX `wy` fallback。
 - [ ] 其他在线音乐入口（艺人/专辑/电台）仍是占位。
