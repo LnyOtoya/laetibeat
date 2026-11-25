@@ -4,15 +4,15 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../design/design.dart';
-import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../src/rust/api/netease.dart' as rust_netease;
 import '../../../../src/rust/api/simple.dart' as rust;
-import '../../../../widgets/player/cover_provider.dart';
 import '../../../../widgets/player/player_provider.dart';
+import '../../../../widgets/settings/favorites_provider.dart';
 import '../../../../widgets/settings/netease_provider.dart';
 import '../../mobile_navigation.dart';
 import '../../routes.dart';
 import '../../settings/sources/netease/mobile_netease_login_page.dart';
+import 'netease_detail_widgets.dart';
 
 /// 当前登录用户的网易云歌单列表。
 class NeteasePlaylistsPage extends ConsumerWidget {
@@ -21,10 +21,11 @@ class NeteasePlaylistsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
     final playlists = ref.watch(neteaseUserPlaylistsProvider);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: scheme.surface,
       appBar: AppPageBar.subpage(
         title: '我的在线歌单',
         onSearch: () => openMobileSearch(context),
@@ -56,28 +57,50 @@ class NeteasePlaylistsPage extends ConsumerWidget {
                   name: MobileRoutes.libraryPlaylists,
                 );
               },
-              decoration: const m3e_core.M3ESegmentedListDecoration(
+              decoration: m3e_core.M3ESegmentedListDecoration(
+                color: scheme.secondaryContainer,
+                splashColor: scheme.onSecondaryContainer.withValues(
+                  alpha: 0.12,
+                ),
+                highlightColor: scheme.onSecondaryContainer.withValues(
+                  alpha: 0.08,
+                ),
+                hoverColor: scheme.onSecondaryContainer.withValues(alpha: 0.08),
                 outerRadius: 24,
-                innerRadius: 16,
+                innerRadius: 12,
                 pressedRadius: 8,
                 pressedScale: 0.98,
                 hoveredRadius: 16,
-                selectedRadius: 28,
-                gap: 6,
-                padding: EdgeInsets.all(4),
-                margin: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                gap: 4,
+                padding: const EdgeInsets.all(4),
+                margin: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.xs,
+                ),
               ),
               itemBuilder: (BuildContext context, int index) {
                 final playlist = items[index];
                 return m3e_core.M3EListItem(
+                  minHeight: 64,
                   headline: Text(playlist.name),
                   supportingText: Text(
-                    [
+                    <String>[
                       if (playlist.creator != null) playlist.creator!,
                       '${playlist.trackCount} 首',
                     ].join(' · '),
                   ),
+                  headlineStyle: theme.typeScale.bodyLarge.copyWith(
+                    color: scheme.onSecondaryContainer,
+                  ),
+                  supportingTextStyle: theme.typeScale.bodyMedium.copyWith(
+                    color: scheme.onSecondaryContainer.withValues(alpha: 0.75),
+                  ),
                   leading: _NeteasePlaylistCover(url: playlist.coverUrl),
+                  trailing: Icon(
+                    M3EIcons.chevron_right,
+                    size: 20,
+                    color: scheme.onSecondaryContainer,
+                  ),
                 );
               },
             ),
@@ -101,154 +124,169 @@ class NeteasePlaylistsPage extends ConsumerWidget {
   }
 }
 
-/// 歌单详情：歌单歌曲列表，点击后直接播放。
-class NeteasePlaylistDetailPage extends ConsumerWidget {
+/// 网易云歌单详情。
+class NeteasePlaylistDetailPage extends ConsumerStatefulWidget {
   const NeteasePlaylistDetailPage({super.key, required this.playlist});
 
   final rust_netease.UiNeteasePlaylist playlist;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = M3ETheme.of(context);
-    final tracks = ref.watch(neteasePlaylistTracksProvider(playlist.id));
-
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: AppPageBar.detail(),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          _NeteasePlaylistHeader(playlist: playlist),
-          Expanded(
-            child: tracks.when(
-              data: (items) {
-                if (items.isEmpty) {
-                  return const AppEmptyState(
-                    title: '歌单',
-                    message: '这个歌单还没有歌曲',
-                    icon: M3EIcons.music_note,
-                  );
-                }
-                return m3e_core.M3ESegmentedList.builder(
-                  itemCount: items.length,
-                  shrinkWrap: true,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  listPadding: const EdgeInsets.only(
-                    top: AppSpacing.md,
-                    bottom: AppSpacing.xxl,
-                  ),
-                  onTap: (int index) {
-                    ref
-                        .read(playerProvider.notifier)
-                        .load(items, index, source: '网易云歌单');
-                  },
-                  decoration: const m3e_core.M3ESegmentedListDecoration(
-                    outerRadius: 24,
-                    innerRadius: 16,
-                    pressedRadius: 8,
-                    pressedScale: 0.98,
-                    hoveredRadius: 16,
-                    selectedRadius: 28,
-                    gap: 6,
-                    padding: EdgeInsets.all(4),
-                    margin: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  ),
-                  itemBuilder: (BuildContext context, int index) {
-                    final track = items[index];
-                    return m3e_core.M3EListItem(
-                      headline: Text(track.title),
-                      supportingText: Text(track.artist),
-                      leading: _NeteaseTrackCover(track: track),
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => AppEmptyState(
-                title: '歌单加载失败',
-                message: '$error',
-                icon: M3EIcons.error,
-                action: M3EButton(
-                  style: M3EButtonStyle.tonal,
-                  label: const Text('重试'),
-                  onPressed: () => ref.invalidate(
-                    neteasePlaylistTracksProvider(playlist.id),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  ConsumerState<NeteasePlaylistDetailPage> createState() =>
+      _NeteasePlaylistDetailPageState();
 }
 
-class _NeteasePlaylistHeader extends StatelessWidget {
-  const _NeteasePlaylistHeader({required this.playlist});
+class _NeteasePlaylistDetailPageState
+    extends ConsumerState<NeteasePlaylistDetailPage> {
+  static const double _barTintDistance = 120;
 
-  final rust_netease.UiNeteasePlaylist playlist;
+  final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<double> _barProgress = ValueNotifier<double>(0);
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
+    _barProgress.dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    final double value = (_scrollController.offset / _barTintDistance).clamp(
+      0.0,
+      1.0,
+    );
+    if ((_barProgress.value - value).abs() > 0.01) {
+      _barProgress.value = value;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = M3ETheme.of(context);
-    final scheme = theme.colorScheme;
-    final l10n = AppLocalizations.of(context);
+    final baseTheme = M3ETheme.of(context);
+    final playlist = widget.playlist;
+    final tracksAsync = ref.watch(neteasePlaylistTracksProvider(playlist.id));
+    final tracks = tracksAsync.value ?? const <rust.UiTrack>[];
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.sm,
-        AppSpacing.lg,
-        AppSpacing.md,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          _NeteasePlaylistCover(url: playlist.coverUrl, dimension: 88),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  playlist.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.typeScale.titleLarge,
+    final coverUrl = playlist.coverUrl;
+    final bytes = coverUrl == null || coverUrl.isEmpty
+        ? null
+        : ref.watch(neteasePlaylistCoverProvider(coverUrl)).value;
+    final coverColor = bytes == null
+        ? null
+        : ref.watch(neteaseCoverColorProvider(bytes)).value;
+    final scheme = coverColor == null
+        ? baseTheme.colorScheme
+        : MaterialYouColorScheme.fromSeed(
+            coverColor,
+            brightness: baseTheme.colorScheme.brightness,
+          );
+    final contentColor = detailContentColor(scheme);
+
+    final trackIds = <String>{for (final track in tracks) track.id};
+    final isCurrent = ref.watch(
+      playerProvider.select((PlayerState player) {
+        final current = player.current;
+        return current != null &&
+            current.source == 'netease' &&
+            trackIds.contains(current.id);
+      }),
+    );
+    final isPlaying =
+        ref.watch(
+          playerProvider.select((PlayerState player) => player.isPlaying),
+        ) &&
+        isCurrent;
+
+    final favoriteKey = 'netease:playlist:${playlist.id}';
+    final isFavorite = ref.watch(
+      favoritePlaylistsProvider.select((ids) => ids.contains(favoriteKey)),
+    );
+
+    void togglePlayback() {
+      final notifier = ref.read(playerProvider.notifier);
+      if (isCurrent) {
+        notifier.toggle();
+        return;
+      }
+      if (tracks.isEmpty) return;
+      notifier.load(tracks, 0, source: '网易云歌单');
+    }
+
+    void shufflePlay() {
+      if (tracks.isEmpty) return;
+      ref.read(playerProvider.notifier).playShuffled(tracks, source: '网易云歌单');
+    }
+
+    return M3ETheme(
+      data: baseTheme.withColorScheme(scheme),
+      child: Scaffold(
+        backgroundColor: contentColor,
+        extendBodyBehindAppBar: true,
+        appBar: NeteaseDetailAppBar(progress: _barProgress, tint: contentColor),
+        body: CustomScrollView(
+          controller: _scrollController,
+          slivers: <Widget>[
+            SliverToBoxAdapter(
+              child: NeteaseDetailHero(
+                bytes: bytes,
+                fallbackIcon: M3EIcons.queue_music,
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: NeteaseSummary(
+                title: playlist.name,
+                subtitle: playlist.creator ?? '网易云歌单',
+                meta: '${playlist.trackCount} 首',
+                isPlaying: isPlaying,
+                playEnabled: tracks.isNotEmpty,
+                isFavorite: isFavorite,
+                onShuffle: shufflePlay,
+                onPlayPause: togglePlayback,
+                onFavorite: () => ref
+                    .read(favoritePlaylistsProvider.notifier)
+                    .toggle(favoriteKey),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: tracksAsync.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+                  child: Center(child: CircularProgressIndicator()),
                 ),
-                if (playlist.creator != null) ...<Widget>[
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    playlist.creator!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.typeScale.bodyMedium.copyWith(
-                      color: scheme.onSurfaceVariant,
+                error: (error, _) => AppEmptyState(
+                  title: '歌单加载失败',
+                  message: '$error',
+                  icon: M3EIcons.error,
+                  action: M3EButton(
+                    style: M3EButtonStyle.tonal,
+                    label: const Text('重试'),
+                    onPressed: () => ref.invalidate(
+                      neteasePlaylistTracksProvider(playlist.id),
                     ),
                   ),
-                ],
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  l10n.librarySongsCount(playlist.trackCount),
-                  style: theme.typeScale.bodyMedium.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
                 ),
-              ],
+                data: (items) =>
+                    NeteaseTrackList(tracks: items, source: '网易云歌单'),
+              ),
             ),
-          ),
-        ],
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _NeteasePlaylistCover extends ConsumerWidget {
-  const _NeteasePlaylistCover({required this.url, this.dimension = 48});
+  const _NeteasePlaylistCover({required this.url});
 
   final String? url;
-  final double dimension;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -261,43 +299,14 @@ class _NeteasePlaylistCover extends ConsumerWidget {
     return ClipRRect(
       borderRadius: AppRadii.smAll,
       child: SizedBox.square(
-        dimension: dimension,
+        dimension: 48,
         child: bytes == null || bytes.isEmpty
             ? ColoredBox(
-                color: scheme.secondaryContainer,
+                color: scheme.surfaceContainerHighest,
                 child: Icon(
                   M3EIcons.queue_music,
-                  size: dimension >= 72 ? AppIconSize.lg : AppIconSize.md,
-                  color: scheme.onSecondaryContainer,
-                ),
-              )
-            : Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
-      ),
-    );
-  }
-}
-
-class _NeteaseTrackCover extends ConsumerWidget {
-  const _NeteaseTrackCover({required this.track});
-
-  final rust.UiTrack track;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = M3ETheme.of(context).colorScheme;
-    final bytes = ref.watch(trackCoverProvider(track)).value;
-
-    return ClipRRect(
-      borderRadius: AppRadii.xsAll,
-      child: SizedBox.square(
-        dimension: 40,
-        child: bytes == null || bytes.isEmpty
-            ? ColoredBox(
-                color: scheme.secondaryContainer,
-                child: Icon(
-                  M3EIcons.music_note,
-                  size: AppIconSize.sm,
-                  color: scheme.onSecondaryContainer,
+                  size: AppIconSize.md,
+                  color: scheme.onSurfaceVariant,
                 ),
               )
             : Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
