@@ -18,12 +18,15 @@ import '../playlists/playlist_dialogs.dart';
 import 'package:laetibeat/widgets/player/lx_search_provider.dart';
 import '../playlists/remote_playlist_detail_page.dart';
 import '../library_source_filter.dart';
-import '../widgets/library_layout_control_bar.dart';
 import '../widgets/library_source_badge.dart';
 
 /// 歌单分类内容。统一本地歌单 + OpenSubsonic 歌单。
+///
+/// 网格/列表状态由页面壳持有，视图只负责按给定布局渲染。
 class PlaylistsLibraryView extends ConsumerStatefulWidget {
-  const PlaylistsLibraryView({super.key});
+  const PlaylistsLibraryView({super.key, required this.isGrid});
+
+  final bool isGrid;
 
   @override
   ConsumerState<PlaylistsLibraryView> createState() =>
@@ -31,8 +34,6 @@ class PlaylistsLibraryView extends ConsumerStatefulWidget {
 }
 
 class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
-  bool _isGrid = true;
-
   void _openEntry(_PlaylistEntry entry) {
     final local = entry.local;
     if (local != null) {
@@ -215,10 +216,6 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
             ),
           ),
         ),
-        LibraryLayoutControlBar(
-          isGrid: _isGrid,
-          onToggleLayout: () => setState(() => _isGrid = !_isGrid),
-        ),
         Expanded(child: content),
       ],
     );
@@ -270,7 +267,7 @@ class _PlaylistsLibraryViewState extends ConsumerState<PlaylistsLibraryView> {
         ),
       );
     }
-    return _isGrid
+    return widget.isGrid
         ? _buildGrid(theme, l10n, entries, bottomInset)
         : _buildList(theme, l10n, entries, bottomInset);
   }

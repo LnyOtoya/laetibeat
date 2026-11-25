@@ -17,14 +17,7 @@ class MobileRadioPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: M3EAppBar.top(
-        backgroundColor: theme.colorScheme.surface,
-        titleText: l10n.navRadio,
-        variant: M3EAppBarVariant.small,
-        density: M3EAppBarDensity.compact,
-        shapeFamily: M3EAppBarShapeFamily.square,
-        safeArea: true,
-      ),
+      appBar: AppPageBar.tab(title: l10n.navRadio),
       body: const Center(
         child: AppEmptyState(
           title: '暂无电台',

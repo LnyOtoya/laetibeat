@@ -15,20 +15,21 @@ import '../../routes.dart';
 import '../albums/album_detail_page.dart';
 import '../albums/local_album_detail_page.dart';
 import '../library_source_filter.dart';
-import '../widgets/library_layout_control_bar.dart';
 import '../widgets/library_source_badge.dart';
 
 /// 专辑分类内容。统一本地 + OpenSubsonic，按来源筛选。
+///
+/// 网格/列表状态由页面壳持有，视图只负责按给定布局渲染。
 class AlbumsLibraryView extends ConsumerStatefulWidget {
-  const AlbumsLibraryView({super.key});
+  const AlbumsLibraryView({super.key, required this.isGrid});
+
+  final bool isGrid;
 
   @override
   ConsumerState<AlbumsLibraryView> createState() => _AlbumsLibraryViewState();
 }
 
 class _AlbumsLibraryViewState extends ConsumerState<AlbumsLibraryView> {
-  bool _isGrid = true;
-
   void _openEntry(_AlbumEntry entry) {
     final local = entry.local;
     if (local != null) {
@@ -127,16 +128,7 @@ class _AlbumsLibraryViewState extends ConsumerState<AlbumsLibraryView> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        LibraryLayoutControlBar(
-          isGrid: _isGrid,
-          onToggleLayout: () => setState(() => _isGrid = !_isGrid),
-        ),
-        Expanded(child: content),
-      ],
-    );
+    return content;
   }
 
   List<_AlbumEntry> _localEntries(MusicLibraryState? state) {
@@ -173,7 +165,7 @@ class _AlbumsLibraryViewState extends ConsumerState<AlbumsLibraryView> {
     if (entries.isEmpty) {
       return Center(child: Text(l10n.noAlbums));
     }
-    return _isGrid
+    return widget.isGrid
         ? _buildGrid(theme, entries, bottomInset)
         : _buildList(theme, l10n, entries, bottomInset);
   }

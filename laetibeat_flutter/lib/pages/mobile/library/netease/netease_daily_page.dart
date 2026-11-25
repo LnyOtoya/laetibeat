@@ -8,7 +8,7 @@ import '../../../../src/rust/api/simple.dart' as rust;
 import '../../../../widgets/player/cover_provider.dart';
 import '../../../../widgets/player/player_provider.dart';
 import '../../../../widgets/settings/netease_provider.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
+import '../../mobile_navigation.dart';
 
 /// 网易云每日推荐。
 class NeteaseDailyPage extends ConsumerWidget {
@@ -21,7 +21,10 @@ class NeteaseDailyPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(context, title: '每日推荐 · 网易云'),
+      appBar: AppPageBar.subpage(
+        title: '每日推荐',
+        onSearch: () => openMobileSearch(context),
+      ),
       body: daily.when(
         data: (tracks) {
           if (tracks.isEmpty) {

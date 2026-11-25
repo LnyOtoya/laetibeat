@@ -15,20 +15,21 @@ import '../../routes.dart';
 import '../artists/artist_detail_page.dart';
 import '../artists/local_artist_detail_page.dart';
 import '../library_source_filter.dart';
-import '../widgets/library_layout_control_bar.dart';
 import '../widgets/library_source_badge.dart';
 
 /// 艺术家分类内容。统一本地 + OpenSubsonic，按来源筛选。
+///
+/// 网格/列表状态由页面壳持有，视图只负责按给定布局渲染。
 class ArtistsLibraryView extends ConsumerStatefulWidget {
-  const ArtistsLibraryView({super.key});
+  const ArtistsLibraryView({super.key, required this.isGrid});
+
+  final bool isGrid;
 
   @override
   ConsumerState<ArtistsLibraryView> createState() => _ArtistsLibraryViewState();
 }
 
 class _ArtistsLibraryViewState extends ConsumerState<ArtistsLibraryView> {
-  bool _isGrid = true;
-
   void _openEntry(_ArtistEntry entry) {
     final local = entry.local;
     if (local != null) {
@@ -128,16 +129,7 @@ class _ArtistsLibraryViewState extends ConsumerState<ArtistsLibraryView> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        LibraryLayoutControlBar(
-          isGrid: _isGrid,
-          onToggleLayout: () => setState(() => _isGrid = !_isGrid),
-        ),
-        Expanded(child: content),
-      ],
-    );
+    return content;
   }
 
   List<_ArtistEntry> _localEntries(MusicLibraryState? state) {
@@ -179,7 +171,7 @@ class _ArtistsLibraryViewState extends ConsumerState<ArtistsLibraryView> {
     if (entries.isEmpty) {
       return Center(child: Text(l10n.noArtists));
     }
-    return _isGrid
+    return widget.isGrid
         ? _buildGrid(theme, entries, bottomInset)
         : _buildList(theme, l10n, entries, bottomInset);
   }

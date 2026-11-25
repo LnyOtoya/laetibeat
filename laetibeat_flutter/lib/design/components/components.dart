@@ -11,6 +11,7 @@ export 'media/app_media_tile.dart';
 export 'navigation/app_bottom_overlay.dart';
 export 'navigation/app_floating_nav_bar.dart';
 export 'navigation/app_morphing_tab_bar.dart';
+export 'navigation/app_page_bar.dart';
 export 'surfaces/app_surface.dart';
 export 'text/app_text.dart';
 export 'text/app_text_role.dart';

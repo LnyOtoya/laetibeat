@@ -246,7 +246,7 @@ Route<dynamic>? mobileOnGenerateRoute(RouteSettings settings) {
     MobileRoutes.libraryPodcasts => const MobileLibraryPage(),
     MobileRoutes.radio => const MobileRadioPage(),
     MobileRoutes.search => const MobileSearchPage(),
-    MobileRoutes.stats => const MobileStatsPage(showBackButton: false),
+    MobileRoutes.stats => const MobileStatsPage(),
     MobileRoutes.settings => const MobileSettingsPage(),
     MobileRoutes.colorMapping => const MobileColorMappingPage(),
     MobileRoutes.contentSettings => const MobileContentSettingsPage(),

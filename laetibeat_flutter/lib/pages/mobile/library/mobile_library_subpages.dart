@@ -2,34 +2,74 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
-import '../widgets/mobile_large_subpage_app_bar.dart';
+import '../mobile_navigation.dart';
 import 'library_source_filter.dart';
 import 'views/albums_library_view.dart';
 import 'views/artists_library_view.dart';
 import 'views/playlists_library_view.dart';
 import 'views/songs_library_view.dart';
+import 'widgets/song_sort_sheet.dart';
+
+/// 子页面排序动作。
+///
+/// 需要 `ref` 才能读写排序设置，因此由页面壳统一注入，视图本身不再持有
+/// 排序入口。
+typedef _SubpageSortHandler = Future<void> Function(
+  BuildContext context,
+  WidgetRef ref,
+);
 
 /// 媒体库子页面共用 Scaffold。
 ///
-/// 内容视图保持原有布局，只增加统一的大标题 AppBar 和返回路径。
-class _MobileLibrarySubpage extends StatelessWidget {
-  const _MobileLibrarySubpage({required this.title, required this.child});
+/// 顶部栏由 [AppPageBar.subpage] 统一提供；布局状态（网格/列表）上提到这里，
+/// 这样顶部栏的布局按钮和页面内容读的是同一份状态。
+class _MobileLibrarySubpage extends ConsumerStatefulWidget {
+  const _MobileLibrarySubpage({
+    required this.title,
+    required this.childBuilder,
+    this.showLayout = false,
+    this.onSort,
+  });
 
   final String title;
-  final Widget child;
+  final Widget Function(bool isGrid) childBuilder;
+
+  /// 是否显示布局切换按钮。歌曲类页面不显示。
+  final bool showLayout;
+
+  /// 为空时排序按钮显示但禁用。
+  final _SubpageSortHandler? onSort;
+
+  @override
+  ConsumerState<_MobileLibrarySubpage> createState() =>
+      _MobileLibrarySubpageState();
+}
+
+class _MobileLibrarySubpageState extends ConsumerState<_MobileLibrarySubpage> {
+  bool _isGrid = true;
 
   @override
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
+    final sortHandler = widget.onSort;
+
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(
-        context,
-        title: title,
-        variant: M3EAppBarVariant.mediumFlexible,
+      appBar: AppPageBar.subpage(
+        title: widget.title,
+        onSearch: () => openMobileSearch(context),
+        onSort: sortHandler == null
+            ? null
+            : () => sortHandler(context, ref),
+        showLayout: widget.showLayout,
+        isGrid: _isGrid,
+        onToggleLayout: widget.showLayout
+            ? () => setState(() => _isGrid = !_isGrid)
+            : null,
       ),
-      body: child,
+      body: widget.childBuilder(_isGrid),
     );
   }
 }
@@ -54,7 +94,8 @@ class MobileLibrarySongsPage extends StatelessWidget {
 
     return _MobileLibrarySubpage(
       title: title ?? AppLocalizations.of(context).libraryAllSongs,
-      child: content,
+      onSort: showSongSortSheet,
+      childBuilder: (_) => content,
     );
   }
 }
@@ -66,7 +107,8 @@ class MobileLibraryAlbumsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return _MobileLibrarySubpage(
       title: AppLocalizations.of(context).libraryAlbums,
-      child: const AlbumsLibraryView(),
+      showLayout: true,
+      childBuilder: (bool isGrid) => AlbumsLibraryView(isGrid: isGrid),
     );
   }
 }
@@ -78,7 +120,8 @@ class MobileLibraryArtistsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return _MobileLibrarySubpage(
       title: AppLocalizations.of(context).libraryArtists,
-      child: const ArtistsLibraryView(),
+      showLayout: true,
+      childBuilder: (bool isGrid) => ArtistsLibraryView(isGrid: isGrid),
     );
   }
 }
@@ -90,7 +133,8 @@ class MobileLibraryPlaylistsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return _MobileLibrarySubpage(
       title: AppLocalizations.of(context).libraryPlaylists,
-      child: const PlaylistsLibraryView(),
+      showLayout: true,
+      childBuilder: (bool isGrid) => PlaylistsLibraryView(isGrid: isGrid),
     );
   }
 }

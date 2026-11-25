@@ -25,7 +25,10 @@ class NeteasePlaylistsPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(context, title: '我的在线歌单'),
+      appBar: AppPageBar.subpage(
+        title: '我的在线歌单',
+        onSearch: () => openMobileSearch(context),
+      ),
       body: playlists.when(
         data: (items) {
           if (items.isEmpty) {

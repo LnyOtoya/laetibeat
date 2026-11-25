@@ -8,7 +8,6 @@ import '../../../../widgets/settings/netease_provider.dart';
 import '../../mobile_navigation.dart';
 import '../../routes.dart';
 import '../../settings/sources/netease/mobile_netease_login_page.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
 import 'netease_album_artist_pages.dart';
 
 class NeteaseArtistsPage extends ConsumerWidget {
@@ -21,7 +20,10 @@ class NeteaseArtistsPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(context, title: '收藏的艺人'),
+      appBar: AppPageBar.subpage(
+        title: '收藏的艺人',
+        onSearch: () => openMobileSearch(context),
+      ),
       body: artists.when(
         data: (items) {
           if (items.isEmpty) {
@@ -88,7 +90,10 @@ class NeteaseAlbumsPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(context, title: '收藏的专辑'),
+      appBar: AppPageBar.subpage(
+        title: '收藏的专辑',
+        onSearch: () => openMobileSearch(context),
+      ),
       body: albums.when(
         data: (items) {
           if (items.isEmpty) {

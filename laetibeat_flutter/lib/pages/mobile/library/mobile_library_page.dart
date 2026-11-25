@@ -9,7 +9,6 @@ import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
-import '../widgets/mobile_large_subpage_app_bar.dart';
 import 'library_source_filter.dart';
 import 'mobile_library_subpages.dart';
 import 'netease/netease_daily_page.dart';
@@ -76,6 +75,7 @@ class MobileLibraryPage extends ConsumerWidget {
           title: '已下载',
           message: '下载管理将在这里显示',
           icon: M3EIcons.download,
+          showLayout: false,
         ),
       ),
     ];
@@ -111,13 +111,9 @@ class MobileLibraryPage extends ConsumerWidget {
     return AppScaffold(
       background: AppSurfaceLevel.base,
       safeArea: false,
-      appBar: M3EAppBar.top(
+      appBar: AppPageBar.tab(
+        title: l10n.libraryTitle,
         backgroundColor: AppSurfaceLevel.base.resolve(scheme),
-        variant: M3EAppBarVariant.largeFlexible,
-        shapeFamily: M3EAppBarShapeFamily.square,
-        safeArea: true,
-        titleText: l10n.libraryTitle,
-        actions: const <Widget>[],
       ),
       body: ListView(
         padding: EdgeInsets.only(
@@ -265,18 +261,26 @@ class _LibraryPlaceholderPage extends StatelessWidget {
     required this.title,
     required this.message,
     required this.icon,
+    this.showLayout = true,
   });
 
   final String title;
   final String message;
   final IconData icon;
 
+  /// 列表类入口显示禁用的布局按钮；已下载这类非列表页隐藏。
+  final bool showLayout;
+
   @override
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(context, title: title),
+      appBar: AppPageBar.subpage(
+        title: title,
+        onSearch: () => openMobileSearch(context),
+        showLayout: showLayout,
+      ),
       body: AppEmptyState(title: title, message: message, icon: icon),
     );
   }

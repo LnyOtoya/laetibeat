@@ -28,6 +28,14 @@ final ValueNotifier<String?> mobileCurrentRouteName = ValueNotifier<String?>(
 /// 返回手势。
 final ValueNotifier<bool> mobileFullPlayerOpen = ValueNotifier<bool>(false);
 
+/// 打开全局搜索页。
+///
+/// 二级页顶部栏的搜索动作统一走这里，页面不再各自判断路由。
+void openMobileSearch(BuildContext context) {
+  if (mobileCurrentRouteName.value == MobileRoutes.search) return;
+  Navigator.of(context).pushNamed(MobileRoutes.search);
+}
+
 /// 放在嵌套 Navigator 的 route 页面内容层，而不是 Navigator 外层。
 ///
 /// PopScope 必须位于对应 [ModalRoute] 的子树中：它会把自身注册到最近的
