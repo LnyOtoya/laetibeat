@@ -100,6 +100,7 @@ class MobileLibraryPage extends ConsumerWidget {
         children: <Widget>[
           AppSectionHeader(
             title: title,
+            titleRole: AppTextRole.titleMedium,
             padding: const EdgeInsets.only(
               top: AppSpacing.sm,
               bottom: AppSpacing.xs,
@@ -237,7 +238,12 @@ class _LibrarySegmentedList extends StatelessWidget {
         hoveredRadius: 16.0,
         gap: 2.0,
         padding: EdgeInsets.all(4.0),
-        margin: EdgeInsets.symmetric(horizontal: 12.0, vertical: 5.0),
+        // 页面壳已经应用 16dp page gutter；这里不再叠加横向 margin，
+        // 保证列表距屏幕两侧正好是 AppSpacing.lg。
+        margin: EdgeInsets.symmetric(
+          horizontal: AppSpacing.none,
+          vertical: 5.0,
+        ),
       ),
       itemBuilder: (BuildContext context, int index) {
         final segment = segments[index];

@@ -8,6 +8,42 @@ import 'package:laetibeat/widgets/settings/music_library_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+/// 歌单封面的解析结果。
+///
+/// 本地/远端曲目能拿到 [bytes]；LX 外链只能拿到 [url]。
+typedef LocalPlaylistCoverSource = ({Uint8List? bytes, String? url});
+
+/// 解析歌单封面来源。
+///
+/// 必须在 build 期间调用（内部使用 `ref.watch`）。
+LocalPlaylistCoverSource resolveLocalPlaylistCoverSource(
+  WidgetRef ref,
+  rust_playlists.UiLocalPlaylistSummary playlist,
+) {
+  final source = playlist.coverSource;
+  final trackId = playlist.coverTrackId;
+  final sourceId = playlist.coverSourceId;
+  final coverId = playlist.coverId;
+
+  if (source == 'lx' && coverId != null && coverId.startsWith('http')) {
+    return (bytes: null, url: coverId);
+  }
+  if (source == 'local' && trackId != null) {
+    final track = _findLocalTrack(ref, trackId);
+    if (track != null) {
+      return (bytes: ref.watch(trackCoverProvider(track)).value, url: null);
+    }
+  } else if (source != null && sourceId != null && coverId != null) {
+    return (
+      bytes: ref
+          .watch(remoteCoverProvider((sourceId: sourceId, coverId: coverId)))
+          .value,
+      url: null,
+    );
+  }
+  return (bytes: null, url: null);
+}
+
 /// 本地歌单封面。
 ///
 /// 本地曲目复用 trackCoverProvider；远端曲目复用 remoteCoverProvider，
@@ -25,17 +61,13 @@ class LocalPlaylistCover extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
-    final source = playlist.coverSource;
-    final trackId = playlist.coverTrackId;
-    final sourceId = playlist.coverSourceId;
-    final coverId = playlist.coverId;
+    final cover = resolveLocalPlaylistCoverSource(ref, playlist);
 
-    Uint8List? bytes;
-    if (source == 'lx' && coverId != null && coverId.startsWith('http')) {
+    if (cover.url != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(radius),
         child: Image.network(
-          coverId,
+          cover.url!,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
@@ -43,17 +75,8 @@ class LocalPlaylistCover extends ConsumerWidget {
         ),
       );
     }
-    if (source == 'local' && trackId != null) {
-      final track = _findLocalTrack(ref, trackId);
-      if (track != null) {
-        bytes = ref.watch(trackCoverProvider(track)).value;
-      }
-    } else if (source != null && sourceId != null && coverId != null) {
-      bytes = ref
-          .watch(remoteCoverProvider((sourceId: sourceId, coverId: coverId)))
-          .value;
-    }
 
+    final bytes = cover.bytes;
     final hasArt = bytes != null && bytes.isNotEmpty;
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
@@ -71,12 +94,12 @@ class LocalPlaylistCover extends ConsumerWidget {
 
   Widget _fallback(M3EThemeData theme) {
     return ColoredBox(
-      color: theme.colorScheme.secondaryContainer,
+      color: theme.colorScheme.surfaceContainerHighest,
       child: Center(
         child: Icon(
           M3EIcons.queue_music,
           size: 28,
-          color: theme.colorScheme.onSecondaryContainer,
+          color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
     );

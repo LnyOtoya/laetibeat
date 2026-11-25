@@ -10,9 +10,12 @@ const String kFavoriteArtistsKey = 'library.favorite_artists';
 /// 收藏的专辑 id 集合（本地持久化，key 形如 `sourceId:albumId`）。
 const String kFavoriteAlbumsKey = 'library.favorite_albums';
 
+/// 收藏的歌单 id 集合（本地持久化，key 形如 `local:playlistId`）。
+const String kFavoritePlaylistsKey = 'library.favorite_playlists';
+
 /// 通用的“收藏 id 集合”存储。
 ///
-/// 目前用于艺人和专辑；后续歌曲收藏可以再加一个子类，避免重复实现持久化。
+/// 目前用于艺人、专辑和歌单；后续歌曲收藏可以再加一个子类，避免重复实现持久化。
 abstract class _FavoriteIdsNotifier extends Notifier<Set<String>> {
   _FavoriteIdsNotifier(this.storageKey);
 
@@ -46,6 +49,10 @@ class FavoriteAlbumsNotifier extends _FavoriteIdsNotifier {
   FavoriteAlbumsNotifier() : super(kFavoriteAlbumsKey);
 }
 
+class FavoritePlaylistsNotifier extends _FavoriteIdsNotifier {
+  FavoritePlaylistsNotifier() : super(kFavoritePlaylistsKey);
+}
+
 final favoriteArtistsProvider =
     NotifierProvider<FavoriteArtistsNotifier, Set<String>>(
       FavoriteArtistsNotifier.new,
@@ -54,4 +61,9 @@ final favoriteArtistsProvider =
 final favoriteAlbumsProvider =
     NotifierProvider<FavoriteAlbumsNotifier, Set<String>>(
       FavoriteAlbumsNotifier.new,
+    );
+
+final favoritePlaylistsProvider =
+    NotifierProvider<FavoritePlaylistsNotifier, Set<String>>(
+      FavoritePlaylistsNotifier.new,
     );
