@@ -6,8 +6,8 @@ import 'package:laetibeat/widgets/remote_browser_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../design/design.dart';
 import '../../../../l10n/generated/app_localizations.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
 
 /// 专辑详情页。先展示顶部返回栏和全宽专辑封面。
 class AlbumDetailPage extends ConsumerWidget {
@@ -34,19 +34,7 @@ class AlbumDetailPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      extendBodyBehindAppBar: true,
-      appBar: mobileLargeSubpageAppBar(
-        context,
-        backgroundColor: Colors.transparent,
-        actions: [
-          M3EIconButton(
-            variant: M3EIconButtonVariant.tonal,
-            icon: const Icon(M3EIcons.favorite_border),
-            tooltip: AppLocalizations.of(context).like,
-            onPressed: () {},
-          ),
-        ],
-      ),
+      appBar: AppPageBar.detail(),
       body: ListView(
         padding: EdgeInsets.zero,
         children: [

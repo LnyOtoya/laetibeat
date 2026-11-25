@@ -6,8 +6,8 @@ import 'package:laetibeat/widgets/settings/music_library_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../design/design.dart';
 import '../../../../l10n/generated/app_localizations.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
 
 /// 本地专辑详情页。
 class LocalAlbumDetailPage extends ConsumerWidget {
@@ -53,12 +53,7 @@ class LocalAlbumDetailPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      extendBodyBehindAppBar: true,
-      appBar: mobileLargeSubpageAppBar(
-        context,
-        backgroundColor: Colors.transparent,
-        variant: M3EAppBarVariant.small,
-      ),
+      appBar: AppPageBar.detail(),
       body: ListView(
         padding: EdgeInsets.zero,
         children: [

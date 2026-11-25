@@ -11,7 +11,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../l10n/generated/app_localizations.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
+import '../../../../design/design.dart';
 import '../widgets/library_source_badge.dart';
 
 class LxPlaylistPreviewPage extends ConsumerStatefulWidget {
@@ -157,11 +157,7 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(
-        context,
-        title: widget.playlist.name,
-        variant: M3EAppBarVariant.mediumFlexible,
-      ),
+      appBar: AppPageBar.detail(),
       body: async.when(
         loading: () => Center(
           child: M3ELoadingIndicator(

@@ -1,3 +1,4 @@
+import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -9,9 +10,10 @@ import '../text/app_text_role.dart';
 
 /// 移动端唯一的顶部栏入口。
 ///
-/// 只提供两种语义变体：
+/// 只提供三种语义变体：
 /// - [tab]：一级 tab 页。与首页一致的大标题，可随滚动折叠，无返回键。
-/// - [subpage]：二级页。返回键 + 页面名 + 排序/搜索/布局三个动作。
+/// - [subpage]：二级列表页。返回键 + 页面名 + 排序/搜索/布局三个动作。
+/// - [detail]：详情页。返回键 + 页面名 + 三点菜单，两个按钮都用 tonal 圆形背景。
 ///
 /// 页面不再直接构造 `M3EAppBar`，避免返回键尺寸、标题位置、动作间距各写一套。
 abstract final class AppPageBar {
@@ -58,6 +60,17 @@ abstract final class AppPageBar {
       onToggleLayout: onToggleLayout,
       backgroundColor: backgroundColor,
     );
+  }
+
+  /// 详情页顶部栏。
+  ///
+  /// 只有返回键和三点菜单，不显示标题。两个按钮都是 40dp 圆形 tonal 背景、
+  /// 48dp 点击目标；[onMenu] 为空时菜单按钮仍保持 tonal 外观但暂时没有动作。
+  static PreferredSizeWidget detail({
+    VoidCallback? onMenu,
+    Color? backgroundColor,
+  }) {
+    return _AppDetailBar(onMenu: onMenu, backgroundColor: backgroundColor);
   }
 }
 
@@ -262,6 +275,63 @@ class _AppSubpageBar extends StatelessWidget implements PreferredSizeWidget {
             tooltip: isGrid ? l10n.switchToList : l10n.switchToGrid,
             onPressed: onToggleLayout,
           ),
+      ],
+    );
+  }
+}
+
+class _AppDetailBar extends StatelessWidget implements PreferredSizeWidget {
+  const _AppDetailBar({this.onMenu, this.backgroundColor});
+
+  final VoidCallback? onMenu;
+  final Color? backgroundColor;
+
+  static final Size _preferredSize = M3EAppBar.top(
+    variant: M3EAppBarVariant.small,
+    density: M3EAppBarDensity.compact,
+    shapeFamily: M3EAppBarShapeFamily.square,
+    safeArea: true,
+    titleText: '',
+  ).preferredSize;
+
+  @override
+  Size get preferredSize => _preferredSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final l10n = AppLocalizations.of(context);
+
+    return M3EAppBar.top(
+      backgroundColor: backgroundColor ?? theme.colorScheme.surface,
+      variant: M3EAppBarVariant.small,
+      density: M3EAppBarDensity.compact,
+      shapeFamily: M3EAppBarShapeFamily.square,
+      safeArea: true,
+      hideMode: M3EAppBarHideMode.none,
+      leading: M3EIconButton(
+        variant: M3EIconButtonVariant.tonal,
+        size: M3EIconButtonSize.sm,
+        icon: const Icon(M3EIcons.arrow_back),
+        tooltip: l10n.commonBack,
+        onPressed: () => Navigator.of(context).maybePop(),
+      ),
+      actions: <Widget>[
+        m3e_core.M3EButton(
+          style: m3e_core.M3EButtonStyle.tonal,
+          shape: m3e_core.M3EButtonShape.round,
+          // 菜单内容后续接入；这里先保留可点击的 tonal 外观。
+          onPressed: onMenu ?? () {},
+          tooltip: l10n.more,
+          semanticLabel: l10n.more,
+          decoration: const m3e_core.M3EButtonDecoration(
+            minimumSize: Size(40, 40),
+            fixedSize: Size(40, 40),
+            padding: EdgeInsets.zero,
+            tapTargetSize: MaterialTapTargetSize.padded,
+          ),
+          child: const Icon(M3EIcons.more_vert, size: 20),
+        ),
       ],
     );
   }

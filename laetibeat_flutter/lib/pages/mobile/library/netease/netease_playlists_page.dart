@@ -4,6 +4,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../design/design.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../src/rust/api/netease.dart' as rust_netease;
 import '../../../../src/rust/api/simple.dart' as rust;
 import '../../../../widgets/player/cover_provider.dart';
@@ -12,7 +13,6 @@ import '../../../../widgets/settings/netease_provider.dart';
 import '../../mobile_navigation.dart';
 import '../../routes.dart';
 import '../../settings/sources/netease/mobile_netease_login_page.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
 
 /// 当前登录用户的网易云歌单列表。
 class NeteasePlaylistsPage extends ConsumerWidget {
@@ -114,71 +114,141 @@ class NeteasePlaylistDetailPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(context, title: playlist.name),
-      body: tracks.when(
-        data: (items) {
-          if (items.isEmpty) {
-            return const AppEmptyState(
-              title: '歌单',
-              message: '这个歌单还没有歌曲',
-              icon: M3EIcons.music_note,
-            );
-          }
-          return m3e_core.M3ESegmentedList.builder(
-            itemCount: items.length,
-            shrinkWrap: true,
-            physics: const AlwaysScrollableScrollPhysics(),
-            listPadding: const EdgeInsets.only(
-              top: AppSpacing.md,
-              bottom: AppSpacing.xxl,
+      appBar: AppPageBar.detail(),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          _NeteasePlaylistHeader(playlist: playlist),
+          Expanded(
+            child: tracks.when(
+              data: (items) {
+                if (items.isEmpty) {
+                  return const AppEmptyState(
+                    title: '歌单',
+                    message: '这个歌单还没有歌曲',
+                    icon: M3EIcons.music_note,
+                  );
+                }
+                return m3e_core.M3ESegmentedList.builder(
+                  itemCount: items.length,
+                  shrinkWrap: true,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  listPadding: const EdgeInsets.only(
+                    top: AppSpacing.md,
+                    bottom: AppSpacing.xxl,
+                  ),
+                  onTap: (int index) {
+                    ref
+                        .read(playerProvider.notifier)
+                        .load(items, index, source: '网易云歌单');
+                  },
+                  decoration: const m3e_core.M3ESegmentedListDecoration(
+                    outerRadius: 24,
+                    innerRadius: 16,
+                    pressedRadius: 8,
+                    pressedScale: 0.98,
+                    hoveredRadius: 16,
+                    selectedRadius: 28,
+                    gap: 6,
+                    padding: EdgeInsets.all(4),
+                    margin: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  ),
+                  itemBuilder: (BuildContext context, int index) {
+                    final track = items[index];
+                    return m3e_core.M3EListItem(
+                      headline: Text(track.title),
+                      supportingText: Text(track.artist),
+                      leading: _NeteaseTrackCover(track: track),
+                    );
+                  },
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => AppEmptyState(
+                title: '歌单加载失败',
+                message: '$error',
+                icon: M3EIcons.error,
+                action: M3EButton(
+                  style: M3EButtonStyle.tonal,
+                  label: const Text('重试'),
+                  onPressed: () => ref.invalidate(
+                    neteasePlaylistTracksProvider(playlist.id),
+                  ),
+                ),
+              ),
             ),
-            onTap: (int index) {
-              ref
-                  .read(playerProvider.notifier)
-                  .load(items, index, source: '网易云歌单');
-            },
-            decoration: const m3e_core.M3ESegmentedListDecoration(
-              outerRadius: 24,
-              innerRadius: 16,
-              pressedRadius: 8,
-              pressedScale: 0.98,
-              hoveredRadius: 16,
-              selectedRadius: 28,
-              gap: 6,
-              padding: EdgeInsets.all(4),
-              margin: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            ),
-            itemBuilder: (BuildContext context, int index) {
-              final track = items[index];
-              return m3e_core.M3EListItem(
-                headline: Text(track.title),
-                supportingText: Text(track.artist),
-                leading: _NeteaseTrackCover(track: track),
-              );
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => AppEmptyState(
-          title: '歌单加载失败',
-          message: '$error',
-          icon: M3EIcons.error,
-          action: M3EButton(
-            style: M3EButtonStyle.tonal,
-            label: const Text('重试'),
-            onPressed: () =>
-                ref.invalidate(neteasePlaylistTracksProvider(playlist.id)),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NeteasePlaylistHeader extends StatelessWidget {
+  const _NeteasePlaylistHeader({required this.playlist});
+
+  final rust_netease.UiNeteasePlaylist playlist;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+        AppSpacing.md,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          _NeteasePlaylistCover(url: playlist.coverUrl, dimension: 88),
+          const SizedBox(width: AppSpacing.lg),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  playlist.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.typeScale.titleLarge,
+                ),
+                if (playlist.creator != null) ...<Widget>[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    playlist.creator!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.typeScale.bodyMedium.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  l10n.librarySongsCount(playlist.trackCount),
+                  style: theme.typeScale.bodyMedium.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _NeteasePlaylistCover extends ConsumerWidget {
-  const _NeteasePlaylistCover({required this.url});
+  const _NeteasePlaylistCover({required this.url, this.dimension = 48});
 
   final String? url;
+  final double dimension;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -191,13 +261,13 @@ class _NeteasePlaylistCover extends ConsumerWidget {
     return ClipRRect(
       borderRadius: AppRadii.smAll,
       child: SizedBox.square(
-        dimension: 48,
+        dimension: dimension,
         child: bytes == null || bytes.isEmpty
             ? ColoredBox(
                 color: scheme.secondaryContainer,
                 child: Icon(
                   M3EIcons.queue_music,
-                  size: AppIconSize.md,
+                  size: dimension >= 72 ? AppIconSize.lg : AppIconSize.md,
                   color: scheme.onSecondaryContainer,
                 ),
               )

@@ -5,10 +5,10 @@ import 'package:laetibeat/widgets/remote_browser_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../design/design.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../mobile_navigation.dart';
 import '../../routes.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
 import '../albums/album_detail_page.dart';
 
 /// 艺术家详情页。
@@ -49,18 +49,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(
-        context,
-        variant: M3EAppBarVariant.small,
-        actions: [
-          M3EIconButton(
-            variant: M3EIconButtonVariant.standard,
-            icon: const Icon(M3EIcons.favorite_border),
-            tooltip: AppLocalizations.of(context).like,
-            onPressed: () {},
-          ),
-        ],
-      ),
+      appBar: AppPageBar.detail(),
       body: ListView(
         padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + bottomInset),
         children: [

@@ -9,8 +9,8 @@ import 'package:laetibeat/widgets/remote_browser_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../design/design.dart';
 import '../../../../l10n/generated/app_localizations.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
 import '../widgets/library_source_badge.dart';
 import 'playlist_dialogs.dart';
 
@@ -122,20 +122,10 @@ class RemotePlaylistDetailPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(
-        context,
-        title: async.value?.playlist.name ?? playlist.name,
-        variant: M3EAppBarVariant.mediumFlexible,
-        actions: async.value == null
-            ? const <Widget>[]
-            : [
-                M3EIconButton(
-                  icon: const Icon(M3EIcons.more_vert),
-                  tooltip: l10n.more,
-                  onPressed: () =>
-                      _showActions(context, ref, async.value!.playlist),
-                ),
-              ],
+      appBar: AppPageBar.detail(
+        onMenu: async.value == null
+            ? null
+            : () => _showActions(context, ref, async.value!.playlist),
       ),
       body: async.when(
         loading: () => Center(

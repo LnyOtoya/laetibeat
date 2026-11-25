@@ -12,7 +12,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../l10n/generated/app_localizations.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
+import '../../../../design/design.dart';
 import '../widgets/library_source_badge.dart';
 import 'playlist_cover.dart';
 import 'playlist_dialogs.dart';
@@ -171,20 +171,10 @@ class LocalPlaylistDetailPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(
-        context,
-        title: detailAsync.value?.playlist.name ?? l10n.libraryPlaylists,
-        variant: M3EAppBarVariant.mediumFlexible,
-        actions: detailAsync.value == null
-            ? const <Widget>[]
-            : [
-                M3EIconButton(
-                  icon: const Icon(M3EIcons.more_vert),
-                  tooltip: l10n.more,
-                  onPressed: () =>
-                      _showActions(context, ref, detailAsync.value!.playlist),
-                ),
-              ],
+      appBar: AppPageBar.detail(
+        onMenu: detailAsync.value == null
+            ? null
+            : () => _showActions(context, ref, detailAsync.value!.playlist),
       ),
       body: detailAsync.when(
         loading: () => Center(

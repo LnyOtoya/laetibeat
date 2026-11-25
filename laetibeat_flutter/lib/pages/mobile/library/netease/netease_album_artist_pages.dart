@@ -11,7 +11,6 @@ import '../../../../widgets/player/player_provider.dart';
 import '../../../../widgets/settings/netease_provider.dart';
 import '../../mobile_navigation.dart';
 import '../../routes.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
 
 class NeteaseAlbumDetailPage extends ConsumerWidget {
   const NeteaseAlbumDetailPage({super.key, required this.album});
@@ -25,7 +24,7 @@ class NeteaseAlbumDetailPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(context, title: album.name),
+      appBar: AppPageBar.detail(),
       body: detail.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => AppEmptyState(
@@ -79,7 +78,7 @@ class NeteaseArtistDetailPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(context, title: artist.name),
+      appBar: AppPageBar.detail(),
       body: detail.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => AppEmptyState(
