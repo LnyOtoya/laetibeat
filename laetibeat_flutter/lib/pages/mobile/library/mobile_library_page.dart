@@ -14,6 +14,7 @@ import 'library_source_filter.dart';
 import 'mobile_library_subpages.dart';
 import 'netease/netease_daily_page.dart';
 import 'netease/netease_playlists_page.dart';
+import 'netease/netease_subscriptions_pages.dart';
 
 /// 媒体库首页。
 ///
@@ -148,11 +149,9 @@ class MobileLibraryPage extends ConsumerWidget {
         icon: M3EIcons.person,
         title: '艺人',
         routeName: MobileRoutes.libraryArtists,
-        page: _LibraryPlaceholderPage(
-          title: '艺人',
-          message: message,
-          icon: M3EIcons.person,
-        ),
+        page: switch (source) {
+          OnlineMusicSource.netease => const NeteaseArtistsPage(),
+        },
       ),
       _LibrarySegment(
         icon: M3EIcons.queue_music,
@@ -174,11 +173,9 @@ class MobileLibraryPage extends ConsumerWidget {
         icon: M3EIcons.album,
         title: '专辑',
         routeName: MobileRoutes.libraryAlbums,
-        page: _LibraryPlaceholderPage(
-          title: '专辑',
-          message: message,
-          icon: M3EIcons.album,
-        ),
+        page: switch (source) {
+          OnlineMusicSource.netease => const NeteaseAlbumsPage(),
+        },
       ),
       _LibrarySegment(
         icon: M3EIcons.radio,

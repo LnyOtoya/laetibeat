@@ -379,6 +379,42 @@ impl NeteaseClient {
         Ok(artists.into_iter().map(NeteaseArtist::from).collect())
     }
 
+    pub fn subscribed_artists(
+        &self,
+        cookie: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<NeteaseArtist>> {
+        let envelope: ArtistSublistEnvelope = self.post_form_json(
+            "/artist/sublist",
+            &[
+                ("limit", limit.to_string()),
+                ("offset", offset.to_string()),
+                ("cookie", cookie.to_string()),
+                ("timestamp", now_millis()),
+            ],
+        )?;
+        Ok(envelope.data.into_iter().map(NeteaseArtist::from).collect())
+    }
+
+    pub fn subscribed_albums(
+        &self,
+        cookie: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<NeteaseAlbum>> {
+        let envelope: AlbumSublistEnvelope = self.post_form_json(
+            "/album/sublist",
+            &[
+                ("limit", limit.to_string()),
+                ("offset", offset.to_string()),
+                ("cookie", cookie.to_string()),
+                ("timestamp", now_millis()),
+            ],
+        )?;
+        Ok(envelope.data.into_iter().map(NeteaseAlbum::from).collect())
+    }
+
     pub fn album_detail(&self, album_id: u64) -> Result<NeteaseAlbumDetail> {
         let envelope: AlbumDetailEnvelope =
             self.get_json("/album", &[("id", album_id.to_string())])?;
@@ -629,15 +665,12 @@ impl From<UserPlaylist> for NeteasePlaylist {
 
 impl From<AlbumInfo> for NeteaseAlbum {
     fn from(album: AlbumInfo) -> Self {
+        let artist = album.artist.as_ref().or_else(|| album.artists.first());
         Self {
             id: album.id,
             name: album.name,
-            artist: album
-                .artist
-                .as_ref()
-                .map(|artist| artist.name.clone())
-                .unwrap_or_default(),
-            artist_id: album.artist.as_ref().map(|artist| artist.id).unwrap_or(0),
+            artist: artist.map(|artist| artist.name.clone()).unwrap_or_default(),
+            artist_id: artist.map(|artist| artist.id).unwrap_or(0),
             cover_url: album.pic_url,
             track_count: album.size.unwrap_or(0),
             publish_time_ms: album.publish_time,
@@ -709,7 +742,10 @@ struct AlbumInfo {
     name: String,
     #[serde(rename = "picUrl")]
     pic_url: Option<String>,
+    #[serde(default)]
     artist: Option<Artist>,
+    #[serde(default)]
+    artists: Vec<Artist>,
     size: Option<u32>,
     #[serde(rename = "publishTime")]
     publish_time: Option<i64>,
@@ -739,6 +775,18 @@ struct ArtistDetailEnvelope {
     artist: Option<ArtistInfo>,
     #[serde(rename = "hotSongs", default)]
     hot_songs: Vec<Song>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ArtistSublistEnvelope {
+    #[serde(default)]
+    data: Vec<ArtistInfo>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AlbumSublistEnvelope {
+    #[serde(default)]
+    data: Vec<AlbumInfo>,
 }
 
 #[derive(Debug, Deserialize)]

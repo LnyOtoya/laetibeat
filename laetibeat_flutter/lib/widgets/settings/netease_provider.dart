@@ -69,6 +69,40 @@ final neteaseUserPlaylistsProvider =
       );
     });
 
+/// 当前登录用户收藏的艺人。
+final neteaseSubscribedArtistsProvider =
+    FutureProvider.autoDispose<List<rust_netease.UiNeteaseArtist>>((ref) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      final cookie = await ref.watch(neteaseCookieProvider.future);
+      if (cookie == null || cookie.isEmpty) {
+        throw StateError('请先登录网易云');
+      }
+      return rust_netease.neteaseSubscribedArtists(
+        baseUrl: baseUrl,
+        cookie: cookie,
+      );
+    });
+
+/// 当前登录用户收藏的专辑。
+final neteaseSubscribedAlbumsProvider =
+    FutureProvider.autoDispose<List<rust_netease.UiNeteaseAlbum>>((ref) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      final cookie = await ref.watch(neteaseCookieProvider.future);
+      if (cookie == null || cookie.isEmpty) {
+        throw StateError('请先登录网易云');
+      }
+      return rust_netease.neteaseSubscribedAlbums(
+        baseUrl: baseUrl,
+        cookie: cookie,
+      );
+    });
+
 /// 歌单全部歌曲。
 final neteasePlaylistTracksProvider = FutureProvider.autoDispose
     .family<List<rust.UiTrack>, BigInt>((ref, playlistId) async {

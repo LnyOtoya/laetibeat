@@ -107,6 +107,32 @@ Future<List<UiNeteaseArtist>> neteaseSearchArtists({
   offset: offset,
 );
 
+/// 当前用户收藏的艺人。
+Future<List<UiNeteaseArtist>> neteaseSubscribedArtists({
+  required String baseUrl,
+  required String cookie,
+  int? limit,
+  int? offset,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseSubscribedArtists(
+  baseUrl: baseUrl,
+  cookie: cookie,
+  limit: limit,
+  offset: offset,
+);
+
+/// 当前用户收藏的专辑。
+Future<List<UiNeteaseAlbum>> neteaseSubscribedAlbums({
+  required String baseUrl,
+  required String cookie,
+  int? limit,
+  int? offset,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseSubscribedAlbums(
+  baseUrl: baseUrl,
+  cookie: cookie,
+  limit: limit,
+  offset: offset,
+);
+
 /// 专辑详情与歌曲。
 Future<UiNeteaseAlbumDetail> neteaseAlbumDetail({
   required String baseUrl,

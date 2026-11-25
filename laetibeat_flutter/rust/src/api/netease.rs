@@ -215,6 +215,32 @@ pub fn netease_search_artists(
     Ok(artists.into_iter().map(map_artist).collect())
 }
 
+/// 当前用户收藏的艺人。
+pub fn netease_subscribed_artists(
+    base_url: String,
+    cookie: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<Vec<UiNeteaseArtist>, String> {
+    let artists = client(&base_url)?
+        .subscribed_artists(&cookie, limit.unwrap_or(100), offset.unwrap_or(0))
+        .map_err(|error| error.to_string())?;
+    Ok(artists.into_iter().map(map_artist).collect())
+}
+
+/// 当前用户收藏的专辑。
+pub fn netease_subscribed_albums(
+    base_url: String,
+    cookie: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<Vec<UiNeteaseAlbum>, String> {
+    let albums = client(&base_url)?
+        .subscribed_albums(&cookie, limit.unwrap_or(100), offset.unwrap_or(0))
+        .map_err(|error| error.to_string())?;
+    Ok(albums.into_iter().map(map_album).collect())
+}
+
 /// 专辑详情与歌曲。
 pub fn netease_album_detail(
     base_url: String,
