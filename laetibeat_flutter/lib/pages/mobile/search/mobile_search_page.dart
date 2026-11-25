@@ -12,6 +12,7 @@ import 'package:laetibeat/widgets/playlist_provider.dart';
 import 'package:laetibeat/widgets/remote_browser_provider.dart';
 import 'package:laetibeat/widgets/settings/cover_shape_settings.dart';
 import 'package:laetibeat/widgets/settings/music_library_provider.dart';
+import 'package:laetibeat/widgets/settings/netease_provider.dart';
 import 'package:laetibeat/widgets/settings/search_settings.dart';
 import 'package:laetibeat/widgets/settings/persistence.dart';
 import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
@@ -631,6 +632,10 @@ class _SearchFilterButton extends StatelessWidget {
           value: MobileSearchSourceFilter.lx,
           child: Text(l10n.searchFilterLx),
         ),
+        const M3ESplitButtonItem(
+          value: MobileSearchSourceFilter.netease,
+          child: Text('网易云'),
+        ),
       ],
     );
   }
@@ -671,6 +676,12 @@ class _SearchResults extends ConsumerWidget {
         query: query,
         platform: lxPlatform!,
       );
+    }
+    if (filter == MobileSearchSourceFilter.netease) {
+      if (category == MobileSearchCategory.songs) {
+        return _NeteaseSongsResults(query: query);
+      }
+      return _empty(l10n, message: '网易云当前仅支持歌曲搜索');
     }
     final isPlaylistCategory = category == MobileSearchCategory.playlists;
     final isLxFilter = filter == MobileSearchSourceFilter.lx;
@@ -1244,6 +1255,66 @@ class _SearchResults extends ConsumerWidget {
     ];
     if (tracks.isEmpty) return;
     ref.read(playerProvider.notifier).load(tracks, 0, source: album.title);
+  }
+}
+
+class _NeteaseSongsResults extends ConsumerWidget {
+  const _NeteaseSongsResults({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final results = ref.watch(
+      neteaseSearchProvider((keywords: query, limit: 50, offset: 0)),
+    );
+
+    return results.when(
+      loading: _loading,
+      error: (error, _) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Center(
+          child: Text(
+            '$error',
+            textAlign: TextAlign.center,
+            style: theme.typeScale.bodyMedium.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
+        ),
+      ),
+      data: (tracks) {
+        if (tracks.isEmpty) {
+          return _empty(l10n, message: l10n.searchNoResults);
+        }
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          children: <Widget>[
+            M3EList(
+              color: theme.colorScheme.surface,
+              variant: M3ECardVariant.filled,
+              itemCount: tracks.length,
+              onTap: (int index) {
+                ref
+                    .read(playerProvider.notifier)
+                    .load(tracks, index, source: '网易云搜索');
+              },
+              itemBuilder: (BuildContext context, int index) {
+                final track = tracks[index];
+                return M3EListItem(
+                  headline: track.title,
+                  supportingText: track.artist,
+                  leading: _SearchResultCover(track: track),
+                  trailing: _sourceChip('网易云', 'wy'),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 }
 

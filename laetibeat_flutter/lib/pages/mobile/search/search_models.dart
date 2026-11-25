@@ -3,7 +3,7 @@
 enum MobileSearchCategory { songs, playlists, albums, artists }
 
 /// Source filter used by the search page's split filter button.
-enum MobileSearchSourceFilter { all, local, subsonic, lx }
+enum MobileSearchSourceFilter { all, local, subsonic, lx, netease }
 
 /// One clickable suggestion shown below the library search bar.
 class MobileSearchSuggestion {
@@ -19,6 +19,7 @@ class MobileSearchSuggestion {
   final String query;
   final String sourceLabel;
   final String kindLabel;
+
   /// Color key: local / subsonic / navidrome / tx / wy / kg / kw / mg.
   final String sourceKey;
 }

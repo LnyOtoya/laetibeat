@@ -52,6 +52,7 @@ class MobileAppearanceSettingsPage extends ConsumerWidget {
       l10n.searchSourceLocal,
       l10n.searchFilterSubsonic,
       l10n.searchFilterLx,
+      '网易云',
     ];
     final current = ref.read(defaultSearchSourceProvider);
     final currentLabel = labels[current.index];
