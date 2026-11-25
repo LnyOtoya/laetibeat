@@ -53,6 +53,15 @@ class NeteaseSettingsNotifier extends Notifier<NeteaseSettings> {
     await prefs.setBool(kNetEaseAllowLxFallbackKey, allowLxFallback);
   }
 
+  /// 立即保存后备开关，不要求用户再点“保存”。
+  Future<void> setAllowLxFallback(bool value) async {
+    if (state.allowLxFallback == value) return;
+    state = state.copyWith(allowLxFallback: value);
+    await ref
+        .read(sharedPreferencesProvider)
+        .setBool(kNetEaseAllowLxFallbackKey, value);
+  }
+
   Future<void> clear() async {
     state = const NeteaseSettings();
     final prefs = ref.read(sharedPreferencesProvider);

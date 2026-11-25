@@ -10,10 +10,12 @@ import '../../core/providers/playback_backend_provider.dart';
 import '../settings/persistence.dart';
 import '../settings/netease_provider.dart';
 import '../settings/netease_session.dart';
+import '../settings/netease_settings.dart';
 import '../settings/subsonic_provider.dart';
 import '../recommendation_provider.dart';
 import '../settings/fade_settings.dart';
 import '../settings/lx_settings.dart';
+import 'lx_search_provider.dart';
 import 'playback_backend.dart';
 import 'playback_session_tracker.dart';
 import 'lx_track.dart';
@@ -759,6 +761,20 @@ class PlayerNotifier extends Notifier<PlayerState> {
         cookie: cookie,
       );
       final url = stream.url;
+      final allowFallback = ref.read(neteaseSettingsProvider).allowLxFallback;
+      final needsFallback = stream.isTrial || url == null || url.isEmpty;
+      debugPrint(
+        '网易云直连 songId=${neteaseSongIdFromTrack(t)} '
+        'trial=${stream.isTrial} hasUrl=${url != null} '
+        'allowFallback=$allowFallback',
+      );
+      final wantsFallback = allowFallback && needsFallback;
+      if (wantsFallback) {
+        final fallback = await _resolveNeteaseLxFallback(t);
+        if (fallback != null) return fallback;
+      } else if (needsFallback) {
+        debugPrint('网易云试听/无 URL，但未开启洛雪后备');
+      }
       if (url == null || url.isEmpty) {
         throw StateError(stream.message ?? '网易云没有返回可播放地址');
       }
@@ -857,6 +873,37 @@ class PlayerNotifier extends Notifier<PlayerState> {
     return PlaybackTrack(uri: uri, fallbackDuration: _durationOf(t));
   }
 
+  /// 网易云直连只有试听/无 URL 时，尝试 LX `wy`。
+  Future<PlaybackTrack?> _resolveNeteaseLxFallback(rust.UiTrack track) async {
+    final ready = await ref
+        .read(lxRuntimeProvider.notifier)
+        .ensurePlayable('wy')
+        .timeout(const Duration(seconds: 12), onTimeout: () => false);
+    if (!ready) {
+      debugPrint('网易云 LX fallback: wy 不可用');
+      return null;
+    }
+
+    final preferred = ref.read(lxDefaultQualityProvider);
+    final qualities = <String>{preferred, '320k', '128k'};
+    final music = neteaseLxMusicInfoFromTrack(track);
+    for (final quality in qualities) {
+      try {
+        final url = await rust_lx.resolveLxMusicUrl(
+          source: 'wy',
+          music: music,
+          quality: quality,
+        );
+        if (url.isEmpty) continue;
+        debugPrint('网易云 LX fallback 成功 quality=$quality');
+        return PlaybackTrack(uri: url, fallbackDuration: _durationOf(track));
+      } catch (error) {
+        debugPrint('网易云 LX fallback 失败 quality=$quality: $error');
+      }
+    }
+    return null;
+  }
+
   //从解析的'03:24'时长文本转成 Duration,失败则用整曲默认值
   static Duration _durationOf(rust.UiTrack t) {
     final parts = t.duration.split(':');
@@ -906,6 +953,14 @@ class PlayerNotifier extends Notifier<PlayerState> {
     // 单曲循环:原位从头重播,不重新装载文件
     if (state.repeatMode == PlaybackRepeatMode.single) {
       _replayCurrent();
+      return;
+    }
+
+    // 试听片段播完不要自动切下一首：用户还没听到完整歌曲，
+    // 继续切歌会被误认为播放异常。停在试听末尾，等用户手动处理。
+    if (state.isPreview) {
+      debugPrint('网易云试听结束，停止而不再自动切歌');
+      state = state.copyWith(position: state.duration, isPlaying: false);
       return;
     }
 

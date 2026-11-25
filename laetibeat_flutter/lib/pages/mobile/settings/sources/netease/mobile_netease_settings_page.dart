@@ -255,8 +255,11 @@ class _MobileNeteaseSettingsPageState
               title: const Text('允许洛雪作为后备解析'),
               subtitle: const Text('网易云直连失败时，尝试已启用的洛雪 wy 音源'),
               value: _allowLxFallback,
-              onChanged: (bool value) {
+              onChanged: (bool value) async {
                 setState(() => _allowLxFallback = value);
+                await ref
+                    .read(neteaseSettingsProvider.notifier)
+                    .setAllowLxFallback(value);
               },
             ),
             const SizedBox(height: AppSpacing.lg),
