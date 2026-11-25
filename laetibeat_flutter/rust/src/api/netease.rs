@@ -277,6 +277,19 @@ pub fn netease_artist_detail(
     })
 }
 
+/// 艺人专辑列表。
+pub fn netease_artist_albums(
+    base_url: String,
+    artist_id: u64,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<Vec<UiNeteaseAlbum>, String> {
+    let albums = client(&base_url)?
+        .artist_albums(artist_id, limit.unwrap_or(100), offset.unwrap_or(0))
+        .map_err(|error| error.to_string())?;
+    Ok(albums.into_iter().map(map_album).collect())
+}
+
 /// 按歌曲 id 获取详情。
 pub fn netease_song_detail(
     base_url: String,

@@ -443,6 +443,27 @@ impl NeteaseClient {
         })
     }
 
+    pub fn artist_albums(
+        &self,
+        artist_id: u64,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<NeteaseAlbum>> {
+        let envelope: ArtistAlbumsEnvelope = self.get_json(
+            "/artist/album",
+            &[
+                ("id", artist_id.to_string()),
+                ("limit", limit.to_string()),
+                ("offset", offset.to_string()),
+            ],
+        )?;
+        Ok(envelope
+            .hot_albums
+            .into_iter()
+            .map(NeteaseAlbum::from)
+            .collect())
+    }
+
     pub fn song_detail(&self, song_ids: &[String]) -> Result<Vec<NeteaseTrack>> {
         if song_ids.is_empty() {
             return Ok(Vec::new());
@@ -778,6 +799,12 @@ struct ArtistDetailEnvelope {
 }
 
 #[derive(Debug, Deserialize)]
+struct ArtistAlbumsEnvelope {
+    #[serde(rename = "hotAlbums", default)]
+    hot_albums: Vec<AlbumInfo>,
+}
+
+#[derive(Debug, Deserialize)]
 struct ArtistSublistEnvelope {
     #[serde(default)]
     data: Vec<ArtistInfo>,
@@ -1079,6 +1106,10 @@ mod tests {
         assert!(!artists.is_empty());
         let artist = client.artist_detail(artists[0].id).expect("artist detail");
         assert!(!artist.tracks.is_empty());
+        let artist_albums = client
+            .artist_albums(artists[0].id, 3, 0)
+            .expect("artist albums");
+        assert!(!artist_albums.is_empty());
 
         let lyric = client.lyric(&free.id.to_string()).expect("lyric");
         assert!(!lyric.lyric.is_empty());

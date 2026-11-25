@@ -151,6 +151,19 @@ Future<UiNeteaseArtistDetail> neteaseArtistDetail({
   artistId: artistId,
 );
 
+/// 艺人专辑列表。
+Future<List<UiNeteaseAlbum>> neteaseArtistAlbums({
+  required String baseUrl,
+  required BigInt artistId,
+  int? limit,
+  int? offset,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseArtistAlbums(
+  baseUrl: baseUrl,
+  artistId: artistId,
+  limit: limit,
+  offset: offset,
+);
+
 /// 按歌曲 id 获取详情。
 Future<List<UiTrack>> neteaseSongDetail({
   required String baseUrl,

@@ -223,6 +223,19 @@ final neteaseArtistDetailProvider = FutureProvider.autoDispose
       );
     });
 
+/// 艺人专辑列表。
+final neteaseArtistAlbumsProvider = FutureProvider.autoDispose
+    .family<List<rust_netease.UiNeteaseAlbum>, BigInt>((ref, artistId) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      return rust_netease.neteaseArtistAlbums(
+        baseUrl: baseUrl,
+        artistId: artistId,
+      );
+    });
+
 /// 网易云图片（歌单/专辑/艺人封面）字节。
 final neteaseImageProvider = FutureProvider.autoDispose
     .family<Uint8List?, String>((ref, url) async {
