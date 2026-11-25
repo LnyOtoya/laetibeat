@@ -99,7 +99,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
             coverColor,
             brightness: baseTheme.colorScheme.brightness,
           );
-    final contentColor = scheme.surfaceContainer;
+    final contentColor = detailContentColor(scheme);
 
     final albumsAsync = ref.watch(
       remoteAlbumsProvider((

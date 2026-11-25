@@ -249,3 +249,16 @@ abstract final class MaterialYouColorScheme {
     };
   }
 }
+
+/// 详情页内容底色。
+///
+/// 以封面派生的 `secondaryContainer` 为基准，保留色相与彩度、把 tone 压低，
+/// 保证比 tonal 按钮和列表卡片更深，同时仍然带封面颜色。
+Color detailContentColor(M3EColorScheme scheme, {double toneDelta = 14}) {
+  final Color base = scheme.secondaryContainer;
+  final mcu.Hct hct = mcu.Hct.fromInt(base.toARGB32());
+  final double target = (hct.tone - toneDelta).clamp(0.0, 100.0).toDouble();
+  if (target >= hct.tone) return base;
+  hct.tone = target;
+  return Color(hct.toInt());
+}

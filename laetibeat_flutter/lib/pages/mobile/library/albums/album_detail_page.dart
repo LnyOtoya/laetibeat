@@ -105,7 +105,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
             coverColor,
             brightness: baseTheme.colorScheme.brightness,
           );
-    final contentColor = scheme.surfaceContainer;
+    final contentColor = detailContentColor(scheme);
 
     final isCurrentAlbum = ref.watch(
       playerProvider.select((PlayerState player) {

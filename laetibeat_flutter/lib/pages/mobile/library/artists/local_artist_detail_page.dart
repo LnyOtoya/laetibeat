@@ -112,7 +112,7 @@ class _LocalArtistDetailPageState extends ConsumerState<LocalArtistDetailPage> {
             coverColor,
             brightness: baseTheme.colorScheme.brightness,
           );
-    final contentColor = scheme.surfaceContainer;
+    final contentColor = detailContentColor(scheme);
 
     final isCurrentArtist = ref.watch(
       playerProvider.select((PlayerState player) {
