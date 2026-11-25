@@ -1,8 +1,10 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../l10n/generated/app_localizations.dart';
+import '../../../widgets/settings/online_music_settings.dart';
 
 import '../mobile_navigation.dart';
 import '../routes.dart';
@@ -10,19 +12,21 @@ import '../widgets/mobile_search_bar.dart';
 import 'appearance/mobile_appearance_settings_page.dart';
 import 'audio/mobile_audio_settings_page.dart';
 import 'content/mobile_content_settings_page.dart';
+import 'online/mobile_online_music_settings_page.dart';
 import 'storage/mobile_storage_settings_page.dart';
 
 /// 移动端设置页面。
 ///
 /// 顶部使用与 Search 页同款的搜索栏，不显示 AppBar。
 /// 设置入口使用 M3E expressive segmented column，只保留 headline / supporting。
-class MobileSettingsPage extends StatelessWidget {
+class MobileSettingsPage extends ConsumerWidget {
   const MobileSettingsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
+    final onlineSource = ref.watch(selectedOnlineMusicSourceProvider);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -58,9 +62,7 @@ class MobileSettingsPage extends StatelessWidget {
                     children: [
                       m3e_core.M3EListItem(
                         headline: Text(l10n.settingsAppearance),
-                        supportingText: Text(
-                          l10n.settingsAppearanceSupporting,
-                        ),
+                        supportingText: Text(l10n.settingsAppearanceSupporting),
                         leading: _SettingsLeadingAvatar(icon: M3EIcons.palette),
                       ),
                       m3e_core.M3EListItem(
@@ -77,6 +79,13 @@ class MobileSettingsPage extends StatelessWidget {
                         supportingText: Text(l10n.settingsContentSupporting),
                         leading: _SettingsLeadingAvatar(
                           icon: M3EIcons.library_music,
+                        ),
+                      ),
+                      m3e_core.M3EListItem(
+                        headline: const Text('在线音乐'),
+                        supportingText: Text('当前：${onlineSource.label}'),
+                        leading: _SettingsLeadingAvatar(
+                          icon: M3EIcons.language,
                         ),
                       ),
                       m3e_core.M3EListItem(
@@ -130,6 +139,12 @@ class MobileSettingsPage extends StatelessWidget {
           name: MobileRoutes.contentSettings,
         );
       case 3:
+        pushMobileRootPage(
+          context,
+          const MobileOnlineMusicSettingsPage(),
+          name: MobileRoutes.onlineMusicSettings,
+        );
+      case 4:
         pushMobileRootPage(
           context,
           const MobileStorageSettingsPage(),

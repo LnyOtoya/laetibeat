@@ -1,13 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:laetibeat/shared/layout/app_bottom_inset.dart';
-import 'package:laetibeat/widgets/recommendation_provider.dart';
+import 'package:laetibeat/widgets/settings/online_music_settings.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
-import '../home/discovery_page.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
 import '../widgets/mobile_large_subpage_app_bar.dart';
@@ -18,15 +17,16 @@ import 'mobile_library_subpages.dart';
 ///
 /// 只做内容入口，不再直接展示歌曲/专辑/艺术家列表。具体内容页保留原有
 /// 布局，后续在各自页面内接入来源筛选。
-class MobileLibraryPage extends StatelessWidget {
+class MobileLibraryPage extends ConsumerWidget {
   const MobileLibraryPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
     final scheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
     final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
+    final onlineSource = ref.watch(selectedOnlineMusicSourceProvider);
 
     final localSegments = <_LibrarySegment>[
       _LibrarySegment(
@@ -77,42 +77,7 @@ class MobileLibraryPage extends StatelessWidget {
       ),
     ];
 
-    final onlineSegments = <_LibrarySegment>[
-      _LibrarySegment(
-        icon: M3EIcons.person,
-        title: '艺人',
-        routeName: MobileRoutes.libraryArtists,
-        page: const MobileLibraryArtistsPage(),
-      ),
-      _LibrarySegment(
-        icon: M3EIcons.queue_music,
-        title: '我的在线歌单',
-        routeName: MobileRoutes.libraryPlaylists,
-        page: const MobileLibraryPlaylistsPage(),
-      ),
-      _LibrarySegment(
-        icon: M3EIcons.auto_awesome,
-        title: '每日推荐',
-        routeName: MobileRoutes.discovery,
-        page: const _DailyRecommendationsPage(),
-      ),
-      _LibrarySegment(
-        icon: M3EIcons.album,
-        title: '专辑',
-        routeName: MobileRoutes.libraryAlbums,
-        page: const MobileLibraryAlbumsPage(),
-      ),
-      _LibrarySegment(
-        icon: M3EIcons.radio,
-        title: '电台',
-        routeName: MobileRoutes.libraryPodcasts,
-        page: const _LibraryPlaceholderPage(
-          title: '电台',
-          message: '电台内容将在这里显示',
-          icon: M3EIcons.radio,
-        ),
-      ),
-    ];
+    final onlineSegments = _buildOnlineSegments(onlineSource);
 
     void openSegment(_LibrarySegment segment) {
       final page = segment.page;
@@ -164,13 +129,70 @@ class MobileLibraryPage extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xl),
           buildSection(
-            '在线音乐',
+            '在线音乐 · ${onlineSource.label}',
             const ValueKey<String>('library_group_online'),
             onlineSegments,
           ),
         ],
       ),
     );
+  }
+
+  List<_LibrarySegment> _buildOnlineSegments(OnlineMusicSource source) {
+    final message = '${source.label}尚未接入，请先在设置中配置 API';
+
+    return <_LibrarySegment>[
+      _LibrarySegment(
+        icon: M3EIcons.person,
+        title: '艺人',
+        routeName: MobileRoutes.libraryArtists,
+        page: _LibraryPlaceholderPage(
+          title: '艺人',
+          message: message,
+          icon: M3EIcons.person,
+        ),
+      ),
+      _LibrarySegment(
+        icon: M3EIcons.queue_music,
+        title: '我的在线歌单',
+        routeName: MobileRoutes.libraryPlaylists,
+        page: _LibraryPlaceholderPage(
+          title: '我的在线歌单',
+          message: message,
+          icon: M3EIcons.queue_music,
+        ),
+      ),
+      _LibrarySegment(
+        icon: M3EIcons.auto_awesome,
+        title: '每日推荐',
+        routeName: MobileRoutes.discovery,
+        page: _LibraryPlaceholderPage(
+          title: '每日推荐',
+          message: message,
+          icon: M3EIcons.auto_awesome,
+        ),
+      ),
+      _LibrarySegment(
+        icon: M3EIcons.album,
+        title: '专辑',
+        routeName: MobileRoutes.libraryAlbums,
+        page: _LibraryPlaceholderPage(
+          title: '专辑',
+          message: message,
+          icon: M3EIcons.album,
+        ),
+      ),
+      _LibrarySegment(
+        icon: M3EIcons.radio,
+        title: '电台',
+        routeName: MobileRoutes.libraryPodcasts,
+        page: _LibraryPlaceholderPage(
+          title: '电台',
+          message: message,
+          icon: M3EIcons.radio,
+        ),
+      ),
+    ];
   }
 }
 
@@ -239,34 +261,6 @@ class _LibrarySegmentedList extends StatelessWidget {
               : null,
         );
       },
-    );
-  }
-}
-
-class _DailyRecommendationsPage extends ConsumerWidget {
-  const _DailyRecommendationsPage();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final discovery = ref.watch(discoveryProvider);
-    return discovery.when(
-      data: (result) => result == null
-          ? const _LibraryPlaceholderPage(
-              title: '每日推荐',
-              message: '播放一些在线歌曲后，这里会生成每日推荐',
-              icon: M3EIcons.auto_awesome,
-            )
-          : DiscoveryPage(result: result),
-      loading: () => const _LibraryPlaceholderPage(
-        title: '每日推荐',
-        message: '正在生成推荐…',
-        icon: M3EIcons.auto_awesome,
-      ),
-      error: (error, _) => _LibraryPlaceholderPage(
-        title: '每日推荐',
-        message: error.toString(),
-        icon: M3EIcons.auto_awesome,
-      ),
     );
   }
 }
