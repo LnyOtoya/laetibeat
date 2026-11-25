@@ -367,6 +367,8 @@
   "publicData": "公开数据",
   "noArtistBio": "暂无歌手详情",
   "artistAlbums": "歌手专辑",
+  "artistDetails": "艺人详情",
+  "removeFromFavorites": "取消喜欢",
   "yearUnknown": "年份未知",
   "approxMinutes": "大约 {minutes} 分钟",
   "@approxMinutes": {

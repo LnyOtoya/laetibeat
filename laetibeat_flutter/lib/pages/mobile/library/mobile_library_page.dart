@@ -53,19 +53,25 @@ class MobileLibraryPage extends ConsumerWidget {
         icon: M3EIcons.person,
         title: '艺人',
         routeName: MobileRoutes.libraryArtists,
-        page: const MobileLibraryArtistsPage(),
+        page: const MobileLibraryArtistsPage(
+          sourceFilter: LibrarySourceFilter.navidrome,
+        ),
       ),
       _LibrarySegment(
         icon: M3EIcons.queue_music,
         title: '歌单',
         routeName: MobileRoutes.libraryPlaylists,
-        page: const MobileLibraryPlaylistsPage(),
+        page: const MobileLibraryPlaylistsPage(
+          sourceFilter: LibrarySourceFilter.navidrome,
+        ),
       ),
       _LibrarySegment(
         icon: M3EIcons.album,
         title: '专辑',
         routeName: MobileRoutes.libraryAlbums,
-        page: const MobileLibraryAlbumsPage(),
+        page: const MobileLibraryAlbumsPage(
+          sourceFilter: LibrarySourceFilter.navidrome,
+        ),
       ),
       _LibrarySegment(
         icon: M3EIcons.download,

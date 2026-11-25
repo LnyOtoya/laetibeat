@@ -890,6 +890,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get artistAlbums => '歌手专辑';
 
   @override
+  String get artistDetails => '艺人详情';
+
+  @override
+  String get removeFromFavorites => '取消喜欢';
+
+  @override
   String get yearUnknown => '年份未知';
 
   @override

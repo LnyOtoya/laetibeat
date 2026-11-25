@@ -367,6 +367,8 @@
   "publicData": "Public data",
   "noArtistBio": "No artist biography yet",
   "artistAlbums": "Artist albums",
+  "artistDetails": "Artist details",
+  "removeFromFavorites": "Remove from favorites",
   "yearUnknown": "Year unknown",
   "approxMinutes": "About {minutes} min",
   "@approxMinutes": {

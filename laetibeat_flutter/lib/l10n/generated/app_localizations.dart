@@ -1814,6 +1814,18 @@ abstract class AppLocalizations {
   /// **'Artist albums'**
   String get artistAlbums;
 
+  /// No description provided for @artistDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Artist details'**
+  String get artistDetails;
+
+  /// No description provided for @removeFromFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from favorites'**
+  String get removeFromFavorites;
+
   /// No description provided for @yearUnknown.
   ///
   /// In en, this message translates to:

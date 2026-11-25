@@ -16,10 +16,8 @@ import 'widgets/song_sort_sheet.dart';
 ///
 /// 需要 `ref` 才能读写排序设置，因此由页面壳统一注入，视图本身不再持有
 /// 排序入口。
-typedef _SubpageSortHandler = Future<void> Function(
-  BuildContext context,
-  WidgetRef ref,
-);
+typedef _SubpageSortHandler =
+    Future<void> Function(BuildContext context, WidgetRef ref);
 
 /// 媒体库子页面共用 Scaffold。
 ///
@@ -60,9 +58,7 @@ class _MobileLibrarySubpageState extends ConsumerState<_MobileLibrarySubpage> {
       appBar: AppPageBar.subpage(
         title: widget.title,
         onSearch: () => openMobileSearch(context),
-        onSort: sortHandler == null
-            ? null
-            : () => sortHandler(context, ref),
+        onSort: sortHandler == null ? null : () => sortHandler(context, ref),
         showLayout: widget.showLayout,
         isGrid: _isGrid,
         onToggleLayout: widget.showLayout
@@ -100,41 +96,62 @@ class MobileLibrarySongsPage extends StatelessWidget {
   }
 }
 
+/// 给子页面注入固定的来源筛选，避免依赖全局“歌曲来源”设置。
+Widget _withSourceFilter(LibrarySourceFilter? filter, Widget child) {
+  if (filter == null) return child;
+  return ProviderScope(
+    overrides: [librarySourceFilterProvider.overrideWithValue(filter)],
+    child: child,
+  );
+}
+
 class MobileLibraryAlbumsPage extends StatelessWidget {
-  const MobileLibraryAlbumsPage({super.key});
+  const MobileLibraryAlbumsPage({super.key, this.sourceFilter});
+
+  /// 为空时跟随全局歌曲来源设置。
+  final LibrarySourceFilter? sourceFilter;
 
   @override
   Widget build(BuildContext context) {
     return _MobileLibrarySubpage(
       title: AppLocalizations.of(context).libraryAlbums,
       showLayout: true,
-      childBuilder: (bool isGrid) => AlbumsLibraryView(isGrid: isGrid),
+      childBuilder: (bool isGrid) =>
+          _withSourceFilter(sourceFilter, AlbumsLibraryView(isGrid: isGrid)),
     );
   }
 }
 
 class MobileLibraryArtistsPage extends StatelessWidget {
-  const MobileLibraryArtistsPage({super.key});
+  const MobileLibraryArtistsPage({super.key, this.sourceFilter});
+
+  /// 为空时跟随全局歌曲来源设置。
+  final LibrarySourceFilter? sourceFilter;
 
   @override
   Widget build(BuildContext context) {
     return _MobileLibrarySubpage(
       title: AppLocalizations.of(context).libraryArtists,
       showLayout: true,
-      childBuilder: (bool isGrid) => ArtistsLibraryView(isGrid: isGrid),
+      childBuilder: (bool isGrid) =>
+          _withSourceFilter(sourceFilter, ArtistsLibraryView(isGrid: isGrid)),
     );
   }
 }
 
 class MobileLibraryPlaylistsPage extends StatelessWidget {
-  const MobileLibraryPlaylistsPage({super.key});
+  const MobileLibraryPlaylistsPage({super.key, this.sourceFilter});
+
+  /// 为空时跟随全局歌曲来源设置。
+  final LibrarySourceFilter? sourceFilter;
 
   @override
   Widget build(BuildContext context) {
     return _MobileLibrarySubpage(
       title: AppLocalizations.of(context).libraryPlaylists,
       showLayout: true,
-      childBuilder: (bool isGrid) => PlaylistsLibraryView(isGrid: isGrid),
+      childBuilder: (bool isGrid) =>
+          _withSourceFilter(sourceFilter, PlaylistsLibraryView(isGrid: isGrid)),
     );
   }
 }

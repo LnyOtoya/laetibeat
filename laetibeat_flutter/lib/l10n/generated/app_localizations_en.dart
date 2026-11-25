@@ -916,6 +916,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get artistAlbums => 'Artist albums';
 
   @override
+  String get artistDetails => 'Artist details';
+
+  @override
+  String get removeFromFavorites => 'Remove from favorites';
+
+  @override
   String get yearUnknown => 'Year unknown';
 
   @override

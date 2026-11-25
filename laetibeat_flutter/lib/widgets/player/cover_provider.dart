@@ -400,7 +400,7 @@ final playbackCoverProvider = FutureProvider<PlaybackCover?>((ref) async {
   }
   if (bytes == null || bytes.isEmpty) return null;
 
-  return PlaybackCover(bytes, await _dominantColor(bytes));
+  return PlaybackCover(bytes, await dominantCoverColor(bytes));
 });
 
 /// 按曲目取封面字节(供音乐库列表等并行展示)。以 track 对象作 family key,
@@ -440,7 +440,9 @@ final remoteCoverProvider =
 // ---------------------------------------------------------------------------
 
 /// 从封面字节提取一个代表性主色(采样数最多的量化桶的平均色)。
-Future<Color> _dominantColor(Uint8List bytes) async {
+///
+/// 供播放页和详情页的封面取色共用。
+Future<Color> dominantCoverColor(Uint8List bytes) async {
   const int grid = 24;
   // 只解码到 64px 宽:取色只需要缩略采样,避免在 UI 线程解码整张大图
   final codec = await ui.instantiateImageCodec(
