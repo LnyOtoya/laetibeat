@@ -221,6 +221,80 @@ Future<List<UiTrack>> neteaseDailyRecommendations({
   cookie: cookie,
 );
 
+/// 推荐歌单。limit 默认 6，接口通常最多 30。
+Future<List<UiNeteasePlaylist>> neteasePersonalizedPlaylists({
+  required String baseUrl,
+  int? limit,
+}) => RustLib.instance.api.crateApiNeteaseNeteasePersonalizedPlaylists(
+  baseUrl: baseUrl,
+  limit: limit,
+);
+
+/// 首页雷达歌单。
+Future<List<UiNeteasePlaylist>> neteaseRadarPlaylists({
+  required String baseUrl,
+}) =>
+    RustLib.instance.api.crateApiNeteaseNeteaseRadarPlaylists(baseUrl: baseUrl);
+
+/// 私人 FM。接口每次返回 1 首。
+Future<List<UiTrack>> neteasePersonalFm({
+  required String baseUrl,
+  String? cookie,
+}) => RustLib.instance.api.crateApiNeteaseNeteasePersonalFm(
+  baseUrl: baseUrl,
+  cookie: cookie,
+);
+
+/// 私人 FM 模式。mode 可选 DEFAULT / FAMILIAR / EXPLORE / SCENE_RCMD 等。
+Future<List<UiTrack>> neteasePersonalFmMode({
+  required String baseUrl,
+  required String mode,
+  String? submode,
+  String? cookie,
+}) => RustLib.instance.api.crateApiNeteaseNeteasePersonalFmMode(
+  baseUrl: baseUrl,
+  mode: mode,
+  submode: submode,
+  cookie: cookie,
+);
+
+/// 相似歌曲。接口通常返回 5 首。
+Future<List<UiTrack>> neteaseSimilarSongs({
+  required String baseUrl,
+  required BigInt songId,
+  String? cookie,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseSimilarSongs(
+  baseUrl: baseUrl,
+  songId: songId,
+  cookie: cookie,
+);
+
+/// 当前用户红心歌曲 id。
+Future<Uint64List> neteaseLikedSongIds({
+  required String baseUrl,
+  required BigInt uid,
+  required String cookie,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseLikedSongIds(
+  baseUrl: baseUrl,
+  uid: uid,
+  cookie: cookie,
+);
+
+/// 心动模式/智能播放队列。
+Future<List<UiTrack>> neteaseIntelligenceList({
+  required String baseUrl,
+  required String cookie,
+  required BigInt songId,
+  required BigInt playlistId,
+  BigInt? startSongId,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseIntelligenceList(
+  baseUrl: baseUrl,
+  cookie: cookie,
+  songId: songId,
+  playlistId: playlistId,
+  startSongId: startSongId,
+);
+
 /// 获取播放 URL。level 默认 exhigh。
 Future<UiNeteaseStream> neteaseSongUrl({
   required String baseUrl,
@@ -431,6 +505,8 @@ class UiNeteasePlaylist {
   final String? coverUrl;
   final int trackCount;
   final String? creator;
+  final BigInt? playCount;
+  final int? specialType;
 
   const UiNeteasePlaylist({
     required this.id,
@@ -438,6 +514,8 @@ class UiNeteasePlaylist {
     this.coverUrl,
     required this.trackCount,
     this.creator,
+    this.playCount,
+    this.specialType,
   });
 
   @override
@@ -446,7 +524,9 @@ class UiNeteasePlaylist {
       name.hashCode ^
       coverUrl.hashCode ^
       trackCount.hashCode ^
-      creator.hashCode;
+      creator.hashCode ^
+      playCount.hashCode ^
+      specialType.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -457,7 +537,9 @@ class UiNeteasePlaylist {
           name == other.name &&
           coverUrl == other.coverUrl &&
           trackCount == other.trackCount &&
-          creator == other.creator;
+          creator == other.creator &&
+          playCount == other.playCount &&
+          specialType == other.specialType;
 }
 
 class UiNeteaseQrCheck {

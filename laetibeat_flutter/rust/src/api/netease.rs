@@ -25,6 +25,8 @@ pub struct UiNeteasePlaylist {
     pub cover_url: Option<String>,
     pub track_count: u32,
     pub creator: Option<String>,
+    pub play_count: Option<u64>,
+    pub special_type: Option<i32>,
 }
 
 #[frb(non_opaque)]
@@ -360,6 +362,98 @@ pub fn netease_daily_recommendations(
         .collect())
 }
 
+/// 推荐歌单。limit 默认 6，接口通常最多 30。
+pub fn netease_personalized_playlists(
+    base_url: String,
+    limit: Option<u32>,
+) -> Result<Vec<UiNeteasePlaylist>, String> {
+    let playlists = client(&base_url)?
+        .personalized_playlists(limit.unwrap_or(6))
+        .map_err(|error| error.to_string())?;
+    Ok(playlists.into_iter().map(map_playlist).collect())
+}
+
+/// 首页雷达歌单。
+pub fn netease_radar_playlists(base_url: String) -> Result<Vec<UiNeteasePlaylist>, String> {
+    let playlists = client(&base_url)?
+        .radar_playlists()
+        .map_err(|error| error.to_string())?;
+    Ok(playlists.into_iter().map(map_playlist).collect())
+}
+
+/// 私人 FM。接口每次返回 1 首。
+pub fn netease_personal_fm(
+    base_url: String,
+    cookie: Option<String>,
+) -> Result<Vec<UiTrack>, String> {
+    let tracks = client(&base_url)?
+        .personal_fm(cookie.as_deref())
+        .map_err(|error| error.to_string())?;
+    Ok(tracks
+        .into_iter()
+        .map(|track| map_track(&base_url, track))
+        .collect())
+}
+
+/// 私人 FM 模式。mode 可选 DEFAULT / FAMILIAR / EXPLORE / SCENE_RCMD 等。
+pub fn netease_personal_fm_mode(
+    base_url: String,
+    mode: String,
+    submode: Option<String>,
+    cookie: Option<String>,
+) -> Result<Vec<UiTrack>, String> {
+    let tracks = client(&base_url)?
+        .personal_fm_mode(&mode, submode.as_deref(), cookie.as_deref())
+        .map_err(|error| error.to_string())?;
+    Ok(tracks
+        .into_iter()
+        .map(|track| map_track(&base_url, track))
+        .collect())
+}
+
+/// 相似歌曲。接口通常返回 5 首。
+pub fn netease_similar_songs(
+    base_url: String,
+    song_id: u64,
+    cookie: Option<String>,
+) -> Result<Vec<UiTrack>, String> {
+    let tracks = client(&base_url)?
+        .similar_songs(song_id, cookie.as_deref())
+        .map_err(|error| error.to_string())?;
+    Ok(tracks
+        .into_iter()
+        .map(|track| map_track(&base_url, track))
+        .collect())
+}
+
+/// 当前用户红心歌曲 id。
+pub fn netease_liked_song_ids(
+    base_url: String,
+    uid: u64,
+    cookie: String,
+) -> Result<Vec<u64>, String> {
+    client(&base_url)?
+        .liked_song_ids(uid, &cookie)
+        .map_err(|error| error.to_string())
+}
+
+/// 心动模式/智能播放队列。
+pub fn netease_intelligence_list(
+    base_url: String,
+    cookie: String,
+    song_id: u64,
+    playlist_id: u64,
+    start_song_id: Option<u64>,
+) -> Result<Vec<UiTrack>, String> {
+    let tracks = client(&base_url)?
+        .intelligence_list(song_id, playlist_id, start_song_id, &cookie)
+        .map_err(|error| error.to_string())?;
+    Ok(tracks
+        .into_iter()
+        .map(|track| map_track(&base_url, track))
+        .collect())
+}
+
 /// 获取播放 URL。level 默认 exhigh。
 pub fn netease_song_url(
     base_url: String,
@@ -484,6 +578,8 @@ fn map_playlist(playlist: NeteasePlaylist) -> UiNeteasePlaylist {
         cover_url: playlist.cover_url,
         track_count: playlist.track_count,
         creator: playlist.creator,
+        play_count: playlist.play_count,
+        special_type: playlist.special_type,
     }
 }
 

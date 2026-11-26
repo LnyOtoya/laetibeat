@@ -27,10 +27,13 @@
 
 - [x] 底部 tab 改为「首页 / 发现 / 媒体库 / 统计」。
 - [x] 新增 `AppDestination.discover`、`MobileRoutes.discover`、`MobileDiscoverPage`。
-- [x] 发现页位于首页之后，当前为空状态占位。
+- [x] 发现页位于首页之后，改为横向推荐卡片：媒体推荐、心动模式、歌单推荐、漫游、雷达歌单、相似歌曲。
 - [x] 移除底部导航的电台入口与 `MobileRadioPage`；媒体库在线音乐中的「电台」占位仍保留。
 - [x] l10n 增加 `navDiscover` / `discoverSubtitle` / `discoverEmptyTitle` / `discoverEmptyMessage`。
-- [ ] 发现页内容待定（网易云首页、推荐、榜单等）。
+- [x] Rust 新增发现接口：`/personalized`、`/personal_fm`、`/simi/song`、`/homepage/block/page` 雷达 block、`/likelist`、`/playmode/intelligence/list`。
+- [x] 数量控制：每日推荐 30、推荐歌单 6、私人 FM 1、相似歌曲 5、雷达歌单 6。
+- [x] 不做假数据：心动模式/相似歌曲未登录显示登录提示；其余接口返回登录错误时同样提示登录。
+- [ ] 实测：登录后心动模式与相似歌曲队列、漫游队列续拉、雷达接口缓存与真机横向卡片布局。
 
 ## 2026-11-25 最终结构定稿（Rust / Dart 边界）
 

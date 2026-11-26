@@ -58,6 +58,8 @@ pub struct NeteasePlaylist {
     pub cover_url: Option<String>,
     pub track_count: u32,
     pub creator: Option<String>,
+    pub play_count: Option<u64>,
+    pub special_type: Option<i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -603,6 +605,117 @@ impl NeteaseClient {
         })
     }
 
+    /// 推荐歌单。`limit` 由接口上限约束，通常最多 30。
+    pub fn personalized_playlists(&self, limit: u32) -> Result<Vec<NeteasePlaylist>> {
+        let envelope: PersonalizedEnvelope =
+            self.get_json("/personalized", &[("limit", limit.to_string())])?;
+        Ok(envelope
+            .result
+            .into_iter()
+            .map(NeteasePlaylist::from)
+            .collect())
+    }
+
+    /// 私人 FM。接口每次返回 1 首。
+    pub fn personal_fm(&self, cookie: Option<&str>) -> Result<Vec<NeteaseTrack>> {
+        let envelope: FmEnvelope = match cookie.filter(|value| !value.trim().is_empty()) {
+            Some(cookie) => self.post_form_json(
+                "/personal_fm",
+                &[("cookie", cookie.to_string()), ("timestamp", now_millis())],
+            )?,
+            None => self.get_json("/personal_fm", &[])?,
+        };
+        Ok(envelope.data.into_iter().map(NeteaseTrack::from).collect())
+    }
+
+    /// 私人 FM 模式。`mode` 可选 DEFAULT / FAMILIAR / EXPLORE / SCENE_RCMD 等。
+    pub fn personal_fm_mode(
+        &self,
+        mode: &str,
+        submode: Option<&str>,
+        cookie: Option<&str>,
+    ) -> Result<Vec<NeteaseTrack>> {
+        let mut params = vec![("mode", mode.to_string())];
+        if let Some(submode) = submode.filter(|value| !value.trim().is_empty()) {
+            params.push(("submode", submode.to_string()));
+        }
+        let envelope: FmEnvelope = match cookie.filter(|value| !value.trim().is_empty()) {
+            Some(cookie) => {
+                let mut form = params;
+                form.push(("cookie", cookie.to_string()));
+                form.push(("timestamp", now_millis()));
+                self.post_form_json("/personal/fm/mode", &form)?
+            }
+            None => self.get_json("/personal/fm/mode", &params)?,
+        };
+        Ok(envelope.data.into_iter().map(NeteaseTrack::from).collect())
+    }
+
+    /// 相似歌曲。接口通常返回 5 首。
+    pub fn similar_songs(&self, song_id: u64, cookie: Option<&str>) -> Result<Vec<NeteaseTrack>> {
+        let envelope: SimilarSongsEnvelope = match cookie.filter(|value| !value.trim().is_empty()) {
+            Some(cookie) => self.post_form_json(
+                "/simi/song",
+                &[
+                    ("id", song_id.to_string()),
+                    ("cookie", cookie.to_string()),
+                    ("timestamp", now_millis()),
+                ],
+            )?,
+            None => self.get_json("/simi/song", &[("id", song_id.to_string())])?,
+        };
+        Ok(envelope.songs.into_iter().map(NeteaseTrack::from).collect())
+    }
+
+    /// 当前用户红心歌曲 id。接口一次性返回完整 id 列表。
+    pub fn liked_song_ids(&self, uid: u64, cookie: &str) -> Result<Vec<u64>> {
+        let envelope: LikelistEnvelope = self.post_form_json(
+            "/likelist",
+            &[
+                ("uid", uid.to_string()),
+                ("cookie", cookie.to_string()),
+                ("timestamp", now_millis()),
+            ],
+        )?;
+        Ok(envelope.ids)
+    }
+
+    /// 心动模式/智能播放。返回推荐队列。
+    pub fn intelligence_list(
+        &self,
+        song_id: u64,
+        playlist_id: u64,
+        start_song_id: Option<u64>,
+        cookie: &str,
+    ) -> Result<Vec<NeteaseTrack>> {
+        let mut form = vec![
+            ("id", song_id.to_string()),
+            ("pid", playlist_id.to_string()),
+            ("cookie", cookie.to_string()),
+            ("timestamp", now_millis()),
+        ];
+        if let Some(start_song_id) = start_song_id.filter(|value| *value > 0) {
+            form.push(("sid", start_song_id.to_string()));
+        }
+        let envelope: IntelligenceEnvelope =
+            self.post_form_json("/playmode/intelligence/list", &form)?;
+        let ids = envelope
+            .data
+            .into_iter()
+            .map(|item| item.id.to_string())
+            .collect::<Vec<_>>();
+        if ids.is_empty() {
+            return Err(NeteaseError::Api("心动模式没有返回歌曲".to_string()));
+        }
+        self.song_detail(&ids)
+    }
+
+    /// 首页雷达歌单。只解析 `HOMEPAGE_BLOCK_MGC_PLAYLIST`。
+    pub fn radar_playlists(&self) -> Result<Vec<NeteasePlaylist>> {
+        let envelope: HomepageEnvelope = self.get_json("/homepage/block/page", &[])?;
+        Ok(map_radar_playlists(envelope))
+    }
+
     pub fn cover(&self, url: &str) -> Result<Vec<u8>> {
         let parsed =
             Url::parse(url).map_err(|error| NeteaseError::InvalidBaseUrl(error.to_string()))?;
@@ -632,6 +745,49 @@ impl NeteaseClient {
         let bytes = response.bytes()?;
         serde_json::from_slice(&bytes).map_err(NeteaseError::from)
     }
+}
+
+fn map_radar_playlists(envelope: HomepageEnvelope) -> Vec<NeteasePlaylist> {
+    let mut playlists = Vec::new();
+    for block in envelope.data.map(|data| data.blocks).unwrap_or_default() {
+        if block.block_code != "HOMEPAGE_BLOCK_MGC_PLAYLIST" {
+            continue;
+        }
+        for creative in block.creatives {
+            for resource in creative.resources {
+                let Some(id) = resource
+                    .resource_id
+                    .as_deref()
+                    .and_then(|value| value.parse::<u64>().ok())
+                else {
+                    continue;
+                };
+                let (name, cover_url) = match resource.ui_element {
+                    Some(ui) => (
+                        ui.main_title
+                            .and_then(|title| title.title)
+                            .unwrap_or_default(),
+                        ui.image.and_then(|image| image.image_url),
+                    ),
+                    None => (String::new(), None),
+                };
+                let (play_count, special_type) = resource
+                    .resource_ext_info
+                    .map(|info| (info.play_count, info.special_type))
+                    .unwrap_or((None, None));
+                playlists.push(NeteasePlaylist {
+                    id,
+                    name,
+                    cover_url,
+                    track_count: 0,
+                    creator: None,
+                    play_count,
+                    special_type,
+                });
+            }
+        }
+    }
+    playlists
 }
 
 fn now_millis() -> String {
@@ -696,6 +852,8 @@ impl From<UserPlaylist> for NeteasePlaylist {
             cover_url: playlist.cover_img_url,
             track_count: playlist.track_count.unwrap_or(0),
             creator: playlist.creator.and_then(|creator| creator.nickname),
+            play_count: playlist.play_count,
+            special_type: playlist.special_type,
         }
     }
 }
@@ -894,12 +1052,140 @@ struct UserPlaylist {
     cover_img_url: Option<String>,
     #[serde(rename = "trackCount")]
     track_count: Option<u32>,
+    #[serde(rename = "playCount")]
+    play_count: Option<u64>,
+    #[serde(rename = "specialType")]
+    special_type: Option<i32>,
     creator: Option<PlaylistCreator>,
 }
 
 #[derive(Debug, Deserialize)]
 struct PlaylistCreator {
     nickname: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PersonalizedEnvelope {
+    #[serde(default)]
+    result: Vec<PersonalizedPlaylist>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PersonalizedPlaylist {
+    id: u64,
+    name: String,
+    #[serde(rename = "picUrl")]
+    pic_url: Option<String>,
+    #[serde(rename = "trackCount")]
+    track_count: Option<u32>,
+    #[serde(rename = "playCount")]
+    play_count: Option<u64>,
+}
+
+impl From<PersonalizedPlaylist> for NeteasePlaylist {
+    fn from(playlist: PersonalizedPlaylist) -> Self {
+        Self {
+            id: playlist.id,
+            name: playlist.name,
+            cover_url: playlist.pic_url,
+            track_count: playlist.track_count.unwrap_or(0),
+            creator: None,
+            play_count: playlist.play_count,
+            special_type: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct FmEnvelope {
+    #[serde(default)]
+    data: Vec<Song>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SimilarSongsEnvelope {
+    #[serde(default)]
+    songs: Vec<Song>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LikelistEnvelope {
+    #[serde(default)]
+    ids: Vec<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct IntelligenceEnvelope {
+    #[serde(default)]
+    data: Vec<IntelligenceItem>,
+}
+
+#[derive(Debug, Deserialize)]
+struct IntelligenceItem {
+    id: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct HomepageEnvelope {
+    data: Option<HomepageData>,
+}
+
+#[derive(Debug, Deserialize)]
+struct HomepageData {
+    #[serde(default)]
+    blocks: Vec<HomepageBlock>,
+}
+
+#[derive(Debug, Deserialize)]
+struct HomepageBlock {
+    #[serde(rename = "blockCode")]
+    block_code: String,
+    #[serde(default)]
+    creatives: Vec<HomepageCreative>,
+}
+
+#[derive(Debug, Deserialize)]
+struct HomepageCreative {
+    #[serde(default)]
+    resources: Vec<HomepageResource>,
+}
+
+#[derive(Debug, Deserialize)]
+struct HomepageResource {
+    #[serde(rename = "resourceId")]
+    resource_id: Option<String>,
+    #[serde(rename = "uiElement", default)]
+    ui_element: Option<HomepageUiElement>,
+    #[serde(rename = "resourceExtInfo", default)]
+    resource_ext_info: Option<HomepageResourceExtInfo>,
+}
+
+#[derive(Debug, Deserialize)]
+struct HomepageUiElement {
+    #[serde(rename = "mainTitle", default)]
+    main_title: Option<HomepageTitle>,
+    #[serde(default)]
+    image: Option<HomepageImage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct HomepageTitle {
+    #[serde(default)]
+    title: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct HomepageImage {
+    #[serde(rename = "imageUrl", default)]
+    image_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct HomepageResourceExtInfo {
+    #[serde(rename = "playCount", default)]
+    play_count: Option<u64>,
+    #[serde(rename = "specialType", default)]
+    special_type: Option<i32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1115,6 +1401,92 @@ mod tests {
         assert_eq!(map_artist_top_songs(songs).len(), 50);
     }
 
+    #[test]
+    fn maps_user_playlist_metadata() {
+        let envelope: UserPlaylistEnvelope = serde_json::from_str(
+            r#"{
+                "playlist": [{
+                    "id": 123,
+                    "name": "我喜欢的音乐",
+                    "coverImgUrl": "https://example.com/p.jpg",
+                    "trackCount": 42,
+                    "specialType": 5,
+                    "playCount": 99,
+                    "creator": {"nickname": "tester"}
+                }]
+            }"#,
+        )
+        .expect("user playlist json");
+        let playlist = NeteasePlaylist::from(envelope.playlist.into_iter().next().unwrap());
+        assert_eq!(playlist.special_type, Some(5));
+        assert_eq!(playlist.play_count, Some(99));
+    }
+
+    #[test]
+    fn maps_personalized_playlist_shape() {
+        let envelope: PersonalizedEnvelope = serde_json::from_str(
+            r#"{
+                "result": [{
+                    "id": 456,
+                    "name": "推荐歌单",
+                    "picUrl": "https://example.com/cover.jpg",
+                    "trackCount": 12,
+                    "playCount": 345
+                }]
+            }"#,
+        )
+        .expect("personalized playlist json");
+        let playlist = NeteasePlaylist::from(envelope.result.into_iter().next().unwrap());
+        assert_eq!(playlist.id, 456);
+        assert_eq!(playlist.name, "推荐歌单");
+        assert_eq!(
+            playlist.cover_url.as_deref(),
+            Some("https://example.com/cover.jpg")
+        );
+        assert_eq!(playlist.track_count, 12);
+        assert_eq!(playlist.play_count, Some(345));
+    }
+
+    #[test]
+    fn maps_homepage_radar_block() {
+        let envelope: HomepageEnvelope = serde_json::from_str(
+            r#"{
+                "data": {
+                    "blocks": [
+                        {
+                            "blockCode": "HOMEPAGE_BLOCK_MGC_PLAYLIST",
+                            "creatives": [{
+                                "resources": [
+                                    {
+                                        "resourceId": "2829883282",
+                                        "uiElement": {
+                                            "mainTitle": {"title": "华语私人雷达"},
+                                            "image": {"imageUrl": "https://example.com/radar.jpg"}
+                                        },
+                                        "resourceExtInfo": {"playCount": 123, "specialType": 100}
+                                    },
+                                    {"resourceId": "not-a-number", "uiElement": {}},
+                                    {"uiElement": {}}
+                                ]
+                            }]
+                        }
+                    ]
+                }
+            }"#,
+        )
+        .expect("homepage json");
+        let playlists = map_radar_playlists(envelope);
+        assert_eq!(playlists.len(), 1);
+        assert_eq!(playlists[0].id, 2829883282);
+        assert_eq!(playlists[0].name, "华语私人雷达");
+        assert_eq!(
+            playlists[0].cover_url.as_deref(),
+            Some("https://example.com/radar.jpg")
+        );
+        assert_eq!(playlists[0].play_count, Some(123));
+        assert_eq!(playlists[0].special_type, Some(100));
+    }
+
     /// 手动联调测试：
     /// `LAETIBEAT_NETEASE_API=http://192.168.31.51:3000 cargo test -p laetibeat_netease live_probe -- --ignored`
     #[test]
@@ -1165,6 +1537,25 @@ mod tests {
 
         let lyric = client.lyric(&free.id.to_string()).expect("lyric");
         assert!(!lyric.lyric.is_empty());
+
+        let personalized = client
+            .personalized_playlists(6)
+            .expect("personalized playlists");
+        assert!(!personalized.is_empty());
+
+        let fm = client.personal_fm(None).expect("personal fm");
+        assert!(!fm.is_empty());
+
+        let similar = client
+            .similar_songs(daily[0].id, None)
+            .expect("similar songs");
+        assert!(!similar.is_empty());
+
+        let radar = client.radar_playlists().expect("radar playlists");
+        assert!(!radar.is_empty());
+        assert!(radar
+            .iter()
+            .any(|playlist| playlist.special_type == Some(100)));
     }
 
     /// 二维码接口联调：不扫码，只验证 key/create/check 形状。
