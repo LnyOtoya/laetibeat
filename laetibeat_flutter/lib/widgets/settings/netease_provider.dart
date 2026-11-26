@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/netease.dart' as rust_netease;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 
+import '../cache/netease_cover_cache.dart';
 import 'netease_session.dart';
 import 'netease_settings.dart';
 
@@ -271,8 +272,7 @@ final neteasePlaylistTracksPageProvider = FutureProvider.autoDispose
 final neteasePlaylistCoverProvider = FutureProvider.autoDispose
     .family<Uint8List?, String>((ref, url) async {
       if (url.isEmpty) return null;
-      final bytes = await rust_netease.neteaseGetCover(url: url);
-      return bytes.isEmpty ? null : bytes;
+      return ref.read(neteaseCoverSourceProvider).coverUrl(url);
     });
 
 typedef NeteaseSearchKey = ({String keywords, int limit, int offset});
@@ -389,8 +389,7 @@ final neteaseArtistAlbumsProvider = FutureProvider.autoDispose
 final neteaseImageProvider = FutureProvider.autoDispose
     .family<Uint8List?, String>((ref, url) async {
       if (url.isEmpty) return null;
-      final bytes = await rust_netease.neteaseGetCover(url: url);
-      return bytes.isEmpty ? null : bytes;
+      return ref.read(neteaseCoverSourceProvider).coverUrl(url);
     });
 
 /// 从 UiTrack 中取出网易云 songId，兼容旧数据与 sourceExtraJson。

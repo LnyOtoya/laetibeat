@@ -7,7 +7,7 @@
 
 - 本地音乐：扫描、增量复用、专辑/艺术家聚合、播放、封面、歌词、统计、推荐
 - Navidrome：单服务端配置、手动同步、SQLite 快照、浏览/搜索/播放、封面/歌词、scrobble
-- 缓存：本地封面按需读取；远端封面内存 + 磁盘 LRU；歌词 SQLite 正负缓存；LX 歌词 SQLite 正缓存 + 封面磁盘 LRU；移动端缓存管理支持总上限滑块、三源明细与一键释放空间；「为你发现」按天写入 SQLite 缓存（`discovery_cache`），打开优先读缓存
+- 缓存：本地封面按需读取；远端与网易云封面内存 + 磁盘 LRU；歌词 SQLite 正负缓存；LX 歌词 SQLite 正缓存 + 封面磁盘 LRU；移动端缓存管理支持总上限滑块、分源明细与一键释放空间；「为你发现」按天写入 SQLite 缓存（`discovery_cache`），打开优先读缓存
 - 移动端：音乐库/搜索/设置/播放页/迷你播放器已完成；首页现为「最新发行」轮播、「为你发现」、「最近加入」、「重拾旧爱」；`mobile_welcome_section` / `mobile_daily_section` 仍未接入，属于待清理旧组件
 - 移动端导航：底部 tab 为 首页 / 媒体库 / 统计 / 电台；设置入口移至首页 AppBar 折叠态；电台页目前只有空状态占位
 - 移动端设置：入口页已迁移到 `m3e_core.M3ESegmentedColumn`；具体设置子页尚未统一迁移
@@ -1149,13 +1149,14 @@ LX 平台：酷我 / QQ / 网易 / 咪咕 / 酷狗
 ## 阶段6：封面 / 歌词 / 缓存
 
 - [x] 6.1 本地封面：Rust lofty 读取内嵌图
-- [x] 6.2 远端封面：内存 LRU + 磁盘 LRU（受总缓存上限的 Subsonic 份额控制），服务器变更时清理
+- [x] 6.2 远端封面：内存 LRU + 磁盘 LRU（受总缓存上限的 Subsonic 份额控制），服务器变更时清理。
+- [x] 网易云封面：独立 32MB 内存 LRU + `netease_covers` 磁盘 LRU，按网易云封面 URL 复用；与洛雪缓存隔离。
 - [x] 6.3 本地歌词：内嵌 → sidecar，按音频/sidecar 指纹缓存
 - [x] 6.4 远端歌词：OpenSubsonic 返回，正缓存长期、负缓存 1 天
 - [x] 6.5 歌词缓存 20MB 上限与过期负缓存清理
 - [x] 6.6 搜索歌词：LRCLIB + LiriQo、逐字/逐行/静态、翻译、应用覆盖
 - [ ] 6.7 搜索歌词持久化：写入本地 .lrc / 标签，或保存覆盖记录
-- [x] 6.8 移动端缓存管理：总用量/上限、粗细进度条、释放空间、三源歌词/封面/其他明细、总缓存上限滑块、自动与下拉刷新
+- [x] 6.8 移动端缓存管理：总用量/上限、粗细进度条、释放空间、分源歌词/封面/其他明细、总缓存上限滑块、自动与下拉刷新
 
 ## 阶段7：跨平台与系统集成
 
@@ -1539,7 +1540,7 @@ LX 平台：酷我 / QQ / 网易 / 咪咕 / 酷狗
 - 平台列表已拆成 `lxPlatformsProvider`（内置、恒可用）与 `lxPlayablePlatformsProvider`（autoDispose、仅播放门控）；源管理操作后只需 invalidate 后者
 - `load_enabled_sources` 会在首次 list/search 时同步初始化所有启用源；已避免阻塞 bootstrap，但首次搜索仍可能等待脚本初始化
 - LX 歌词正缓存长期保留、未命中负缓存 1 天；封面磁盘缓存按平台 + 歌曲 id，URL 变化时需等待缓存清理
-- 全局缓存上限目前按历史默认比例（本地 1GB : Subsonic 2GB : 洛雪 512MB）分配到三组，暂不支持独立分组配额
+- 全局缓存上限按默认比例（本地 1GB : Subsonic 2GB : 洛雪 512MB : 网易云 128MB）分配到四组；网易云封面有独立目录、限额与清理入口
 - 缓存占用只统计“清除所有缓存”会释放的内容；LX 源脚本、播放统计库和播放队列不计入缓存大小
 - `SourceType` 只有 `LocalFile` 和 `Opensubsonic`，LX 不在数据模型中；`source` 字段仍是字符串字面量，容易拼错
 - 移动端首页只挂载播放器主视图，`mobile_welcome_section.dart` / `mobile_daily_section.dart` / `mobile_home_constants.dart` 当前无引用

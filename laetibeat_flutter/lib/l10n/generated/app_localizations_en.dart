@@ -329,6 +329,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cacheLx => 'LX';
 
   @override
+  String get cacheNetease => 'NetEase';
+
+  @override
   String get cacheLimit => 'Cache limit';
 
   @override

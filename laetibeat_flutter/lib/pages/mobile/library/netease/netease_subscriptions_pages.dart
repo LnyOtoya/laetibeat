@@ -455,6 +455,7 @@ class _SubscriptionImage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = M3ETheme.of(context).colorScheme;
+    final cacheSize = (48 * MediaQuery.devicePixelRatioOf(context)).round();
     final value = url;
     final bytes = value == null || value.isEmpty
         ? null
@@ -474,7 +475,13 @@ class _SubscriptionImage extends ConsumerWidget {
                   color: scheme.onSecondaryContainer,
                 ),
               )
-            : Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
+            : Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                cacheWidth: cacheSize,
+                cacheHeight: cacheSize,
+              ),
       ),
     );
   }

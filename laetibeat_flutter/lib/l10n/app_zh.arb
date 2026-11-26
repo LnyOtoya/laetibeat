@@ -143,6 +143,7 @@
   "cacheLocal": "本地",
   "cacheSubsonic": "Subsonic",
   "cacheLx": "洛雪",
+  "cacheNetease": "网易云",
   "cacheLimit": "缓存上限",
   "clearGroupCache": "清除该组缓存",
   "cacheCleared": "缓存已清除",

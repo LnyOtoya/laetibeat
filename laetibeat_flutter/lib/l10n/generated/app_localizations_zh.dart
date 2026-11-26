@@ -321,6 +321,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cacheLx => '洛雪';
 
   @override
+  String get cacheNetease => '网易云';
+
+  @override
   String get cacheLimit => '缓存上限';
 
   @override

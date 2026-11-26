@@ -143,6 +143,7 @@
   "cacheLocal": "Local",
   "cacheSubsonic": "Subsonic",
   "cacheLx": "LX",
+  "cacheNetease": "NetEase",
   "cacheLimit": "Cache limit",
   "clearGroupCache": "Clear group cache",
   "cacheCleared": "Cache cleared",

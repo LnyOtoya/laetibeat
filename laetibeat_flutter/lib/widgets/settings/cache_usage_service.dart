@@ -8,18 +8,25 @@ import '../cache/cover_cache.dart';
 import '../player/cover_provider.dart';
 import 'persistence.dart';
 
-enum CacheGroup { local, subsonic, lx }
+enum CacheGroup { local, subsonic, lx, netease }
 
-/// Default total quota kept in sync with the historical per-group defaults
-/// (local 1GB + Subsonic 2GB + LX 512MB).
-const int kDefaultCacheTotalMb = 3584;
+/// Default total quota includes the historical limits and 128MB for NetEase.
+const int kDefaultCacheTotalMb =
+    1024 + 2048 + 512 + kDefaultNeteaseCoverCacheMb;
 
 /// Slider stops shown under the global cache-size setting.
-const List<int> kCacheLimitMbLevels = <int>[512, 1024, 2048, 3584, 4096, 0];
+const List<int> kCacheLimitMbLevels = <int>[
+  512,
+  1024,
+  2048,
+  3584,
+  kDefaultCacheTotalMb,
+  4096,
+  0,
+];
 
-/// One global cache quota, split across the three caches using the historical
-/// default ratio. The UI only edits the total; each provider still receives
-/// its own byte limit so existing LRU implementations keep working.
+/// One global quota, split across cache groups using their default limits.
+/// The UI only edits the total; each cache still receives its own byte limit.
 class CacheLimits {
   const CacheLimits({this.totalMb = kDefaultCacheTotalMb});
 
@@ -28,7 +35,11 @@ class CacheLimits {
   static const int _localWeight = 1024;
   static const int _subsonicWeight = 2048;
   static const int _lxWeight = 512;
-  static const int _weightSum = _localWeight + _subsonicWeight + _lxWeight;
+  static const int _weightSum =
+      _localWeight +
+      _subsonicWeight +
+      _lxWeight +
+      kDefaultNeteaseCoverCacheMb;
 
   bool get isUnlimited => totalMb == 0;
 
@@ -39,14 +50,17 @@ class CacheLimits {
   int get subsonicMb =>
       isUnlimited ? 0 : totalMb * _subsonicWeight ~/ _weightSum;
 
-  /// Take the remainder so the three per-group limits always add up to the
-  /// total shown in the UI.
-  int get lxMb => isUnlimited ? 0 : totalMb - localMb - subsonicMb;
+  int get lxMb => isUnlimited ? 0 : totalMb * _lxWeight ~/ _weightSum;
+
+  /// Take the remainder so every cache group adds up to the selected total.
+  int get neteaseMb =>
+      isUnlimited ? 0 : totalMb - localMb - subsonicMb - lxMb;
 
   int forGroup(CacheGroup group) => switch (group) {
     CacheGroup.local => localMb,
     CacheGroup.subsonic => subsonicMb,
     CacheGroup.lx => lxMb,
+    CacheGroup.netease => neteaseMb,
   };
 
   /// Byte cap passed to the actual cache implementations. `0` means unlimited
@@ -75,7 +89,9 @@ class CacheLimitsNotifier extends Notifier<CacheLimits> {
         (prefs.getInt(_legacyLocalKey) ?? 1024) +
         (prefs.getInt(_legacySubsonicKey) ?? 2048) +
         (prefs.getInt(_legacyLxKey) ?? 512);
-    return CacheLimits(totalMb: legacyTotal);
+    return CacheLimits(
+      totalMb: legacyTotal + kDefaultNeteaseCoverCacheMb,
+    );
   }
 
   Future<void> setTotalMb(int mb) async {
@@ -91,7 +107,7 @@ final cacheLimitsProvider = NotifierProvider<CacheLimitsNotifier, CacheLimits>(
   CacheLimitsNotifier.new,
 );
 
-/// Push the global quota down to the three memory/disk cache implementations.
+/// Push the global quota down to the memory/disk cache implementations.
 Future<void> applyCacheLimitsToCovers({
   required CacheLimits limits,
   required FileCoverProvider localCovers,
@@ -105,6 +121,7 @@ Future<void> applyCacheLimitsToCovers({
   );
   lxCovers.setMaxBytes(limits.bytesFor(CacheGroup.lx));
   await lxCoverDiskCache.setMaxBytes(limits.bytesFor(CacheGroup.lx));
+  await neteaseCoverDiskCache.setMaxBytes(limits.bytesFor(CacheGroup.netease));
 }
 
 class CacheGroupUsage {
@@ -126,24 +143,36 @@ class CacheUsageSnapshot {
     required this.local,
     required this.subsonic,
     required this.lx,
+    required this.netease,
   });
 
   final CacheGroupUsage local;
   final CacheGroupUsage subsonic;
   final CacheGroupUsage lx;
+  final CacheGroupUsage netease;
 
   int get lyricsBytes =>
-      local.lyricsBytes + subsonic.lyricsBytes + lx.lyricsBytes;
+      local.lyricsBytes +
+      subsonic.lyricsBytes +
+      lx.lyricsBytes +
+      netease.lyricsBytes;
   int get coversBytes =>
-      local.coversBytes + subsonic.coversBytes + lx.coversBytes;
+      local.coversBytes +
+      subsonic.coversBytes +
+      lx.coversBytes +
+      netease.coversBytes;
   int get otherBytes =>
-      local.otherBytes + subsonic.otherBytes + lx.otherBytes;
+      local.otherBytes +
+      subsonic.otherBytes +
+      lx.otherBytes +
+      netease.otherBytes;
   int get totalBytes => lyricsBytes + coversBytes + otherBytes;
 
   CacheGroupUsage forGroup(CacheGroup group) => switch (group) {
     CacheGroup.local => local,
     CacheGroup.subsonic => subsonic,
     CacheGroup.lx => lx,
+    CacheGroup.netease => netease,
   };
 }
 
@@ -163,6 +192,9 @@ class CacheUsageService {
     );
     final covers = await _dirSize(Directory('${support.path}/remote_covers'));
     final lxCovers = await _dirSize(Directory('${support.path}/lx_covers'));
+    final neteaseCovers = await _dirSize(
+      Directory('${support.path}/netease_covers'),
+    );
 
     // 只统计“清除所有缓存”会真正释放的内容。LX 源脚本、播放统计库和
     // 播放队列属于用户数据，不应被算进缓存占用。
@@ -181,6 +213,11 @@ class CacheUsageService {
       lx: CacheGroupUsage(
         lyricsBytes: lxLyrics,
         coversBytes: lxCovers,
+        otherBytes: 0,
+      ),
+      netease: CacheGroupUsage(
+        lyricsBytes: 0,
+        coversBytes: neteaseCovers,
         otherBytes: 0,
       ),
     );

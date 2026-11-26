@@ -1379,6 +1379,7 @@ class _NeteaseSearchImage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
+    final cacheSize = (44 * MediaQuery.devicePixelRatioOf(context)).round();
     final value = url;
     final bytes = value == null || value.isEmpty
         ? null
@@ -1396,7 +1397,12 @@ class _NeteaseSearchImage extends ConsumerWidget {
                   color: theme.colorScheme.onSecondaryContainer,
                 ),
               )
-            : Image.memory(bytes, fit: BoxFit.cover),
+            : Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                cacheWidth: cacheSize,
+                cacheHeight: cacheSize,
+              ),
       ),
     );
   }
@@ -1498,6 +1504,7 @@ class _NeteaseSearchPlaylistCover extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
+    final cacheSize = (44 * MediaQuery.devicePixelRatioOf(context)).round();
     final value = url;
     final bytes = value == null || value.isEmpty
         ? null
@@ -1515,7 +1522,12 @@ class _NeteaseSearchPlaylistCover extends ConsumerWidget {
                 size: 20,
                 color: theme.colorScheme.onSecondaryContainer,
               )
-            : Image.memory(bytes, fit: BoxFit.cover),
+            : Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                cacheWidth: cacheSize,
+                cacheHeight: cacheSize,
+              ),
       ),
     );
   }
@@ -1979,6 +1991,7 @@ class _SearchResultCover extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
+    final cacheSize = (44 * MediaQuery.devicePixelRatioOf(context)).round();
     final bytes = ref.watch(trackCoverProvider(track)).value;
     final shape = ref.watch(searchCoverShapeProvider);
     final hasArt = bytes != null && bytes.isNotEmpty;
@@ -1990,7 +2003,12 @@ class _SearchResultCover extends ConsumerWidget {
       child: ColoredBox(
         color: theme.colorScheme.secondaryContainer,
         child: hasArt
-            ? Image.memory(bytes, fit: BoxFit.cover)
+            ? Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                cacheWidth: cacheSize,
+                cacheHeight: cacheSize,
+              )
             : Icon(
                 M3EIcons.music_note,
                 size: 20,

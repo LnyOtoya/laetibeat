@@ -408,6 +408,7 @@ class NeteaseTrackCover extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = M3ETheme.of(context).colorScheme;
     final bytes = ref.watch(trackCoverProvider(track)).value;
+    final cacheSize = (40 * MediaQuery.devicePixelRatioOf(context)).round();
 
     return ClipRRect(
       borderRadius: AppRadii.xsAll,
@@ -422,7 +423,13 @@ class NeteaseTrackCover extends ConsumerWidget {
                   color: scheme.onSurfaceVariant,
                 ),
               )
-            : Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
+            : Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                cacheWidth: cacheSize,
+                cacheHeight: cacheSize,
+              ),
       ),
     );
   }
@@ -444,6 +451,7 @@ class NeteaseCover extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = M3ETheme.of(context).colorScheme;
+    final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).round();
     final value = url;
     final bytes = value == null || value.isEmpty
         ? null
@@ -462,7 +470,13 @@ class NeteaseCover extends ConsumerWidget {
                   color: scheme.onSurfaceVariant,
                 ),
               )
-            : Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
+            : Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                cacheWidth: cacheSize,
+                cacheHeight: cacheSize,
+              ),
       ),
     );
   }

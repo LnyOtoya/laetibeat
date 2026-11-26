@@ -698,6 +698,12 @@ abstract class AppLocalizations {
   /// **'LX'**
   String get cacheLx;
 
+  /// No description provided for @cacheNetease.
+  ///
+  /// In en, this message translates to:
+  /// **'NetEase'**
+  String get cacheNetease;
+
   /// No description provided for @cacheLimit.
   ///
   /// In en, this message translates to:
