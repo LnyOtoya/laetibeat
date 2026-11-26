@@ -912,6 +912,14 @@ fn map_homepage_sections(envelope: HomepageEnvelope) -> Vec<NeteaseHomeSection> 
                 | "HOMEPAGE_BLOCK_OLD_DRAGON_BALL"
                 | "HOMEPAGE_PODCAST24"
                 | "HOMEPAGE_BLOCK_STYLE_RCMD"
+                | "HOMEPAGE_MUSIC_PODCAST_RCMD_BLOCK"
+                | "HOMPAGE_BLOCK_VIP_RCMD"
+                | "HOMEPAGE_BLOCK_OFFICIAL_PLAYLIST"
+                | "HOMEPAGE_BLOCK_YUNCUN_PRODUCED"
+                | "HOMEPAGE_BLOCK_VIDEO_PLAYLIST"
+                | "HOMEPAGE_BLOCK_NEW_HOT_COMMENT"
+                | "HOMEPAGE_BLOCK_NEW_ALBUM_NEW_SONG"
+                | "HOMEPAGE_BLOCK_HOT_TOPIC"
         ) {
             continue;
         }
@@ -1964,20 +1972,27 @@ mod tests {
         let envelope: HomepageEnvelope =
             serde_json::from_value(value).expect("homepage sections json");
         let sections = map_homepage_sections(envelope);
-        assert_eq!(sections.len(), 7);
+        assert_eq!(sections.len(), 2);
         assert_eq!(sections[0].title, "推荐歌单");
         assert_eq!(sections[0].layout, "cards");
         assert_eq!(sections[0].cards[0].kind, "playlist");
-        assert_eq!(sections[1].layout, "songs");
-        assert_eq!(sections[1].tracks[0].title, "歌曲B");
-        assert_eq!(sections[2].layout, "mixed");
-        assert_eq!(sections[2].cards[0].kind, "album");
-        assert_eq!(sections[2].tracks[0].id, 7);
-        assert_eq!(sections[3].cards[0].kind, "topic");
-        assert_eq!(sections[3].cards[0].subtitle.as_deref(), Some("20万热度"));
-        assert_eq!(sections[4].cards[0].kind, "event");
-        assert_eq!(sections[5].cards[0].kind, "voice");
-        assert_eq!(sections[6].cards[0].kind, "article");
+        assert_eq!(sections[1].title, "音乐日历");
+        assert_eq!(sections[1].cards[0].kind, "event");
+        for removed in [
+            "新歌新碟",
+            "热门话题",
+            "云村出品",
+            "视频合辑",
+            "热评歌曲",
+            "专属场景歌单",
+            "每天听点儿好音乐",
+            "每天免费听VIP歌曲",
+        ] {
+            assert!(sections.iter().all(|section| section.title != removed));
+        }
+        assert!(sections
+            .iter()
+            .all(|section| section.cards.iter().all(|card| card.kind != "voice")));
     }
 
     #[test]

@@ -96,21 +96,23 @@ class NeteaseDetailHero extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          AnimatedSwitcher(
+          // 占位层常驻，封面层到达后淡入覆盖，避免切换时产生重复 key。
+          ColoredBox(
+            color: scheme.surfaceContainerHighest,
+            child: Center(
+              child: Icon(
+                fallbackIcon,
+                size: 72,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          AnimatedOpacity(
+            opacity: hasArt ? 1 : 0,
             duration: const Duration(milliseconds: 320),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            layoutBuilder:
-                (Widget? currentChild, List<Widget> previousChildren) {
-                  return Stack(
-                    fit: StackFit.expand,
-                    alignment: Alignment.center,
-                    children: <Widget>[...previousChildren, ?currentChild],
-                  );
-                },
+            curve: Curves.easeOut,
             child: hasArt
                 ? ShaderMask(
-                    key: const ValueKey<String>('netease-hero-art'),
                     blendMode: BlendMode.dstIn,
                     shaderCallback: (Rect rect) => const LinearGradient(
                       begin: Alignment.topCenter,
@@ -130,17 +132,7 @@ class NeteaseDetailHero extends StatelessWidget {
                       cacheWidth: 900,
                     ),
                   )
-                : ColoredBox(
-                    key: const ValueKey<String>('netease-hero-placeholder'),
-                    color: scheme.surfaceContainerHighest,
-                    child: Center(
-                      child: Icon(
-                        fallbackIcon,
-                        size: 72,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
+                : const SizedBox.shrink(),
           ),
           // 顶部轻微压暗，保证状态栏和顶部按钮可读。
           const DecoratedBox(
