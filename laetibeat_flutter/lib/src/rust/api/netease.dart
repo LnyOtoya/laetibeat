@@ -241,6 +241,15 @@ Future<List<UiNeteasePlaylist>> neteaseRadarPlaylists({
   cookie: cookie,
 );
 
+/// “根据你喜爱的歌曲推荐”首页区块。需要登录。
+Future<List<UiTrack>> neteaseLikedSongRecommendations({
+  required String baseUrl,
+  required String cookie,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseLikedSongRecommendations(
+  baseUrl: baseUrl,
+  cookie: cookie,
+);
+
 /// 私人 FM。接口每次返回 1 首。
 Future<List<UiTrack>> neteasePersonalFm({
   required String baseUrl,

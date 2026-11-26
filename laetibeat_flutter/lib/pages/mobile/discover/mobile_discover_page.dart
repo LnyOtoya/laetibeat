@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -9,6 +10,7 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/layout/app_bottom_inset.dart';
 import '../../../src/rust/api/netease.dart' as rust_netease;
 import '../../../src/rust/api/simple.dart' as rust;
+import '../../../widgets/player/cover_provider.dart';
 import '../../../widgets/player/player_provider.dart';
 import '../../../widgets/settings/netease_provider.dart';
 import '../../../widgets/settings/netease_session.dart';
@@ -173,6 +175,8 @@ class _DiscoverContent extends ConsumerWidget {
             },
           ),
         ),
+        const SizedBox(height: AppSpacing.xl),
+        const _LikedSongRecommendationsSection(),
       ],
     );
   }
@@ -344,6 +348,248 @@ Future<void> _openLogin(BuildContext context, WidgetRef ref) async {
   ref.invalidate(neteasePersonalizedPlaylistsProvider);
   ref.invalidate(neteaseRadarPlaylistsProvider);
   ref.invalidate(neteasePersonalFmProvider);
+  ref.invalidate(neteaseLikedSongRecommendationsProvider);
+}
+
+class _LikedSongRecommendationsSection extends ConsumerWidget {
+  const _LikedSongRecommendationsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    final pageGutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+    final recommendations = ref.watch(neteaseLikedSongRecommendationsProvider);
+    final tracks = recommendations.value ?? const <rust.UiTrack>[];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: pageGutter),
+          child: AppSectionHeader(
+            title: '根据你喜爱的歌曲推荐',
+            titleRole: AppTextRole.titleMedium,
+            leading: _TasteGlyph(scheme: scheme),
+            trailing: M3EIconButton(
+              variant: M3EIconButtonVariant.tonal,
+              size: M3EIconButtonSize.sm,
+              icon: const Icon(M3EIcons.play_arrow),
+              tooltip: '播放全部',
+              onPressed: tracks.isEmpty
+                  ? null
+                  : () => ref
+                        .read(playerProvider.notifier)
+                        .load(tracks, 0, source: '根据你喜爱的歌曲推荐'),
+            ),
+            padding: AppInsets.sectionHeader,
+          ),
+        ),
+        recommendations.when(
+          loading: () => const SizedBox(
+            height: 120,
+            child: Center(child: NeteaseLoadingIndicator()),
+          ),
+          error: (error, _) {
+            final needsLogin = _needsLogin(error);
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: pageGutter),
+              child: AppEmptyState(
+                title: needsLogin ? '登录后查看推荐' : '推荐加载失败',
+                message: needsLogin ? '登录网易云后会根据你喜爱的歌曲生成推荐。' : '$error',
+                icon: needsLogin ? M3EIcons.lock : M3EIcons.error,
+                action: M3EButton(
+                  style: M3EButtonStyle.tonal,
+                  label: Text(needsLogin ? '登录网易云' : '重试'),
+                  onPressed: needsLogin
+                      ? () => _openLogin(context, ref)
+                      : () => ref.invalidate(
+                          neteaseLikedSongRecommendationsProvider,
+                        ),
+                ),
+              ),
+            );
+          },
+          data: (items) {
+            if (items.isEmpty) {
+              return Padding(
+                padding: EdgeInsets.symmetric(horizontal: pageGutter),
+                child: const AppEmptyState(
+                  title: '暂时没有推荐',
+                  message: '网易云首页暂时没有返回「根据你喜爱的歌曲推荐」。',
+                  icon: M3EIcons.favorite_border,
+                ),
+              );
+            }
+            return _LikedSongColumns(tracks: items);
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _TasteGlyph extends StatelessWidget {
+  const _TasteGlyph({required this.scheme});
+
+  final M3EColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: 32,
+      child: M3EShapeContainer.cookie9Sided(
+        width: 32,
+        height: 32,
+        color: scheme.primaryContainer,
+        child: Center(
+          child: Icon(
+            M3EIcons.favorite,
+            size: AppIconSize.sm,
+            color: scheme.onPrimaryContainer,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LikedSongColumns extends ConsumerWidget {
+  const _LikedSongColumns({required this.tracks});
+
+  static const int _rowsPerColumn = 4;
+  static const double _rowHeight = 54;
+  static const double _columnGap = AppSpacing.lg;
+
+  final List<rust.UiTrack> tracks;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pageGutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+    final columnWidth = (MediaQuery.sizeOf(context).width * 0.78).clamp(
+      240.0,
+      360.0,
+    );
+    final columnCount = (tracks.length / _rowsPerColumn).ceil();
+    final scheme = M3ETheme.of(context).colorScheme;
+
+    return SizedBox(
+      height: _rowHeight * _rowsPerColumn + 20,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: pageGutter),
+        itemCount: columnCount,
+        separatorBuilder: (_, _) => const SizedBox(width: _columnGap),
+        itemBuilder: (BuildContext context, int columnIndex) {
+          final start = columnIndex * _rowsPerColumn;
+          final rawEnd = start + _rowsPerColumn;
+          final end = rawEnd > tracks.length ? tracks.length : rawEnd;
+          final columnTracks = tracks.sublist(start, end);
+          return SizedBox(
+            width: columnWidth,
+            child: m3e_core.M3ESegmentedList.builder(
+              itemCount: columnTracks.length,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              listPadding: EdgeInsets.zero,
+              onTap: (int index) => ref
+                  .read(playerProvider.notifier)
+                  .load(tracks, start + index, source: '根据你喜爱的歌曲推荐'),
+              decoration: m3e_core.M3ESegmentedListDecoration(
+                color: scheme.secondaryContainer,
+                splashColor: scheme.onSecondaryContainer.withValues(
+                  alpha: 0.12,
+                ),
+                highlightColor: scheme.onSecondaryContainer.withValues(
+                  alpha: 0.08,
+                ),
+                hoverColor: scheme.onSecondaryContainer.withValues(alpha: 0.08),
+                outerRadius: 24,
+                innerRadius: 12,
+                pressedRadius: 8,
+                pressedScale: 0.98,
+                hoveredRadius: 16,
+                gap: 4,
+                padding: const EdgeInsets.all(4),
+                margin: EdgeInsets.zero,
+              ),
+              itemBuilder: (BuildContext context, int index) {
+                return _LikedSongRow(track: columnTracks[index]);
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _LikedSongRow extends StatelessWidget {
+  const _LikedSongRow({required this.track});
+
+  final rust.UiTrack track;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    return m3e_core.M3EListItem(
+      minHeight: _LikedSongColumns._rowHeight,
+      leading: _CompactTrackCover(track: track),
+      headline: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      supportingText: Text(
+        track.artist,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      headlineStyle: theme.typeScale.bodyMedium.copyWith(
+        color: scheme.onSecondaryContainer,
+      ),
+      supportingTextStyle: theme.typeScale.bodySmall.copyWith(
+        color: scheme.onSecondaryContainer.withValues(alpha: 0.75),
+      ),
+      trailing: NeteaseTrackMenu(
+        track: track,
+        color: scheme.onSecondaryContainer,
+      ),
+    );
+  }
+}
+
+class _CompactTrackCover extends ConsumerWidget {
+  const _CompactTrackCover({required this.track});
+
+  final rust.UiTrack track;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    final bytes = ref.watch(trackCoverProvider(track)).value;
+    final cacheSize = (36 * MediaQuery.devicePixelRatioOf(context)).round();
+
+    return ClipRRect(
+      borderRadius: AppRadii.xsAll,
+      child: SizedBox.square(
+        dimension: 36,
+        child: bytes == null || bytes.isEmpty
+            ? ColoredBox(
+                color: scheme.surfaceContainerHighest,
+                child: Icon(
+                  M3EIcons.music_note,
+                  size: AppIconSize.sm,
+                  color: scheme.onSurfaceVariant,
+                ),
+              )
+            : Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                cacheWidth: cacheSize,
+                cacheHeight: cacheSize,
+              ),
+      ),
+    );
+  }
 }
 
 class _DiscoverCard extends StatelessWidget {

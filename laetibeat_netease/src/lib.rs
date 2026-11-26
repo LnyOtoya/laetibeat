@@ -5,6 +5,7 @@
 //! That keeps the first implementation independent from the eventual native
 //! Rust provider.
 
+use std::collections::HashSet;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use reqwest::blocking::Client;
@@ -737,6 +738,15 @@ impl NeteaseClient {
         Ok(map_radar_playlists(envelope))
     }
 
+    /// “根据你喜爱的歌曲推荐”首页区块。需要登录。
+    pub fn liked_song_recommendations(&self, cookie: &str) -> Result<Vec<NeteaseTrack>> {
+        let envelope: HomepageEnvelope = self.post_form_json(
+            "/homepage/block/page",
+            &[("cookie", cookie.to_string()), ("timestamp", now_millis())],
+        )?;
+        Ok(map_homepage_liked_song_recommendations(envelope))
+    }
+
     pub fn cover(&self, url: &str) -> Result<Vec<u8>> {
         let parsed =
             Url::parse(url).map_err(|error| NeteaseError::InvalidBaseUrl(error.to_string()))?;
@@ -809,6 +819,50 @@ fn map_radar_playlists(envelope: HomepageEnvelope) -> Vec<NeteasePlaylist> {
         }
     }
     playlists
+}
+
+fn homepage_block_title(block: &HomepageBlock) -> String {
+    let raw = block
+        .ui_element
+        .as_ref()
+        .and_then(|ui| ui.sub_title.as_ref().or(ui.main_title.as_ref()))
+        .and_then(|title| title.title.clone())
+        .or_else(|| {
+            block.creatives.iter().find_map(|creative| {
+                creative
+                    .ui_element
+                    .as_ref()
+                    .and_then(|ui| ui.sub_title.as_ref().or(ui.main_title.as_ref()))
+                    .and_then(|title| title.title.clone())
+            })
+        })
+        .unwrap_or_default();
+    raw.chars().filter(|ch| !ch.is_whitespace()).collect()
+}
+
+fn map_homepage_liked_song_recommendations(envelope: HomepageEnvelope) -> Vec<NeteaseTrack> {
+    let mut tracks = Vec::new();
+    let mut seen = HashSet::new();
+    for block in envelope.data.map(|data| data.blocks).unwrap_or_default() {
+        if !homepage_block_title(&block).contains("根据你喜爱的歌曲推荐") {
+            continue;
+        }
+        for creative in block.creatives {
+            for resource in creative.resources {
+                let Some(info) = resource.resource_ext_info else {
+                    continue;
+                };
+                let Some(song) = info.song_data.or(info.song) else {
+                    continue;
+                };
+                let track = NeteaseTrack::from(song);
+                if seen.insert(track.id) {
+                    tracks.push(track);
+                }
+            }
+        }
+    }
+    tracks
 }
 
 fn now_millis() -> String {
@@ -1161,12 +1215,16 @@ struct HomepageData {
 struct HomepageBlock {
     #[serde(rename = "blockCode")]
     block_code: String,
+    #[serde(rename = "uiElement", default)]
+    ui_element: Option<HomepageUiElement>,
     #[serde(default)]
     creatives: Vec<HomepageCreative>,
 }
 
 #[derive(Debug, Deserialize)]
 struct HomepageCreative {
+    #[serde(rename = "uiElement", default)]
+    ui_element: Option<HomepageUiElement>,
     #[serde(default)]
     resources: Vec<HomepageResource>,
 }
@@ -1185,6 +1243,8 @@ struct HomepageResource {
 struct HomepageUiElement {
     #[serde(rename = "mainTitle", default)]
     main_title: Option<HomepageTitle>,
+    #[serde(rename = "subTitle", default)]
+    sub_title: Option<HomepageTitle>,
     #[serde(default)]
     image: Option<HomepageImage>,
 }
@@ -1207,6 +1267,10 @@ struct HomepageResourceExtInfo {
     play_count: Option<u64>,
     #[serde(rename = "specialType", default)]
     special_type: Option<i32>,
+    #[serde(rename = "songData", default)]
+    song_data: Option<Song>,
+    #[serde(default)]
+    song: Option<Song>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1506,6 +1570,53 @@ mod tests {
         );
         assert_eq!(playlists[0].play_count, Some(123));
         assert_eq!(playlists[0].special_type, Some(100));
+    }
+
+    #[test]
+    fn maps_homepage_liked_song_recommendations() {
+        let envelope: HomepageEnvelope = serde_json::from_str(
+            r#"{
+                "data": {
+                    "blocks": [
+                        {
+                            "blockCode": "HOMEPAGE_BLOCK_TAILORED_SONG",
+                            "uiElement": {
+                                "subTitle": {"title": "根据你喜爱的歌曲推荐"}
+                            },
+                            "creatives": [{
+                                "resources": [
+                                    {
+                                        "resourceExtInfo": {
+                                            "songData": {
+                                                "id": 456,
+                                                "name": "喜欢你",
+                                                "ar": [{"id": 7, "name": "歌手"}],
+                                                "al": {
+                                                    "id": 8,
+                                                    "name": "专辑",
+                                                    "picUrl": "https://example.com/song.jpg"
+                                                },
+                                                "dt": 180000
+                                            }
+                                        }
+                                    }
+                                ]
+                            }]
+                        }
+                    ]
+                }
+            }"#,
+        )
+        .expect("homepage liked song json");
+        let tracks = map_homepage_liked_song_recommendations(envelope);
+        assert_eq!(tracks.len(), 1);
+        assert_eq!(tracks[0].id, 456);
+        assert_eq!(tracks[0].title, "喜欢你");
+        assert_eq!(tracks[0].artist, "歌手");
+        assert_eq!(
+            tracks[0].cover_url.as_deref(),
+            Some("https://example.com/song.jpg")
+        );
     }
 
     /// 手动联调测试：

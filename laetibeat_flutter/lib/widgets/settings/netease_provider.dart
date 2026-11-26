@@ -90,6 +90,23 @@ final neteaseRadarPlaylistsProvider =
       );
     });
 
+/// 「根据你喜爱的歌曲推荐」首页区块。需要登录。
+final neteaseLikedSongRecommendationsProvider =
+    FutureProvider.autoDispose<List<rust.UiTrack>>((ref) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      final cookie = await ref.watch(neteaseCookieProvider.future);
+      if (cookie == null || cookie.isEmpty) {
+        throw StateError('请先登录网易云');
+      }
+      return rust_netease.neteaseLikedSongRecommendations(
+        baseUrl: baseUrl,
+        cookie: cookie,
+      );
+    });
+
 /// 私人 FM。需要登录；接口每次只返回 1 首。
 final neteasePersonalFmProvider =
     FutureProvider.autoDispose<List<rust.UiTrack>>((ref) async {

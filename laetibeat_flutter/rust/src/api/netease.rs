@@ -385,6 +385,20 @@ pub fn netease_radar_playlists(
     Ok(playlists.into_iter().map(map_playlist).collect())
 }
 
+/// “根据你喜爱的歌曲推荐”首页区块。需要登录。
+pub fn netease_liked_song_recommendations(
+    base_url: String,
+    cookie: String,
+) -> Result<Vec<UiTrack>, String> {
+    let tracks = client(&base_url)?
+        .liked_song_recommendations(&cookie)
+        .map_err(|error| error.to_string())?;
+    Ok(tracks
+        .into_iter()
+        .map(|track| map_track(&base_url, track))
+        .collect())
+}
+
 /// 私人 FM。接口每次返回 1 首。
 pub fn netease_personal_fm(
     base_url: String,
