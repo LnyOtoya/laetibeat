@@ -31,7 +31,7 @@ final neteaseStatusProvider =
       return rust_netease.neteaseStatus(baseUrl: baseUrl, cookie: cookie);
     });
 
-/// 网易云每日推荐。未登录时使用网易云返回的匿名推荐。
+/// 网易云每日推荐。需要登录，返回当前账号的个性化日推。
 final neteaseDailyProvider = FutureProvider.autoDispose<List<rust.UiTrack>>((
   ref,
 ) async {
@@ -40,6 +40,9 @@ final neteaseDailyProvider = FutureProvider.autoDispose<List<rust.UiTrack>>((
     throw StateError('请先配置网易云 API 地址');
   }
   final cookie = await ref.watch(neteaseCookieProvider.future);
+  if (cookie == null || cookie.isEmpty) {
+    throw StateError('请先登录网易云');
+  }
   return rust_netease.neteaseDailyRecommendations(
     baseUrl: baseUrl,
     cookie: cookie,
@@ -48,7 +51,7 @@ final neteaseDailyProvider = FutureProvider.autoDispose<List<rust.UiTrack>>((
 
 const int neteaseDiscoverPlaylistLimit = 6;
 
-/// 发现页推荐歌单。接口默认最多 30，这里只取卡片所需的 6 个。
+/// 发现页推荐歌单。需要登录；接口默认最多 30，这里只取卡片所需的 6 个。
 final neteasePersonalizedPlaylistsProvider =
     FutureProvider.autoDispose<List<rust_netease.UiNeteasePlaylist>>((
       ref,
@@ -57,13 +60,18 @@ final neteasePersonalizedPlaylistsProvider =
       if (baseUrl.isEmpty) {
         throw StateError('请先配置网易云 API 地址');
       }
+      final cookie = await ref.watch(neteaseCookieProvider.future);
+      if (cookie == null || cookie.isEmpty) {
+        throw StateError('请先登录网易云');
+      }
       return rust_netease.neteasePersonalizedPlaylists(
         baseUrl: baseUrl,
         limit: neteaseDiscoverPlaylistLimit,
+        cookie: cookie,
       );
     });
 
-/// 首页雷达歌单。接口从首页 block 中提取，通常返回 6 个。
+/// 首页雷达歌单。需要登录；接口从首页 block 中提取，通常返回 6 个。
 final neteaseRadarPlaylistsProvider =
     FutureProvider.autoDispose<List<rust_netease.UiNeteasePlaylist>>((
       ref,
@@ -72,10 +80,17 @@ final neteaseRadarPlaylistsProvider =
       if (baseUrl.isEmpty) {
         throw StateError('请先配置网易云 API 地址');
       }
-      return rust_netease.neteaseRadarPlaylists(baseUrl: baseUrl);
+      final cookie = await ref.watch(neteaseCookieProvider.future);
+      if (cookie == null || cookie.isEmpty) {
+        throw StateError('请先登录网易云');
+      }
+      return rust_netease.neteaseRadarPlaylists(
+        baseUrl: baseUrl,
+        cookie: cookie,
+      );
     });
 
-/// 私人 FM。接口每次只返回 1 首。
+/// 私人 FM。需要登录；接口每次只返回 1 首。
 final neteasePersonalFmProvider =
     FutureProvider.autoDispose<List<rust.UiTrack>>((ref) async {
       final baseUrl = ref.watch(neteaseBaseUrlProvider);
@@ -83,14 +98,19 @@ final neteasePersonalFmProvider =
         throw StateError('请先配置网易云 API 地址');
       }
       final cookie = await ref.watch(neteaseCookieProvider.future);
+      if (cookie == null || cookie.isEmpty) {
+        throw StateError('请先登录网易云');
+      }
       return rust_netease.neteasePersonalFm(baseUrl: baseUrl, cookie: cookie);
     });
 
-/// 当前用户的「我喜欢的音乐」歌单。未登录或没有歌单时返回 null。
+/// 当前用户的「我喜欢的音乐」歌单。需要登录；没有歌单时返回 null。
 final neteaseLikedPlaylistProvider =
     FutureProvider.autoDispose<rust_netease.UiNeteasePlaylist?>((ref) async {
       final cookie = await ref.watch(neteaseCookieProvider.future);
-      if (cookie == null || cookie.isEmpty) return null;
+      if (cookie == null || cookie.isEmpty) {
+        throw StateError('请先登录网易云');
+      }
       final playlists = await ref.watch(neteaseUserPlaylistsProvider.future);
       for (final playlist in playlists) {
         if (playlist.specialType == 5) return playlist;

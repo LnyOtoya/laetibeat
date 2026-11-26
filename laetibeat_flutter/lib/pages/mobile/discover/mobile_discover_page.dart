@@ -23,8 +23,8 @@ import 'netease_discover_playlists_page.dart';
 
 /// 移动端发现页面。
 ///
-/// 顶部是横向推荐卡片。每张卡片只用真实接口数据；必须登录的卡片在未登录时
-/// 显示登录提示，不用占位数据伪装成推荐内容。
+/// 顶部是横向推荐卡片。六张卡片都依赖登录后的个性化数据；未登录时整页显示
+/// 登录提示，不再请求或展示匿名/游客推荐。
 class MobileDiscoverPage extends ConsumerWidget {
   const MobileDiscoverPage({super.key});
 
@@ -47,9 +47,11 @@ class MobileDiscoverPage extends ConsumerWidget {
         subtitle: l10n.discoverSubtitle,
         backgroundColor: AppSurfaceLevel.base.resolve(scheme),
       ),
-      body: configured
-          ? _DiscoverContent(loggedIn: loggedIn, bottomInset: bottomInset)
-          : _DiscoverUnconfigured(bottomInset: bottomInset),
+      body: !configured
+          ? _DiscoverUnconfigured(bottomInset: bottomInset)
+          : !loggedIn
+          ? _DiscoverLoginRequired(bottomInset: bottomInset)
+          : _DiscoverContent(bottomInset: bottomInset),
     );
   }
 }
@@ -83,10 +85,34 @@ class _DiscoverUnconfigured extends StatelessWidget {
   }
 }
 
-class _DiscoverContent extends ConsumerWidget {
-  const _DiscoverContent({required this.loggedIn, required this.bottomInset});
+class _DiscoverLoginRequired extends ConsumerWidget {
+  const _DiscoverLoginRequired({required this.bottomInset});
 
-  final bool loggedIn;
+  final double bottomInset;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: AppEmptyState(
+          title: '登录网易云后查看为你推荐',
+          message: '每日推荐、心动模式、歌单、漫游、雷达和相似歌曲都会在登录后按你的口味生成。',
+          icon: M3EIcons.lock,
+          action: M3EButton(
+            style: M3EButtonStyle.filled,
+            label: const Text('登录网易云'),
+            onPressed: () => _openLogin(context, ref),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscoverContent extends ConsumerWidget {
+  const _DiscoverContent({required this.bottomInset});
+
   final double bottomInset;
 
   @override
@@ -102,7 +128,7 @@ class _DiscoverContent extends ConsumerWidget {
     final playlists = ref.watch(neteasePersonalizedPlaylistsProvider);
     final fm = ref.watch(neteasePersonalFmProvider);
     final radar = ref.watch(neteaseRadarPlaylistsProvider);
-    final liked = loggedIn ? ref.watch(neteaseLikedPlaylistProvider) : null;
+    final liked = ref.watch(neteaseLikedPlaylistProvider);
 
     final cards = <_DiscoverCardData>[
       _dailyCard(context, ref, daily),
@@ -111,7 +137,6 @@ class _DiscoverContent extends ConsumerWidget {
         ref: ref,
         title: '心动模式',
         subtitle: '红心歌曲和相似推荐',
-        loggedIn: loggedIn,
         liked: liked,
         source: '网易云心动模式',
         load: () => ref.read(neteaseHeartModeProvider.future),
@@ -124,7 +149,6 @@ class _DiscoverContent extends ConsumerWidget {
         ref: ref,
         title: '相似歌曲',
         subtitle: '从你喜欢的歌听起',
-        loggedIn: loggedIn,
         liked: liked,
         source: '网易云相似歌曲',
         load: () => ref.read(neteaseSimilarSongsProvider.future),
@@ -162,7 +186,7 @@ class _DiscoverContent extends ConsumerWidget {
     final hasData = tracks != null && tracks.isNotEmpty;
     final state = _stateFor(value, hasData: hasData);
     return _DiscoverCardData(
-      title: '媒体推荐',
+      title: '今日推荐',
       subtitle: '今日限定好歌推荐',
       coverUrl: hasData ? tracks.first.coverId : null,
       state: state,
@@ -254,20 +278,10 @@ class _DiscoverContent extends ConsumerWidget {
     required WidgetRef ref,
     required String title,
     required String subtitle,
-    required bool loggedIn,
-    required AsyncValue<rust_netease.UiNeteasePlaylist?>? liked,
+    required AsyncValue<rust_netease.UiNeteasePlaylist?> liked,
     required String source,
     required Future<List<rust.UiTrack>> Function() load,
   }) {
-    if (!loggedIn || liked == null) {
-      return _DiscoverCardData(
-        title: title,
-        subtitle: subtitle,
-        state: _CardState.login,
-        onLogin: () => _openLogin(context, ref),
-      );
-    }
-
     final playlist = liked.value;
     final hasData = playlist != null && playlist.trackCount > 0;
     final state = _stateFor(liked, hasData: hasData);
@@ -317,19 +331,19 @@ class _DiscoverContent extends ConsumerWidget {
     }
     ref.read(playerProvider.notifier).load(tracks, 0, source: source);
   }
+}
 
-  Future<void> _openLogin(BuildContext context, WidgetRef ref) async {
-    await pushMobileRootPage<bool>(
-      context,
-      const MobileNeteaseLoginPage(),
-      name: MobileRoutes.neteaseLogin,
-    );
-    ref.invalidate(neteaseLikedPlaylistProvider);
-    ref.invalidate(neteaseDailyProvider);
-    ref.invalidate(neteasePersonalizedPlaylistsProvider);
-    ref.invalidate(neteaseRadarPlaylistsProvider);
-    ref.invalidate(neteasePersonalFmProvider);
-  }
+Future<void> _openLogin(BuildContext context, WidgetRef ref) async {
+  await pushMobileRootPage<bool>(
+    context,
+    const MobileNeteaseLoginPage(),
+    name: MobileRoutes.neteaseLogin,
+  );
+  ref.invalidate(neteaseLikedPlaylistProvider);
+  ref.invalidate(neteaseDailyProvider);
+  ref.invalidate(neteasePersonalizedPlaylistsProvider);
+  ref.invalidate(neteaseRadarPlaylistsProvider);
+  ref.invalidate(neteasePersonalFmProvider);
 }
 
 class _DiscoverCard extends StatelessWidget {

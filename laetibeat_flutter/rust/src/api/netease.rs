@@ -366,17 +366,21 @@ pub fn netease_daily_recommendations(
 pub fn netease_personalized_playlists(
     base_url: String,
     limit: Option<u32>,
+    cookie: Option<String>,
 ) -> Result<Vec<UiNeteasePlaylist>, String> {
     let playlists = client(&base_url)?
-        .personalized_playlists(limit.unwrap_or(6))
+        .personalized_playlists(limit.unwrap_or(6), cookie.as_deref())
         .map_err(|error| error.to_string())?;
     Ok(playlists.into_iter().map(map_playlist).collect())
 }
 
 /// 首页雷达歌单。
-pub fn netease_radar_playlists(base_url: String) -> Result<Vec<UiNeteasePlaylist>, String> {
+pub fn netease_radar_playlists(
+    base_url: String,
+    cookie: Option<String>,
+) -> Result<Vec<UiNeteasePlaylist>, String> {
     let playlists = client(&base_url)?
-        .radar_playlists()
+        .radar_playlists(cookie.as_deref())
         .map_err(|error| error.to_string())?;
     Ok(playlists.into_iter().map(map_playlist).collect())
 }

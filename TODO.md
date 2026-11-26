@@ -32,7 +32,10 @@
 - [x] l10n 增加 `navDiscover` / `discoverSubtitle` / `discoverEmptyTitle` / `discoverEmptyMessage`。
 - [x] Rust 新增发现接口：`/personalized`、`/personal_fm`、`/simi/song`、`/homepage/block/page` 雷达 block、`/likelist`、`/playmode/intelligence/list`。
 - [x] 数量控制：每日推荐 30、推荐歌单 6、私人 FM 1、相似歌曲 5、雷达歌单 6。
-- [x] 不做假数据：心动模式/相似歌曲未登录显示登录提示；其余接口返回登录错误时同样提示登录。
+- [x] 不做假数据：六张卡片都依赖登录后的个性化数据，未登录时发现页整体显示登录提示，不再请求或展示匿名/游客推荐。
+- [x] 登录后 `/recommend/songs`、`/personalized`、`/personal_fm`、`/homepage/block/page`、`/playmode/intelligence/list`、`/simi/song` 均携带 Cookie，避免继续拿到游客推荐。
+- [x] 媒体库「每日推荐」页同步改为登录后显示；相关 provider 未登录直接拒绝请求。
+- [x] 发现页第一张卡片标题由「媒体推荐」改为「今日推荐」。
 - [ ] 实测：登录后心动模式与相似歌曲队列、漫游队列续拉、雷达接口缓存与真机横向卡片布局。
 
 ## 2026-11-25 最终结构定稿（Rust / Dart 边界）

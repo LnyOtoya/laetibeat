@@ -606,9 +606,23 @@ impl NeteaseClient {
     }
 
     /// 推荐歌单。`limit` 由接口上限约束，通常最多 30。
-    pub fn personalized_playlists(&self, limit: u32) -> Result<Vec<NeteasePlaylist>> {
-        let envelope: PersonalizedEnvelope =
-            self.get_json("/personalized", &[("limit", limit.to_string())])?;
+    /// 登录后传入 Cookie，接口才会按当前用户生成推荐。
+    pub fn personalized_playlists(
+        &self,
+        limit: u32,
+        cookie: Option<&str>,
+    ) -> Result<Vec<NeteasePlaylist>> {
+        let envelope: PersonalizedEnvelope = match cookie.filter(|value| !value.trim().is_empty()) {
+            Some(cookie) => self.post_form_json(
+                "/personalized",
+                &[
+                    ("limit", limit.to_string()),
+                    ("cookie", cookie.to_string()),
+                    ("timestamp", now_millis()),
+                ],
+            )?,
+            None => self.get_json("/personalized", &[("limit", limit.to_string())])?,
+        };
         Ok(envelope
             .result
             .into_iter()
@@ -711,8 +725,15 @@ impl NeteaseClient {
     }
 
     /// 首页雷达歌单。只解析 `HOMEPAGE_BLOCK_MGC_PLAYLIST`。
-    pub fn radar_playlists(&self) -> Result<Vec<NeteasePlaylist>> {
-        let envelope: HomepageEnvelope = self.get_json("/homepage/block/page", &[])?;
+    /// 登录后传入 Cookie，首页 block 才会按当前用户生成。
+    pub fn radar_playlists(&self, cookie: Option<&str>) -> Result<Vec<NeteasePlaylist>> {
+        let envelope: HomepageEnvelope = match cookie.filter(|value| !value.trim().is_empty()) {
+            Some(cookie) => self.post_form_json(
+                "/homepage/block/page",
+                &[("cookie", cookie.to_string()), ("timestamp", now_millis())],
+            )?,
+            None => self.get_json("/homepage/block/page", &[])?,
+        };
         Ok(map_radar_playlists(envelope))
     }
 
@@ -1539,7 +1560,7 @@ mod tests {
         assert!(!lyric.lyric.is_empty());
 
         let personalized = client
-            .personalized_playlists(6)
+            .personalized_playlists(6, None)
             .expect("personalized playlists");
         assert!(!personalized.is_empty());
 
@@ -1551,7 +1572,7 @@ mod tests {
             .expect("similar songs");
         assert!(!similar.is_empty());
 
-        let radar = client.radar_playlists().expect("radar playlists");
+        let radar = client.radar_playlists(None).expect("radar playlists");
         assert!(!radar.is_empty());
         assert!(radar
             .iter()

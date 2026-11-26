@@ -254,6 +254,7 @@ abstract class RustLibApi extends BaseApi {
   Future<List<UiNeteasePlaylist>> crateApiNeteaseNeteasePersonalizedPlaylists({
     required String baseUrl,
     int? limit,
+    String? cookie,
   });
 
   Future<List<UiTrack>> crateApiNeteaseNeteasePlaylistTracks({
@@ -275,6 +276,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<UiNeteasePlaylist>> crateApiNeteaseNeteaseRadarPlaylists({
     required String baseUrl,
+    String? cookie,
   });
 
   Future<List<UiTrack>> crateApiNeteaseNeteaseSearch({
@@ -1936,6 +1938,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<List<UiNeteasePlaylist>> crateApiNeteaseNeteasePersonalizedPlaylists({
     required String baseUrl,
     int? limit,
+    String? cookie,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -1943,6 +1946,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(baseUrl, serializer);
           sse_encode_opt_box_autoadd_u_32(limit, serializer);
+          sse_encode_opt_String(cookie, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1955,7 +1959,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiNeteaseNeteasePersonalizedPlaylistsConstMeta,
-        argValues: [baseUrl, limit],
+        argValues: [baseUrl, limit, cookie],
         apiImpl: this,
       ),
     );
@@ -1964,7 +1968,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiNeteaseNeteasePersonalizedPlaylistsConstMeta =>
       const TaskConstMeta(
         debugName: "netease_personalized_playlists",
-        argNames: ["baseUrl", "limit"],
+        argNames: ["baseUrl", "limit", "cookie"],
       );
 
   @override
@@ -2079,12 +2083,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<List<UiNeteasePlaylist>> crateApiNeteaseNeteaseRadarPlaylists({
     required String baseUrl,
+    String? cookie,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(baseUrl, serializer);
+          sse_encode_opt_String(cookie, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -2097,7 +2103,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiNeteaseNeteaseRadarPlaylistsConstMeta,
-        argValues: [baseUrl],
+        argValues: [baseUrl, cookie],
         apiImpl: this,
       ),
     );
@@ -2106,7 +2112,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiNeteaseNeteaseRadarPlaylistsConstMeta =>
       const TaskConstMeta(
         debugName: "netease_radar_playlists",
-        argNames: ["baseUrl"],
+        argNames: ["baseUrl", "cookie"],
       );
 
   @override

@@ -1425,12 +1425,14 @@ fn wire__crate__api__netease__netease_personalized_playlists_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_base_url = <String>::sse_decode(&mut deserializer);
             let api_limit = <Option<u32>>::sse_decode(&mut deserializer);
+            let api_cookie = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok = crate::api::netease::netease_personalized_playlists(
                         api_base_url,
                         api_limit,
+                        api_cookie,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -1571,10 +1573,12 @@ fn wire__crate__api__netease__netease_radar_playlists_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_base_url = <String>::sse_decode(&mut deserializer);
+            let api_cookie = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::netease::netease_radar_playlists(api_base_url)?;
+                    let output_ok =
+                        crate::api::netease::netease_radar_playlists(api_base_url, api_cookie)?;
                     std::result::Result::Ok(output_ok)
                 })())
             }

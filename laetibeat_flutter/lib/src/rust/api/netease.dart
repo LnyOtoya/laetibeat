@@ -225,16 +225,21 @@ Future<List<UiTrack>> neteaseDailyRecommendations({
 Future<List<UiNeteasePlaylist>> neteasePersonalizedPlaylists({
   required String baseUrl,
   int? limit,
+  String? cookie,
 }) => RustLib.instance.api.crateApiNeteaseNeteasePersonalizedPlaylists(
   baseUrl: baseUrl,
   limit: limit,
+  cookie: cookie,
 );
 
 /// 首页雷达歌单。
 Future<List<UiNeteasePlaylist>> neteaseRadarPlaylists({
   required String baseUrl,
-}) =>
-    RustLib.instance.api.crateApiNeteaseNeteaseRadarPlaylists(baseUrl: baseUrl);
+  String? cookie,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseRadarPlaylists(
+  baseUrl: baseUrl,
+  cookie: cookie,
+);
 
 /// 私人 FM。接口每次返回 1 首。
 Future<List<UiTrack>> neteasePersonalFm({
