@@ -9,7 +9,7 @@
 - Navidrome：单服务端配置、手动同步、SQLite 快照、浏览/搜索/播放、封面/歌词、scrobble
 - 缓存：本地封面按需读取；远端与网易云封面内存 + 磁盘 LRU；歌词 SQLite 正负缓存；LX 歌词 SQLite 正缓存 + 封面磁盘 LRU；移动端缓存管理支持总上限滑块、分源明细与一键释放空间；「为你发现」按天写入 SQLite 缓存（`discovery_cache`），打开优先读缓存
 - 移动端：音乐库/搜索/设置/播放页/迷你播放器已完成；首页现为「最新发行」轮播、「为你发现」、「最近加入」、「重拾旧爱」；`mobile_welcome_section` / `mobile_daily_section` 仍未接入，属于待清理旧组件
-- 移动端导航：底部 tab 为 首页 / 媒体库 / 统计 / 电台；设置入口移至首页 AppBar 折叠态；电台页目前只有空状态占位
+- 移动端导航：底部 tab 为 首页 / 发现 / 媒体库 / 统计；设置入口移至首页 AppBar 折叠态；发现页目前只有空状态占位
 - 移动端设置：入口页已迁移到 `m3e_core.M3ESegmentedColumn`；具体设置子页尚未统一迁移
 - 移动端 OpenSubsonic：连接、测试、扫描、歌单、艺术家简介、专辑/曲目浏览已接入真实数据；「为你发现」使用最近聆听艺术家的 `getSimilarSongs2`
 - 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
@@ -22,6 +22,15 @@
 - 设计系统：新增 `lib/design/`（颜色/字体/间距/圆角/尺寸/动效/断点 token、Material You 官方取色、`AppArtwork` / `AppText` / `AppMediaRow` 等基础组件）；页面级左右 gutter 统一为 `AppLayout.pageGutter` + `AppPageBody`；具体页面尚未全部迁移
 - 新 UI 方向：继续 Flutter；`m3e_core` / `material_3_expressive` 只作组件库；Shell、路由、主题与取色自管；MiniPlayer + NavBar 为悬浮 BottomOverlay；Full Player 为 Root Navigator Route（2026-11-23 定稿；2026-11-24 导航内容有调整，见下方校正）
 - 多音源计划：网易云直连 + 洛雪后备解析、MeloX-Android 多平台实现调研，见 `PLAN.md`
+
+## 2026-11-26 导航调整：电台 → 发现
+
+- [x] 底部 tab 改为「首页 / 发现 / 媒体库 / 统计」。
+- [x] 新增 `AppDestination.discover`、`MobileRoutes.discover`、`MobileDiscoverPage`。
+- [x] 发现页位于首页之后，当前为空状态占位。
+- [x] 移除底部导航的电台入口与 `MobileRadioPage`；媒体库在线音乐中的「电台」占位仍保留。
+- [x] l10n 增加 `navDiscover` / `discoverSubtitle` / `discoverEmptyTitle` / `discoverEmptyMessage`。
+- [ ] 发现页内容待定（网易云首页、推荐、榜单等）。
 
 ## 2026-11-25 最终结构定稿（Rust / Dart 边界）
 
@@ -382,12 +391,12 @@
 - [x] 设置入口页重写为 `m3e_core.M3ESegmentedColumn`，参数为 outer 24 / inner 4 / gap 2 / padding 12 / margin 12×4；条目改用 `m3e_core.M3EListItem`
 - [x] 底部导航由「首页 / 媒体库 / 统计 / 设置」改为「首页 / 媒体库 / 统计 / 电台」
 - [x] 设置入口移至首页 AppBar，仅在折叠态显示；展开态隐藏
-- [x] 新增 `MobileRoutes.radio`、`AppDestination.radio`、`MobileRadioPage`
-- [x] 新增 l10n `navRadio`（中/英）
+- [x] 新增 `MobileRoutes.radio`、`AppDestination.radio`、`MobileRadioPage`（2026-11-26 已由 discover 取代）
+- [x] 新增 l10n `navRadio`（中/英）（2026-11-26 已由 `navDiscover` 取代）
 
 ### 仍待处理
 
-- [ ] 电台页目前只有空状态占位，尚未接入 Subsonic `getInternetRadioStations` / 电台播放链路
+- [ ] 媒体库在线音乐中的「电台」入口目前只有空状态占位，尚未接入 Subsonic `getInternetRadioStations` / 电台播放链路；底部导航的电台 tab 已于 2026-11-26 替换为「发现」
 - [ ] 「为你发现」完整页的歌曲收藏按钮仍为占位，归入 P2-1
 - [ ] 设置入口页的备份/关于仍无实际页面或功能，归入 P2-1
 - [ ] Home 历史记录中的「继续听」「最新添加」「为你推荐」描述已过期，后续以本节为准

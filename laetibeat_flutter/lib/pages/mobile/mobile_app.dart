@@ -8,12 +8,12 @@ import '../../l10n/generated/app_localizations.dart';
 import '../../shared/feedback/app_haptics.dart';
 import '../../shared/layout/app_bottom_inset.dart';
 import '../../widgets/player/player_provider.dart';
+import 'discover/mobile_discover_page.dart';
 import 'home/mobile_home_page.dart';
 import 'library/mobile_library_page.dart';
 import 'library/mobile_library_subpages.dart';
 import 'mobile_navigation.dart';
 import 'player/mini_player.dart';
-import 'radio/mobile_radio_page.dart';
 import 'routes.dart';
 import 'search/mobile_search_page.dart';
 import 'settings/appearance/mobile_color_mapping_page.dart';
@@ -37,9 +37,9 @@ class MobileShell extends ConsumerStatefulWidget {
 class _MobileShellState extends ConsumerState<MobileShell> {
   static const List<AppDestination> _tabs = <AppDestination>[
     AppDestination.home,
+    AppDestination.discover,
     AppDestination.library,
     AppDestination.stats,
-    AppDestination.radio,
   ];
 
   List<AppFloatingNavTab> _destinations(AppLocalizations l10n) {
@@ -50,6 +50,11 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         label: l10n.navHome,
       ),
       AppFloatingNavTab(
+        icon: M3EIcons.explore,
+        selectedIcon: M3EIcons.explore,
+        label: l10n.navDiscover,
+      ),
+      AppFloatingNavTab(
         icon: M3EIcons.music_note,
         selectedIcon: M3EIcons.music_note,
         label: l10n.navLibrary,
@@ -58,11 +63,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         icon: M3EIcons.bar_chart,
         selectedIcon: M3EIcons.bar_chart,
         label: l10n.statisticsTitle,
-      ),
-      AppFloatingNavTab(
-        icon: M3EIcons.radio,
-        selectedIcon: M3EIcons.radio,
-        label: l10n.navRadio,
       ),
     ];
   }
@@ -77,8 +77,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     if (route == MobileRoutes.stats) {
       return AppDestination.stats;
     }
-    if (route == MobileRoutes.radio) {
-      return AppDestination.radio;
+    if (route == MobileRoutes.discover) {
+      return AppDestination.discover;
     }
     return null;
   }
@@ -86,13 +86,13 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   bool _showNavigationBar(String? route) {
     const visible = <String>{
       MobileRoutes.home,
+      MobileRoutes.discover,
       MobileRoutes.library,
       MobileRoutes.librarySongs,
       MobileRoutes.libraryPlaylists,
       MobileRoutes.libraryArtists,
       MobileRoutes.libraryAlbums,
       MobileRoutes.stats,
-      MobileRoutes.radio,
     };
     return visible.contains(route);
   }
@@ -122,9 +122,9 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         if (current == MobileRoutes.stats) return;
         navigator.pushNamed(MobileRoutes.stats);
         return;
-      case AppDestination.radio:
-        if (current == MobileRoutes.radio) return;
-        navigator.pushNamed(MobileRoutes.radio);
+      case AppDestination.discover:
+        if (current == MobileRoutes.discover) return;
+        navigator.pushNamed(MobileRoutes.discover);
         return;
       case AppDestination.search:
         _openSearch();
@@ -238,13 +238,13 @@ class MobileShellPage extends StatelessWidget {
 Route<dynamic>? mobileOnGenerateRoute(RouteSettings settings) {
   final Widget page = switch (settings.name) {
     MobileRoutes.home => const MobileHomePage(),
+    MobileRoutes.discover => const MobileDiscoverPage(),
     MobileRoutes.library => const MobileLibraryPage(),
     MobileRoutes.librarySongs => const MobileLibrarySongsPage(),
     MobileRoutes.libraryPlaylists => const MobileLibraryPlaylistsPage(),
     MobileRoutes.libraryArtists => const MobileLibraryArtistsPage(),
     MobileRoutes.libraryAlbums => const MobileLibraryAlbumsPage(),
     MobileRoutes.libraryPodcasts => const MobileLibraryPage(),
-    MobileRoutes.radio => const MobileRadioPage(),
     MobileRoutes.search => const MobileSearchPage(),
     MobileRoutes.stats => const MobileStatsPage(),
     MobileRoutes.settings => const MobileSettingsPage(),

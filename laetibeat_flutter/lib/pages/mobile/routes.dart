@@ -1,6 +1,7 @@
 /// 移动端根 Navigator 的路由名。
 abstract final class MobileRoutes {
   static const String home = '/';
+  static const String discover = '/discover';
   static const String discovery = '/home/discovery';
   static const String library = '/library';
   static const String librarySongs = '/library/songs';
@@ -9,7 +10,6 @@ abstract final class MobileRoutes {
   static const String libraryAlbums = '/library/albums';
   static const String libraryDownloads = '/library/downloads';
   static const String libraryPodcasts = '/library/podcasts';
-  static const String radio = '/radio';
   static const String search = '/search';
   static const String searchResults = '/search/results';
   static const String playback = '/player';

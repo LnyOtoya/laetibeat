@@ -27,7 +27,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navLibrary => 'Library';
 
   @override
-  String get navRadio => 'Radio';
+  String get navDiscover => 'Discover';
+
+  @override
+  String get discoverSubtitle => 'Explore new music';
+
+  @override
+  String get discoverEmptyTitle => 'Discovery is coming soon';
+
+  @override
+  String get discoverEmptyMessage =>
+      'Recommendations, charts, and fresh finds will appear here';
 
   @override
   String get navSearch => 'Search';

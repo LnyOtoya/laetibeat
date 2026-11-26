@@ -5,8 +5,8 @@
 /// - 移动：NavigationBar tab 或 Navigator 二级页面
 enum AppDestination {
   home,
+  discover,
   library,
-  radio,
   search,
   stats,
   settings,

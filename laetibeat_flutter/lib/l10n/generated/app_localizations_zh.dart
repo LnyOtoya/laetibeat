@@ -27,7 +27,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navLibrary => '媒体库';
 
   @override
-  String get navRadio => '电台';
+  String get navDiscover => '发现';
+
+  @override
+  String get discoverSubtitle => '探索新的音乐';
+
+  @override
+  String get discoverEmptyTitle => '发现内容准备中';
+
+  @override
+  String get discoverEmptyMessage => '推荐、榜单和新鲜内容将在这里显示';
 
   @override
   String get navSearch => '搜索';

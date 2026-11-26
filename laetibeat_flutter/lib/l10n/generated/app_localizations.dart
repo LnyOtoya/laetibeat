@@ -134,11 +134,29 @@ abstract class AppLocalizations {
   /// **'Library'**
   String get navLibrary;
 
-  /// No description provided for @navRadio.
+  /// No description provided for @navDiscover.
   ///
   /// In en, this message translates to:
-  /// **'Radio'**
-  String get navRadio;
+  /// **'Discover'**
+  String get navDiscover;
+
+  /// No description provided for @discoverSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore new music'**
+  String get discoverSubtitle;
+
+  /// No description provided for @discoverEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discovery is coming soon'**
+  String get discoverEmptyTitle;
+
+  /// No description provided for @discoverEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommendations, charts, and fresh finds will appear here'**
+  String get discoverEmptyMessage;
 
   /// No description provided for @navSearch.
   ///
