@@ -1,7 +1,7 @@
 # Laetibeat 项目蓝图
 
 > 最后更新：2026-11-26
-> 当前阶段：Flutter 主线继续。网易云在线媒体库已接入搜索、用户收藏、艺人/专辑详情及歌单；2026-11-26 完成艺人热门歌曲更多页、专辑横向卡片和在线页面悬浮底栏安全留白。本文件记录实现状态与后续真机验证。
+> 当前阶段：Flutter 主线继续。网易云在线媒体库已接入搜索、用户收藏、艺人/专辑详情及歌单；2026-11-26 完成艺人热门歌曲更多页、专辑横向卡片和在线页面悬浮底栏安全留白。接下来先补发布基础（正式签名、GitHub Actions、Release 更新检查），再按下方顺序推进。本文件记录实现状态与后续真机验证。
 
 ## 当前状态速览
 
@@ -21,7 +21,119 @@
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 - 设计系统：新增 `lib/design/`（颜色/字体/间距/圆角/尺寸/动效/断点 token、Material You 官方取色、`AppArtwork` / `AppText` / `AppMediaRow` 等基础组件）；页面级左右 gutter 统一为 `AppLayout.pageGutter` + `AppPageBody`；具体页面尚未全部迁移
 - 新 UI 方向：继续 Flutter；`m3e_core` / `material_3_expressive` 只作组件库；Shell、路由、主题与取色自管；MiniPlayer + NavBar 为悬浮 BottomOverlay；Full Player 为 Root Navigator Route（2026-11-23 定稿；2026-11-24 导航内容有调整，见下方校正）
+- 发布工程：尚无正式签名、CI workflow、tag/Release；更新按钮与 GitHub Release 更新链路列入新优先级，见下方「2026-11-26 发布基础与更新链路」。
 - 多音源计划：网易云直连 + 洛雪后备解析、MeloX-Android 多平台实现调研，见 `PLAN.md`
+
+## 2026-11-26 发布基础与更新链路（新优先级）
+
+> 结论：先完成正式签名 + GitHub Actions + 首个 Release，再做更新检查 MVP；应用内下载安装后置。不要等所有 TODO 完成。
+> 更新范围先限定 Android；若后续上架 Google Play，则改用 Play In-App Updates，不自行下载 APK。
+> 执行方式：按 P0-REL → P1-UPD → P2-UPD 顺序，一次只做一项，完成并验证后再勾选。
+
+### 当前发布现状
+
+- [x] 已有 GitHub remote：`git@github.com:LnyOtoya/laetibeat.git`
+- [ ] `laetibeat_flutter/pubspec.yaml` 仍为 `1.0.0+1`
+- [ ] Android `release` 仍使用 debug keystore（`android/app/build.gradle.kts`）
+- [ ] 无 `android/key.properties`、正式 keystore
+- [ ] 无 `.github/workflows`
+- [ ] 无 tag / GitHub Release
+- [ ] `applicationId` 仍为 `com.otimeum.laetibeat`，需确认最终包名；debug 后缀 `.debug` 保留
+- [ ] 版本策略未定：tag、versionName、versionCode 的递增规则
+
+### Phase 0：正式签名与发布流水线（先做）
+
+- [ ] P0-REL-1 生成 release keystore
+  - 存放到仓库外；备份到密码管理器/离线介质
+  - 记录 alias、密码、有效期；丢失将无法覆盖更新
+- [ ] P0-REL-2 配置 Android release signing
+  - `android/key.properties` + `signingConfigs.release`
+  - 删除 `signingConfig = signingConfigs.getByName("debug")`
+  - `key.properties`、`*.jks` 加入 `.gitignore`
+- [ ] P0-REL-3 固定版本策略
+  - tag：`vMAJOR.MINOR.PATCH`
+  - `versionName` 取 tag 去掉 `v`
+  - `versionCode` 单调递增（CI run number 或专用 build counter）
+  - 首次切换正式签名后，已安装 debug 签名包需卸载一次
+- [ ] P0-REL-4 新增 CI workflow（`.github/workflows/ci.yml`）
+  - push / PR：`flutter analyze`、`flutter test`、`cargo test --workspace`
+  - 固定 Flutter / Rust / JDK 17 / Android NDK 版本
+  - 缓存 Flutter pub、Gradle、Cargo
+- [ ] P0-REL-5 新增 Release workflow（`.github/workflows/release.yml`）
+  - 触发：推送 `v*` tag 或 `workflow_dispatch`
+  - 注入 `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD`
+  - `flutter build apk --release`
+  - 创建 GitHub Release，上传 APK 与 release notes
+  - 权限 `contents: write`
+- [ ] P0-REL-6 首个正式 Release 验证
+  - 从旧版正式签名包覆盖安装成功
+  - 从 GitHub Release 下载安装成功
+  - versionName / versionCode 与 tag 一致
+- [ ] P0-REL-7 文档化发布流程
+  - 打 tag、CI、keystore 备份、回滚/撤包步骤
+
+### Phase 1：更新检查 MVP（随后做）
+
+- [ ] P1-UPD-1 增加依赖：`package_info_plus`、`http`（或 `dio`）、`url_launcher`
+- [ ] P1-UPD-2 更新服务
+  - `GET https://api.github.com/repos/LnyOtoya/laetibeat/releases/latest`
+  - `Accept: application/vnd.github+json` + `User-Agent`
+  - 解析 `tag_name`、`body`、`published_at`、assets
+  - 语义化版本比较；忽略 draft / prerelease
+  - 不把 GitHub PAT 放进 App
+- [ ] P1-UPD-3 检查策略
+  - 首帧后静默检查一次；结果缓存 6～24 小时
+  - 点击按钮强制检查
+  - 网络失败静默，不阻塞首页
+  - 记录 `lastCheckAt` / `skippedVersion`（`shared_preferences`）
+- [ ] P1-UPD-4 AppBar 按钮
+  - 在 `mobile_home_page.dart` 的 `actionsBuilder` 中放在设置左侧
+  - 顺序：`[检查更新][设置]`
+  - `M3EIconButton` + `M3EIcons.system_update_alt` + tooltip
+  - 有新版本时用 `M3EBadge(showDot: true)` 提示
+- [ ] P1-UPD-5 M3E 更新弹窗
+  - 短提示：`M3EDialog.show` + `M3EDialog`
+  - 标题：发现新版本 vX.Y.Z；内容：当前版本、发布日期、更新内容
+  - 操作：`稍后`（text）/ `下载更新`（filled）
+  - 长更新日志：`M3EDialog.showAdaptive`，内容可滚动
+  - 无更新：SnackBar「已是最新版本」
+- [ ] P1-UPD-6 下载动作
+  - MVP 用 `url_launcher` 打开 GitHub Release 页面/资产地址
+  - 记录点击/下载来源，便于后续排查
+
+### Phase 2：应用内下载与安装（后置）
+
+- [ ] P2-UPD-1 APK 下载：缓存目录、进度、取消、失败重试
+- [ ] P2-UPD-2 校验：SHA-256（Release notes 或 `latest.json` 提供）
+- [ ] P2-UPD-3 Android 安装
+  - `REQUEST_INSTALL_PACKAGES`
+  - FileProvider + `content://` URI
+  - `open_filex` 或原生 Intent
+  - 未知来源安装引导
+- [ ] P2-UPD-4 下载 UI
+  - `M3EDialog.showFullScreen` 或 `M3EDialog.showAdaptive`
+  - 下载中禁用关闭/提供取消
+  - 进度、错误、重试、完成后安装
+- [ ] P2-UPD-5 分发策略
+  - 先 universal APK；后续评估 `--split-per-abi`
+  - 资产命名稳定；客户端按 ABI 选择
+  - 可选 `latest.json`（版本、notes、assets、sha256）
+
+### 推荐执行顺序
+
+1. P0-REL-1 ～ P0-REL-3（签名与版本）
+2. P0-REL-4 ～ P0-REL-6（CI、首个 Release）
+3. P1-UPD-1 ～ P1-UPD-6（检查更新 MVP）
+4. P2-UPD-1 ～ P2-UPD-5（应用内下载安装）
+5. 回到既有 P0/P1/P2 TODO
+
+### 验收口径
+
+- [ ] AppBar 中更新按钮位于设置左侧，折叠态与设置一致显示
+- [ ] 点击后 3 秒内给出结果：有新版本弹 M3E 弹窗，无新版本 SnackBar，网络错误不崩溃
+- [ ] 弹窗能滚动查看完整更新内容，操作不超过两个
+- [ ] Release 页面能打开正确版本；Android 安装包签名一致
+- [ ] CI 在 PR 上跑通；tag 能自动发布 APK
 
 ## 2026-11-26 导航调整：电台 → 发现
 
