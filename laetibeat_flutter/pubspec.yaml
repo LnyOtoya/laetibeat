@@ -64,6 +64,7 @@ dependencies:
   intl: ^0.20.3
   file_picker: ^13.3.2
   saf: ^2.1.2
+  package_info_plus: ^10.2.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

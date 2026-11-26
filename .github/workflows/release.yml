@@ -1,0 +1,226 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag, e.g. v1.0.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Validate release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_TAG}" ]; then
+            echo "RELEASE_TAG is empty" >&2
+            exit 1
+          fi
+          case "${RELEASE_TAG}" in
+            v*) ;;
+            *)
+              echo "Release tag must start with v: ${RELEASE_TAG}" >&2
+              exit 1
+              ;;
+          esac
+          echo "Releasing ${RELEASE_TAG}"
+
+      - name: Compute version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid semantic version: ${version}" >&2
+            exit 1
+          fi
+          IFS=. read -r major minor patch <<< "${version}"
+          code=$((major * 1000000 + minor * 1000 + patch))
+          echo "name=${version}" >> "${GITHUB_OUTPUT}"
+          echo "code=${code}" >> "${GITHUB_OUTPUT}"
+          echo "versionCode=${code}"
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            cmake \
+            libdbus-1-dev \
+            libssl-dev \
+            pkg-config
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.1"
+          channel: stable
+          cache: true
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.99.0"
+          targets: "aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android"
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        run: |
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "ndk;28.2.13676358"
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Flutter pub get
+        working-directory: laetibeat_flutter
+        run: flutter pub get
+
+      - name: Flutter analyze
+        working-directory: laetibeat_flutter
+        run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
+
+      - name: Flutter test
+        working-directory: laetibeat_flutter
+        run: flutter test --no-pub
+
+      - name: Rust test
+        run: cargo test --workspace
+
+      - name: Restore Android signing
+        working-directory: laetibeat_flutter
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${ANDROID_KEYSTORE_BASE64}"
+          test -n "${ANDROID_KEYSTORE_PASSWORD}"
+          test -n "${ANDROID_KEY_ALIAS}"
+          test -n "${ANDROID_KEY_PASSWORD}"
+          mkdir -p android
+          echo "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > android/laetibeat-release.p12
+          cat > android/key.properties <<EOF
+          storePassword=${ANDROID_KEYSTORE_PASSWORD}
+          keyPassword=${ANDROID_KEY_PASSWORD}
+          keyAlias=${ANDROID_KEY_ALIAS}
+          storeFile=laetibeat-release.p12
+          EOF
+
+      - name: Build split APKs
+        working-directory: laetibeat_flutter
+        run: |
+          set -euo pipefail
+          flutter build apk --release \
+            --split-per-abi \
+            --build-name="${{ steps.version.outputs.name }}" \
+            --build-number="${{ steps.version.outputs.code }}"
+          ls -lh build/app/outputs/flutter-apk/*.apk
+
+      - name: Collect release assets
+        working-directory: laetibeat_flutter
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          version="${{ steps.version.outputs.name }}"
+          cp "build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" \
+            "release-assets/laetibeat-${version}-arm64-v8a.apk"
+          cp "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk" \
+            "release-assets/laetibeat-${version}-armeabi-v7a.apk"
+          cp "build/app/outputs/flutter-apk/app-x86_64-release.apk" \
+            "release-assets/laetibeat-${version}-x86_64.apk"
+          sha256sum release-assets/*.apk > release-assets/SHA256SUMS.txt
+          ls -lh release-assets
+
+      - name: Extract release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.name }}"
+          python3 - "$version" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          version = sys.argv[1]
+          changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          pattern = re.compile(
+              rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)",
+              re.MULTILINE | re.DOTALL,
+          )
+          match = pattern.search(changelog)
+          if match is None:
+              raise SystemExit(f"CHANGELOG.md 缺少 [{version}] 段落")
+          body = match.group(1).strip()
+          if not body:
+              raise SystemExit(f"CHANGELOG.md 的 [{version}] 段落为空")
+          notes = f"""{body}
+
+          ---
+
+          ### 安装说明
+
+          - `arm64-v8a`：绝大多数现代 Android 手机
+          - `armeabi-v7a`：较老的 32 位设备
+          - `x86_64`：模拟器 / Intel 设备
+          - 从旧 debug 签名版本升级需要先卸载一次
+          """
+          Path("release-notes.md").write_text(notes, encoding="utf-8")
+          PY
+          test -s release-notes.md
+          head -20 release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Laetibeat ${{ steps.version.outputs.name }}
+          body_path: release-notes.md
+          fail_on_unmatched_files: true
+          files: |
+            laetibeat_flutter/release-assets/*.apk
+            laetibeat_flutter/release-assets/SHA256SUMS.txt
+            LICENSE
+            THIRD_PARTY_NOTICES.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

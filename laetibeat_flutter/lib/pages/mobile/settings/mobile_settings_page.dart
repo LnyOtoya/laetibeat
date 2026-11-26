@@ -9,6 +9,7 @@ import '../../../widgets/settings/online_music_settings.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
 import '../widgets/mobile_search_bar.dart';
+import 'about/mobile_about_settings_page.dart';
 import 'appearance/mobile_appearance_settings_page.dart';
 import 'audio/mobile_audio_settings_page.dart';
 import 'content/mobile_content_settings_page.dart';
@@ -149,6 +150,12 @@ class MobileSettingsPage extends ConsumerWidget {
           context,
           const MobileStorageSettingsPage(),
           name: MobileRoutes.storageSettings,
+        );
+      case 6:
+        pushMobileRootPage(
+          context,
+          const MobileAboutSettingsPage(),
+          name: MobileRoutes.aboutSettings,
         );
       default:
         break;

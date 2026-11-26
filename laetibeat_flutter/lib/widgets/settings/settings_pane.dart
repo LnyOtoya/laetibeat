@@ -31,10 +31,12 @@ class SettingsPane extends StatelessWidget {
     super.key,
     required this.title,
     required this.children,
+    this.showTitle = true,
   });
 
   final String title;
   final List<Widget> children;
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -59,11 +61,10 @@ class SettingsPane extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: theme.typeScale.titleLarge,
-              ),
-              SizedBox(height: theme.spacing.lg),
+              if (showTitle) ...[
+                Text(title, style: theme.typeScale.titleLarge),
+                SizedBox(height: theme.spacing.lg),
+              ],
               ...children,
               SizedBox(height: bottomInset),
             ],

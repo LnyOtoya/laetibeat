@@ -33,53 +33,76 @@
 ### 当前发布现状
 
 - [x] 已有 GitHub remote：`git@github.com:LnyOtoya/laetibeat.git`
-- [ ] `laetibeat_flutter/pubspec.yaml` 仍为 `1.0.0+1`
-- [ ] Android `release` 仍使用 debug keystore（`android/app/build.gradle.kts`）
-- [ ] 无 `android/key.properties`、正式 keystore
-- [ ] 无 `.github/workflows`
+- [x] 首个版本基线确定：`1.0.0`；pubspec 当前 `1.0.0+1`，CI 发布时按 tag 覆盖 versionName / versionCode
+- [x] Android `release` 构建已改为读取 `key.properties`，不再使用 debug keystore
+- [x] 缺少签名配置时 release 构建会直接失败；debug 构建不受影响
+- [x] 已生成正式 PKCS12 keystore 和本地 `android/key.properties`（均不提交）
+- [x] `flutter build apk --release` 成功；`apksigner` 验证证书为 `CN=Lny Otoya`，非 debug 证书
+- [x] 已添加 CI / Release workflow，待首次 GitHub Actions 运行验证
+- [x] split-per-abi 本地构建成功：arm64-v8a 74 MB / armeabi-v7a 68 MB / x86_64 78 MB
 - [ ] 无 tag / GitHub Release
 - [ ] `applicationId` 仍为 `com.otimeum.laetibeat`，需确认最终包名；debug 后缀 `.debug` 保留
-- [ ] 版本策略未定：tag、versionName、versionCode 的递增规则
+- [x] 版本策略确定：tag `vMAJOR.MINOR.PATCH`；versionName 取 tag；versionCode 由 semver 计算
+- [x] 设置页版本号改为 `PackageInfo` 读取真实 versionName，不再写死 `0.1.0`
+- [x] 根目录新增 MIT `LICENSE`（Copyright 2026 Otoya）；所有 Rust crate 标记 `license = "MIT"`
+- [x] 新增 `THIRD_PARTY_NOTICES.md`，覆盖 Flutter/Rust 直接依赖、字体和原生组件
+- [x] 设置页「开源许可」接入 Flutter `LicensePage`；移动端新增「关于」页入口
 
 ### Phase 0：正式签名与发布流水线（先做）
 
-- [ ] P0-REL-1 生成 release keystore
-  - 存放到仓库外；备份到密码管理器/离线介质
-  - 记录 alias、密码、有效期；丢失将无法覆盖更新
-- [ ] P0-REL-2 配置 Android release signing
-  - `android/key.properties` + `signingConfigs.release`
-  - 删除 `signingConfig = signingConfigs.getByName("debug")`
-  - `key.properties`、`*.jks` 加入 `.gitignore`
-- [ ] P0-REL-3 固定版本策略
-  - tag：`vMAJOR.MINOR.PATCH`
-  - `versionName` 取 tag 去掉 `v`
-  - `versionCode` 单调递增（CI run number 或专用 build counter）
-  - 首次切换正式签名后，已安装 debug 签名包需卸载一次
-- [ ] P0-REL-4 新增 CI workflow（`.github/workflows/ci.yml`）
-  - push / PR：`flutter analyze`、`flutter test`、`cargo test --workspace`
-  - 固定 Flutter / Rust / JDK 17 / Android NDK 版本
-  - 缓存 Flutter pub、Gradle、Cargo
-- [ ] P0-REL-5 新增 Release workflow（`.github/workflows/release.yml`）
-  - 触发：推送 `v*` tag 或 `workflow_dispatch`
-  - 注入 `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD`
-  - `flutter build apk --release`
-  - 创建 GitHub Release，上传 APK 与 release notes
-  - 权限 `contents: write`
+- [x] P0-REL-1 生成 release keystore
+  - [x] 生成 PKCS12 keystore，存放在仓库外
+  - [x] 备份到密码管理器/离线介质
+  - [x] alias = `laetibeat`，有效期 10000 天
+- [x] P0-REL-2 配置 Android release signing
+  - [x] `build.gradle.kts` 读取 `android/key.properties` 并创建 `signingConfigs.release`
+  - [x] 删除 `signingConfig = signingConfigs.getByName("debug")`
+  - [x] 新增 `android/key.properties.example`
+  - [x] 缺少签名配置时 release 构建直接报错；`assembleDebug` 正常
+  - [x] `key.properties`、`*.jks`、`*.p12` 已被 `android/.gitignore` 忽略
+  - [x] 用户创建真实 `android/key.properties`，正式签名 release 构建成功
+- [x] P0-REL-3 固定版本策略
+  - [x] tag：`vMAJOR.MINOR.PATCH`
+  - [x] `versionName` 取 tag 去掉 `v`
+  - [x] `versionCode = MAJOR * 1000000 + MINOR * 1000 + PATCH`（如 v1.0.0 → 1000000）
+  - [x] CI 使用 `--build-name` / `--build-number` 覆盖 pubspec
+  - [x] 首次切换正式签名后，已安装 debug 签名 release 包需卸载一次
+- [x] P0-REL-4 新增 CI workflow（`.github/workflows/ci.yml`）
+  - [x] push / PR：`flutter analyze`、`flutter test`、`cargo test --workspace`
+  - [x] 固定 Flutter 3.50.1 / Rust 1.99.0 / JDK 17
+  - [x] 缓存 Flutter pub、Gradle、Cargo
+  - [ ] 首次 GitHub Actions 运行通过
+- [x] P0-REL-5 新增 Release workflow（`.github/workflows/release.yml`）
+  - [x] 触发：推送 `v*` tag 或 `workflow_dispatch`
+  - [x] 注入 `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD`
+  - [x] `flutter build apk --release --split-per-abi --build-name --build-number`
+  - [x] 只发布架构包，不发布 universal APK
+  - [x] 上传 arm64-v8a / armeabi-v7a / x86_64 APK 与 SHA256SUMS.txt
+  - [x] 创建 GitHub Release，上传 APK 与 release notes
+  - [x] 权限 `contents: write`
+  - [x] 在 GitHub 仓库配置 4 个签名 Secrets
+  - [x] 新增 `CHANGELOG.md`；workflow 按 tag 提取对应版本段落并追加安装说明
+  - [ ] 首次 tag 发布验证
 - [ ] P0-REL-6 首个正式 Release 验证
   - 从旧版正式签名包覆盖安装成功
   - 从 GitHub Release 下载安装成功
   - versionName / versionCode 与 tag 一致
 - [ ] P0-REL-7 文档化发布流程
   - 打 tag、CI、keystore 备份、回滚/撤包步骤
+  - [x] CHANGELOG 维护规则：平时写 `[Unreleased]`；发版时改成版本号+日期，并在顶部新增空 `[Unreleased]`
 
 ### Phase 1：更新检查 MVP（随后做）
 
 - [ ] P1-UPD-1 增加依赖：`package_info_plus`、`http`（或 `dio`）、`url_launcher`
+  - [x] `package_info_plus` 已加入，并用于设置页版本号
+  - [ ] `http` / `dio`
+  - [ ] `url_launcher`
 - [ ] P1-UPD-2 更新服务
   - `GET https://api.github.com/repos/LnyOtoya/laetibeat/releases/latest`
   - `Accept: application/vnd.github+json` + `User-Agent`
   - 解析 `tag_name`、`body`、`published_at`、assets
   - 语义化版本比较；忽略 draft / prerelease
+  - split APK 的 versionCode 会叠加 ABI offset；按 versionName/tag 比较，不跨 ABI 比较 versionCode
   - 不把 GitHub PAT 放进 App
 - [ ] P1-UPD-3 检查策略
   - 首帧后静默检查一次；结果缓存 6～24 小时
@@ -115,8 +138,8 @@
   - 下载中禁用关闭/提供取消
   - 进度、错误、重试、完成后安装
 - [ ] P2-UPD-5 分发策略
-  - 先 universal APK；后续评估 `--split-per-abi`
-  - 资产命名稳定；客户端按 ABI 选择
+  - 已确定只发布 `--split-per-abi` 架构包，不发布 universal APK
+  - 资产命名稳定：`laetibeat-<version>-<abi>.apk`；客户端按 ABI 选择
   - 可选 `latest.json`（版本、notes、assets、sha256）
 
 ### 推荐执行顺序
