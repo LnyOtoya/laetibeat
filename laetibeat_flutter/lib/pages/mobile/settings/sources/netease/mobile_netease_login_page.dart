@@ -269,10 +269,16 @@ class _MobileNeteaseLoginPageState
 
   Widget _buildQr(M3EThemeData theme) {
     if (_qrLoading) {
-      return const Center(
+      final scheme = theme.colorScheme;
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(AppSpacing.xl),
-          child: CircularProgressIndicator(),
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: M3ELoadingIndicator(
+            variant: M3ELoadingIndicatorVariant.contained,
+            color: scheme.primary,
+            containerColor: scheme.surfaceContainerHighest,
+            semanticLabel: '正在获取网易云登录二维码',
+          ),
         ),
       );
     }

@@ -109,7 +109,7 @@ class NeteasePlaylistsPage extends ConsumerWidget {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: NeteaseLoadingIndicator()),
         error: (error, _) => _PlaylistError(
           message: '$error',
           onRetry: () => ref.invalidate(neteaseUserPlaylistsProvider),
@@ -355,7 +355,12 @@ class _NeteasePlaylistDetailPageState
               loading: () => const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(
+                    child: NeteaseLoadingIndicator(
+                      size: 40,
+                      semanticLabel: '正在加载歌单歌曲',
+                    ),
+                  ),
                 ),
               ),
               error: (error, _) => SliverToBoxAdapter(
@@ -381,7 +386,12 @@ class _NeteasePlaylistDetailPageState
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(
+                    child: NeteaseLoadingIndicator(
+                      size: 36,
+                      semanticLabel: '正在加载更多歌曲',
+                    ),
+                  ),
                 ),
               ),
             if (_loadMoreTracksError case final error?)

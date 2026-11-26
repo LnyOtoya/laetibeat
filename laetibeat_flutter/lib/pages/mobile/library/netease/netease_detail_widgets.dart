@@ -19,6 +19,29 @@ final neteaseCoverColorProvider = FutureProvider.family<Color, Uint8List>(
   (ref, bytes) => dominantCoverColor(bytes),
 );
 
+class NeteaseLoadingIndicator extends StatelessWidget {
+  const NeteaseLoadingIndicator({
+    super.key,
+    this.size = 48,
+    this.semanticLabel = '正在加载网易云内容',
+  });
+
+  final double size;
+  final String semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    return M3ELoadingIndicator(
+      variant: M3ELoadingIndicatorVariant.contained,
+      size: size,
+      color: scheme.primary,
+      containerColor: scheme.surfaceContainerHighest,
+      semanticLabel: semanticLabel,
+    );
+  }
+}
+
 /// 网易云详情页顶部大封面：铺满上方区域，底部透明渐隐到内容区。
 class NeteaseDetailHero extends StatelessWidget {
   const NeteaseDetailHero({

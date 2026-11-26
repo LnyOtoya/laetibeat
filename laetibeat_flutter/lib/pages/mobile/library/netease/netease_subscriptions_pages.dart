@@ -13,6 +13,7 @@ import '../../mobile_navigation.dart';
 import '../../routes.dart';
 import '../../settings/sources/netease/mobile_netease_login_page.dart';
 import 'netease_album_artist_pages.dart';
+import 'netease_detail_widgets.dart';
 
 class NeteaseArtistsPage extends ConsumerStatefulWidget {
   const NeteaseArtistsPage({super.key});
@@ -190,7 +191,7 @@ class _NeteaseArtistsPageState extends ConsumerState<NeteaseArtistsPage> {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: NeteaseLoadingIndicator()),
         error: (error, _) => _SubscriptionError(
           message: '$error',
           onRetry: _retryInitialLoad,
@@ -374,7 +375,7 @@ class _NeteaseAlbumsPageState extends ConsumerState<NeteaseAlbumsPage> {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: NeteaseLoadingIndicator()),
         error: (error, _) => _SubscriptionError(
           message: '$error',
           onRetry: _retryInitialLoad,
@@ -399,7 +400,15 @@ class _SubscriptionPageStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const LinearProgressIndicator(minHeight: 2);
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Center(
+          child: NeteaseLoadingIndicator(
+            size: 36,
+            semanticLabel: '正在加载更多网易云内容',
+          ),
+        ),
+      );
     }
     if (error == null) return const SizedBox.shrink();
     return Padding(

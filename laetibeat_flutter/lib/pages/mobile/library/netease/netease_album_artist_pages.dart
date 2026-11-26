@@ -130,7 +130,7 @@ class _NeteaseAlbumDetailPageState
         extendBodyBehindAppBar: true,
         appBar: NeteaseDetailAppBar(progress: _barProgress, tint: contentColor),
         body: detailAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: NeteaseLoadingIndicator()),
           error: (Object error, StackTrace stackTrace) => AppEmptyState(
             title: '专辑加载失败',
             message: '$error',
@@ -286,7 +286,7 @@ class _NeteaseArtistDetailPageState
         extendBodyBehindAppBar: true,
         appBar: NeteaseDetailAppBar(progress: _barProgress, tint: contentColor),
         body: detailAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: NeteaseLoadingIndicator()),
           error: (Object error, StackTrace stackTrace) => AppEmptyState(
             title: '艺人加载失败',
             message: '$error',
@@ -357,7 +357,12 @@ class _ArtistAlbumsSection extends ConsumerWidget {
     return albums.when(
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(
+          child: NeteaseLoadingIndicator(
+            size: 40,
+            semanticLabel: '正在加载艺人专辑',
+          ),
+        ),
       ),
       error: (Object error, StackTrace stackTrace) => Padding(
         padding: const EdgeInsets.symmetric(

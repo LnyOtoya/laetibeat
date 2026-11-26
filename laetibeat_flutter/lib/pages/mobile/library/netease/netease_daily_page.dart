@@ -56,7 +56,7 @@ class NeteaseDailyPage extends ConsumerWidget {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: NeteaseLoadingIndicator()),
         error: (error, _) => AppEmptyState(
           title: '每日推荐加载失败',
           message: '$error',
