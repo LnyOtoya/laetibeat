@@ -751,22 +751,22 @@ impl NeteaseClient {
     /// 首页雷达歌单。只解析 `HOMEPAGE_BLOCK_MGC_PLAYLIST`。
     /// 登录后传入 Cookie，首页 block 才会按当前用户生成。
     pub fn radar_playlists(&self, cookie: Option<&str>) -> Result<Vec<NeteasePlaylist>> {
+        let timestamp = now_millis();
         let envelope: HomepageEnvelope = match cookie.filter(|value| !value.trim().is_empty()) {
             Some(cookie) => self.post_form_json(
-                "/homepage/block/page",
-                &[("cookie", cookie.to_string()), ("timestamp", now_millis())],
+                &format!("/homepage/block/page?timestamp={timestamp}"),
+                &[("cookie", cookie.to_string())],
             )?,
-            None => self.get_json("/homepage/block/page", &[])?,
+            None => self.get_json("/homepage/block/page", &[("timestamp", timestamp)])?,
         };
         Ok(map_radar_playlists(envelope))
     }
 
     /// “根据你喜爱的歌曲推荐”首页区块。需要登录。
     pub fn liked_song_recommendations(&self, cookie: &str) -> Result<Vec<NeteaseTrack>> {
-        let envelope: HomepageEnvelope = self.post_form_json(
-            "/homepage/block/page",
-            &[("cookie", cookie.to_string()), ("timestamp", now_millis())],
-        )?;
+        let path = format!("/homepage/block/page?timestamp={}", now_millis());
+        let envelope: HomepageEnvelope =
+            self.post_form_json(&path, &[("cookie", cookie.to_string())])?;
         Ok(map_homepage_liked_song_recommendations(envelope))
     }
 
@@ -776,11 +776,12 @@ impl NeteaseClient {
         cookie: &str,
         refresh: bool,
     ) -> Result<Vec<NeteaseHomeSection>> {
-        let mut form = vec![("cookie", cookie.to_string()), ("timestamp", now_millis())];
+        let mut path = format!("/homepage/block/page?timestamp={}", now_millis());
         if refresh {
-            form.push(("refresh", "true".to_string()));
+            path.push_str("&refresh=true");
         }
-        let envelope: HomepageEnvelope = self.post_form_json("/homepage/block/page", &form)?;
+        let envelope: HomepageEnvelope =
+            self.post_form_json(&path, &[("cookie", cookie.to_string())])?;
         Ok(map_homepage_sections(envelope))
     }
 
@@ -931,6 +932,11 @@ fn map_homepage_sections(envelope: HomepageEnvelope) -> Vec<NeteaseHomeSection> 
                     .as_deref()
                     .unwrap_or_default()
                     .to_ascii_lowercase();
+                if block_code == "HOMEPAGE_BLOCK_OLD_SUBSCRIBE_ARTIST_NEW"
+                    && !matches!(resource_type.as_str(), "album" | "digitalalbum")
+                {
+                    continue;
+                }
                 let ui_title = resource
                     .ui_element
                     .as_ref()
@@ -1972,6 +1978,49 @@ mod tests {
         assert_eq!(sections[4].cards[0].kind, "event");
         assert_eq!(sections[5].cards[0].kind, "voice");
         assert_eq!(sections[6].cards[0].kind, "article");
+    }
+
+    #[test]
+    fn subscribed_artist_block_keeps_only_albums() {
+        let value = serde_json::json!({
+            "data": {
+                "blocks": [{
+                    "blockCode": "HOMEPAGE_BLOCK_OLD_SUBSCRIBE_ARTIST_NEW",
+                    "uiElement": {"mainTitle": {"title": "关注艺人的新歌"}},
+                    "creatives": [{"resources": [
+                        {
+                            "resourceType": "song",
+                            "resourceId": "1",
+                            "resourceExtInfo": {"songData": {
+                                "id": 1,
+                                "name": "单曲",
+                                "ar": [{"id": 2, "name": "歌手"}],
+                                "al": {"id": 3, "name": "专辑", "picUrl": "https://example.com/song.jpg"},
+                                "dt": 1000
+                            }}
+                        },
+                        {
+                            "resourceType": "album",
+                            "resourceId": "4",
+                            "uiElement": {
+                                "mainTitle": {"title": "专辑发布"},
+                                "image": {"imageUrl": "https://example.com/album.jpg"}
+                            },
+                            "resourceExtInfo": {"artists": [{"id": 5, "name": "专辑歌手"}]}
+                        }
+                    ]}]
+                }]
+            }
+        });
+        let envelope: HomepageEnvelope =
+            serde_json::from_value(value).expect("subscribed artist json");
+        let sections = map_homepage_sections(envelope);
+        assert_eq!(sections.len(), 1);
+        assert_eq!(sections[0].layout, "cards");
+        assert!(sections[0].tracks.is_empty());
+        assert_eq!(sections[0].cards.len(), 1);
+        assert_eq!(sections[0].cards[0].kind, "album");
+        assert_eq!(sections[0].cards[0].title, "专辑发布");
     }
 
     /// 手动联调测试：
