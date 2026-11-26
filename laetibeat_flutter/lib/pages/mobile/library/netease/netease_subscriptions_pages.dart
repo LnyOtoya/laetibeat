@@ -7,6 +7,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../design/design.dart';
+import '../../../../shared/layout/app_bottom_inset.dart';
 import '../../../../src/rust/api/netease.dart' as rust_netease;
 import '../../../../widgets/settings/netease_provider.dart';
 import '../../mobile_navigation.dart';
@@ -115,6 +116,7 @@ class _NeteaseArtistsPageState extends ConsumerState<NeteaseArtistsPage> {
   @override
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     final artists = ref.watch(neteaseSubscribedArtistsProvider);
 
     return Scaffold(
@@ -150,9 +152,9 @@ class _NeteaseArtistsPageState extends ConsumerState<NeteaseArtistsPage> {
                       itemCount: visibleItems.length,
                       shrinkWrap: true,
                       physics: const AlwaysScrollableScrollPhysics(),
-                      listPadding: const EdgeInsets.only(
+                      listPadding: EdgeInsets.only(
                         top: AppSpacing.md,
-                        bottom: AppSpacing.xxl,
+                        bottom: AppSpacing.xxl + bottomInset,
                       ),
                       onTap: (int index) => pushMobileRootPage(
                         context,
@@ -302,6 +304,7 @@ class _NeteaseAlbumsPageState extends ConsumerState<NeteaseAlbumsPage> {
   @override
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     final albums = ref.watch(neteaseSubscribedAlbumsProvider);
 
     return Scaffold(
@@ -337,9 +340,9 @@ class _NeteaseAlbumsPageState extends ConsumerState<NeteaseAlbumsPage> {
                       itemCount: visibleItems.length,
                       shrinkWrap: true,
                       physics: const AlwaysScrollableScrollPhysics(),
-                      listPadding: const EdgeInsets.only(
+                      listPadding: EdgeInsets.only(
                         top: AppSpacing.md,
-                        bottom: AppSpacing.xxl,
+                        bottom: AppSpacing.xxl + bottomInset,
                       ),
                       onTap: (int index) => pushMobileRootPage(
                         context,

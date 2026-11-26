@@ -277,6 +277,17 @@ pub fn netease_artist_detail(
     })
 }
 
+/// 艺人热门歌曲，最多返回 50 首。
+pub fn netease_artist_top_songs(base_url: String, artist_id: u64) -> Result<Vec<UiTrack>, String> {
+    let tracks = client(&base_url)?
+        .artist_top_songs(artist_id)
+        .map_err(|error| error.to_string())?;
+    Ok(tracks
+        .into_iter()
+        .map(|track| map_track(&base_url, track))
+        .collect())
+}
+
 /// 艺人专辑列表。
 pub fn netease_artist_albums(
     base_url: String,

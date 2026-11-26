@@ -437,6 +437,12 @@ impl NeteaseClient {
         })
     }
 
+    pub fn artist_top_songs(&self, artist_id: u64) -> Result<Vec<NeteaseTrack>> {
+        let envelope: ArtistTopSongsEnvelope =
+            self.get_json("/artist/top/song", &[("id", artist_id.to_string())])?;
+        Ok(map_artist_top_songs(envelope.songs))
+    }
+
     pub fn artist_albums(
         &self,
         artist_id: u64,
@@ -639,6 +645,10 @@ fn map_artist_hot_songs(songs: Vec<Song>) -> Vec<NeteaseTrack> {
     songs.into_iter().take(5).map(NeteaseTrack::from).collect()
 }
 
+fn map_artist_top_songs(songs: Vec<Song>) -> Vec<NeteaseTrack> {
+    songs.into_iter().take(50).map(NeteaseTrack::from).collect()
+}
+
 impl From<Song> for NeteaseTrack {
     fn from(song: Song) -> Self {
         let artists = if song.ar.is_empty() {
@@ -802,6 +812,12 @@ struct ArtistDetailEnvelope {
     artist: Option<ArtistInfo>,
     #[serde(rename = "hotSongs", default)]
     hot_songs: Vec<Song>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ArtistTopSongsEnvelope {
+    #[serde(default)]
+    songs: Vec<Song>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1082,6 +1098,21 @@ mod tests {
             .collect();
 
         assert_eq!(map_artist_hot_songs(songs).len(), 5);
+    }
+
+    #[test]
+    fn limits_artist_top_songs_to_fifty() {
+        let songs: Vec<Song> = (0..60)
+            .map(|id| {
+                serde_json::from_value(serde_json::json!({
+                    "id": id,
+                    "name": format!("song-{id}"),
+                }))
+                .expect("artist top song json")
+            })
+            .collect();
+
+        assert_eq!(map_artist_top_songs(songs).len(), 50);
     }
 
     /// 手动联调测试：

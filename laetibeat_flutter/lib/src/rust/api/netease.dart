@@ -151,6 +151,15 @@ Future<UiNeteaseArtistDetail> neteaseArtistDetail({
   artistId: artistId,
 );
 
+/// 艺人热门歌曲，最多返回 50 首。
+Future<List<UiTrack>> neteaseArtistTopSongs({
+  required String baseUrl,
+  required BigInt artistId,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseArtistTopSongs(
+  baseUrl: baseUrl,
+  artistId: artistId,
+);
+
 /// 艺人专辑列表。
 Future<List<UiNeteaseAlbum>> neteaseArtistAlbums({
   required String baseUrl,

@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../design/design.dart';
+import '../../../../l10n/generated/app_localizations.dart';
+import '../../../../shared/layout/app_bottom_inset.dart';
 import '../../../../src/rust/api/netease.dart' as rust_netease;
 import '../../../../src/rust/api/simple.dart' as rust;
 import '../../../../widgets/player/player_provider.dart';
@@ -25,6 +26,11 @@ String _releaseLabel(int? milliseconds) {
   final month = date.month.toString().padLeft(2, '0');
   final day = date.day.toString().padLeft(2, '0');
   return '发行日期: ${date.year}-$month-$day';
+}
+
+String _releaseYearLabel(int? milliseconds, String unknownLabel) {
+  if (milliseconds == null || milliseconds <= 0) return unknownLabel;
+  return DateTime.fromMillisecondsSinceEpoch(milliseconds).year.toString();
 }
 
 /// 网易云专辑详情。
@@ -72,6 +78,7 @@ class _NeteaseAlbumDetailPageState
   @override
   Widget build(BuildContext context) {
     final baseTheme = M3ETheme.of(context);
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     final detailAsync = ref.watch(neteaseAlbumDetailProvider(widget.album.id));
     final album = detailAsync.value?.album ?? widget.album;
     final tracks = detailAsync.value?.tracks ?? const <rust.UiTrack>[];
@@ -169,8 +176,8 @@ class _NeteaseAlbumDetailPageState
                   ),
                 ),
                 NeteaseTrackSliver(tracks: value.tracks, source: '网易云专辑'),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: AppSpacing.xxl),
+                SliverToBoxAdapter(
+                  child: SizedBox(height: AppSpacing.xxl + bottomInset),
                 ),
               ],
             );
@@ -226,6 +233,7 @@ class _NeteaseArtistDetailPageState
   @override
   Widget build(BuildContext context) {
     final baseTheme = M3ETheme.of(context);
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     final detailAsync = ref.watch(
       neteaseArtistDetailProvider(widget.artist.id),
     );
@@ -263,6 +271,7 @@ class _NeteaseArtistDetailPageState
     final isFavorite = ref.watch(
       favoriteArtistsProvider.select((ids) => ids.contains(favoriteKey)),
     );
+    final l10n = AppLocalizations.of(context);
 
     void togglePlayback() {
       final notifier = ref.read(playerProvider.notifier);
@@ -327,17 +336,106 @@ class _NeteaseArtistDetailPageState
                         .toggle(favoriteKey),
                   ),
                 ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppLayout.pageGutter,
+                    ),
+                    child: AppSectionHeader(
+                      title: l10n.topSongs,
+                      titleRole: AppTextRole.titleMedium,
+                      padding: AppInsets.sectionHeader,
+                      trailing: M3EButton(
+                        style: M3EButtonStyle.tonal,
+                        label: Text(l10n.more),
+                        onPressed: () => pushMobileRootPage(
+                          context,
+                          NeteaseArtistHotSongsPage(artist: loaded),
+                          name: MobileRoutes.artistHotSongs,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 NeteaseTrackSliver(tracks: value.tracks, source: '网易云艺人'),
                 SliverToBoxAdapter(
                   child: _ArtistAlbumsSection(artistId: loaded.id),
                 ),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: AppSpacing.xxl),
+                SliverToBoxAdapter(
+                  child: SizedBox(height: AppSpacing.xxl + bottomInset),
                 ),
               ],
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class NeteaseArtistHotSongsPage extends ConsumerWidget {
+  const NeteaseArtistHotSongsPage({super.key, required this.artist});
+
+  final rust_netease.UiNeteaseArtist artist;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
+    final tracksAsync = ref.watch(neteaseArtistTopSongsProvider(artist.id));
+
+    return Scaffold(
+      backgroundColor: theme.colorScheme.surface,
+      appBar: AppPageBar.subpage(
+        title: l10n.topSongs,
+        onSearch: () => openMobileSearch(context),
+      ),
+      body: tracksAsync.when(
+        loading: () => const Center(
+          child: NeteaseLoadingIndicator(semanticLabel: '正在加载艺人热门歌曲'),
+        ),
+        error: (error, _) => AppEmptyState(
+          title: l10n.topSongs,
+          message: '$error',
+          icon: M3EIcons.error,
+          action: M3EButton(
+            style: M3EButtonStyle.tonal,
+            label: const Text('重试'),
+            onPressed: () =>
+                ref.invalidate(neteaseArtistTopSongsProvider(artist.id)),
+          ),
+        ),
+        data: (items) {
+          final tracks = items.take(50).toList(growable: false);
+          if (tracks.isEmpty) {
+            return AppEmptyState(
+              title: l10n.topSongs,
+              message: '网易云没有返回热门歌曲',
+              icon: M3EIcons.music_note,
+            );
+          }
+          return CustomScrollView(
+            slivers: <Widget>[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppLayout.pageGutter,
+                  ),
+                  child: AppSectionHeader(
+                    title: artist.name,
+                    titleRole: AppTextRole.titleMedium,
+                    padding: AppInsets.sectionHeader,
+                  ),
+                ),
+              ),
+              NeteaseTrackSliver(tracks: tracks, source: '网易云艺人'),
+              SliverToBoxAdapter(
+                child: SizedBox(height: AppSpacing.xxl + bottomInset),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -352,16 +450,14 @@ class _ArtistAlbumsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
     final scheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
     final albums = ref.watch(neteaseArtistAlbumsProvider(artistId));
 
     return albums.when(
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
         child: Center(
-          child: NeteaseLoadingIndicator(
-            size: 40,
-            semanticLabel: '正在加载艺人专辑',
-          ),
+          child: NeteaseLoadingIndicator(size: 40, semanticLabel: '正在加载艺人专辑'),
         ),
       ),
       error: (Object error, StackTrace stackTrace) => Padding(
@@ -397,63 +493,71 @@ class _ArtistAlbumsSection extends ConsumerWidget {
                 padding: AppInsets.sectionHeader,
               ),
             ),
-            m3e_core.M3ESegmentedList.builder(
-              listPadding: EdgeInsets.zero,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: items.length,
-              onTap: (int index) => pushMobileRootPage(
-                context,
-                NeteaseAlbumDetailPage(album: items[index]),
-                name: MobileRoutes.libraryAlbums,
+            SizedBox(
+              height: 212,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                itemCount: items.length,
+                separatorBuilder: (BuildContext context, int index) =>
+                    const SizedBox(width: AppSpacing.sm),
+                itemBuilder: (BuildContext context, int index) {
+                  final album = items[index];
+                  const cardWidth = 148.0;
+                  return SizedBox(
+                    width: cardWidth,
+                    child: M3ECard(
+                      variant: M3ECardVariant.filled,
+                      padding: EdgeInsets.zero,
+                      borderRadius: M3EDimensions.borderRadiusLarge,
+                      clipBehavior: Clip.antiAlias,
+                      onPressed: () => pushMobileRootPage(
+                        context,
+                        NeteaseAlbumDetailPage(album: album),
+                        name: MobileRoutes.libraryAlbums,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          NeteaseCover(
+                            url: album.coverUrl,
+                            size: cardWidth,
+                            fallbackIcon: M3EIcons.album,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(AppSpacing.sm),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  album.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.typeScale.titleSmall.copyWith(
+                                    color: scheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  _releaseYearLabel(
+                                    album.publishTimeMs?.toInt(),
+                                    l10n.yearUnknown,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.typeScale.bodySmall.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
-              decoration: m3e_core.M3ESegmentedListDecoration(
-                color: scheme.secondaryContainer,
-                splashColor: scheme.onSecondaryContainer.withValues(
-                  alpha: 0.12,
-                ),
-                highlightColor: scheme.onSecondaryContainer.withValues(
-                  alpha: 0.08,
-                ),
-                hoverColor: scheme.onSecondaryContainer.withValues(alpha: 0.08),
-                outerRadius: 24,
-                innerRadius: 12,
-                pressedRadius: 8,
-                pressedScale: 0.98,
-                hoveredRadius: 16,
-                gap: 4,
-                padding: const EdgeInsets.all(4),
-                margin: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.xs,
-                ),
-              ),
-              itemBuilder: (BuildContext context, int index) {
-                final album = items[index];
-                return m3e_core.M3EListItem(
-                  minHeight: 64,
-                  leading: NeteaseCover(
-                    url: album.coverUrl,
-                    size: 48,
-                    fallbackIcon: M3EIcons.album,
-                  ),
-                  headline: Text(album.name),
-                  supportingText: Text(
-                    '${album.artist} · ${album.trackCount} 首',
-                  ),
-                  headlineStyle: theme.typeScale.bodyLarge.copyWith(
-                    color: scheme.onSecondaryContainer,
-                  ),
-                  supportingTextStyle: theme.typeScale.bodyMedium.copyWith(
-                    color: scheme.onSecondaryContainer.withValues(alpha: 0.75),
-                  ),
-                  trailing: Icon(
-                    M3EIcons.chevron_right,
-                    size: 20,
-                    color: scheme.onSecondaryContainer,
-                  ),
-                );
-              },
             ),
           ],
         );

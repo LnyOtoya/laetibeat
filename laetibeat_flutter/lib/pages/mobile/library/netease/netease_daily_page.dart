@@ -3,6 +3,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../design/design.dart';
+import '../../../../shared/layout/app_bottom_inset.dart';
 import '../../../../widgets/settings/netease_provider.dart';
 import '../../mobile_navigation.dart';
 import 'netease_detail_widgets.dart';
@@ -14,6 +15,7 @@ class NeteaseDailyPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final baseTheme = M3ETheme.of(context);
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     final contentColor = detailContentColor(baseTheme.colorScheme);
     final daily = ref.watch(neteaseDailyProvider);
 
@@ -36,9 +38,9 @@ class NeteaseDailyPage extends ConsumerWidget {
           return RefreshIndicator(
             onRefresh: () => ref.refresh(neteaseDailyProvider.future),
             child: ListView(
-              padding: const EdgeInsets.only(
+              padding: EdgeInsets.only(
                 top: AppSpacing.sm,
-                bottom: AppSpacing.xxl,
+                bottom: AppSpacing.xxl + bottomInset,
               ),
               children: <Widget>[
                 const AppSectionHeader(

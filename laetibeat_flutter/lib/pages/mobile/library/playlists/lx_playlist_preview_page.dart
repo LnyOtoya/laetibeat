@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:laetibeat/shared/layout/app_bottom_inset.dart';
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/playlists.dart' as rust_playlists;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
@@ -148,6 +149,7 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     final subscribed = _isSubscribed();
     final async = ref.watch(lxPlaylistAllProvider(_key));
     final tracks = async.value?.tracks
@@ -174,12 +176,7 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
         data: (detail) {
           final playable = tracks ?? const <rust.UiTrack>[];
           return ListView(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              8,
-              16,
-              24 + MediaQuery.paddingOf(context).bottom,
-            ),
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + bottomInset),
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,

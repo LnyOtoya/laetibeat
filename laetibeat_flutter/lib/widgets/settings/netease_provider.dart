@@ -372,6 +372,19 @@ final neteaseArtistDetailProvider = FutureProvider.autoDispose
       );
     });
 
+/// 网易云艺人热门歌曲（最多 50 首）。
+final neteaseArtistTopSongsProvider = FutureProvider.autoDispose
+    .family<List<rust.UiTrack>, BigInt>((ref, artistId) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      return rust_netease.neteaseArtistTopSongs(
+        baseUrl: baseUrl,
+        artistId: artistId,
+      );
+    });
+
 /// 艺人专辑列表。
 final neteaseArtistAlbumsProvider = FutureProvider.autoDispose
     .family<List<rust_netease.UiNeteaseAlbum>, BigInt>((ref, artistId) async {

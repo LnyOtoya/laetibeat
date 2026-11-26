@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../design/design.dart';
 import '../../../../l10n/generated/app_localizations.dart';
+import '../../../../shared/layout/app_bottom_inset.dart';
 import '../../../../src/rust/api/subsonic.dart' as rust_subsonic;
 import '../../../../widgets/player/cover_provider.dart';
 import '../../../../widgets/player/player_provider.dart';
@@ -79,6 +80,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
   @override
   Widget build(BuildContext context) {
     final baseTheme = M3ETheme.of(context);
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     final l10n = AppLocalizations.of(context);
 
     final coverBytes = ref
@@ -258,9 +260,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
               ),
             ),
             SliverToBoxAdapter(
-              child: SizedBox(
-                height: AppSpacing.xxl + MediaQuery.paddingOf(context).bottom,
-              ),
+              child: SizedBox(height: AppSpacing.xxl + bottomInset),
             ),
           ],
         ),

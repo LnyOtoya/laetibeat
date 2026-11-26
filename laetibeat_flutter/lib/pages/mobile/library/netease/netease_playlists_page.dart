@@ -7,6 +7,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../design/design.dart';
+import '../../../../shared/layout/app_bottom_inset.dart';
 import '../../../../src/rust/api/netease.dart' as rust_netease;
 import '../../../../src/rust/api/simple.dart' as rust;
 import '../../../../widgets/player/player_provider.dart';
@@ -25,6 +26,7 @@ class NeteasePlaylistsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
     final scheme = theme.colorScheme;
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     final playlists = ref.watch(neteaseUserPlaylistsProvider);
 
     return Scaffold(
@@ -48,9 +50,9 @@ class NeteasePlaylistsPage extends ConsumerWidget {
               itemCount: items.length,
               shrinkWrap: true,
               physics: const AlwaysScrollableScrollPhysics(),
-              listPadding: const EdgeInsets.only(
+              listPadding: EdgeInsets.only(
                 top: AppSpacing.md,
-                bottom: AppSpacing.xxl,
+                bottom: AppSpacing.xxl + bottomInset,
               ),
               onTap: (int index) {
                 final playlist = items[index];
@@ -264,6 +266,7 @@ class _NeteasePlaylistDetailPageState
   @override
   Widget build(BuildContext context) {
     final baseTheme = M3ETheme.of(context);
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     final playlist = widget.playlist;
     final tracksAsync = ref.watch(neteasePlaylistTracksProvider(playlist.id));
     final tracks = <rust.UiTrack>[
@@ -413,7 +416,9 @@ class _NeteasePlaylistDetailPageState
                   ),
                 ),
               ),
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
+            SliverToBoxAdapter(
+              child: SizedBox(height: AppSpacing.xxl + bottomInset),
+            ),
           ],
         ),
       ),
