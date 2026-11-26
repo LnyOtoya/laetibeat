@@ -64,6 +64,29 @@ pub struct NeteasePlaylist {
 }
 
 #[derive(Debug, Clone)]
+pub struct NeteaseHomeCard {
+    pub id: String,
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub cover_url: Option<String>,
+    pub kind: String,
+    pub play_count: Option<u64>,
+    pub special_type: Option<i32>,
+    pub artist: Option<String>,
+    pub artist_id: Option<u64>,
+    pub resource_url: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NeteaseHomeSection {
+    pub block_code: String,
+    pub title: String,
+    pub layout: String,
+    pub cards: Vec<NeteaseHomeCard>,
+    pub tracks: Vec<NeteaseTrack>,
+}
+
+#[derive(Debug, Clone)]
 pub struct NeteaseAlbum {
     pub id: u64,
     pub name: String,
@@ -747,6 +770,20 @@ impl NeteaseClient {
         Ok(map_homepage_liked_song_recommendations(envelope))
     }
 
+    /// 首页所有可展示区块。标题按接口返回，内容区分卡片与歌曲。
+    pub fn homepage_sections(
+        &self,
+        cookie: &str,
+        refresh: bool,
+    ) -> Result<Vec<NeteaseHomeSection>> {
+        let mut form = vec![("cookie", cookie.to_string()), ("timestamp", now_millis())];
+        if refresh {
+            form.push(("refresh", "true".to_string()));
+        }
+        let envelope: HomepageEnvelope = self.post_form_json("/homepage/block/page", &form)?;
+        Ok(map_homepage_sections(envelope))
+    }
+
     pub fn cover(&self, url: &str) -> Result<Vec<u8>> {
         let parsed =
             Url::parse(url).map_err(|error| NeteaseError::InvalidBaseUrl(error.to_string()))?;
@@ -863,6 +900,163 @@ fn map_homepage_liked_song_recommendations(envelope: HomepageEnvelope) -> Vec<Ne
         }
     }
     tracks
+}
+
+fn map_homepage_sections(envelope: HomepageEnvelope) -> Vec<NeteaseHomeSection> {
+    let mut sections = Vec::new();
+    for block in envelope.data.map(|data| data.blocks).unwrap_or_default() {
+        if matches!(
+            block.block_code.as_str(),
+            "HOMEPAGE_BANNER"
+                | "HOMEPAGE_BLOCK_OLD_DRAGON_BALL"
+                | "HOMEPAGE_PODCAST24"
+                | "HOMEPAGE_BLOCK_STYLE_RCMD"
+        ) {
+            continue;
+        }
+        let title = homepage_block_title(&block);
+        if title.is_empty() {
+            continue;
+        }
+        let block_code = block.block_code.clone();
+        let mut cards = Vec::new();
+        let mut tracks = Vec::new();
+        let mut card_ids = HashSet::new();
+        let mut track_ids = HashSet::new();
+
+        for (creative_index, creative) in block.creatives.into_iter().enumerate() {
+            for (resource_index, resource) in creative.resources.into_iter().enumerate() {
+                let resource_type = resource
+                    .resource_type
+                    .as_deref()
+                    .unwrap_or_default()
+                    .to_ascii_lowercase();
+                let ui_title = resource
+                    .ui_element
+                    .as_ref()
+                    .and_then(|ui| ui.main_title.as_ref())
+                    .and_then(|title| title.title.clone())
+                    .filter(|value| !value.trim().is_empty())
+                    .or_else(|| {
+                        resource
+                            .name
+                            .clone()
+                            .filter(|value| !value.trim().is_empty())
+                    });
+                let ui_subtitle = resource
+                    .ui_element
+                    .as_ref()
+                    .and_then(|ui| ui.sub_title.as_ref())
+                    .and_then(|title| title.title.clone())
+                    .filter(|value| !value.trim().is_empty());
+                let cover_url = resource
+                    .ui_element
+                    .as_ref()
+                    .and_then(|ui| ui.image.as_ref())
+                    .and_then(|image| image.image_url.clone());
+                let resource_url = resource
+                    .resource_url
+                    .clone()
+                    .or_else(|| resource.action.clone());
+                let ext = resource.resource_ext_info.as_ref();
+                let song =
+                    ext.and_then(|info| info.song_data.clone().or_else(|| info.song.clone()));
+                let play_count = ext.and_then(|info| info.play_count);
+                let special_type = ext.and_then(|info| info.special_type);
+                let artist = ext.and_then(|info| info.artists.first()).cloned();
+                let artist_name = artist
+                    .as_ref()
+                    .map(|artist| artist.name.clone())
+                    .filter(|value| !value.is_empty());
+                let artist_id = artist.as_ref().map(|artist| artist.id).filter(|id| *id > 0);
+                let event_type = ext.and_then(|info| info.event_type.clone());
+
+                if let Some(song) = song {
+                    if resource_type == "song"
+                        || resource_type == "orpheus"
+                        || resource_type.is_empty()
+                    {
+                        let track = NeteaseTrack::from(song);
+                        if track_ids.insert(track.id) {
+                            tracks.push(track);
+                        }
+                        continue;
+                    }
+                }
+
+                let kind = match resource_type.as_str() {
+                    "list" if block_code == "HOMEPAGE_BLOCK_VIDEO_PLAYLIST" => "video_playlist",
+                    "list" | "playlist" => "playlist",
+                    "album" | "digitalalbum" => "album",
+                    "event_topic" => "topic",
+                    "voice" => "voice",
+                    "mv" | "artist" => "event",
+                    "orpheus" => "article",
+                    _ => "other",
+                };
+                let card_title = ui_title.or_else(|| artist_name.clone()).unwrap_or_default();
+                if card_title.is_empty() {
+                    continue;
+                }
+                let subtitle = ui_subtitle
+                    .or_else(|| {
+                        if kind == "album" {
+                            artist_name.clone()
+                        } else {
+                            None
+                        }
+                    })
+                    .or_else(|| {
+                        if kind == "event" {
+                            event_type.clone()
+                        } else {
+                            None
+                        }
+                    });
+                let id = resource
+                    .resource_id
+                    .clone()
+                    .or_else(|| resource_url.clone())
+                    .unwrap_or_else(|| {
+                        format!("{}-{}-{}", block_code, creative_index, resource_index)
+                    });
+                if !card_ids.insert(id.clone()) {
+                    continue;
+                }
+                cards.push(NeteaseHomeCard {
+                    id,
+                    title: card_title,
+                    subtitle,
+                    cover_url,
+                    kind: kind.to_string(),
+                    play_count,
+                    special_type,
+                    artist: artist_name,
+                    artist_id,
+                    resource_url,
+                });
+            }
+        }
+
+        if cards.is_empty() && tracks.is_empty() {
+            continue;
+        }
+        let layout = if !cards.is_empty() && !tracks.is_empty() {
+            "mixed"
+        } else if !tracks.is_empty() {
+            "songs"
+        } else {
+            "cards"
+        };
+        sections.push(NeteaseHomeSection {
+            block_code,
+            title,
+            layout: layout.to_string(),
+            cards,
+            tracks,
+        });
+    }
+    sections
 }
 
 fn now_millis() -> String {
@@ -1233,6 +1427,14 @@ struct HomepageCreative {
 struct HomepageResource {
     #[serde(rename = "resourceId")]
     resource_id: Option<String>,
+    #[serde(rename = "resourceType", default)]
+    resource_type: Option<String>,
+    #[serde(rename = "resourceUrl", default)]
+    resource_url: Option<String>,
+    #[serde(default)]
+    action: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
     #[serde(rename = "uiElement", default)]
     ui_element: Option<HomepageUiElement>,
     #[serde(rename = "resourceExtInfo", default)]
@@ -1271,6 +1473,10 @@ struct HomepageResourceExtInfo {
     song_data: Option<Song>,
     #[serde(default)]
     song: Option<Song>,
+    #[serde(default)]
+    artists: Vec<Artist>,
+    #[serde(rename = "eventType", default)]
+    event_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1352,7 +1558,7 @@ struct LyricText {
     lyric: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct Song {
     id: u64,
     name: String,
@@ -1369,7 +1575,7 @@ struct Song {
     cd: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct Artist {
     #[serde(default)]
     id: u64,
@@ -1377,7 +1583,7 @@ struct Artist {
     name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct Album {
     #[serde(default)]
     id: u64,
@@ -1617,6 +1823,155 @@ mod tests {
             tracks[0].cover_url.as_deref(),
             Some("https://example.com/song.jpg")
         );
+    }
+
+    #[test]
+    fn maps_homepage_sections() {
+        let value = serde_json::json!({
+            "data": {
+                "blocks": [
+                    {
+                        "blockCode": "HOMEPAGE_BLOCK_PLAYLIST_RCMD",
+                        "uiElement": {"subTitle": {"title": "推荐歌单"}},
+                        "creatives": [{"resources": [{
+                            "resourceType": "list",
+                            "resourceId": "1",
+                            "uiElement": {
+                                "mainTitle": {"title": "歌单A"},
+                                "image": {"imageUrl": "https://example.com/a.jpg"}
+                            },
+                            "resourceExtInfo": {"playCount": 10, "specialType": 0}
+                        }]}]
+                    },
+                    {
+                        "blockCode": "HOMEPAGE_BLOCK_NEW_HOT_COMMENT",
+                        "uiElement": {"subTitle": {"title": "热评歌曲"}},
+                        "creatives": [{"resources": [{
+                            "resourceType": "song",
+                            "resourceId": "2",
+                            "resourceExtInfo": {"songData": {
+                                "id": 2,
+                                "name": "歌曲B",
+                                "ar": [{"id": 3, "name": "歌手B"}],
+                                "al": {"id": 4, "name": "专辑B", "picUrl": "https://example.com/b.jpg"},
+                                "dt": 1000
+                            }}
+                        }]}]
+                    },
+                    {
+                        "blockCode": "HOMEPAGE_BLOCK_NEW_ALBUM_NEW_SONG",
+                        "uiElement": {"subTitle": {"title": "新歌新碟"}},
+                        "creatives": [{"resources": [
+                            {
+                                "resourceType": "album",
+                                "resourceId": "5",
+                                "uiElement": {
+                                    "mainTitle": {"title": "专辑C"},
+                                    "image": {"imageUrl": "https://example.com/c.jpg"}
+                                },
+                                "resourceExtInfo": {"artists": [{"id": 6, "name": "歌手C"}]}
+                            },
+                            {
+                                "resourceType": "song",
+                                "resourceId": "7",
+                                "resourceExtInfo": {"songData": {
+                                    "id": 7,
+                                    "name": "歌曲D",
+                                    "ar": [{"id": 8, "name": "歌手D"}],
+                                    "al": {"id": 9, "name": "专辑D", "picUrl": "https://example.com/d.jpg"},
+                                    "dt": 2000
+                                }}
+                            }
+                        ]}]
+                    },
+                    {
+                        "blockCode": "HOMEPAGE_BLOCK_HOT_TOPIC",
+                        "uiElement": {"subTitle": {"title": "热门话题"}},
+                        "creatives": [{"resources": [{
+                            "resourceType": "event_topic",
+                            "resourceId": "10",
+                            "uiElement": {
+                                "mainTitle": {"title": "话题E"},
+                                "subTitle": {"title": "20万热度"},
+                                "image": {"imageUrl": "https://example.com/e.jpg"}
+                            }
+                        }]}]
+                    },
+                    {
+                        "blockCode": "HOMEPAGE_MUSIC_CALENDAR",
+                        "uiElement": {"subTitle": {"title": "音乐日历"}},
+                        "creatives": [{"resources": [{
+                            "resourceType": "MV",
+                            "resourceId": "11",
+                            "uiElement": {"mainTitle": {"title": "MV F"}},
+                            "resourceExtInfo": {"eventType": "REP_ONLINE"}
+                        }]}]
+                    },
+                    {
+                        "blockCode": "HOMEPAGE_MUSIC_PODCAST_RCMD_BLOCK",
+                        "uiElement": {"subTitle": {"title": "每天听点儿好音乐"}},
+                        "creatives": [{"resources": [{
+                            "resourceType": "voice",
+                            "resourceId": "12",
+                            "uiElement": {
+                                "mainTitle": {"title": "播客G"},
+                                "subTitle": {"title": "作者G"},
+                                "image": {"imageUrl": "https://example.com/g.jpg"}
+                            }
+                        }]}]
+                    },
+                    {
+                        "blockCode": "HOMEPAGE_BLOCK_YUNCUN_PRODUCED",
+                        "uiElement": {"subTitle": {"title": "云村出品"}},
+                        "creatives": [{"resources": [{
+                            "resourceType": "orpheus",
+                            "uiElement": {
+                                "mainTitle": {"title": "文章H"},
+                                "image": {"imageUrl": "https://example.com/h.jpg"}
+                            },
+                            "action": "https://example.com/h"
+                        }]}]
+                    },
+                    {
+                        "blockCode": "HOMEPAGE_PODCAST24",
+                        "uiElement": {"subTitle": {"title": "广播"}},
+                        "creatives": []
+                    },
+                    {
+                        "blockCode": "HOMEPAGE_BLOCK_STYLE_RCMD",
+                        "uiElement": {"subTitle": {"title": "一首说唱 提神醒脑"}},
+                        "creatives": [{"resources": [{
+                            "resourceType": "song",
+                            "resourceId": "99",
+                            "resourceExtInfo": {"songData": {
+                                "id": 99,
+                                "name": "被屏蔽的说唱",
+                                "ar": [{"id": 100, "name": "说唱歌手"}],
+                                "al": {"id": 101, "name": "说唱专辑", "picUrl": "https://example.com/rap.jpg"},
+                                "dt": 1000
+                            }}
+                        }]}]
+                    }
+                ]
+            }
+        });
+        let envelope: HomepageEnvelope =
+            serde_json::from_value(value).expect("homepage sections json");
+        let sections = map_homepage_sections(envelope);
+        assert_eq!(sections.len(), 7);
+        assert_eq!(sections[0].title, "推荐歌单");
+        assert_eq!(sections[0].layout, "cards");
+        assert_eq!(sections[0].cards[0].kind, "playlist");
+        assert_eq!(sections[1].layout, "songs");
+        assert_eq!(sections[1].tracks[0].title, "歌曲B");
+        assert_eq!(sections[2].layout, "mixed");
+        assert_eq!(sections[2].cards[0].kind, "album");
+        assert_eq!(sections[2].tracks[0].id, 7);
+        assert_eq!(sections[3].cards[0].kind, "topic");
+        assert_eq!(sections[3].cards[0].subtitle.as_deref(), Some("20万热度"));
+        assert_eq!(sections[4].cards[0].kind, "event");
+        assert_eq!(sections[5].cards[0].kind, "voice");
+        assert_eq!(sections[6].cards[0].kind, "article");
     }
 
     /// 手动联调测试：

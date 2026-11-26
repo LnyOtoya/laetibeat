@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -68246148;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1897920835;
 
 // Section: executor
 
@@ -1162,6 +1162,45 @@ fn wire__crate__api__netease__netease_get_cover_impl(
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok = crate::api::netease::netease_get_cover(api_url)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__netease__netease_home_sections_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "netease_home_sections",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_base_url = <String>::sse_decode(&mut deserializer);
+            let api_cookie = <String>::sse_decode(&mut deserializer);
+            let api_refresh = <Option<bool>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::netease::netease_home_sections(
+                        api_base_url,
+                        api_cookie,
+                        api_refresh,
+                    )?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -4515,6 +4554,34 @@ impl SseDecode for Vec<crate::api::netease::UiNeteaseArtist> {
     }
 }
 
+impl SseDecode for Vec<crate::api::netease::UiNeteaseHomeCard> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::netease::UiNeteaseHomeCard>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::netease::UiNeteaseHomeSection> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::netease::UiNeteaseHomeSection>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::netease::UiNeteasePlaylist> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -5273,6 +5340,52 @@ impl SseDecode for crate::api::netease::UiNeteaseCaptchaResult {
     }
 }
 
+impl SseDecode for crate::api::netease::UiNeteaseHomeCard {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_subtitle = <Option<String>>::sse_decode(deserializer);
+        let mut var_coverUrl = <Option<String>>::sse_decode(deserializer);
+        let mut var_kind = <String>::sse_decode(deserializer);
+        let mut var_playCount = <Option<u64>>::sse_decode(deserializer);
+        let mut var_specialType = <Option<i32>>::sse_decode(deserializer);
+        let mut var_artist = <Option<String>>::sse_decode(deserializer);
+        let mut var_artistId = <Option<u64>>::sse_decode(deserializer);
+        let mut var_resourceUrl = <Option<String>>::sse_decode(deserializer);
+        return crate::api::netease::UiNeteaseHomeCard {
+            id: var_id,
+            title: var_title,
+            subtitle: var_subtitle,
+            cover_url: var_coverUrl,
+            kind: var_kind,
+            play_count: var_playCount,
+            special_type: var_specialType,
+            artist: var_artist,
+            artist_id: var_artistId,
+            resource_url: var_resourceUrl,
+        };
+    }
+}
+
+impl SseDecode for crate::api::netease::UiNeteaseHomeSection {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_blockCode = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_layout = <String>::sse_decode(deserializer);
+        let mut var_cards = <Vec<crate::api::netease::UiNeteaseHomeCard>>::sse_decode(deserializer);
+        let mut var_tracks = <Vec<crate::api::simple::UiTrack>>::sse_decode(deserializer);
+        return crate::api::netease::UiNeteaseHomeSection {
+            block_code: var_blockCode,
+            title: var_title,
+            layout: var_layout,
+            cards: var_cards,
+            tracks: var_tracks,
+        };
+    }
+}
+
 impl SseDecode for crate::api::netease::UiNeteaseLoginResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -5896,299 +6009,302 @@ fn pde_ffi_dispatcher_primary_impl(
             data_len,
         ),
         32 => wire__crate__api__netease__netease_get_cover_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__netease__netease_intelligence_list_impl(
+        33 => {
+            wire__crate__api__netease__netease_home_sections_impl(port, ptr, rust_vec_len, data_len)
+        }
+        34 => wire__crate__api__netease__netease_intelligence_list_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        34 => wire__crate__api__netease__netease_liked_song_ids_impl(
+        35 => wire__crate__api__netease__netease_liked_song_ids_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__api__netease__netease_liked_song_recommendations_impl(
+        36 => wire__crate__api__netease__netease_liked_song_recommendations_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        36 => wire__crate__api__netease__netease_login_cellphone_impl(
+        37 => wire__crate__api__netease__netease_login_cellphone_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__api__netease__netease_lyric_impl(port, ptr, rust_vec_len, data_len),
-        38 => {
+        38 => wire__crate__api__netease__netease_lyric_impl(port, ptr, rust_vec_len, data_len),
+        39 => {
             wire__crate__api__netease__netease_personal_fm_impl(port, ptr, rust_vec_len, data_len)
         }
-        39 => wire__crate__api__netease__netease_personal_fm_mode_impl(
+        40 => wire__crate__api__netease__netease_personal_fm_mode_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        40 => wire__crate__api__netease__netease_personalized_playlists_impl(
+        41 => wire__crate__api__netease__netease_personalized_playlists_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        41 => wire__crate__api__netease__netease_playlist_tracks_impl(
+        42 => wire__crate__api__netease__netease_playlist_tracks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        42 => wire__crate__api__netease__netease_qr_check_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__netease__netease_qr_create_impl(port, ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__netease__netease_radar_playlists_impl(
+        43 => wire__crate__api__netease__netease_qr_check_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__netease__netease_qr_create_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__netease__netease_radar_playlists_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        45 => wire__crate__api__netease__netease_search_impl(port, ptr, rust_vec_len, data_len),
-        46 => {
+        46 => wire__crate__api__netease__netease_search_impl(port, ptr, rust_vec_len, data_len),
+        47 => {
             wire__crate__api__netease__netease_search_albums_impl(port, ptr, rust_vec_len, data_len)
         }
-        47 => wire__crate__api__netease__netease_search_artists_impl(
+        48 => wire__crate__api__netease__netease_search_artists_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        48 => wire__crate__api__netease__netease_search_playlists_impl(
+        49 => wire__crate__api__netease__netease_search_playlists_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        49 => {
+        50 => {
             wire__crate__api__netease__netease_send_captcha_impl(port, ptr, rust_vec_len, data_len)
         }
-        50 => {
+        51 => {
             wire__crate__api__netease__netease_similar_songs_impl(port, ptr, rust_vec_len, data_len)
         }
-        51 => {
+        52 => {
             wire__crate__api__netease__netease_song_detail_impl(port, ptr, rust_vec_len, data_len)
         }
-        52 => wire__crate__api__netease__netease_song_url_impl(port, ptr, rust_vec_len, data_len),
-        53 => wire__crate__api__netease__netease_status_impl(port, ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__netease__netease_subscribed_albums_impl(
+        53 => wire__crate__api__netease__netease_song_url_impl(port, ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__netease__netease_status_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__netease__netease_subscribed_albums_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        55 => wire__crate__api__netease__netease_subscribed_artists_impl(
+        56 => wire__crate__api__netease__netease_subscribed_artists_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        56 => wire__crate__api__netease__netease_user_playlists_impl(
+        57 => wire__crate__api__netease__netease_user_playlists_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        57 => wire__crate__api__simple__parse_saf_track_impl(port, ptr, rust_vec_len, data_len),
-        58 => wire__crate__api__simple__pick_directory_impl(port, ptr, rust_vec_len, data_len),
-        59 => wire__crate__api__subsonic__ping_subsonic_impl(port, ptr, rust_vec_len, data_len),
-        60 => {
+        58 => wire__crate__api__simple__parse_saf_track_impl(port, ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__simple__pick_directory_impl(port, ptr, rust_vec_len, data_len),
+        60 => wire__crate__api__subsonic__ping_subsonic_impl(port, ptr, rust_vec_len, data_len),
+        61 => {
             wire__crate__api__stats__query_all_track_stats_impl(port, ptr, rust_vec_len, data_len)
         }
-        61 => {
+        62 => {
             wire__crate__api__stats__query_history_summary_impl(port, ptr, rust_vec_len, data_len)
         }
-        62 => wire__crate__api__stats__query_history_summary_all_impl(
+        63 => wire__crate__api__stats__query_history_summary_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        63 => wire__crate__api__stats__query_recent_play_events_impl(
+        64 => wire__crate__api__stats__query_recent_play_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        64 => {
+        65 => {
             wire__crate__api__library__query_remote_albums_impl(port, ptr, rust_vec_len, data_len)
         }
-        65 => wire__crate__api__library__query_remote_all_tracks_impl(
+        66 => wire__crate__api__library__query_remote_all_tracks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        66 => {
+        67 => {
             wire__crate__api__library__query_remote_artists_impl(port, ptr, rust_vec_len, data_len)
         }
-        67 => {
+        68 => {
             wire__crate__api__library__query_remote_tracks_impl(port, ptr, rust_vec_len, data_len)
         }
-        68 => wire__crate__api__stats__query_track_stats_impl(port, ptr, rust_vec_len, data_len),
-        69 => wire__crate__api__metadata__read_cover_impl(port, ptr, rust_vec_len, data_len),
-        70 => wire__crate__api__metadata__read_cover_fd_impl(port, ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__metadata__read_lyrics_impl(port, ptr, rust_vec_len, data_len),
-        72 => wire__crate__api__metadata__read_lyrics_fd_impl(port, ptr, rust_vec_len, data_len),
-        73 => wire__crate__api__stats__record_play_event_impl(port, ptr, rust_vec_len, data_len),
-        74 => wire__crate__api__subsonic__register_subsonic_impl(port, ptr, rust_vec_len, data_len),
-        75 => wire__crate__api__playlists__remove_local_playlist_item_impl(
+        69 => wire__crate__api__stats__query_track_stats_impl(port, ptr, rust_vec_len, data_len),
+        70 => wire__crate__api__metadata__read_cover_impl(port, ptr, rust_vec_len, data_len),
+        71 => wire__crate__api__metadata__read_cover_fd_impl(port, ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__metadata__read_lyrics_impl(port, ptr, rust_vec_len, data_len),
+        73 => wire__crate__api__metadata__read_lyrics_fd_impl(port, ptr, rust_vec_len, data_len),
+        74 => wire__crate__api__stats__record_play_event_impl(port, ptr, rust_vec_len, data_len),
+        75 => wire__crate__api__subsonic__register_subsonic_impl(port, ptr, rust_vec_len, data_len),
+        76 => wire__crate__api__playlists__remove_local_playlist_item_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        76 => wire__crate__api__lx__remove_lx_source_impl(port, ptr, rust_vec_len, data_len),
-        77 => wire__crate__api__subsonic__remove_subsonic_impl(port, ptr, rust_vec_len, data_len),
-        78 => wire__crate__api__playlists__rename_local_playlist_impl(
+        77 => wire__crate__api__lx__remove_lx_source_impl(port, ptr, rust_vec_len, data_len),
+        78 => wire__crate__api__subsonic__remove_subsonic_impl(port, ptr, rust_vec_len, data_len),
+        79 => wire__crate__api__playlists__rename_local_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        79 => wire__crate__api__playlists__reorder_local_playlist_items_impl(
+        80 => wire__crate__api__playlists__reorder_local_playlist_items_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        80 => wire__crate__api__playlists__replace_local_playlist_tracks_impl(
+        81 => wire__crate__api__playlists__replace_local_playlist_tracks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        81 => wire__crate__api__library__resolve_local_lyrics_cached_impl(
+        82 => wire__crate__api__library__resolve_local_lyrics_cached_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        82 => wire__crate__api__lx__resolve_lx_lyric_impl(port, ptr, rust_vec_len, data_len),
-        83 => wire__crate__api__lx__resolve_lx_music_url_impl(port, ptr, rust_vec_len, data_len),
-        84 => wire__crate__api__lx__resolve_lx_pic_impl(port, ptr, rust_vec_len, data_len),
-        85 => {
+        83 => wire__crate__api__lx__resolve_lx_lyric_impl(port, ptr, rust_vec_len, data_len),
+        84 => wire__crate__api__lx__resolve_lx_music_url_impl(port, ptr, rust_vec_len, data_len),
+        85 => wire__crate__api__lx__resolve_lx_pic_impl(port, ptr, rust_vec_len, data_len),
+        86 => {
             wire__crate__api__subsonic__save_discovery_cache_impl(port, ptr, rust_vec_len, data_len)
         }
-        86 => wire__crate__api__simple__scan_local_music_folder_impl(
+        87 => wire__crate__api__simple__scan_local_music_folder_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        87 => wire__crate__api__lx__search_lx_music_impl(port, ptr, rust_vec_len, data_len),
-        88 => wire__crate__api__lx__search_lx_playlists_impl(port, ptr, rust_vec_len, data_len),
-        89 => wire__crate__api__lyrics__search_lyrics_impl(port, ptr, rust_vec_len, data_len),
-        90 => {
+        88 => wire__crate__api__lx__search_lx_music_impl(port, ptr, rust_vec_len, data_len),
+        89 => wire__crate__api__lx__search_lx_playlists_impl(port, ptr, rust_vec_len, data_len),
+        90 => wire__crate__api__lyrics__search_lyrics_impl(port, ptr, rust_vec_len, data_len),
+        91 => {
             wire__crate__api__library__search_remote_library_impl(port, ptr, rust_vec_len, data_len)
         }
-        91 => wire__crate__api__lx__set_lx_active_source_impl(port, ptr, rust_vec_len, data_len),
-        92 => {
+        92 => wire__crate__api__lx__set_lx_active_source_impl(port, ptr, rust_vec_len, data_len),
+        93 => {
             wire__crate__api__lx__set_lx_allow_update_alert_impl(port, ptr, rust_vec_len, data_len)
         }
-        93 => wire__crate__api__lx__set_lx_source_enabled_impl(port, ptr, rust_vec_len, data_len),
-        94 => wire__crate__api__lx__set_lx_source_priority_impl(port, ptr, rust_vec_len, data_len),
-        95 => wire__crate__api__subsonic__subsonic_create_playlist_impl(
+        94 => wire__crate__api__lx__set_lx_source_enabled_impl(port, ptr, rust_vec_len, data_len),
+        95 => wire__crate__api__lx__set_lx_source_priority_impl(port, ptr, rust_vec_len, data_len),
+        96 => wire__crate__api__subsonic__subsonic_create_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        96 => wire__crate__api__subsonic__subsonic_delete_playlist_impl(
+        97 => wire__crate__api__subsonic__subsonic_delete_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        97 => {
+        98 => {
             wire__crate__api__subsonic__subsonic_get_album_impl(port, ptr, rust_vec_len, data_len)
         }
-        98 => {
+        99 => {
             wire__crate__api__subsonic__subsonic_get_artist_impl(port, ptr, rust_vec_len, data_len)
         }
-        99 => wire__crate__api__subsonic__subsonic_get_artist_biography_impl(
+        100 => wire__crate__api__subsonic__subsonic_get_artist_biography_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        100 => {
+        101 => {
             wire__crate__api__subsonic__subsonic_get_artists_impl(port, ptr, rust_vec_len, data_len)
         }
-        101 => wire__crate__api__subsonic__subsonic_get_cover_art_impl(
+        102 => wire__crate__api__subsonic__subsonic_get_cover_art_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        102 => {
+        103 => {
             wire__crate__api__subsonic__subsonic_get_lyrics_impl(port, ptr, rust_vec_len, data_len)
         }
-        103 => wire__crate__api__subsonic__subsonic_get_lyrics_cached_impl(
+        104 => wire__crate__api__subsonic__subsonic_get_lyrics_cached_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        104 => wire__crate__api__subsonic__subsonic_get_playlist_impl(
+        105 => wire__crate__api__subsonic__subsonic_get_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        105 => wire__crate__api__subsonic__subsonic_get_playlists_impl(
+        106 => wire__crate__api__subsonic__subsonic_get_playlists_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        106 => wire__crate__api__subsonic__subsonic_get_similar_songs_impl(
+        107 => wire__crate__api__subsonic__subsonic_get_similar_songs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        107 => wire__crate__api__subsonic__subsonic_get_user_name_impl(
+        108 => wire__crate__api__subsonic__subsonic_get_user_name_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        108 => {
+        109 => {
             wire__crate__api__subsonic__subsonic_scrobble_impl(port, ptr, rust_vec_len, data_len)
         }
-        109 => wire__crate__api__subsonic__subsonic_search3_impl(port, ptr, rust_vec_len, data_len),
-        110 => {
+        110 => wire__crate__api__subsonic__subsonic_search3_impl(port, ptr, rust_vec_len, data_len),
+        111 => {
             wire__crate__api__subsonic__subsonic_stream_url_impl(port, ptr, rust_vec_len, data_len)
         }
-        111 => wire__crate__api__subsonic__subsonic_update_playlist_impl(
+        112 => wire__crate__api__subsonic__subsonic_update_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        112 => wire__crate__api__lx__supported_lx_search_platforms_impl(
+        113 => wire__crate__api__lx__supported_lx_search_platforms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        113 => {
+        114 => {
             wire__crate__api__sync__sync_subsonic_library_impl(port, ptr, rust_vec_len, data_len)
         }
-        114 => wire__crate__api__subsonic__test_subsonic_connection_impl(
+        115 => wire__crate__api__subsonic__test_subsonic_connection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        115 => wire__crate__api__sync__ui_remote_sync_progress_default_impl(
+        116 => wire__crate__api__sync__ui_remote_sync_progress_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -6775,6 +6891,59 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::netease::UiNeteaseCaptchaResu
     for crate::api::netease::UiNeteaseCaptchaResult
 {
     fn into_into_dart(self) -> crate::api::netease::UiNeteaseCaptchaResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::netease::UiNeteaseHomeCard {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.subtitle.into_into_dart().into_dart(),
+            self.cover_url.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+            self.play_count.into_into_dart().into_dart(),
+            self.special_type.into_into_dart().into_dart(),
+            self.artist.into_into_dart().into_dart(),
+            self.artist_id.into_into_dart().into_dart(),
+            self.resource_url.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::netease::UiNeteaseHomeCard
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::netease::UiNeteaseHomeCard>
+    for crate::api::netease::UiNeteaseHomeCard
+{
+    fn into_into_dart(self) -> crate::api::netease::UiNeteaseHomeCard {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::netease::UiNeteaseHomeSection {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.block_code.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.layout.into_into_dart().into_dart(),
+            self.cards.into_into_dart().into_dart(),
+            self.tracks.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::netease::UiNeteaseHomeSection
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::netease::UiNeteaseHomeSection>
+    for crate::api::netease::UiNeteaseHomeSection
+{
+    fn into_into_dart(self) -> crate::api::netease::UiNeteaseHomeSection {
         self
     }
 }
@@ -7607,6 +7776,26 @@ impl SseEncode for Vec<crate::api::netease::UiNeteaseArtist> {
     }
 }
 
+impl SseEncode for Vec<crate::api::netease::UiNeteaseHomeCard> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::netease::UiNeteaseHomeCard>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::netease::UiNeteaseHomeSection> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::netease::UiNeteaseHomeSection>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::netease::UiNeteasePlaylist> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -8119,6 +8308,33 @@ impl SseEncode for crate::api::netease::UiNeteaseCaptchaResult {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.code, serializer);
         <String>::sse_encode(self.message, serializer);
+    }
+}
+
+impl SseEncode for crate::api::netease::UiNeteaseHomeCard {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <Option<String>>::sse_encode(self.subtitle, serializer);
+        <Option<String>>::sse_encode(self.cover_url, serializer);
+        <String>::sse_encode(self.kind, serializer);
+        <Option<u64>>::sse_encode(self.play_count, serializer);
+        <Option<i32>>::sse_encode(self.special_type, serializer);
+        <Option<String>>::sse_encode(self.artist, serializer);
+        <Option<u64>>::sse_encode(self.artist_id, serializer);
+        <Option<String>>::sse_encode(self.resource_url, serializer);
+    }
+}
+
+impl SseEncode for crate::api::netease::UiNeteaseHomeSection {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.block_code, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <String>::sse_encode(self.layout, serializer);
+        <Vec<crate::api::netease::UiNeteaseHomeCard>>::sse_encode(self.cards, serializer);
+        <Vec<crate::api::simple::UiTrack>>::sse_encode(self.tracks, serializer);
     }
 }
 

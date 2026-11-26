@@ -38,7 +38,12 @@
 - [x] 发现页第一张卡片标题由「媒体推荐」改为「今日推荐」。
 - [x] 发现页六卡下方新增「根据你喜爱的歌曲推荐」：从 `/homepage/block/page` 中按标题匹配对应 block，解析 `resourceExtInfo.songData` / `song`。
 - [x] 该区域标题左侧使用 `M3EShapeContainer.cookie9Sided`，右侧播放全部按钮；列表使用 `M3ESegmentedList`，每列 4 首、横向滚动、下一列露出一部分。
+- [x] 首页动态区块通用解析：按 blockCode 取区块、标题用接口返回文案，内容区分 cards / songs / mixed。
+- [x] 卡片区使用圆角正方形封面 + 歌单名最多两行，横向滚动约显示 2 个、第三个露出一部分；歌曲区复用每列 4 首布局。
+- [x] 排除广播、Banner、功能入口球等非内容区块。
+- [x] 发现页接入 `M3EPullToRefreshIndicator`；首次加载 `refresh=false`，下拉刷新后递增 token 并以 `refresh=true` 请求。
 - [ ] 实测：登录后该 block 是否出现、返回曲目数量与真机横向分列布局；block 缺失时显示空状态。
+- [ ] 实测：下拉刷新后不同 homepageMode 的区块集合变化（RCMD_MODE / PLAYLIST_MODE）与卡片点击跳转。
 - [ ] 实测：登录后心动模式与相似歌曲队列、漫游队列续拉、雷达接口缓存与真机横向卡片布局。
 
 ## 2026-11-25 最终结构定稿（Rust / Dart 边界）

@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'simple.dart';
 
-// These functions are ignored because they are not marked as `pub`: `client`, `map_album`, `map_artist`, `map_captcha_result`, `map_login_result`, `map_lyric`, `map_playlist`, `map_qr_check`, `map_qr_code`, `map_status`, `map_stream`, `map_track`
+// These functions are ignored because they are not marked as `pub`: `client`, `map_album`, `map_artist`, `map_captcha_result`, `map_home_card`, `map_home_section`, `map_login_result`, `map_lyric`, `map_playlist`, `map_qr_check`, `map_qr_code`, `map_status`, `map_stream`, `map_track`
 
 /// 测试 API 是否可达，以及当前是否已登录。
 Future<UiNeteaseStatus> neteaseStatus({
@@ -250,6 +250,17 @@ Future<List<UiTrack>> neteaseLikedSongRecommendations({
   cookie: cookie,
 );
 
+/// 首页可展示区块：标题按接口返回，内容分为卡片与歌曲。
+Future<List<UiNeteaseHomeSection>> neteaseHomeSections({
+  required String baseUrl,
+  required String cookie,
+  bool? refresh,
+}) => RustLib.instance.api.crateApiNeteaseNeteaseHomeSections(
+  baseUrl: baseUrl,
+  cookie: cookie,
+  refresh: refresh,
+);
+
 /// 私人 FM。接口每次返回 1 首。
 Future<List<UiTrack>> neteasePersonalFm({
   required String baseUrl,
@@ -465,6 +476,96 @@ class UiNeteaseCaptchaResult {
           runtimeType == other.runtimeType &&
           code == other.code &&
           message == other.message;
+}
+
+class UiNeteaseHomeCard {
+  final String id;
+  final String title;
+  final String? subtitle;
+  final String? coverUrl;
+  final String kind;
+  final BigInt? playCount;
+  final int? specialType;
+  final String? artist;
+  final BigInt? artistId;
+  final String? resourceUrl;
+
+  const UiNeteaseHomeCard({
+    required this.id,
+    required this.title,
+    this.subtitle,
+    this.coverUrl,
+    required this.kind,
+    this.playCount,
+    this.specialType,
+    this.artist,
+    this.artistId,
+    this.resourceUrl,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      title.hashCode ^
+      subtitle.hashCode ^
+      coverUrl.hashCode ^
+      kind.hashCode ^
+      playCount.hashCode ^
+      specialType.hashCode ^
+      artist.hashCode ^
+      artistId.hashCode ^
+      resourceUrl.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiNeteaseHomeCard &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          subtitle == other.subtitle &&
+          coverUrl == other.coverUrl &&
+          kind == other.kind &&
+          playCount == other.playCount &&
+          specialType == other.specialType &&
+          artist == other.artist &&
+          artistId == other.artistId &&
+          resourceUrl == other.resourceUrl;
+}
+
+class UiNeteaseHomeSection {
+  final String blockCode;
+  final String title;
+  final String layout;
+  final List<UiNeteaseHomeCard> cards;
+  final List<UiTrack> tracks;
+
+  const UiNeteaseHomeSection({
+    required this.blockCode,
+    required this.title,
+    required this.layout,
+    required this.cards,
+    required this.tracks,
+  });
+
+  @override
+  int get hashCode =>
+      blockCode.hashCode ^
+      title.hashCode ^
+      layout.hashCode ^
+      cards.hashCode ^
+      tracks.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiNeteaseHomeSection &&
+          runtimeType == other.runtimeType &&
+          blockCode == other.blockCode &&
+          title == other.title &&
+          layout == other.layout &&
+          cards == other.cards &&
+          tracks == other.tracks;
 }
 
 class UiNeteaseLoginResult {

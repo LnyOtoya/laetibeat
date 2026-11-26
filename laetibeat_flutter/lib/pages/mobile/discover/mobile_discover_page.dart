@@ -15,8 +15,10 @@ import '../../../widgets/player/player_provider.dart';
 import '../../../widgets/settings/netease_provider.dart';
 import '../../../widgets/settings/netease_session.dart';
 import '../../../widgets/settings/netease_settings.dart';
+import '../library/netease/netease_album_artist_pages.dart';
 import '../library/netease/netease_daily_page.dart';
 import '../library/netease/netease_detail_widgets.dart';
+import '../library/netease/netease_playlists_page.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
 import '../settings/sources/netease/mobile_netease_login_page.dart';
@@ -157,27 +159,34 @@ class _DiscoverContent extends ConsumerWidget {
       ),
     ];
 
-    return ListView(
-      padding: EdgeInsets.only(
-        top: AppSpacing.lg,
-        bottom: AppSpacing.xxl + bottomInset,
-      ),
-      children: <Widget>[
-        SizedBox(
-          height: cardHeight,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.symmetric(horizontal: pageGutter),
-            itemCount: cards.length,
-            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
-            itemBuilder: (BuildContext context, int index) {
-              return _DiscoverCard(data: cards[index], width: cardWidth);
-            },
-          ),
+    return m3e_core.M3EPullToRefreshIndicator(
+      onRefresh: () => _refreshDiscover(ref),
+      onError: (_, _) {},
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.only(
+          top: AppSpacing.lg,
+          bottom: AppSpacing.xxl + bottomInset,
         ),
-        const SizedBox(height: AppSpacing.xl),
-        const _LikedSongRecommendationsSection(),
-      ],
+        children: <Widget>[
+          SizedBox(
+            height: cardHeight,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: pageGutter),
+              itemCount: cards.length,
+              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
+              itemBuilder: (BuildContext context, int index) {
+                return _DiscoverCard(data: cards[index], width: cardWidth);
+              },
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          const _LikedSongRecommendationsSection(),
+          const SizedBox(height: AppSpacing.xl),
+          const _HomeSectionsSection(),
+        ],
+      ),
     );
   }
 
@@ -349,6 +358,18 @@ Future<void> _openLogin(BuildContext context, WidgetRef ref) async {
   ref.invalidate(neteaseRadarPlaylistsProvider);
   ref.invalidate(neteasePersonalFmProvider);
   ref.invalidate(neteaseLikedSongRecommendationsProvider);
+  ref.invalidate(neteaseHomeSectionsProvider);
+}
+
+Future<void> _refreshDiscover(WidgetRef ref) async {
+  ref.read(neteaseHomeRefreshTokenProvider.notifier).refresh();
+  ref.invalidate(neteaseDailyProvider);
+  ref.invalidate(neteasePersonalizedPlaylistsProvider);
+  ref.invalidate(neteaseRadarPlaylistsProvider);
+  ref.invalidate(neteasePersonalFmProvider);
+  ref.invalidate(neteaseLikedSongRecommendationsProvider);
+  ref.invalidate(neteaseLikedPlaylistProvider);
+  await ref.read(neteaseHomeSectionsProvider.future);
 }
 
 class _LikedSongRecommendationsSection extends ConsumerWidget {
@@ -421,7 +442,7 @@ class _LikedSongRecommendationsSection extends ConsumerWidget {
                 ),
               );
             }
-            return _LikedSongColumns(tracks: items);
+            return _NeteaseSongColumns(tracks: items, source: '根据你喜爱的歌曲推荐');
           },
         ),
       ],
@@ -454,14 +475,15 @@ class _TasteGlyph extends StatelessWidget {
   }
 }
 
-class _LikedSongColumns extends ConsumerWidget {
-  const _LikedSongColumns({required this.tracks});
+class _NeteaseSongColumns extends ConsumerWidget {
+  const _NeteaseSongColumns({required this.tracks, required this.source});
 
   static const int _rowsPerColumn = 4;
-  static const double _rowHeight = 54;
+  static const double _rowHeight = 56;
   static const double _columnGap = AppSpacing.lg;
 
   final List<rust.UiTrack> tracks;
+  final String source;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -473,52 +495,63 @@ class _LikedSongColumns extends ConsumerWidget {
     final columnCount = (tracks.length / _rowsPerColumn).ceil();
     final scheme = M3ETheme.of(context).colorScheme;
 
-    return SizedBox(
-      height: _rowHeight * _rowsPerColumn + 20,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: pageGutter),
-        itemCount: columnCount,
-        separatorBuilder: (_, _) => const SizedBox(width: _columnGap),
-        itemBuilder: (BuildContext context, int columnIndex) {
-          final start = columnIndex * _rowsPerColumn;
-          final rawEnd = start + _rowsPerColumn;
-          final end = rawEnd > tracks.length ? tracks.length : rawEnd;
-          final columnTracks = tracks.sublist(start, end);
-          return SizedBox(
-            width: columnWidth,
-            child: m3e_core.M3ESegmentedList.builder(
-              itemCount: columnTracks.length,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              listPadding: EdgeInsets.zero,
-              onTap: (int index) => ref
-                  .read(playerProvider.notifier)
-                  .load(tracks, start + index, source: '根据你喜爱的歌曲推荐'),
-              decoration: m3e_core.M3ESegmentedListDecoration(
-                color: scheme.secondaryContainer,
-                splashColor: scheme.onSecondaryContainer.withValues(
-                  alpha: 0.12,
-                ),
-                highlightColor: scheme.onSecondaryContainer.withValues(
-                  alpha: 0.08,
-                ),
-                hoverColor: scheme.onSecondaryContainer.withValues(alpha: 0.08),
-                outerRadius: 24,
-                innerRadius: 12,
-                pressedRadius: 8,
-                pressedScale: 0.98,
-                hoveredRadius: 16,
-                gap: 4,
-                padding: const EdgeInsets.all(4),
-                margin: EdgeInsets.zero,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: EdgeInsets.symmetric(horizontal: pageGutter),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          for (
+            var columnIndex = 0;
+            columnIndex < columnCount;
+            columnIndex++
+          ) ...[
+            if (columnIndex > 0) const SizedBox(width: _columnGap),
+            SizedBox(
+              width: columnWidth,
+              child: Builder(
+                builder: (BuildContext context) {
+                  final start = columnIndex * _rowsPerColumn;
+                  final rawEnd = start + _rowsPerColumn;
+                  final end = rawEnd > tracks.length ? tracks.length : rawEnd;
+                  final columnTracks = tracks.sublist(start, end);
+                  return m3e_core.M3ESegmentedList.builder(
+                    itemCount: columnTracks.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    listPadding: EdgeInsets.zero,
+                    onTap: (int index) => ref
+                        .read(playerProvider.notifier)
+                        .load(tracks, start + index, source: source),
+                    decoration: m3e_core.M3ESegmentedListDecoration(
+                      color: scheme.secondaryContainer,
+                      splashColor: scheme.onSecondaryContainer.withValues(
+                        alpha: 0.12,
+                      ),
+                      highlightColor: scheme.onSecondaryContainer.withValues(
+                        alpha: 0.08,
+                      ),
+                      hoverColor: scheme.onSecondaryContainer.withValues(
+                        alpha: 0.08,
+                      ),
+                      outerRadius: 24,
+                      innerRadius: 12,
+                      pressedRadius: 8,
+                      pressedScale: 0.98,
+                      hoveredRadius: 16,
+                      gap: 4,
+                      padding: const EdgeInsets.all(4),
+                      margin: EdgeInsets.zero,
+                    ),
+                    itemBuilder: (BuildContext context, int index) {
+                      return _LikedSongRow(track: columnTracks[index]);
+                    },
+                  );
+                },
               ),
-              itemBuilder: (BuildContext context, int index) {
-                return _LikedSongRow(track: columnTracks[index]);
-              },
             ),
-          );
-        },
+          ],
+        ],
       ),
     );
   }
@@ -534,7 +567,8 @@ class _LikedSongRow extends StatelessWidget {
     final theme = M3ETheme.of(context);
     final scheme = theme.colorScheme;
     return m3e_core.M3EListItem(
-      minHeight: _LikedSongColumns._rowHeight,
+      minHeight: _NeteaseSongColumns._rowHeight,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       leading: _CompactTrackCover(track: track),
       headline: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       supportingText: Text(
@@ -565,12 +599,12 @@ class _CompactTrackCover extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = M3ETheme.of(context).colorScheme;
     final bytes = ref.watch(trackCoverProvider(track)).value;
-    final cacheSize = (36 * MediaQuery.devicePixelRatioOf(context)).round();
+    final cacheSize = (48 * MediaQuery.devicePixelRatioOf(context)).round();
 
     return ClipRRect(
-      borderRadius: AppRadii.xsAll,
+      borderRadius: AppRadii.smAll,
       child: SizedBox.square(
-        dimension: 36,
+        dimension: 48,
         child: bytes == null || bytes.isEmpty
             ? ColoredBox(
                 color: scheme.surfaceContainerHighest,
@@ -589,6 +623,288 @@ class _CompactTrackCover extends ConsumerWidget {
               ),
       ),
     );
+  }
+}
+
+class _HomeSectionsSection extends ConsumerWidget {
+  const _HomeSectionsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pageGutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+    final sections = ref.watch(neteaseHomeSectionsProvider);
+
+    return sections.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+        child: Center(child: NeteaseLoadingIndicator()),
+      ),
+      error: (error, _) {
+        final needsLogin = _needsLogin(error);
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: pageGutter),
+          child: AppEmptyState(
+            title: needsLogin ? '登录后查看推荐' : '首页推荐加载失败',
+            message: needsLogin ? '登录网易云后会显示首页推荐。' : '$error',
+            icon: needsLogin ? M3EIcons.lock : M3EIcons.error,
+            action: M3EButton(
+              style: M3EButtonStyle.tonal,
+              label: Text(needsLogin ? '登录网易云' : '重试'),
+              onPressed: needsLogin
+                  ? () => _openLogin(context, ref)
+                  : () => ref.invalidate(neteaseHomeSectionsProvider),
+            ),
+          ),
+        );
+      },
+      data: (items) {
+        final visible = items
+            .where((section) {
+              if (section.title.trim().isEmpty) return false;
+              if (section.title.contains('根据你喜爱的歌曲推荐')) return false;
+              return section.cards.isNotEmpty || section.tracks.isNotEmpty;
+            })
+            .toList(growable: false);
+        if (visible.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            for (final section in visible) ...<Widget>[
+              _HomeBlockSection(section: section),
+              const SizedBox(height: AppSpacing.xl),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _HomeBlockSection extends ConsumerWidget {
+  const _HomeBlockSection({required this.section});
+
+  final rust_netease.UiNeteaseHomeSection section;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pageGutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+    final scheme = M3ETheme.of(context).colorScheme;
+    final hasTracks = section.tracks.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: pageGutter),
+          child: AppSectionHeader(
+            title: section.title,
+            titleRole: AppTextRole.titleMedium,
+            leading: _TasteGlyph(scheme: scheme),
+            trailing: hasTracks
+                ? M3EIconButton(
+                    variant: M3EIconButtonVariant.tonal,
+                    size: M3EIconButtonSize.sm,
+                    icon: const Icon(M3EIcons.play_arrow),
+                    tooltip: '播放全部',
+                    onPressed: () => ref
+                        .read(playerProvider.notifier)
+                        .load(section.tracks, 0, source: section.title),
+                  )
+                : null,
+            padding: AppInsets.sectionHeader,
+          ),
+        ),
+        if (section.cards.isNotEmpty) _HomeCardCarousel(cards: section.cards),
+        if (section.cards.isNotEmpty && hasTracks)
+          const SizedBox(height: AppSpacing.md),
+        if (hasTracks)
+          _NeteaseSongColumns(tracks: section.tracks, source: section.title),
+      ],
+    );
+  }
+}
+
+class _HomeCardCarousel extends StatelessWidget {
+  const _HomeCardCarousel({required this.cards});
+
+  final List<rust_netease.UiNeteaseHomeCard> cards;
+
+  @override
+  Widget build(BuildContext context) {
+    final pageGutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+    final available = MediaQuery.sizeOf(context).width - pageGutter * 2;
+    final cardWidth = ((available - AppSpacing.lg * 2) / 2.35).clamp(
+      120.0,
+      180.0,
+    );
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: EdgeInsets.symmetric(horizontal: pageGutter),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          for (var index = 0; index < cards.length; index++) ...[
+            if (index > 0) const SizedBox(width: AppSpacing.md),
+            SizedBox(
+              width: cardWidth,
+              child: _HomeCard(card: cards[index]),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeCard extends ConsumerWidget {
+  const _HomeCard({required this.card});
+
+  final rust_netease.UiNeteaseHomeCard card;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    final onTap = _target(context);
+
+    return Semantics(
+      button: onTap != null,
+      label: card.title,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: AppRadii.lgAll,
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              ClipRRect(
+                borderRadius: AppRadii.lgAll,
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: _HomeCardCover(card: card),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                card.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.typeScale.bodyMedium.copyWith(
+                  color: scheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  VoidCallback? _target(BuildContext context) {
+    final id = BigInt.tryParse(card.id);
+    if (id == null) return null;
+    switch (card.kind) {
+      case 'playlist':
+        final playlist = rust_netease.UiNeteasePlaylist(
+          id: id,
+          name: card.title,
+          coverUrl: card.coverUrl,
+          trackCount: 0,
+          creator: null,
+          playCount: card.playCount,
+          specialType: card.specialType,
+        );
+        return () => pushMobileRootPage(
+          context,
+          NeteasePlaylistDetailPage(playlist: playlist),
+          name: MobileRoutes.libraryPlaylists,
+        );
+      case 'album':
+        final album = rust_netease.UiNeteaseAlbum(
+          id: id,
+          name: card.title,
+          artist: card.artist ?? '',
+          artistId: card.artistId ?? BigInt.zero,
+          coverUrl: card.coverUrl,
+          trackCount: 0,
+          publishTimeMs: null,
+        );
+        return () => pushMobileRootPage(
+          context,
+          NeteaseAlbumDetailPage(album: album),
+          name: MobileRoutes.albumDetail,
+        );
+      default:
+        return null;
+    }
+  }
+}
+
+class _HomeCardCover extends ConsumerWidget {
+  const _HomeCardCover({required this.card});
+
+  final rust_netease.UiNeteaseHomeCard card;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    final url = card.coverUrl;
+    final fallbackIcon = _iconForKind(card.kind);
+
+    if (url == null || url.isEmpty) {
+      return _CoverPlaceholder(
+        background: scheme.surfaceContainerHighest,
+        foreground: scheme.onSurfaceVariant,
+        icon: fallbackIcon,
+      );
+    }
+
+    final image = ref.watch(neteaseImageProvider(url));
+    return image.when(
+      data: (bytes) {
+        if (bytes == null || bytes.isEmpty) {
+          return _CoverPlaceholder(
+            background: scheme.surfaceContainerHighest,
+            foreground: scheme.onSurfaceVariant,
+            icon: fallbackIcon,
+          );
+        }
+        return Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true);
+      },
+      loading: () => _CoverPlaceholder(
+        background: scheme.surfaceContainerHighest,
+        foreground: scheme.onSurfaceVariant,
+        child: const NeteaseLoadingIndicator(size: 32),
+      ),
+      error: (_, _) => _CoverPlaceholder(
+        background: scheme.surfaceContainerHighest,
+        foreground: scheme.onSurfaceVariant,
+        icon: M3EIcons.error,
+      ),
+    );
+  }
+
+  IconData _iconForKind(String kind) {
+    switch (kind) {
+      case 'playlist':
+        return M3EIcons.queue_music;
+      case 'album':
+        return M3EIcons.album;
+      case 'video_playlist':
+        return M3EIcons.videocam;
+      case 'topic':
+        return M3EIcons.tag;
+      case 'event':
+        return M3EIcons.event;
+      case 'voice':
+        return M3EIcons.mic;
+      case 'article':
+        return M3EIcons.article;
+      default:
+        return M3EIcons.music_note;
+    }
   }
 }
 

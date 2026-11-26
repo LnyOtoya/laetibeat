@@ -107,6 +107,37 @@ final neteaseLikedSongRecommendationsProvider =
       );
     });
 
+/// 首页动态区块。首次加载不强制服务端刷新；下拉刷新时递增 token。
+class NeteaseHomeRefreshToken extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void refresh() => state++;
+}
+
+final neteaseHomeRefreshTokenProvider =
+    NotifierProvider<NeteaseHomeRefreshToken, int>(NeteaseHomeRefreshToken.new);
+
+final neteaseHomeSectionsProvider =
+    FutureProvider.autoDispose<List<rust_netease.UiNeteaseHomeSection>>((
+      ref,
+    ) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      final cookie = await ref.watch(neteaseCookieProvider.future);
+      if (cookie == null || cookie.isEmpty) {
+        throw StateError('请先登录网易云');
+      }
+      final refresh = ref.watch(neteaseHomeRefreshTokenProvider) > 0;
+      return rust_netease.neteaseHomeSections(
+        baseUrl: baseUrl,
+        cookie: cookie,
+        refresh: refresh,
+      );
+    });
+
 /// 私人 FM。需要登录；接口每次只返回 1 首。
 final neteasePersonalFmProvider =
     FutureProvider.autoDispose<List<rust.UiTrack>>((ref) async {

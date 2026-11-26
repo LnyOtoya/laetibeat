@@ -1,8 +1,8 @@
 use flutter_rust_bridge::frb;
 use laetibeat_netease::{
-    NeteaseAlbum, NeteaseArtist, NeteaseCaptchaResult, NeteaseClient, NeteaseLoginResult,
-    NeteaseLyric, NeteasePlaylist, NeteaseQrCheck, NeteaseQrCode, NeteaseStatus, NeteaseStream,
-    NeteaseTrack,
+    NeteaseAlbum, NeteaseArtist, NeteaseCaptchaResult, NeteaseClient, NeteaseHomeCard,
+    NeteaseHomeSection, NeteaseLoginResult, NeteaseLyric, NeteasePlaylist, NeteaseQrCheck,
+    NeteaseQrCode, NeteaseStatus, NeteaseStream, NeteaseTrack,
 };
 
 use crate::api::simple::UiTrack;
@@ -27,6 +27,29 @@ pub struct UiNeteasePlaylist {
     pub creator: Option<String>,
     pub play_count: Option<u64>,
     pub special_type: Option<i32>,
+}
+
+#[frb(non_opaque)]
+pub struct UiNeteaseHomeCard {
+    pub id: String,
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub cover_url: Option<String>,
+    pub kind: String,
+    pub play_count: Option<u64>,
+    pub special_type: Option<i32>,
+    pub artist: Option<String>,
+    pub artist_id: Option<u64>,
+    pub resource_url: Option<String>,
+}
+
+#[frb(non_opaque)]
+pub struct UiNeteaseHomeSection {
+    pub block_code: String,
+    pub title: String,
+    pub layout: String,
+    pub cards: Vec<UiNeteaseHomeCard>,
+    pub tracks: Vec<UiTrack>,
 }
 
 #[frb(non_opaque)]
@@ -399,6 +422,21 @@ pub fn netease_liked_song_recommendations(
         .collect())
 }
 
+/// 首页可展示区块：标题按接口返回，内容分为卡片与歌曲。
+pub fn netease_home_sections(
+    base_url: String,
+    cookie: String,
+    refresh: Option<bool>,
+) -> Result<Vec<UiNeteaseHomeSection>, String> {
+    let sections = client(&base_url)?
+        .homepage_sections(&cookie, refresh.unwrap_or(false))
+        .map_err(|error| error.to_string())?;
+    Ok(sections
+        .into_iter()
+        .map(|section| map_home_section(&base_url, section))
+        .collect())
+}
+
 /// 私人 FM。接口每次返回 1 首。
 pub fn netease_personal_fm(
     base_url: String,
@@ -598,6 +636,35 @@ fn map_playlist(playlist: NeteasePlaylist) -> UiNeteasePlaylist {
         creator: playlist.creator,
         play_count: playlist.play_count,
         special_type: playlist.special_type,
+    }
+}
+
+fn map_home_card(card: NeteaseHomeCard) -> UiNeteaseHomeCard {
+    UiNeteaseHomeCard {
+        id: card.id,
+        title: card.title,
+        subtitle: card.subtitle,
+        cover_url: card.cover_url,
+        kind: card.kind,
+        play_count: card.play_count,
+        special_type: card.special_type,
+        artist: card.artist,
+        artist_id: card.artist_id,
+        resource_url: card.resource_url,
+    }
+}
+
+fn map_home_section(base_url: &str, section: NeteaseHomeSection) -> UiNeteaseHomeSection {
+    UiNeteaseHomeSection {
+        block_code: section.block_code,
+        title: section.title,
+        layout: section.layout,
+        cards: section.cards.into_iter().map(map_home_card).collect(),
+        tracks: section
+            .tracks
+            .into_iter()
+            .map(|track| map_track(base_url, track))
+            .collect(),
     }
 }
 

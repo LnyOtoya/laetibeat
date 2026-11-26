@@ -147,6 +147,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<UiNeteaseArtist> dco_decode_list_ui_netease_artist(dynamic raw);
 
   @protected
+  List<UiNeteaseHomeCard> dco_decode_list_ui_netease_home_card(dynamic raw);
+
+  @protected
+  List<UiNeteaseHomeSection> dco_decode_list_ui_netease_home_section(
+    dynamic raw,
+  );
+
+  @protected
   List<UiNeteasePlaylist> dco_decode_list_ui_netease_playlist(dynamic raw);
 
   @protected
@@ -290,6 +298,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiNeteaseCaptchaResult dco_decode_ui_netease_captcha_result(dynamic raw);
+
+  @protected
+  UiNeteaseHomeCard dco_decode_ui_netease_home_card(dynamic raw);
+
+  @protected
+  UiNeteaseHomeSection dco_decode_ui_netease_home_section(dynamic raw);
 
   @protected
   UiNeteaseLoginResult dco_decode_ui_netease_login_result(dynamic raw);
@@ -509,6 +523,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UiNeteaseHomeCard> sse_decode_list_ui_netease_home_card(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<UiNeteaseHomeSection> sse_decode_list_ui_netease_home_section(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<UiNeteasePlaylist> sse_decode_list_ui_netease_playlist(
     SseDeserializer deserializer,
   );
@@ -688,6 +712,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiNeteaseCaptchaResult sse_decode_ui_netease_captcha_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  UiNeteaseHomeCard sse_decode_ui_netease_home_card(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  UiNeteaseHomeSection sse_decode_ui_netease_home_section(
     SseDeserializer deserializer,
   );
 
@@ -965,6 +999,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_ui_netease_home_card(
+    List<UiNeteaseHomeCard> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_ui_netease_home_section(
+    List<UiNeteaseHomeSection> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_ui_netease_playlist(
     List<UiNeteasePlaylist> self,
     SseSerializer serializer,
@@ -1201,6 +1247,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_ui_netease_captcha_result(
     UiNeteaseCaptchaResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_netease_home_card(
+    UiNeteaseHomeCard self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_netease_home_section(
+    UiNeteaseHomeSection self,
     SseSerializer serializer,
   );
 
