@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
+import 'package:laetibeat/widgets/cache/netease_cover_cache.dart';
 import 'package:laetibeat/widgets/player/lx_search_provider.dart';
 import 'package:laetibeat/widgets/player/cover_provider.dart';
 import 'package:laetibeat/widgets/player/lx_track.dart';
@@ -1294,11 +1295,15 @@ class _NeteaseAlbumResults extends ConsumerWidget {
               color: theme.colorScheme.surface,
               variant: M3ECardVariant.filled,
               itemCount: albums.length,
-              onTap: (int index) => pushMobileRootPage(
-                context,
-                NeteaseAlbumDetailPage(album: albums[index]),
-                name: MobileRoutes.libraryAlbums,
-              ),
+              onTap: (int index) {
+                final album = albums[index];
+                prefetchNeteaseCover(ref, album.coverUrl);
+                pushMobileRootPage(
+                  context,
+                  NeteaseAlbumDetailPage(album: album),
+                  name: MobileRoutes.libraryAlbums,
+                );
+              },
               itemBuilder: (BuildContext context, int index) {
                 final album = albums[index];
                 return M3EListItem(
@@ -1343,11 +1348,15 @@ class _NeteaseArtistResults extends ConsumerWidget {
               color: theme.colorScheme.surface,
               variant: M3ECardVariant.filled,
               itemCount: artists.length,
-              onTap: (int index) => pushMobileRootPage(
-                context,
-                NeteaseArtistDetailPage(artist: artists[index]),
-                name: MobileRoutes.libraryArtists,
-              ),
+              onTap: (int index) {
+                final artist = artists[index];
+                prefetchNeteaseCover(ref, artist.coverUrl);
+                pushMobileRootPage(
+                  context,
+                  NeteaseArtistDetailPage(artist: artist),
+                  name: MobileRoutes.libraryArtists,
+                );
+              },
               itemBuilder: (BuildContext context, int index) {
                 final artist = artists[index];
                 return M3EListItem(
@@ -1470,9 +1479,11 @@ class _NeteasePlaylistResults extends ConsumerWidget {
               variant: M3ECardVariant.filled,
               itemCount: playlists.length,
               onTap: (int index) {
+                final playlist = playlists[index];
+                prefetchNeteaseCover(ref, playlist.coverUrl);
                 pushMobileRootPage(
                   context,
-                  NeteasePlaylistDetailPage(playlist: playlists[index]),
+                  NeteasePlaylistDetailPage(playlist: playlist),
                   name: MobileRoutes.libraryPlaylists,
                 );
               },

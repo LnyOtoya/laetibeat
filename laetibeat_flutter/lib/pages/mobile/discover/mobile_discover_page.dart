@@ -10,6 +10,7 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/layout/app_bottom_inset.dart';
 import '../../../src/rust/api/netease.dart' as rust_netease;
 import '../../../src/rust/api/simple.dart' as rust;
+import '../../../widgets/cache/netease_cover_cache.dart';
 import '../../../widgets/player/cover_provider.dart';
 import '../../../widgets/player/player_provider.dart';
 import '../../../widgets/settings/netease_provider.dart';
@@ -766,7 +767,7 @@ class _HomeCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
     final scheme = theme.colorScheme;
-    final onTap = _target(context);
+    final onTap = _target(context, ref);
 
     return Semantics(
       button: onTap != null,
@@ -802,7 +803,7 @@ class _HomeCard extends ConsumerWidget {
     );
   }
 
-  VoidCallback? _target(BuildContext context) {
+  VoidCallback? _target(BuildContext context, WidgetRef ref) {
     final id = BigInt.tryParse(card.id);
     if (id == null) return null;
     switch (card.kind) {
@@ -816,11 +817,14 @@ class _HomeCard extends ConsumerWidget {
           playCount: card.playCount,
           specialType: card.specialType,
         );
-        return () => pushMobileRootPage(
-          context,
-          NeteasePlaylistDetailPage(playlist: playlist),
-          name: MobileRoutes.libraryPlaylists,
-        );
+        return () {
+          prefetchNeteaseCover(ref, playlist.coverUrl);
+          pushMobileRootPage(
+            context,
+            NeteasePlaylistDetailPage(playlist: playlist),
+            name: MobileRoutes.libraryPlaylists,
+          );
+        };
       case 'album':
         final album = rust_netease.UiNeteaseAlbum(
           id: id,
@@ -831,11 +835,14 @@ class _HomeCard extends ConsumerWidget {
           trackCount: 0,
           publishTimeMs: null,
         );
-        return () => pushMobileRootPage(
-          context,
-          NeteaseAlbumDetailPage(album: album),
-          name: MobileRoutes.albumDetail,
-        );
+        return () {
+          prefetchNeteaseCover(ref, album.coverUrl);
+          pushMobileRootPage(
+            context,
+            NeteaseAlbumDetailPage(album: album),
+            name: MobileRoutes.albumDetail,
+          );
+        };
       default:
         return null;
     }

@@ -14,10 +14,42 @@ import '../../../../widgets/player/player_provider.dart';
 import '../../../../widgets/settings/netease_provider.dart';
 import '../playlists/playlist_actions.dart';
 
-/// 网易云详情页封面色缓存。
-final neteaseCoverColorProvider = FutureProvider.family<Color, Uint8List>(
-  (ref, bytes) => dominantCoverColor(bytes),
-);
+/// 详情页主题从基础色平滑过渡到封面主色，避免取色完成时突然跳变。
+class NeteaseAnimatedTheme extends StatelessWidget {
+  const NeteaseAnimatedTheme({
+    super.key,
+    required this.coverColor,
+    required this.child,
+  });
+
+  final Color? coverColor;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = M3ETheme.of(context);
+    final target = coverColor;
+    return TweenAnimationBuilder<Color?>(
+      tween: ColorTween(
+        begin: target ?? base.colorScheme.primary,
+        end: target ?? base.colorScheme.primary,
+      ),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+      builder: (BuildContext context, Color? color, Widget? child) {
+        if (target == null) {
+          return M3ETheme(data: base, child: child!);
+        }
+        final scheme = MaterialYouColorScheme.fromSeed(
+          color ?? target,
+          brightness: base.colorScheme.brightness,
+        );
+        return M3ETheme(data: base.withColorScheme(scheme), child: child!);
+      },
+      child: child,
+    );
+  }
+}
 
 class NeteaseLoadingIndicator extends StatelessWidget {
   const NeteaseLoadingIndicator({
@@ -64,38 +96,52 @@ class NeteaseDetailHero extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          if (hasArt)
-            ShaderMask(
-              blendMode: BlendMode.dstIn,
-              shaderCallback: (Rect rect) => const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: <Color>[
-                  Colors.white,
-                  Colors.white,
-                  Colors.white70,
-                  Colors.transparent,
-                ],
-                stops: <double>[0, 0.55, 0.78, 1],
-              ).createShader(rect),
-              child: Image.memory(
-                bytes!,
-                fit: BoxFit.cover,
-                gaplessPlayback: true,
-                cacheWidth: 900,
-              ),
-            )
-          else
-            ColoredBox(
-              color: scheme.surfaceContainerHighest,
-              child: Center(
-                child: Icon(
-                  fallbackIcon,
-                  size: 72,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-            ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 320),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            layoutBuilder:
+                (Widget? currentChild, List<Widget> previousChildren) {
+                  return Stack(
+                    fit: StackFit.expand,
+                    alignment: Alignment.center,
+                    children: <Widget>[...previousChildren, ?currentChild],
+                  );
+                },
+            child: hasArt
+                ? ShaderMask(
+                    key: const ValueKey<String>('netease-hero-art'),
+                    blendMode: BlendMode.dstIn,
+                    shaderCallback: (Rect rect) => const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: <Color>[
+                        Colors.white,
+                        Colors.white,
+                        Colors.white70,
+                        Colors.transparent,
+                      ],
+                      stops: <double>[0, 0.55, 0.78, 1],
+                    ).createShader(rect),
+                    child: Image.memory(
+                      bytes!,
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                      cacheWidth: 900,
+                    ),
+                  )
+                : ColoredBox(
+                    key: const ValueKey<String>('netease-hero-placeholder'),
+                    color: scheme.surfaceContainerHighest,
+                    child: Center(
+                      child: Icon(
+                        fallbackIcon,
+                        size: 72,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+          ),
           // 顶部轻微压暗，保证状态栏和顶部按钮可读。
           const DecoratedBox(
             decoration: BoxDecoration(

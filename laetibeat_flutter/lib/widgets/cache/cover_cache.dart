@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -23,88 +24,130 @@ class RemoteCoverDiskCache {
   final Map<String, _CacheEntry> _index = {};
   Future<void>? _initializing;
   bool _loaded = false;
+  Future<void> _serial = Future<void>.value();
 
-  Future<Uint8List?> read(String sourceId, String coverId) async {
-    try {
-      await _ensureIndex();
-      final file = await _file(sourceId, coverId);
-      if (!await file.exists()) return null;
-
-      final bytes = await file.readAsBytes();
-      final now = DateTime.now();
+  Future<T> _locked<T>(Future<T> Function() action) {
+    final completer = Completer<T>();
+    _serial = _serial.then((_) async {
       try {
-        await file.setLastModified(now);
-      } catch (_) {}
-      final entry = _index[file.path];
-      if (entry != null) {
-        entry.lastAccess = now.millisecondsSinceEpoch;
+        completer.complete(await action());
+      } catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
       }
-      return bytes;
-    } catch (e) {
-      debugPrint('读取封面缓存失败: $e');
-      return null;
-    }
+    });
+    return completer.future;
   }
 
-  Future<void> write(String sourceId, String coverId, Uint8List bytes) async {
-    if (bytes.isEmpty) return;
-    try {
-      await _ensureIndex();
-      final file = await _file(sourceId, coverId);
-      final tmp = File('${file.path}.tmp');
-      await tmp.writeAsBytes(bytes, flush: true);
-      if (await file.exists()) {
-        await file.delete();
+  Future<Uint8List?> read(String sourceId, String coverId) {
+    return _locked(() async {
+      try {
+        await _ensureIndex();
+        final file = await _file(sourceId, coverId);
+        if (!await file.exists()) {
+          _index.remove(file.path);
+          return null;
+        }
+
+        late final Uint8List bytes;
+        try {
+          bytes = await file.readAsBytes();
+        } on PathNotFoundException {
+          _index.remove(file.path);
+          return null;
+        }
+        final now = DateTime.now();
+        try {
+          await file.setLastModified(now);
+        } catch (_) {}
+        final entry = _index[file.path];
+        if (entry != null) {
+          entry.lastAccess = now.millisecondsSinceEpoch;
+        }
+        return bytes;
+      } catch (e) {
+        debugPrint('读取封面缓存失败: $e');
+        return null;
       }
-      await tmp.rename(file.path);
-      _index[file.path] = _CacheEntry(
-        size: bytes.length,
-        lastAccess: DateTime.now().millisecondsSinceEpoch,
-      );
-      await _evictIfNeeded();
-    } catch (e) {
-      debugPrint('写入封面缓存失败: $e');
-    }
+    });
+  }
+
+  Future<void> write(String sourceId, String coverId, Uint8List bytes) {
+    if (bytes.isEmpty) return Future<void>.value();
+    return _locked(() async {
+      File? tmp;
+      try {
+        await _ensureIndex();
+        final file = await _file(sourceId, coverId);
+        tmp = File('${file.path}.${DateTime.now().microsecondsSinceEpoch}.tmp');
+        await tmp.writeAsBytes(bytes, flush: true);
+        try {
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } on PathNotFoundException {
+          // Another cleanup removed it; the rename below can proceed.
+        }
+        await tmp.rename(file.path);
+        _index[file.path] = _CacheEntry(
+          size: bytes.length,
+          lastAccess: DateTime.now().millisecondsSinceEpoch,
+        );
+        await _evictIfNeeded();
+      } catch (e) {
+        debugPrint('写入封面缓存失败: $e');
+        if (tmp != null) {
+          try {
+            if (await tmp.exists()) await tmp.delete();
+          } catch (_) {}
+        }
+      }
+    });
   }
 
   /// 服务器地址变更或删除时清空该音源的封面
-  Future<void> clearSource(String sourceId) async {
-    try {
-      final root = await _rootDir();
-      final dir = Directory('${root.path}/${_sourceDirName(sourceId)}');
-      if (await dir.exists()) {
-        await dir.delete(recursive: true);
+  Future<void> clearSource(String sourceId) {
+    return _locked(() async {
+      try {
+        final root = await _rootDir();
+        final dir = Directory('${root.path}/${_sourceDirName(sourceId)}');
+        if (await dir.exists()) {
+          await dir.delete(recursive: true);
+        }
+        final prefix = '${dir.path}${Platform.pathSeparator}';
+        _index.removeWhere((path, _) => path.startsWith(prefix));
+      } catch (e) {
+        debugPrint('清理封面缓存失败: $e');
       }
-      final prefix = '${dir.path}${Platform.pathSeparator}';
-      _index.removeWhere((path, _) => path.startsWith(prefix));
-    } catch (e) {
-      debugPrint('清理封面缓存失败: $e');
-    }
+    });
   }
 
   /// Apply a new cache limit immediately and evict the least recently used
   /// files if necessary.
-  Future<void> setMaxBytes(int bytes) async {
-    maxBytes = bytes;
-    await _ensureIndex();
-    await _evictIfNeeded();
+  Future<void> setMaxBytes(int bytes) {
+    return _locked(() async {
+      maxBytes = bytes;
+      await _ensureIndex();
+      await _evictIfNeeded();
+    });
   }
 
   /// Clear every cached cover while leaving source configuration intact.
-  Future<void> clearAll() async {
-    try {
-      final root = await _rootDir();
-      if (await root.exists()) {
-        await root.delete(recursive: true);
+  Future<void> clearAll() {
+    return _locked(() async {
+      try {
+        final root = await _rootDir();
+        if (await root.exists()) {
+          await root.delete(recursive: true);
+        }
+        _root = null;
+        _index.clear();
+        _initializing = null;
+        _loaded = false;
+      } catch (e) {
+        debugPrint('清理全部封面缓存失败: $e');
+        rethrow;
       }
-      _root = null;
-      _index.clear();
-      _initializing = null;
-      _loaded = false;
-    } catch (e) {
-      debugPrint('清理全部封面缓存失败: $e');
-      rethrow;
-    }
+    });
   }
 
   Future<Directory> _rootDir() async {
@@ -184,17 +227,23 @@ class RemoteCoverDiskCache {
 
     for (final entry in sorted) {
       if (total <= maxBytes) break;
+      var removed = false;
       try {
         final file = File(entry.key);
         if (await file.exists()) {
           await file.delete();
         }
+        removed = true;
+      } on PathNotFoundException {
+        // Another operation already removed the file; the index should follow.
+        removed = true;
       } catch (e) {
         debugPrint('淘汰封面缓存失败: $e');
-        rethrow;
       }
-      _index.remove(entry.key);
-      total -= entry.value.size;
+      if (removed) {
+        _index.remove(entry.key);
+        total -= entry.value.size;
+      }
     }
   }
 }

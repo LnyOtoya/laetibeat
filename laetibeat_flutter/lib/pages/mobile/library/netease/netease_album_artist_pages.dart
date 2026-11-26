@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
@@ -8,17 +7,13 @@ import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/layout/app_bottom_inset.dart';
 import '../../../../src/rust/api/netease.dart' as rust_netease;
 import '../../../../src/rust/api/simple.dart' as rust;
+import '../../../../widgets/cache/netease_cover_cache.dart';
 import '../../../../widgets/player/player_provider.dart';
 import '../../../../widgets/settings/favorites_provider.dart';
 import '../../../../widgets/settings/netease_provider.dart';
 import '../../mobile_navigation.dart';
 import '../../routes.dart';
 import 'netease_detail_widgets.dart';
-
-Uint8List? _coverBytes(WidgetRef ref, String? url) {
-  if (url == null || url.isEmpty) return null;
-  return ref.watch(neteaseImageProvider(url)).value;
-}
 
 String _releaseLabel(int? milliseconds) {
   if (milliseconds == null || milliseconds <= 0) return '发行日期: 未知';
@@ -77,23 +72,16 @@ class _NeteaseAlbumDetailPageState
 
   @override
   Widget build(BuildContext context) {
-    final baseTheme = M3ETheme.of(context);
     final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     final detailAsync = ref.watch(neteaseAlbumDetailProvider(widget.album.id));
     final album = detailAsync.value?.album ?? widget.album;
     final tracks = detailAsync.value?.tracks ?? const <rust.UiTrack>[];
 
-    final bytes = _coverBytes(ref, album.coverUrl);
-    final coverColor = bytes == null
+    final coverUrl = album.coverUrl;
+    final coverAsset = coverUrl == null || coverUrl.isEmpty
         ? null
-        : ref.watch(neteaseCoverColorProvider(bytes)).value;
-    final scheme = coverColor == null
-        ? baseTheme.colorScheme
-        : MaterialYouColorScheme.fromSeed(
-            coverColor,
-            brightness: baseTheme.colorScheme.brightness,
-          );
-    final contentColor = detailContentColor(scheme);
+        : ref.watch(neteaseCoverAssetProvider(coverUrl)).value;
+    final bytes = coverAsset?.bytes;
 
     final trackIds = <String>{for (final track in tracks) track.id};
     final isCurrent = ref.watch(
@@ -130,28 +118,20 @@ class _NeteaseAlbumDetailPageState
       ref.read(playerProvider.notifier).playShuffled(tracks, source: '网易云专辑');
     }
 
-    return M3ETheme(
-      data: baseTheme.withColorScheme(scheme),
-      child: Scaffold(
-        backgroundColor: contentColor,
-        extendBodyBehindAppBar: true,
-        appBar: NeteaseDetailAppBar(progress: _barProgress, tint: contentColor),
-        body: detailAsync.when(
-          loading: () => const Center(child: NeteaseLoadingIndicator()),
-          error: (Object error, StackTrace stackTrace) => AppEmptyState(
-            title: '专辑加载失败',
-            message: '$error',
-            icon: M3EIcons.error,
-            action: M3EButton(
-              style: M3EButtonStyle.tonal,
-              label: const Text('重试'),
-              onPressed: () =>
-                  ref.invalidate(neteaseAlbumDetailProvider(widget.album.id)),
+    return NeteaseAnimatedTheme(
+      coverColor: coverAsset?.color,
+      child: Builder(
+        builder: (BuildContext themedContext) {
+          final scheme = M3ETheme.of(themedContext).colorScheme;
+          final contentColor = detailContentColor(scheme);
+          return Scaffold(
+            backgroundColor: contentColor,
+            extendBodyBehindAppBar: true,
+            appBar: NeteaseDetailAppBar(
+              progress: _barProgress,
+              tint: contentColor,
             ),
-          ),
-          data: (value) {
-            final loaded = value.album;
-            return CustomScrollView(
+            body: CustomScrollView(
               controller: _scrollController,
               slivers: <Widget>[
                 SliverToBoxAdapter(
@@ -162,11 +142,11 @@ class _NeteaseAlbumDetailPageState
                 ),
                 SliverToBoxAdapter(
                   child: NeteaseSummary(
-                    title: loaded.name,
-                    subtitle: loaded.artist,
-                    meta: _releaseLabel(loaded.publishTimeMs?.toInt()),
+                    title: album.name,
+                    subtitle: album.artist,
+                    meta: _releaseLabel(album.publishTimeMs?.toInt()),
                     isPlaying: isPlaying,
-                    playEnabled: value.tracks.isNotEmpty,
+                    playEnabled: tracks.isNotEmpty,
                     isFavorite: isFavorite,
                     onShuffle: shufflePlay,
                     onPlayPause: togglePlayback,
@@ -175,14 +155,37 @@ class _NeteaseAlbumDetailPageState
                         .toggle(favoriteKey),
                   ),
                 ),
-                NeteaseTrackSliver(tracks: value.tracks, source: '网易云专辑'),
+                if (detailAsync.isLoading && !detailAsync.hasValue)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                      child: Center(child: NeteaseLoadingIndicator()),
+                    ),
+                  )
+                else if (detailAsync.hasError && !detailAsync.hasValue)
+                  SliverToBoxAdapter(
+                    child: AppEmptyState(
+                      title: '专辑加载失败',
+                      message: '${detailAsync.error}',
+                      icon: M3EIcons.error,
+                      action: M3EButton(
+                        style: M3EButtonStyle.tonal,
+                        label: const Text('重试'),
+                        onPressed: () => ref.invalidate(
+                          neteaseAlbumDetailProvider(widget.album.id),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  NeteaseTrackSliver(tracks: tracks, source: '网易云专辑'),
                 SliverToBoxAdapter(
                   child: SizedBox(height: AppSpacing.xxl + bottomInset),
                 ),
               ],
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -232,7 +235,6 @@ class _NeteaseArtistDetailPageState
 
   @override
   Widget build(BuildContext context) {
-    final baseTheme = M3ETheme.of(context);
     final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     final detailAsync = ref.watch(
       neteaseArtistDetailProvider(widget.artist.id),
@@ -240,17 +242,11 @@ class _NeteaseArtistDetailPageState
     final artist = detailAsync.value?.artist ?? widget.artist;
     final tracks = detailAsync.value?.tracks ?? const <rust.UiTrack>[];
 
-    final bytes = _coverBytes(ref, artist.coverUrl);
-    final coverColor = bytes == null
+    final coverUrl = artist.coverUrl;
+    final coverAsset = coverUrl == null || coverUrl.isEmpty
         ? null
-        : ref.watch(neteaseCoverColorProvider(bytes)).value;
-    final scheme = coverColor == null
-        ? baseTheme.colorScheme
-        : MaterialYouColorScheme.fromSeed(
-            coverColor,
-            brightness: baseTheme.colorScheme.brightness,
-          );
-    final contentColor = detailContentColor(scheme);
+        : ref.watch(neteaseCoverAssetProvider(coverUrl)).value;
+    final bytes = coverAsset?.bytes;
 
     final trackIds = <String>{for (final track in tracks) track.id};
     final isCurrent = ref.watch(
@@ -288,31 +284,23 @@ class _NeteaseArtistDetailPageState
       ref.read(playerProvider.notifier).playShuffled(tracks, source: '网易云艺人');
     }
 
-    return M3ETheme(
-      data: baseTheme.withColorScheme(scheme),
-      child: Scaffold(
-        backgroundColor: contentColor,
-        extendBodyBehindAppBar: true,
-        appBar: NeteaseDetailAppBar(progress: _barProgress, tint: contentColor),
-        body: detailAsync.when(
-          loading: () => const Center(child: NeteaseLoadingIndicator()),
-          error: (Object error, StackTrace stackTrace) => AppEmptyState(
-            title: '艺人加载失败',
-            message: '$error',
-            icon: M3EIcons.error,
-            action: M3EButton(
-              style: M3EButtonStyle.tonal,
-              label: const Text('重试'),
-              onPressed: () =>
-                  ref.invalidate(neteaseArtistDetailProvider(widget.artist.id)),
+    return NeteaseAnimatedTheme(
+      coverColor: coverAsset?.color,
+      child: Builder(
+        builder: (BuildContext themedContext) {
+          final scheme = M3ETheme.of(themedContext).colorScheme;
+          final contentColor = detailContentColor(scheme);
+          final alias = artist.alias.isEmpty
+              ? '网易云艺人'
+              : artist.alias.join(' / ');
+          return Scaffold(
+            backgroundColor: contentColor,
+            extendBodyBehindAppBar: true,
+            appBar: NeteaseDetailAppBar(
+              progress: _barProgress,
+              tint: contentColor,
             ),
-          ),
-          data: (value) {
-            final loaded = value.artist;
-            final alias = loaded.alias.isEmpty
-                ? '网易云艺人'
-                : loaded.alias.join(' / ');
-            return CustomScrollView(
+            body: CustomScrollView(
               controller: _scrollController,
               slivers: <Widget>[
                 SliverToBoxAdapter(
@@ -323,11 +311,11 @@ class _NeteaseArtistDetailPageState
                 ),
                 SliverToBoxAdapter(
                   child: NeteaseSummary(
-                    title: loaded.name,
+                    title: artist.name,
                     subtitle: alias,
-                    meta: '${loaded.albumSize} 张专辑',
+                    meta: '${artist.albumSize} 张专辑',
                     isPlaying: isPlaying,
-                    playEnabled: value.tracks.isNotEmpty,
+                    playEnabled: tracks.isNotEmpty,
                     isFavorite: isFavorite,
                     onShuffle: shufflePlay,
                     onPlayPause: togglePlayback,
@@ -350,24 +338,47 @@ class _NeteaseArtistDetailPageState
                         label: Text(l10n.more),
                         onPressed: () => pushMobileRootPage(
                           context,
-                          NeteaseArtistHotSongsPage(artist: loaded),
+                          NeteaseArtistHotSongsPage(artist: artist),
                           name: MobileRoutes.artistHotSongs,
                         ),
                       ),
                     ),
                   ),
                 ),
-                NeteaseTrackSliver(tracks: value.tracks, source: '网易云艺人'),
+                if (detailAsync.isLoading && !detailAsync.hasValue)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                      child: Center(child: NeteaseLoadingIndicator()),
+                    ),
+                  )
+                else if (detailAsync.hasError && !detailAsync.hasValue)
+                  SliverToBoxAdapter(
+                    child: AppEmptyState(
+                      title: '艺人加载失败',
+                      message: '${detailAsync.error}',
+                      icon: M3EIcons.error,
+                      action: M3EButton(
+                        style: M3EButtonStyle.tonal,
+                        label: const Text('重试'),
+                        onPressed: () => ref.invalidate(
+                          neteaseArtistDetailProvider(widget.artist.id),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  NeteaseTrackSliver(tracks: tracks, source: '网易云艺人'),
                 SliverToBoxAdapter(
-                  child: _ArtistAlbumsSection(artistId: loaded.id),
+                  child: _ArtistAlbumsSection(artistId: artist.id),
                 ),
                 SliverToBoxAdapter(
                   child: SizedBox(height: AppSpacing.xxl + bottomInset),
                 ),
               ],
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -511,11 +522,14 @@ class _ArtistAlbumsSection extends ConsumerWidget {
                       padding: EdgeInsets.zero,
                       borderRadius: M3EDimensions.borderRadiusLarge,
                       clipBehavior: Clip.antiAlias,
-                      onPressed: () => pushMobileRootPage(
-                        context,
-                        NeteaseAlbumDetailPage(album: album),
-                        name: MobileRoutes.libraryAlbums,
-                      ),
+                      onPressed: () {
+                        prefetchNeteaseCover(ref, album.coverUrl);
+                        pushMobileRootPage(
+                          context,
+                          NeteaseAlbumDetailPage(album: album),
+                          name: MobileRoutes.libraryAlbums,
+                        );
+                      },
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[

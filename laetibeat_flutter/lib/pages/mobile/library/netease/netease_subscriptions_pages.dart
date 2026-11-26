@@ -9,6 +9,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../design/design.dart';
 import '../../../../shared/layout/app_bottom_inset.dart';
 import '../../../../src/rust/api/netease.dart' as rust_netease;
+import '../../../../widgets/cache/netease_cover_cache.dart';
 import '../../../../widgets/settings/netease_provider.dart';
 import '../../mobile_navigation.dart';
 import '../../routes.dart';
@@ -156,11 +157,15 @@ class _NeteaseArtistsPageState extends ConsumerState<NeteaseArtistsPage> {
                         top: AppSpacing.md,
                         bottom: AppSpacing.xxl + bottomInset,
                       ),
-                      onTap: (int index) => pushMobileRootPage(
-                        context,
-                        NeteaseArtistDetailPage(artist: visibleItems[index]),
-                        name: MobileRoutes.libraryArtists,
-                      ),
+                      onTap: (int index) {
+                        final artist = visibleItems[index];
+                        prefetchNeteaseCover(ref, artist.coverUrl);
+                        pushMobileRootPage(
+                          context,
+                          NeteaseArtistDetailPage(artist: artist),
+                          name: MobileRoutes.libraryArtists,
+                        );
+                      },
                       decoration: _decoration,
                       itemBuilder: (BuildContext context, int index) {
                         final artist = visibleItems[index];
@@ -344,11 +349,15 @@ class _NeteaseAlbumsPageState extends ConsumerState<NeteaseAlbumsPage> {
                         top: AppSpacing.md,
                         bottom: AppSpacing.xxl + bottomInset,
                       ),
-                      onTap: (int index) => pushMobileRootPage(
-                        context,
-                        NeteaseAlbumDetailPage(album: visibleItems[index]),
-                        name: MobileRoutes.libraryAlbums,
-                      ),
+                      onTap: (int index) {
+                        final album = visibleItems[index];
+                        prefetchNeteaseCover(ref, album.coverUrl);
+                        pushMobileRootPage(
+                          context,
+                          NeteaseAlbumDetailPage(album: album),
+                          name: MobileRoutes.libraryAlbums,
+                        );
+                      },
                       decoration: _decoration,
                       itemBuilder: (BuildContext context, int index) {
                         final album = visibleItems[index];

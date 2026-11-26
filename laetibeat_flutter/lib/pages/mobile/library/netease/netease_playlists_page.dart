@@ -10,6 +10,7 @@ import '../../../../design/design.dart';
 import '../../../../shared/layout/app_bottom_inset.dart';
 import '../../../../src/rust/api/netease.dart' as rust_netease;
 import '../../../../src/rust/api/simple.dart' as rust;
+import '../../../../widgets/cache/netease_cover_cache.dart';
 import '../../../../widgets/player/player_provider.dart';
 import '../../../../widgets/settings/favorites_provider.dart';
 import '../../../../widgets/settings/netease_provider.dart';
@@ -56,6 +57,7 @@ class NeteasePlaylistsPage extends ConsumerWidget {
               ),
               onTap: (int index) {
                 final playlist = items[index];
+                prefetchNeteaseCover(ref, playlist.coverUrl);
                 pushMobileRootPage(
                   context,
                   NeteasePlaylistDetailPage(playlist: playlist),
@@ -193,7 +195,9 @@ class _NeteasePlaylistDetailPageState
   }
 
   Future<void> _loadMoreTracks() async {
-    if (_isLoadingMoreTracks || !_hasMoreTracks || _loadMoreTracksError != null) {
+    if (_isLoadingMoreTracks ||
+        !_hasMoreTracks ||
+        _loadMoreTracksError != null) {
       return;
     }
 
@@ -265,7 +269,6 @@ class _NeteasePlaylistDetailPageState
 
   @override
   Widget build(BuildContext context) {
-    final baseTheme = M3ETheme.of(context);
     final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     final playlist = widget.playlist;
     final tracksAsync = ref.watch(neteasePlaylistTracksProvider(playlist.id));
@@ -275,19 +278,10 @@ class _NeteasePlaylistDetailPageState
     ];
 
     final coverUrl = playlist.coverUrl;
-    final bytes = coverUrl == null || coverUrl.isEmpty
+    final coverAsset = coverUrl == null || coverUrl.isEmpty
         ? null
-        : ref.watch(neteasePlaylistCoverProvider(coverUrl)).value;
-    final coverColor = bytes == null
-        ? null
-        : ref.watch(neteaseCoverColorProvider(bytes)).value;
-    final scheme = coverColor == null
-        ? baseTheme.colorScheme
-        : MaterialYouColorScheme.fromSeed(
-            coverColor,
-            brightness: baseTheme.colorScheme.brightness,
-          );
-    final contentColor = detailContentColor(scheme);
+        : ref.watch(neteaseCoverAssetProvider(coverUrl)).value;
+    final bytes = coverAsset?.bytes;
 
     final trackIds = <String>{for (final track in tracks) track.id};
     final isCurrent = ref.watch(
@@ -324,103 +318,112 @@ class _NeteasePlaylistDetailPageState
       ref.read(playerProvider.notifier).playShuffled(tracks, source: '网易云歌单');
     }
 
-    return M3ETheme(
-      data: baseTheme.withColorScheme(scheme),
-      child: Scaffold(
-        backgroundColor: contentColor,
-        extendBodyBehindAppBar: true,
-        appBar: NeteaseDetailAppBar(progress: _barProgress, tint: contentColor),
-        body: CustomScrollView(
-          controller: _scrollController,
-          slivers: <Widget>[
-            SliverToBoxAdapter(
-              child: NeteaseDetailHero(
-                bytes: bytes,
-                fallbackIcon: M3EIcons.queue_music,
-              ),
+    return NeteaseAnimatedTheme(
+      coverColor: coverAsset?.color,
+      child: Builder(
+        builder: (BuildContext themedContext) {
+          final scheme = M3ETheme.of(themedContext).colorScheme;
+          final contentColor = detailContentColor(scheme);
+          return Scaffold(
+            backgroundColor: contentColor,
+            extendBodyBehindAppBar: true,
+            appBar: NeteaseDetailAppBar(
+              progress: _barProgress,
+              tint: contentColor,
             ),
-            SliverToBoxAdapter(
-              child: NeteaseSummary(
-                title: playlist.name,
-                subtitle: playlist.creator ?? '网易云歌单',
-                meta: '${playlist.trackCount} 首',
-                isPlaying: isPlaying,
-                playEnabled: tracks.isNotEmpty,
-                isFavorite: isFavorite,
-                onShuffle: shufflePlay,
-                onPlayPause: togglePlayback,
-                onFavorite: () => ref
-                    .read(favoritePlaylistsProvider.notifier)
-                    .toggle(favoriteKey),
-              ),
-            ),
-            tracksAsync.when(
-              loading: () => const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-                  child: Center(
-                    child: NeteaseLoadingIndicator(
-                      size: 40,
-                      semanticLabel: '正在加载歌单歌曲',
-                    ),
+            body: CustomScrollView(
+              controller: _scrollController,
+              slivers: <Widget>[
+                SliverToBoxAdapter(
+                  child: NeteaseDetailHero(
+                    bytes: bytes,
+                    fallbackIcon: M3EIcons.queue_music,
                   ),
                 ),
-              ),
-              error: (error, _) => SliverToBoxAdapter(
-                child: AppEmptyState(
-                  title: '歌单加载失败',
-                  message: '$error',
-                  icon: M3EIcons.error,
-                  action: M3EButton(
-                    style: M3EButtonStyle.tonal,
-                    label: const Text('重试'),
-                    onPressed: () => ref.invalidate(
-                      neteasePlaylistTracksProvider(playlist.id),
-                    ),
+                SliverToBoxAdapter(
+                  child: NeteaseSummary(
+                    title: playlist.name,
+                    subtitle: playlist.creator ?? '网易云歌单',
+                    meta: '${playlist.trackCount} 首',
+                    isPlaying: isPlaying,
+                    playEnabled: tracks.isNotEmpty,
+                    isFavorite: isFavorite,
+                    onShuffle: shufflePlay,
+                    onPlayPause: togglePlayback,
+                    onFavorite: () => ref
+                        .read(favoritePlaylistsProvider.notifier)
+                        .toggle(favoriteKey),
                   ),
                 ),
-              ),
-              data: (items) => NeteaseTrackSliver(
-                tracks: <rust.UiTrack>[...items, ..._additionalTracks],
-                source: '网易云歌单',
-              ),
-            ),
-            if (_isLoadingMoreTracks)
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                  child: Center(
-                    child: NeteaseLoadingIndicator(
-                      size: 36,
-                      semanticLabel: '正在加载更多歌曲',
+                tracksAsync.when(
+                  loading: () => const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+                      child: Center(
+                        child: NeteaseLoadingIndicator(
+                          size: 40,
+                          semanticLabel: '正在加载歌单歌曲',
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            if (_loadMoreTracksError case final error?)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Column(
-                    children: <Widget>[
-                      Text('后续歌曲加载失败：$error'),
-                      M3EButton(
+                  error: (error, _) => SliverToBoxAdapter(
+                    child: AppEmptyState(
+                      title: '歌单加载失败',
+                      message: '$error',
+                      icon: M3EIcons.error,
+                      action: M3EButton(
                         style: M3EButtonStyle.tonal,
                         label: const Text('重试'),
-                        onPressed: () {
-                          setState(() => _loadMoreTracksError = null);
-                          unawaited(_loadMoreTracks());
-                        },
+                        onPressed: () => ref.invalidate(
+                          neteasePlaylistTracksProvider(playlist.id),
+                        ),
                       ),
-                    ],
+                    ),
+                  ),
+                  data: (items) => NeteaseTrackSliver(
+                    tracks: <rust.UiTrack>[...items, ..._additionalTracks],
+                    source: '网易云歌单',
                   ),
                 ),
-              ),
-            SliverToBoxAdapter(
-              child: SizedBox(height: AppSpacing.xxl + bottomInset),
+                if (_isLoadingMoreTracks)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                      child: Center(
+                        child: NeteaseLoadingIndicator(
+                          size: 36,
+                          semanticLabel: '正在加载更多歌曲',
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_loadMoreTracksError case final error?)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Column(
+                        children: <Widget>[
+                          Text('后续歌曲加载失败：$error'),
+                          M3EButton(
+                            style: M3EButtonStyle.tonal,
+                            label: const Text('重试'),
+                            onPressed: () {
+                              setState(() => _loadMoreTracksError = null);
+                              unawaited(_loadMoreTracks());
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                SliverToBoxAdapter(
+                  child: SizedBox(height: AppSpacing.xxl + bottomInset),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
