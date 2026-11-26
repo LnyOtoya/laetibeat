@@ -101,7 +101,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          # 新版 SDK 仓库已下架 legacy `tools` 包；默认值会导致 sdkmanager 失败。
+          packages: ""
 
       - name: Install Android NDK
         run: |
