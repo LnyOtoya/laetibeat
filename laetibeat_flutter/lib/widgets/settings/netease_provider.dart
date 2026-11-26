@@ -1,12 +1,16 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/netease.dart' as rust_netease;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 
 import 'netease_session.dart';
 import 'netease_settings.dart';
+
+const int neteasePlaylistTracksPageSize = 25;
+const int neteaseSubscriptionPageSize = 25;
 
 /// 当前配置的网易云 Node API 地址。
 final neteaseBaseUrlProvider = Provider<String>((ref) {
@@ -80,10 +84,54 @@ final neteaseSubscribedArtistsProvider =
       if (cookie == null || cookie.isEmpty) {
         throw StateError('请先登录网易云');
       }
-      return rust_netease.neteaseSubscribedArtists(
+      debugPrint(
+        '[NeteaseSubscriptions] requesting artists: '
+        'limit=$neteaseSubscriptionPageSize, offset=0',
+      );
+      final artists = await rust_netease.neteaseSubscribedArtists(
         baseUrl: baseUrl,
         cookie: cookie,
+        limit: neteaseSubscriptionPageSize,
+        offset: 0,
       );
+      debugPrint(
+        '[NeteaseSubscriptions] artists first page received: '
+        'returned=${artists.length}',
+      );
+      return artists;
+    });
+
+typedef NeteaseSubscriptionPageKey = ({int limit, int offset});
+
+/// A page of artists subscribed by the current user.
+final neteaseSubscribedArtistsPageProvider = FutureProvider.autoDispose
+    .family<List<rust_netease.UiNeteaseArtist>, NeteaseSubscriptionPageKey>((
+      ref,
+      key,
+    ) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      final cookie = await ref.watch(neteaseCookieProvider.future);
+      if (cookie == null || cookie.isEmpty) {
+        throw StateError('请先登录网易云');
+      }
+      debugPrint(
+        '[NeteaseSubscriptions] requesting artists page: '
+        'limit=${key.limit}, offset=${key.offset}',
+      );
+      final artists = await rust_netease.neteaseSubscribedArtists(
+        baseUrl: baseUrl,
+        cookie: cookie,
+        limit: key.limit,
+        offset: key.offset,
+      );
+      debugPrint(
+        '[NeteaseSubscriptions] artists page received: '
+        'offset=${key.offset}, returned=${artists.length}',
+      );
+      return artists;
     });
 
 /// 当前登录用户收藏的专辑。
@@ -97,10 +145,51 @@ final neteaseSubscribedAlbumsProvider =
       if (cookie == null || cookie.isEmpty) {
         throw StateError('请先登录网易云');
       }
-      return rust_netease.neteaseSubscribedAlbums(
+      debugPrint(
+        '[NeteaseSubscriptions] requesting albums: '
+        'limit=$neteaseSubscriptionPageSize, offset=0',
+      );
+      final albums = await rust_netease.neteaseSubscribedAlbums(
         baseUrl: baseUrl,
         cookie: cookie,
+        limit: neteaseSubscriptionPageSize,
+        offset: 0,
       );
+      debugPrint(
+        '[NeteaseSubscriptions] albums first page received: '
+        'returned=${albums.length}',
+      );
+      return albums;
+    });
+
+final neteaseSubscribedAlbumsPageProvider = FutureProvider.autoDispose
+    .family<List<rust_netease.UiNeteaseAlbum>, NeteaseSubscriptionPageKey>((
+      ref,
+      key,
+    ) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      final cookie = await ref.watch(neteaseCookieProvider.future);
+      if (cookie == null || cookie.isEmpty) {
+        throw StateError('请先登录网易云');
+      }
+      debugPrint(
+        '[NeteaseSubscriptions] requesting albums page: '
+        'limit=${key.limit}, offset=${key.offset}',
+      );
+      final albums = await rust_netease.neteaseSubscribedAlbums(
+        baseUrl: baseUrl,
+        cookie: cookie,
+        limit: key.limit,
+        offset: key.offset,
+      );
+      debugPrint(
+        '[NeteaseSubscriptions] albums page received: '
+        'offset=${key.offset}, returned=${albums.length}',
+      );
+      return albums;
     });
 
 /// 歌单全部歌曲。
@@ -111,11 +200,71 @@ final neteasePlaylistTracksProvider = FutureProvider.autoDispose
         throw StateError('请先配置网易云 API 地址');
       }
       final cookie = await ref.watch(neteaseCookieProvider.future);
-      return rust_netease.neteasePlaylistTracks(
-        baseUrl: baseUrl,
-        playlistId: playlistId,
-        cookie: cookie,
+      debugPrint(
+        '[NeteasePlaylistTracks] requesting first page: '
+        'playlist=$playlistId, limit=$neteasePlaylistTracksPageSize, offset=0',
       );
+      try {
+        final tracks = await rust_netease.neteasePlaylistTracks(
+          baseUrl: baseUrl,
+          playlistId: playlistId,
+          cookie: cookie,
+          limit: neteasePlaylistTracksPageSize,
+          offset: 0,
+        );
+        debugPrint(
+          '[NeteasePlaylistTracks] first page received: '
+          'playlist=$playlistId, returned=${tracks.length}',
+        );
+        return tracks;
+      } catch (error) {
+        debugPrint(
+          '[NeteasePlaylistTracks] first page request failed: '
+          'playlist=$playlistId, error=$error',
+        );
+        rethrow;
+      }
+    });
+
+typedef NeteasePlaylistTracksPageKey = ({
+  BigInt playlistId,
+  int limit,
+  int offset,
+});
+
+/// A page of songs from a playlist, requested when the detail list nears its end.
+final neteasePlaylistTracksPageProvider = FutureProvider.autoDispose
+    .family<List<rust.UiTrack>, NeteasePlaylistTracksPageKey>((ref, key) async {
+      final baseUrl = ref.watch(neteaseBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先配置网易云 API 地址');
+      }
+      final cookie = await ref.watch(neteaseCookieProvider.future);
+      debugPrint(
+        '[NeteasePlaylistTracksPage] requesting: '
+        'playlist=${key.playlistId}, limit=${key.limit}, offset=${key.offset}',
+      );
+      try {
+        final tracks = await rust_netease.neteasePlaylistTracks(
+          baseUrl: baseUrl,
+          playlistId: key.playlistId,
+          cookie: cookie,
+          limit: key.limit,
+          offset: key.offset,
+        );
+        debugPrint(
+          '[NeteasePlaylistTracksPage] response received: '
+          'playlist=${key.playlistId}, offset=${key.offset}, '
+          'returned=${tracks.length}',
+        );
+        return tracks;
+      } catch (error) {
+        debugPrint(
+          '[NeteasePlaylistTracksPage] request failed: '
+          'playlist=${key.playlistId}, offset=${key.offset}, error=$error',
+        );
+        rethrow;
+      }
     });
 
 /// 网易云歌单封面字节。

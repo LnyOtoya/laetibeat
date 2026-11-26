@@ -223,7 +223,7 @@ pub fn netease_subscribed_artists(
     offset: Option<u32>,
 ) -> Result<Vec<UiNeteaseArtist>, String> {
     let artists = client(&base_url)?
-        .subscribed_artists(&cookie, limit.unwrap_or(100), offset.unwrap_or(0))
+        .subscribed_artists(&cookie, limit, offset)
         .map_err(|error| error.to_string())?;
     Ok(artists.into_iter().map(map_artist).collect())
 }
@@ -236,7 +236,7 @@ pub fn netease_subscribed_albums(
     offset: Option<u32>,
 ) -> Result<Vec<UiNeteaseAlbum>, String> {
     let albums = client(&base_url)?
-        .subscribed_albums(&cookie, limit.unwrap_or(100), offset.unwrap_or(0))
+        .subscribed_albums(&cookie, limit, offset)
         .map_err(|error| error.to_string())?;
     Ok(albums.into_iter().map(map_album).collect())
 }
@@ -285,7 +285,7 @@ pub fn netease_artist_albums(
     offset: Option<u32>,
 ) -> Result<Vec<UiNeteaseAlbum>, String> {
     let albums = client(&base_url)?
-        .artist_albums(artist_id, limit.unwrap_or(100), offset.unwrap_or(0))
+        .artist_albums(artist_id, limit, offset)
         .map_err(|error| error.to_string())?;
     Ok(albums.into_iter().map(map_album).collect())
 }
@@ -313,7 +313,7 @@ pub fn netease_user_playlists(
     offset: Option<u32>,
 ) -> Result<Vec<UiNeteasePlaylist>, String> {
     let playlists = client(&base_url)?
-        .user_playlists(uid, &cookie, limit.unwrap_or(100), offset.unwrap_or(0))
+        .user_playlists(uid, &cookie, limit, offset)
         .map_err(|error| error.to_string())?;
     Ok(playlists.into_iter().map(map_playlist).collect())
 }
@@ -327,12 +327,7 @@ pub fn netease_playlist_tracks(
     offset: Option<u32>,
 ) -> Result<Vec<UiTrack>, String> {
     let tracks = client(&base_url)?
-        .playlist_tracks(
-            playlist_id,
-            cookie.as_deref(),
-            limit.unwrap_or(1000),
-            offset.unwrap_or(0),
-        )
+        .playlist_tracks(playlist_id, cookie.as_deref(), limit, offset)
         .map_err(|error| error.to_string())?;
     Ok(tracks
         .into_iter()

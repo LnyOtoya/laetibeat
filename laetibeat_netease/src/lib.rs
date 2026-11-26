@@ -382,36 +382,34 @@ impl NeteaseClient {
     pub fn subscribed_artists(
         &self,
         cookie: &str,
-        limit: u32,
-        offset: u32,
+        limit: Option<u32>,
+        offset: Option<u32>,
     ) -> Result<Vec<NeteaseArtist>> {
-        let envelope: ArtistSublistEnvelope = self.post_form_json(
-            "/artist/sublist",
-            &[
-                ("limit", limit.to_string()),
-                ("offset", offset.to_string()),
-                ("cookie", cookie.to_string()),
-                ("timestamp", now_millis()),
-            ],
-        )?;
+        let mut form = vec![("cookie", cookie.to_string()), ("timestamp", now_millis())];
+        if let Some(limit) = limit {
+            form.push(("limit", limit.to_string()));
+        }
+        if let Some(offset) = offset {
+            form.push(("offset", offset.to_string()));
+        }
+        let envelope: ArtistSublistEnvelope = self.post_form_json("/artist/sublist", &form)?;
         Ok(envelope.data.into_iter().map(NeteaseArtist::from).collect())
     }
 
     pub fn subscribed_albums(
         &self,
         cookie: &str,
-        limit: u32,
-        offset: u32,
+        limit: Option<u32>,
+        offset: Option<u32>,
     ) -> Result<Vec<NeteaseAlbum>> {
-        let envelope: AlbumSublistEnvelope = self.post_form_json(
-            "/album/sublist",
-            &[
-                ("limit", limit.to_string()),
-                ("offset", offset.to_string()),
-                ("cookie", cookie.to_string()),
-                ("timestamp", now_millis()),
-            ],
-        )?;
+        let mut form = vec![("cookie", cookie.to_string()), ("timestamp", now_millis())];
+        if let Some(limit) = limit {
+            form.push(("limit", limit.to_string()));
+        }
+        if let Some(offset) = offset {
+            form.push(("offset", offset.to_string()));
+        }
+        let envelope: AlbumSublistEnvelope = self.post_form_json("/album/sublist", &form)?;
         Ok(envelope.data.into_iter().map(NeteaseAlbum::from).collect())
     }
 
@@ -435,28 +433,24 @@ impl NeteaseClient {
             .ok_or_else(|| NeteaseError::Api("艺人响应缺少 artist".to_string()))?;
         Ok(NeteaseArtistDetail {
             artist: NeteaseArtist::from(artist),
-            tracks: envelope
-                .hot_songs
-                .into_iter()
-                .map(NeteaseTrack::from)
-                .collect(),
+            tracks: map_artist_hot_songs(envelope.hot_songs),
         })
     }
 
     pub fn artist_albums(
         &self,
         artist_id: u64,
-        limit: u32,
-        offset: u32,
+        limit: Option<u32>,
+        offset: Option<u32>,
     ) -> Result<Vec<NeteaseAlbum>> {
-        let envelope: ArtistAlbumsEnvelope = self.get_json(
-            "/artist/album",
-            &[
-                ("id", artist_id.to_string()),
-                ("limit", limit.to_string()),
-                ("offset", offset.to_string()),
-            ],
-        )?;
+        let mut query = vec![("id", artist_id.to_string())];
+        if let Some(limit) = limit {
+            query.push(("limit", limit.to_string()));
+        }
+        if let Some(offset) = offset {
+            query.push(("offset", offset.to_string()));
+        }
+        let envelope: ArtistAlbumsEnvelope = self.get_json("/artist/album", &query)?;
         Ok(envelope
             .hot_albums
             .into_iter()
@@ -477,19 +471,21 @@ impl NeteaseClient {
         &self,
         uid: u64,
         cookie: &str,
-        limit: u32,
-        offset: u32,
+        limit: Option<u32>,
+        offset: Option<u32>,
     ) -> Result<Vec<NeteasePlaylist>> {
-        let envelope: UserPlaylistEnvelope = self.post_form_json(
-            "/user/playlist",
-            &[
-                ("uid", uid.to_string()),
-                ("limit", limit.to_string()),
-                ("offset", offset.to_string()),
-                ("cookie", cookie.to_string()),
-                ("timestamp", now_millis()),
-            ],
-        )?;
+        let mut form = vec![
+            ("uid", uid.to_string()),
+            ("cookie", cookie.to_string()),
+            ("timestamp", now_millis()),
+        ];
+        if let Some(limit) = limit {
+            form.push(("limit", limit.to_string()));
+        }
+        if let Some(offset) = offset {
+            form.push(("offset", offset.to_string()));
+        }
+        let envelope: UserPlaylistEnvelope = self.post_form_json("/user/playlist", &form)?;
         Ok(envelope
             .playlist
             .into_iter()
@@ -501,29 +497,35 @@ impl NeteaseClient {
         &self,
         playlist_id: u64,
         cookie: Option<&str>,
-        limit: u32,
-        offset: u32,
+        limit: Option<u32>,
+        offset: Option<u32>,
     ) -> Result<Vec<NeteaseTrack>> {
         let envelope: PlaylistTracksEnvelope = match cookie.filter(|value| !value.trim().is_empty())
         {
-            Some(cookie) => self.post_form_json(
-                "/playlist/track/all",
-                &[
+            Some(cookie) => {
+                let mut form = vec![
                     ("id", playlist_id.to_string()),
-                    ("limit", limit.to_string()),
-                    ("offset", offset.to_string()),
                     ("cookie", cookie.to_string()),
                     ("timestamp", now_millis()),
-                ],
-            )?,
-            None => self.get_json(
-                "/playlist/track/all",
-                &[
-                    ("id", playlist_id.to_string()),
-                    ("limit", limit.to_string()),
-                    ("offset", offset.to_string()),
-                ],
-            )?,
+                ];
+                if let Some(limit) = limit {
+                    form.push(("limit", limit.to_string()));
+                }
+                if let Some(offset) = offset {
+                    form.push(("offset", offset.to_string()));
+                }
+                self.post_form_json("/playlist/track/all", &form)?
+            }
+            None => {
+                let mut query = vec![("id", playlist_id.to_string())];
+                if let Some(limit) = limit {
+                    query.push(("limit", limit.to_string()));
+                }
+                if let Some(offset) = offset {
+                    query.push(("offset", offset.to_string()));
+                }
+                self.get_json("/playlist/track/all", &query)?
+            }
         };
         Ok(envelope.songs.into_iter().map(NeteaseTrack::from).collect())
     }
@@ -631,6 +633,10 @@ fn now_millis() -> String {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis().to_string())
         .unwrap_or_else(|_| "0".to_string())
+}
+
+fn map_artist_hot_songs(songs: Vec<Song>) -> Vec<NeteaseTrack> {
+    songs.into_iter().take(5).map(NeteaseTrack::from).collect()
 }
 
 impl From<Song> for NeteaseTrack {
@@ -1063,6 +1069,21 @@ mod tests {
         assert_eq!(playlist.creator.as_deref(), Some("tester"));
     }
 
+    #[test]
+    fn limits_artist_hot_songs_to_five() {
+        let songs: Vec<Song> = (0..8)
+            .map(|id| {
+                serde_json::from_value(serde_json::json!({
+                    "id": id,
+                    "name": format!("song-{id}"),
+                }))
+                .expect("artist hot song json")
+            })
+            .collect();
+
+        assert_eq!(map_artist_hot_songs(songs).len(), 5);
+    }
+
     /// 手动联调测试：
     /// `LAETIBEAT_NETEASE_API=http://192.168.31.51:3000 cargo test -p laetibeat_netease live_probe -- --ignored`
     #[test]
@@ -1107,7 +1128,7 @@ mod tests {
         let artist = client.artist_detail(artists[0].id).expect("artist detail");
         assert!(!artist.tracks.is_empty());
         let artist_albums = client
-            .artist_albums(artists[0].id, 3, 0)
+            .artist_albums(artists[0].id, Some(3), Some(0))
             .expect("artist albums");
         assert!(!artist_albums.is_empty());
 

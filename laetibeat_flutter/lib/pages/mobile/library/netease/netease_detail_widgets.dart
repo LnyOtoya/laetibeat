@@ -314,25 +314,88 @@ class NeteaseTrackList extends ConsumerWidget {
       ),
       itemBuilder: (BuildContext context, int index) {
         final track = tracks[index];
-        return m3e_core.M3EListItem(
-          minHeight: 64,
-          leading: NeteaseTrackCover(track: track),
-          headline: Text(track.title),
-          supportingText: Text(track.artist),
-          headlineStyle: theme.typeScale.bodyLarge.copyWith(
-            color: scheme.onSecondaryContainer,
-          ),
-          supportingTextStyle: theme.typeScale.bodyMedium.copyWith(
-            color: scheme.onSecondaryContainer.withValues(alpha: 0.75),
-          ),
-          trailing: NeteaseTrackMenu(
-            track: track,
-            color: scheme.onSecondaryContainer,
-          ),
-        );
+        return _neteaseTrackRow(context, track);
       },
     );
   }
+}
+
+/// A sliver that lazily builds every supplied track as it enters the viewport.
+class NeteaseTrackSliver extends ConsumerWidget {
+  const NeteaseTrackSliver({
+    super.key,
+    required this.tracks,
+    required this.source,
+    this.onTap,
+  });
+
+  final List<rust.UiTrack> tracks;
+  final String source;
+  final ValueChanged<int>? onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    final tracks = this.tracks;
+    if (tracks.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: AppEmptyState(
+          title: '暂无歌曲',
+          message: '网易云没有返回歌曲',
+          icon: M3EIcons.music_note,
+        ),
+      );
+    }
+
+    return m3e_core.SliverM3ESegmentedList(
+      itemCount: tracks.length,
+      onTap:
+          onTap ??
+          (int index) => ref
+              .read(playerProvider.notifier)
+              .load(tracks, index, source: source),
+      decoration: m3e_core.M3ESegmentedListDecoration(
+        color: scheme.secondaryContainer,
+        splashColor: scheme.onSecondaryContainer.withValues(alpha: 0.12),
+        highlightColor: scheme.onSecondaryContainer.withValues(alpha: 0.08),
+        hoverColor: scheme.onSecondaryContainer.withValues(alpha: 0.08),
+        outerRadius: 24,
+        innerRadius: 12,
+        pressedRadius: 8,
+        pressedScale: 0.98,
+        hoveredRadius: 16,
+        gap: 4,
+        padding: const EdgeInsets.all(4),
+        margin: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.xs,
+        ),
+      ),
+      itemBuilder: (BuildContext context, int index) =>
+          _neteaseTrackRow(context, tracks[index]),
+    );
+  }
+}
+
+Widget _neteaseTrackRow(BuildContext context, rust.UiTrack track) {
+  final theme = M3ETheme.of(context);
+  final scheme = theme.colorScheme;
+  return m3e_core.M3EListItem(
+    minHeight: 64,
+    leading: NeteaseTrackCover(track: track),
+    headline: Text(track.title),
+    supportingText: Text(track.artist),
+    headlineStyle: theme.typeScale.bodyLarge.copyWith(
+      color: scheme.onSecondaryContainer,
+    ),
+    supportingTextStyle: theme.typeScale.bodyMedium.copyWith(
+      color: scheme.onSecondaryContainer.withValues(alpha: 0.75),
+    ),
+    trailing: NeteaseTrackMenu(
+      track: track,
+      color: scheme.onSecondaryContainer,
+    ),
+  );
 }
 
 /// 40dp 曲目封面。

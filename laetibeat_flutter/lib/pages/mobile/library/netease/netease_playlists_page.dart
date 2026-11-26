@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:material_3_expressive/material_3_expressive.dart';
@@ -138,9 +141,15 @@ class NeteasePlaylistDetailPage extends ConsumerStatefulWidget {
 class _NeteasePlaylistDetailPageState
     extends ConsumerState<NeteasePlaylistDetailPage> {
   static const double _barTintDistance = 120;
+  static const int _trackPageSize = neteasePlaylistTracksPageSize;
 
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _barProgress = ValueNotifier<double>(0);
+  final List<rust.UiTrack> _additionalTracks = <rust.UiTrack>[];
+  bool _isLoadingMoreTracks = false;
+  bool _isNearPaginationThreshold = false;
+  bool _hasMoreTracks = true;
+  Object? _loadMoreTracksError;
 
   @override
   void initState() {
@@ -164,6 +173,92 @@ class _NeteasePlaylistDetailPageState
     if ((_barProgress.value - value).abs() > 0.01) {
       _barProgress.value = value;
     }
+    final extentAfter = _scrollController.position.extentAfter;
+    if (extentAfter < 400) {
+      if (!_isNearPaginationThreshold) {
+        _isNearPaginationThreshold = true;
+        debugPrint(
+          '[NeteasePlaylistPagination] near end: '
+          'playlist=${widget.playlist.id}, '
+          'extentAfter=${extentAfter.toStringAsFixed(0)}, '
+          'scrollOffset=${_scrollController.offset.toStringAsFixed(0)}',
+        );
+      }
+      unawaited(_loadMoreTracks());
+    } else {
+      _isNearPaginationThreshold = false;
+    }
+  }
+
+  Future<void> _loadMoreTracks() async {
+    if (_isLoadingMoreTracks || !_hasMoreTracks || _loadMoreTracksError != null) {
+      return;
+    }
+
+    final firstPage = ref
+        .read(neteasePlaylistTracksProvider(widget.playlist.id))
+        .value;
+    if (firstPage == null) {
+      debugPrint(
+        '[NeteasePlaylistPagination] skipped: initial page not ready, '
+        'playlist=${widget.playlist.id}',
+      );
+      return;
+    }
+
+    final offset = firstPage.length + _additionalTracks.length;
+    if (offset >= widget.playlist.trackCount) {
+      debugPrint(
+        '[NeteasePlaylistPagination] reached trackCount: '
+        'playlist=${widget.playlist.id}, loaded=$offset, '
+        'trackCount=${widget.playlist.trackCount}',
+      );
+      _hasMoreTracks = false;
+      return;
+    }
+
+    debugPrint(
+      '[NeteasePlaylistPagination] requesting page: '
+      'playlist=${widget.playlist.id}, offset=$offset, limit=$_trackPageSize, '
+      'loaded=${firstPage.length + _additionalTracks.length}, '
+      'trackCount=${widget.playlist.trackCount}',
+    );
+    setState(() => _isLoadingMoreTracks = true);
+    try {
+      final page = await ref.read(
+        neteasePlaylistTracksPageProvider((
+          playlistId: widget.playlist.id,
+          limit: _trackPageSize,
+          offset: offset,
+        )).future,
+      );
+      if (!mounted) return;
+      final hasMore =
+          page.length == _trackPageSize &&
+          offset + page.length < widget.playlist.trackCount;
+      debugPrint(
+        '[NeteasePlaylistPagination] page received: '
+        'playlist=${widget.playlist.id}, offset=$offset, '
+        'returned=${page.length}, '
+        'totalLoaded=${firstPage.length + _additionalTracks.length + page.length}, '
+        'hasMore=$hasMore',
+      );
+      setState(() {
+        _additionalTracks.addAll(page);
+        _hasMoreTracks = hasMore;
+      });
+    } catch (error) {
+      debugPrint(
+        '[NeteasePlaylistPagination] page request failed: '
+        'playlist=${widget.playlist.id}, offset=$offset, error=$error',
+      );
+      if (!mounted) return;
+      setState(() => _loadMoreTracksError = error);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMoreTracks = false);
+      }
+    }
   }
 
   @override
@@ -171,7 +266,10 @@ class _NeteasePlaylistDetailPageState
     final baseTheme = M3ETheme.of(context);
     final playlist = widget.playlist;
     final tracksAsync = ref.watch(neteasePlaylistTracksProvider(playlist.id));
-    final tracks = tracksAsync.value ?? const <rust.UiTrack>[];
+    final tracks = <rust.UiTrack>[
+      ...tracksAsync.value ?? const <rust.UiTrack>[],
+      ..._additionalTracks,
+    ];
 
     final coverUrl = playlist.coverUrl;
     final bytes = coverUrl == null || coverUrl.isEmpty
@@ -253,13 +351,15 @@ class _NeteasePlaylistDetailPageState
                     .toggle(favoriteKey),
               ),
             ),
-            SliverToBoxAdapter(
-              child: tracksAsync.when(
-                loading: () => const Padding(
+            tracksAsync.when(
+              loading: () => const SliverToBoxAdapter(
+                child: Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
                   child: Center(child: CircularProgressIndicator()),
                 ),
-                error: (error, _) => AppEmptyState(
+              ),
+              error: (error, _) => SliverToBoxAdapter(
+                child: AppEmptyState(
                   title: '歌单加载失败',
                   message: '$error',
                   icon: M3EIcons.error,
@@ -271,10 +371,38 @@ class _NeteasePlaylistDetailPageState
                     ),
                   ),
                 ),
-                data: (items) =>
-                    NeteaseTrackList(tracks: items, source: '网易云歌单'),
+              ),
+              data: (items) => NeteaseTrackSliver(
+                tracks: <rust.UiTrack>[...items, ..._additionalTracks],
+                source: '网易云歌单',
               ),
             ),
+            if (_isLoadingMoreTracks)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            if (_loadMoreTracksError case final error?)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Column(
+                    children: <Widget>[
+                      Text('后续歌曲加载失败：$error'),
+                      M3EButton(
+                        style: M3EButtonStyle.tonal,
+                        label: const Text('重试'),
+                        onPressed: () {
+                          setState(() => _loadMoreTracksError = null);
+                          unawaited(_loadMoreTracks());
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
           ],
         ),

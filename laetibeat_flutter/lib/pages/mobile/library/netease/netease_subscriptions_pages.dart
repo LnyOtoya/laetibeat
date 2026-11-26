@@ -1,20 +1,118 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../design/design.dart';
+import '../../../../src/rust/api/netease.dart' as rust_netease;
 import '../../../../widgets/settings/netease_provider.dart';
 import '../../mobile_navigation.dart';
 import '../../routes.dart';
 import '../../settings/sources/netease/mobile_netease_login_page.dart';
 import 'netease_album_artist_pages.dart';
 
-class NeteaseArtistsPage extends ConsumerWidget {
+class NeteaseArtistsPage extends ConsumerStatefulWidget {
   const NeteaseArtistsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NeteaseArtistsPage> createState() => _NeteaseArtistsPageState();
+}
+
+class _NeteaseArtistsPageState extends ConsumerState<NeteaseArtistsPage> {
+  final List<rust_netease.UiNeteaseArtist> _additionalItems = [];
+  bool _isLoadingMore = false;
+  bool _isNearEnd = false;
+  bool _hasMore = true;
+  Object? _loadMoreError;
+  int _requestGeneration = 0;
+
+  Future<void> _refresh() async {
+    _resetPagination();
+    await ref
+        .refresh(neteaseSubscribedArtistsProvider.future)
+        .then<void>((_) {});
+  }
+
+  void _retryInitialLoad() {
+    _resetPagination();
+    ref.invalidate(neteaseSubscribedArtistsProvider);
+  }
+
+  void _resetPagination() {
+    _requestGeneration++;
+    setState(() {
+      _additionalItems.clear();
+      _isLoadingMore = false;
+      _isNearEnd = false;
+      _hasMore = true;
+      _loadMoreError = null;
+    });
+  }
+
+  void _handleScroll(ScrollNotification notification, int firstPageCount) {
+    if (notification.metrics.axis != Axis.vertical) return;
+    final extentAfter = notification.metrics.extentAfter;
+    if (extentAfter < 400) {
+      if (!_isNearEnd) {
+        _isNearEnd = true;
+        debugPrint(
+          '[NeteaseSubscriptionsPagination] artists near end: '
+          'loaded=${firstPageCount + _additionalItems.length}, '
+          'extentAfter=${extentAfter.toStringAsFixed(0)}',
+        );
+      }
+      unawaited(_loadMore(firstPageCount));
+    } else {
+      _isNearEnd = false;
+    }
+  }
+
+  Future<void> _loadMore(int firstPageCount) async {
+    if (_isLoadingMore || !_hasMore || _loadMoreError != null) return;
+
+    final offset = firstPageCount + _additionalItems.length;
+    final generation = _requestGeneration;
+    debugPrint(
+      '[NeteaseSubscriptionsPagination] requesting artists: '
+      'limit=$neteaseSubscriptionPageSize, offset=$offset',
+    );
+    setState(() => _isLoadingMore = true);
+    try {
+      final page = await ref.read(
+        neteaseSubscribedArtistsPageProvider((
+          limit: neteaseSubscriptionPageSize,
+          offset: offset,
+        )).future,
+      );
+      if (!mounted || generation != _requestGeneration) return;
+      final hasMore = page.length == neteaseSubscriptionPageSize;
+      debugPrint(
+        '[NeteaseSubscriptionsPagination] artists received: '
+        'offset=$offset, returned=${page.length}, hasMore=$hasMore',
+      );
+      setState(() {
+        _additionalItems.addAll(page);
+        _hasMore = hasMore;
+      });
+    } catch (error) {
+      if (!mounted || generation != _requestGeneration) return;
+      debugPrint(
+        '[NeteaseSubscriptionsPagination] artists failed: '
+        'offset=$offset, error=$error',
+      );
+      setState(() => _loadMoreError = error);
+    } finally {
+      if (mounted && generation == _requestGeneration) {
+        setState(() => _isLoadingMore = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final artists = ref.watch(neteaseSubscribedArtistsProvider);
 
@@ -26,53 +124,76 @@ class NeteaseArtistsPage extends ConsumerWidget {
       ),
       body: artists.when(
         data: (items) {
-          if (items.isEmpty) {
+          final visibleItems = <rust_netease.UiNeteaseArtist>[
+            ...items,
+            ..._additionalItems,
+          ];
+          if (visibleItems.isEmpty) {
             return const AppEmptyState(
               title: '收藏的艺人',
               message: '网易云没有返回收藏艺人',
               icon: M3EIcons.person,
             );
           }
-          return RefreshIndicator(
-            onRefresh: () =>
-                ref.refresh(neteaseSubscribedArtistsProvider.future),
-            child: m3e_core.M3ESegmentedList.builder(
-              itemCount: items.length,
-              shrinkWrap: true,
-              physics: const AlwaysScrollableScrollPhysics(),
-              listPadding: const EdgeInsets.only(
-                top: AppSpacing.md,
-                bottom: AppSpacing.xxl,
-              ),
-              onTap: (int index) => pushMobileRootPage(
-                context,
-                NeteaseArtistDetailPage(artist: items[index]),
-                name: MobileRoutes.libraryArtists,
-              ),
-              decoration: _decoration,
-              itemBuilder: (BuildContext context, int index) {
-                final artist = items[index];
-                return m3e_core.M3EListItem(
-                  headline: Text(artist.name),
-                  supportingText: Text(
-                    artist.alias.isEmpty
-                        ? '${artist.albumSize} 张专辑'
-                        : '${artist.alias.join(' / ')} · ${artist.albumSize} 张专辑',
+          return Column(
+            children: <Widget>[
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      _handleScroll(notification, items.length);
+                      return false;
+                    },
+                    child: m3e_core.M3ESegmentedList.builder(
+                      itemCount: visibleItems.length,
+                      shrinkWrap: true,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      listPadding: const EdgeInsets.only(
+                        top: AppSpacing.md,
+                        bottom: AppSpacing.xxl,
+                      ),
+                      onTap: (int index) => pushMobileRootPage(
+                        context,
+                        NeteaseArtistDetailPage(artist: visibleItems[index]),
+                        name: MobileRoutes.libraryArtists,
+                      ),
+                      decoration: _decoration,
+                      itemBuilder: (BuildContext context, int index) {
+                        final artist = visibleItems[index];
+                        return m3e_core.M3EListItem(
+                          headline: Text(artist.name),
+                          supportingText: Text(
+                            artist.alias.isEmpty
+                                ? '${artist.albumSize} 张专辑'
+                                : '${artist.alias.join(' / ')} · ${artist.albumSize} 张专辑',
+                          ),
+                          leading: _SubscriptionImage(
+                            url: artist.coverUrl,
+                            circular: true,
+                            fallbackIcon: M3EIcons.person,
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                  leading: _SubscriptionImage(
-                    url: artist.coverUrl,
-                    circular: true,
-                    fallbackIcon: M3EIcons.person,
-                  ),
-                );
-              },
-            ),
+                ),
+              ),
+              _SubscriptionPageStatus(
+                isLoading: _isLoadingMore,
+                error: _loadMoreError,
+                onRetry: () {
+                  setState(() => _loadMoreError = null);
+                  unawaited(_loadMore(items.length));
+                },
+              ),
+            ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _SubscriptionError(
           message: '$error',
-          onRetry: () => ref.invalidate(neteaseSubscribedArtistsProvider),
+          onRetry: _retryInitialLoad,
           onLogin: () => _openLogin(context, ref),
         ),
       ),
@@ -80,11 +201,105 @@ class NeteaseArtistsPage extends ConsumerWidget {
   }
 }
 
-class NeteaseAlbumsPage extends ConsumerWidget {
+class NeteaseAlbumsPage extends ConsumerStatefulWidget {
   const NeteaseAlbumsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NeteaseAlbumsPage> createState() => _NeteaseAlbumsPageState();
+}
+
+class _NeteaseAlbumsPageState extends ConsumerState<NeteaseAlbumsPage> {
+  final List<rust_netease.UiNeteaseAlbum> _additionalItems = [];
+  bool _isLoadingMore = false;
+  bool _isNearEnd = false;
+  bool _hasMore = true;
+  Object? _loadMoreError;
+  int _requestGeneration = 0;
+
+  Future<void> _refresh() async {
+    _resetPagination();
+    await ref
+        .refresh(neteaseSubscribedAlbumsProvider.future)
+        .then<void>((_) {});
+  }
+
+  void _retryInitialLoad() {
+    _resetPagination();
+    ref.invalidate(neteaseSubscribedAlbumsProvider);
+  }
+
+  void _resetPagination() {
+    _requestGeneration++;
+    setState(() {
+      _additionalItems.clear();
+      _isLoadingMore = false;
+      _isNearEnd = false;
+      _hasMore = true;
+      _loadMoreError = null;
+    });
+  }
+
+  void _handleScroll(ScrollNotification notification, int firstPageCount) {
+    if (notification.metrics.axis != Axis.vertical) return;
+    final extentAfter = notification.metrics.extentAfter;
+    if (extentAfter < 400) {
+      if (!_isNearEnd) {
+        _isNearEnd = true;
+        debugPrint(
+          '[NeteaseSubscriptionsPagination] albums near end: '
+          'loaded=${firstPageCount + _additionalItems.length}, '
+          'extentAfter=${extentAfter.toStringAsFixed(0)}',
+        );
+      }
+      unawaited(_loadMore(firstPageCount));
+    } else {
+      _isNearEnd = false;
+    }
+  }
+
+  Future<void> _loadMore(int firstPageCount) async {
+    if (_isLoadingMore || !_hasMore || _loadMoreError != null) return;
+
+    final offset = firstPageCount + _additionalItems.length;
+    final generation = _requestGeneration;
+    debugPrint(
+      '[NeteaseSubscriptionsPagination] requesting albums: '
+      'limit=$neteaseSubscriptionPageSize, offset=$offset',
+    );
+    setState(() => _isLoadingMore = true);
+    try {
+      final page = await ref.read(
+        neteaseSubscribedAlbumsPageProvider((
+          limit: neteaseSubscriptionPageSize,
+          offset: offset,
+        )).future,
+      );
+      if (!mounted || generation != _requestGeneration) return;
+      final hasMore = page.length == neteaseSubscriptionPageSize;
+      debugPrint(
+        '[NeteaseSubscriptionsPagination] albums received: '
+        'offset=$offset, returned=${page.length}, hasMore=$hasMore',
+      );
+      setState(() {
+        _additionalItems.addAll(page);
+        _hasMore = hasMore;
+      });
+    } catch (error) {
+      if (!mounted || generation != _requestGeneration) return;
+      debugPrint(
+        '[NeteaseSubscriptionsPagination] albums failed: '
+        'offset=$offset, error=$error',
+      );
+      setState(() => _loadMoreError = error);
+    } finally {
+      if (mounted && generation == _requestGeneration) {
+        setState(() => _isLoadingMore = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final albums = ref.watch(neteaseSubscribedAlbumsProvider);
 
@@ -96,52 +311,108 @@ class NeteaseAlbumsPage extends ConsumerWidget {
       ),
       body: albums.when(
         data: (items) {
-          if (items.isEmpty) {
+          final visibleItems = <rust_netease.UiNeteaseAlbum>[
+            ...items,
+            ..._additionalItems,
+          ];
+          if (visibleItems.isEmpty) {
             return const AppEmptyState(
               title: '收藏的专辑',
               message: '网易云没有返回收藏专辑',
               icon: M3EIcons.album,
             );
           }
-          return RefreshIndicator(
-            onRefresh: () =>
-                ref.refresh(neteaseSubscribedAlbumsProvider.future),
-            child: m3e_core.M3ESegmentedList.builder(
-              itemCount: items.length,
-              shrinkWrap: true,
-              physics: const AlwaysScrollableScrollPhysics(),
-              listPadding: const EdgeInsets.only(
-                top: AppSpacing.md,
-                bottom: AppSpacing.xxl,
-              ),
-              onTap: (int index) => pushMobileRootPage(
-                context,
-                NeteaseAlbumDetailPage(album: items[index]),
-                name: MobileRoutes.libraryAlbums,
-              ),
-              decoration: _decoration,
-              itemBuilder: (BuildContext context, int index) {
-                final album = items[index];
-                return m3e_core.M3EListItem(
-                  headline: Text(album.name),
-                  supportingText: Text(
-                    '${album.artist} · ${album.trackCount} 首',
+          return Column(
+            children: <Widget>[
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      _handleScroll(notification, items.length);
+                      return false;
+                    },
+                    child: m3e_core.M3ESegmentedList.builder(
+                      itemCount: visibleItems.length,
+                      shrinkWrap: true,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      listPadding: const EdgeInsets.only(
+                        top: AppSpacing.md,
+                        bottom: AppSpacing.xxl,
+                      ),
+                      onTap: (int index) => pushMobileRootPage(
+                        context,
+                        NeteaseAlbumDetailPage(album: visibleItems[index]),
+                        name: MobileRoutes.libraryAlbums,
+                      ),
+                      decoration: _decoration,
+                      itemBuilder: (BuildContext context, int index) {
+                        final album = visibleItems[index];
+                        return m3e_core.M3EListItem(
+                          headline: Text(album.name),
+                          supportingText: Text(
+                            '${album.artist} · ${album.trackCount} 首',
+                          ),
+                          leading: _SubscriptionImage(
+                            url: album.coverUrl,
+                            fallbackIcon: M3EIcons.album,
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                  leading: _SubscriptionImage(
-                    url: album.coverUrl,
-                    fallbackIcon: M3EIcons.album,
-                  ),
-                );
-              },
-            ),
+                ),
+              ),
+              _SubscriptionPageStatus(
+                isLoading: _isLoadingMore,
+                error: _loadMoreError,
+                onRetry: () {
+                  setState(() => _loadMoreError = null);
+                  unawaited(_loadMore(items.length));
+                },
+              ),
+            ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _SubscriptionError(
           message: '$error',
-          onRetry: () => ref.invalidate(neteaseSubscribedAlbumsProvider),
+          onRetry: _retryInitialLoad,
           onLogin: () => _openLogin(context, ref),
         ),
+      ),
+    );
+  }
+}
+
+class _SubscriptionPageStatus extends StatelessWidget {
+  const _SubscriptionPageStatus({
+    required this.isLoading,
+    required this.error,
+    required this.onRetry,
+  });
+
+  final bool isLoading;
+  final Object? error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const LinearProgressIndicator(minHeight: 2);
+    }
+    if (error == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Column(
+        children: <Widget>[
+          Text('加载更多失败：$error'),
+          M3EButton(
+            style: M3EButtonStyle.tonal,
+            label: const Text('重试'),
+            onPressed: onRetry,
+          ),
+        ],
       ),
     );
   }

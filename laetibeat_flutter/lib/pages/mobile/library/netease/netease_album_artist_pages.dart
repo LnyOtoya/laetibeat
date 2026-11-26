@@ -168,12 +168,7 @@ class _NeteaseAlbumDetailPageState
                         .toggle(favoriteKey),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: NeteaseTrackList(
-                    tracks: value.tracks,
-                    source: '网易云专辑',
-                  ),
-                ),
+                NeteaseTrackSliver(tracks: value.tracks, source: '网易云专辑'),
                 const SliverToBoxAdapter(
                   child: SizedBox(height: AppSpacing.xxl),
                 ),
@@ -332,12 +327,7 @@ class _NeteaseArtistDetailPageState
                         .toggle(favoriteKey),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: NeteaseTrackList(
-                    tracks: value.tracks,
-                    source: '网易云艺人',
-                  ),
-                ),
+                NeteaseTrackSliver(tracks: value.tracks, source: '网易云艺人'),
                 SliverToBoxAdapter(
                   child: _ArtistAlbumsSection(artistId: loaded.id),
                 ),
