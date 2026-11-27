@@ -1,28 +1,34 @@
 # Changelog
 
-## [Unreleased]
+## [1.1.0] - 2026-11-27
+
+### Upgrade Notice
+
+- 在线音源后端从 go-music-api 切换为 QQ / 网易云独立 Rust sidecar。
+- 旧「内置服务 / 远程服务」配置不再使用；首次升级后请在「设置 → 音源模式」选择 QQ 或网易云。
+- 在线账号 Cookie / Credential 目录变更，需要重新扫码登录。
+- 本地 / Subsonic 模式不启动在线 sidecar。
 
 ### Added
 
-- native 分支：`AppMode`（本地 / Subsonic / QQ / 网易云）与 `app.mode` 持久化。
-- native 分支：`ModeHostController` 管理 QQ / 网易云 Rust sidecar 的启动、停止、重启与切换。
-- native 分支：按模式隔离数据目录 `modes/{qq,netease}`，切换时暂停播放并自动恢复 Cookie / Credential。
-- native 分支：设置页「音源模式」入口、sidecar 状态与开发期 host 路径覆盖。
-- native 分支：现有在线客户端可直接使用 QQ / 网易云 host。
-- native 分支：搜索、播放、歌词、歌单、专辑、榜单、热门、二维码登录按模式切换。
-- native 分支：发现页与账号列表跟随当前模式。
-- native 分支：Android jniLibs / Linux bundle 打包 QQ 与网易云 Rust host。
-- native 分支：Gradle / CMake / CI / release 许可证接入双 host。
+- 音源模式：本地 / Subsonic / QQ / 网易云，持久化 `app.mode`。
+- QQ / 网易云独立 Rust sidecar 的启动、停止、重启与切换；切换前暂停播放。
+- 按模式隔离数据目录 `modes/{qq,netease}`，切回时恢复 Cookie / Credential。
+- 设置页「音源模式」入口、sidecar 状态与开发期 host 路径覆盖。
+- 搜索、播放、歌词、歌单、专辑、榜单、热门、二维码登录按模式切换。
+- 发现页与账号列表跟随当前模式。
+- Android jniLibs / Linux bundle 打包 QQ 与网易云 Rust host。
+- Gradle / CMake / CI / release 许可证接入双 host。
 
 ### Removed
 
-- native 分支：删除 `laetibeat_musicapi_host`、`third_party/music-lib` 与 Go 打包/CI 链路。
-- native 分支：删除旧 `onlineHostProvider` 与 builtin/remote 服务地址配置。
+- 删除 `laetibeat_musicapi_host`、`third_party/music-lib` 与 Go 打包 / CI 链路。
+- 删除旧 `onlineHostProvider` 与 builtin / remote 服务地址配置。
 
 ### Changed
 
-- native 分支：`laetibeat_online` 保留为两个 Rust host 的统一客户端。
-- native 分支：在线设置只保留音质、LX 后备与账号；服务地址由模式 sidecar 提供。
+- `laetibeat_online` 保留为两个 Rust host 的统一客户端。
+- 在线设置只保留音质、LX 后备与账号；服务地址由模式 sidecar 提供。
 
 ## [1.0.2] - 2026-11-27
 
