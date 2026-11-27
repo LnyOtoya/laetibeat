@@ -343,13 +343,15 @@ jniLibs/<abi>/liblaetibeat_netease_host.so
 - [x] 创建并推送 `native`
 - [x] 更新 PLAN/TODO/ARCHITECTURE
 
-### N1：QQ host spike
+### N1：QQ host spike（已完成主体）
 
-- [ ] `laetibeat_qq_host` crate
-- [ ] 搜索 / 播放 URL / 歌词
-- [ ] 二维码登录
-- [ ] Credential 持久化
-- [ ] Linux + Android arm64 构建
+- [x] `laetibeat_qq_host` crate
+- [x] 搜索 / 播放 URL / 歌词
+- [x] 二维码创建/轮询（QQ / 微信；mobile 未接）
+- [x] Credential 保存/加载代码
+- [x] Linux release + Android arm64 构建
+- [x] Android 真机 health/search 验证
+- [ ] 真实扫码成功并验证 credential 持久化
 
 ### N2：NetEase host spike
 
@@ -408,7 +410,13 @@ Android 24
 NDK r28c
 ```
 
-- `QQMusicApi-rs` 默认纯 Rust（`tls-graviola`），aarch64 / x86_64 不需要 C 工具链；尚未做 Android spike。
+- `QQMusicApi-rs` 默认纯 Rust（`tls-graviola`），aarch64 / x86_64 不需要 C 工具链。
+- `laetibeat_qq_host`：
+  - Linux release：13 MB
+  - Android arm64 release：13 MB，PIE，Android 24，NDK r28c
+  - Linux live：health / search / url / lyric / QR 创建均 200
+  - Android 真机：host 启动、health、QQ 搜索通过
+  - QR 轮询已返回 waiting/scanned；真实扫码与 credential 持久化待人工验证
 
 ## 13. 相关文档
 

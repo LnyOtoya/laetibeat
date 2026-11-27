@@ -12,7 +12,7 @@
 - [x] 新增 `docs/native-modes-migration.md`
 - [x] 创建并推送 `gomusic` 分支
 - [x] 创建并推送 `native` 分支
-- [ ] `laetibeat_qq_host` spike
+- [x] `laetibeat_qq_host` spike（搜索/URL/歌词/QR；真实扫码待验证）
 - [ ] `laetibeat_netease_host` spike
 - [ ] `AppMode` 模式控制器
 - [ ] 模式切换停止服务 / 保留 Cookie
