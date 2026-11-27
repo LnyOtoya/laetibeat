@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-27
+
+### Security
+
+- 网易云音源强制通过 HTTPS 请求，阻止 HTTPS 音源重定向降级到 HTTP；其他音源行为不变。
+
+### Changed
+
+- 网易云音频播放通过本机 loopback 转发器处理，并保留 Range 请求支持 seek。
+- Debug 网络日志不输出带签名参数的完整音源 URL。
+
 ## [1.0.0] - 2026-11-26
 
 ### Added

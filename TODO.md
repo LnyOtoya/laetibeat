@@ -1,7 +1,7 @@
 # Laetibeat 项目蓝图
 
-> 最后更新：2026-11-26
-> 当前阶段：Flutter 主线继续。网易云在线媒体库已接入搜索、用户收藏、艺人/专辑详情及歌单；2026-11-26 完成艺人热门歌曲更多页、专辑横向卡片和在线页面悬浮底栏安全留白。接下来先补发布基础（正式签名、GitHub Actions、Release 更新检查），再按下方顺序推进。本文件记录实现状态与后续真机验证。
+> 最后更新：2026-11-27
+> 当前阶段：Flutter 主线继续。网易云在线媒体库已接入搜索、用户收藏、艺人/专辑详情及歌单；2026-11-27 完成网易云音源 HTTPS-only 播放转发，并在 Pixel 7 Debug 上确认试听流经 HTTPS CDN 返回 200。接下来先补发布基础（正式签名、GitHub Actions、Release 更新检查），再按下方顺序推进。本文件记录实现状态与后续真机验证。
 
 ## 当前状态速览
 
@@ -22,7 +22,7 @@
 - 设计系统：新增 `lib/design/`（颜色/字体/间距/圆角/尺寸/动效/断点 token、Material You 官方取色、`AppArtwork` / `AppText` / `AppMediaRow` 等基础组件）；页面级左右 gutter 统一为 `AppLayout.pageGutter` + `AppPageBody`；具体页面尚未全部迁移
 - 新 UI 方向：继续 Flutter；`m3e_core` / `material_3_expressive` 只作组件库；Shell、路由、主题与取色自管；MiniPlayer + NavBar 为悬浮 BottomOverlay；Full Player 为 Root Navigator Route（2026-11-23 定稿；2026-11-24 导航内容有调整，见下方校正）
 - 发布工程：尚无正式签名、CI workflow、tag/Release；更新按钮与 GitHub Release 更新链路列入新优先级，见下方「2026-11-26 发布基础与更新链路」。
-- 多音源计划：网易云直连 + 洛雪后备解析、MeloX-Android 多平台实现调研，见 `PLAN.md`
+- 多音源：网易云 Node API Provider + 洛雪 `wy` 后备已实现；网易云播放音源单独强制 HTTPS，计划和剩余验证见 `PLAN.md`
 
 ## 2026-11-26 发布基础与更新链路（新优先级）
 
@@ -354,6 +354,18 @@
 - [x] 网易云歌单、每日推荐、收藏列表及专辑/艺人详情的可滚动内容，末尾增加 Shell 提供的动态底栏 inset。
 - [x] OpenSubsonic 远端专辑/艺人详情与洛雪歌单预览接入同一底栏 inset；本地音乐页面保持原行为。
 - [ ] 手动真机验证横向专辑卡片、各在线页面滚动末尾无遮挡。
+
+## 2026-11-27 Phase E1：网易云播放音源 HTTPS-only（已实现）
+
+- [x] 仅网易云直连及网易云曲目的 LX `wy` 后备音源设置 HTTPS-only 策略；其他来源保持原播放路径。
+- [x] 音源经仅绑定 `127.0.0.1` 的本机转发器；HTTP 音源 URL 升级为 HTTPS，TLS 证书照常校验。
+- [x] 转发器逐跳检查重定向，最多跟随 5 次 HTTPS 重定向，拒绝任何降级到 HTTP 的跳转。
+- [x] 转发 Range / If-Range 请求和必要响应头，支持音频缓冲与 seek。
+- [x] Debug 日志只记录上游 scheme、host 和状态码，不记录带签名参数的完整音源 URL。
+- [x] 单元测试覆盖 HTTP→HTTPS、HTTPS 原样保留、非 HTTP(S) 拒绝及 HTTPS 重定向降级拦截；`flutter test`、`flutter analyze` 通过。
+- [x] Pixel 7 Debug 实测：网易云试听音源 `songId=35847388` 请求 `https://m702.music.126.net`，返回 HTTP 200；Flutter 运行时无异常。
+- [ ] 真机验证完整非试听音源；本次实测样本为试听流，未覆盖全部 CDN / 重定向组合。
+- [ ] 桌面 `media_kit` 播放链路实机验证。
 
 ## 2026-11-24 代码审查发现（只记录，不改实现）
 

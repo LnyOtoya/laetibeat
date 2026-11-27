@@ -782,6 +782,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
         uri: url,
         fallbackDuration: _durationOf(t),
         isPreview: stream.isTrial,
+        enforceHttps: true,
       );
     }
     if (t.source == 'lx' && t.sourceId.isNotEmpty) {
@@ -896,7 +897,11 @@ class PlayerNotifier extends Notifier<PlayerState> {
         );
         if (url.isEmpty) continue;
         debugPrint('网易云 LX fallback 成功 quality=$quality');
-        return PlaybackTrack(uri: url, fallbackDuration: _durationOf(track));
+        return PlaybackTrack(
+          uri: url,
+          fallbackDuration: _durationOf(track),
+          enforceHttps: true,
+        );
       } catch (error) {
         debugPrint('网易云 LX fallback 失败 quality=$quality: $error');
       }

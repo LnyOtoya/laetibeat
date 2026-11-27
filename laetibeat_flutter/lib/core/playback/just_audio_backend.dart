@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart' as ja;
 import 'package:laetibeat/widgets/player/playback_backend.dart';
 
 import 'audio_effects.dart';
+import 'netease_audio_https_proxy.dart';
 
 /// Android/iOS 播放后端。
 ///
@@ -18,6 +19,8 @@ class JustAudioBackend implements PlaybackBackend, AudioEffectsController {
   }
 
   final ja.AndroidEqualizer _equalizer = ja.AndroidEqualizer();
+  final NeteaseAudioHttpsProxy _neteaseAudioProxy = NeteaseAudioHttpsProxy();
+  String? _activeNeteaseProxyUrl;
   late final ja.AudioPlayer _player = ja.AudioPlayer(
     audioPipeline: ja.AudioPipeline(
       androidAudioEffects: <ja.AndroidAudioEffect>[_equalizer],
@@ -168,7 +171,20 @@ class JustAudioBackend implements PlaybackBackend, AudioEffectsController {
 
   @override
   Future<void> open(PlaybackTrack track, {bool play = true}) async {
-    await _player.setAudioSource(ja.AudioSource.uri(Uri.parse(track.uri)));
+    final proxyUrl = track.enforceHttps
+        ? await _neteaseAudioProxy.register(track.uri)
+        : null;
+    try {
+      await _player.setAudioSource(
+        ja.AudioSource.uri(Uri.parse(proxyUrl ?? track.uri)),
+      );
+    } on Object {
+      _neteaseAudioProxy.release(proxyUrl);
+      rethrow;
+    }
+    final previousProxyUrl = _activeNeteaseProxyUrl;
+    _activeNeteaseProxyUrl = proxyUrl;
+    _neteaseAudioProxy.release(previousProxyUrl);
     if (play) {
       await _player.play();
     }
@@ -194,12 +210,24 @@ class JustAudioBackend implements PlaybackBackend, AudioEffectsController {
   }
 
   @override
-  Future<void> stop() => _player.stop();
+  Future<void> stop() async {
+    try {
+      await _player.stop();
+    } finally {
+      _neteaseAudioProxy.release(_activeNeteaseProxyUrl);
+      _activeNeteaseProxyUrl = null;
+    }
+  }
 
   @override
   Future<void> dispose() async {
-    await _interruptionSubscription?.cancel();
-    await _noisySubscription?.cancel();
-    await _player.dispose();
+    try {
+      await _interruptionSubscription?.cancel();
+      await _noisySubscription?.cancel();
+      await _player.dispose();
+    } finally {
+      _activeNeteaseProxyUrl = null;
+      await _neteaseAudioProxy.close();
+    }
   }
 }

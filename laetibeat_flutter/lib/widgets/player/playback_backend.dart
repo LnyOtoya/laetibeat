@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:media_kit/media_kit.dart' as mk;
 
+import '../../core/playback/netease_audio_https_proxy.dart';
+
 // ---------------------------------------------------------------------------
 // 播放后端抽象
 // ---------------------------------------------------------------------------
@@ -13,7 +15,7 @@ import 'package:media_kit/media_kit.dart' as mk;
 
 /// 交给后端播放的单条曲目
 class PlaybackTrack {
-  /// 可直接交给播放器加载的 URI(本地文件为 file:// 形式)
+  /// 播放源 URI；网易云 HTTPS-only 曲目会经本机 loopback 转发。
   final String uri;
 
   /// 从元数据粗读出的时长,用于引擎给出真实时长前的兜底展示
@@ -22,10 +24,14 @@ class PlaybackTrack {
   /// 当前 URL 是否只是试听片段（网易云未登录/无会员时会出现）。
   final bool isPreview;
 
+  /// 网易云音源需经 HTTPS-only 转发器播放。
+  final bool enforceHttps;
+
   const PlaybackTrack({
     required this.uri,
     this.fallbackDuration = Duration.zero,
     this.isPreview = false,
+    this.enforceHttps = false,
   });
 }
 
@@ -118,6 +124,8 @@ class MediaKitBackend implements PlaybackBackend {
   }
 
   late final mk.Player _player = mk.Player();
+  final NeteaseAudioHttpsProxy _neteaseAudioProxy = NeteaseAudioHttpsProxy();
+  String? _activeNeteaseProxyUrl;
 
   @override
   Stream<Duration> get positionStream => _player.stream.position;
@@ -174,7 +182,18 @@ class MediaKitBackend implements PlaybackBackend {
 
   @override
   Future<void> open(PlaybackTrack track, {bool play = true}) async {
-    await _player.open(mk.Media(track.uri), play: play);
+    final proxyUrl = track.enforceHttps
+        ? await _neteaseAudioProxy.register(track.uri)
+        : null;
+    try {
+      await _player.open(mk.Media(proxyUrl ?? track.uri), play: play);
+    } on Object {
+      _neteaseAudioProxy.release(proxyUrl);
+      rethrow;
+    }
+    final previousProxyUrl = _activeNeteaseProxyUrl;
+    _activeNeteaseProxyUrl = proxyUrl;
+    _neteaseAudioProxy.release(previousProxyUrl);
   }
 
   @override
@@ -191,8 +210,22 @@ class MediaKitBackend implements PlaybackBackend {
       _player.setVolume(volume.clamp(0.0, 1.0));
 
   @override
-  Future<void> stop() => _player.stop();
+  Future<void> stop() async {
+    try {
+      await _player.stop();
+    } finally {
+      _neteaseAudioProxy.release(_activeNeteaseProxyUrl);
+      _activeNeteaseProxyUrl = null;
+    }
+  }
 
   @override
-  Future<void> dispose() => _player.dispose();
+  Future<void> dispose() async {
+    try {
+      await _player.dispose();
+    } finally {
+      _activeNeteaseProxyUrl = null;
+      await _neteaseAudioProxy.close();
+    }
+  }
 }

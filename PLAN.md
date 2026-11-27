@@ -1,7 +1,7 @@
 # Laetibeat 多音源计划
 
-> 状态：规划中，尚未实施
-> 最后更新：2026-11-25
+> 状态：网易云 Node API Provider、在线媒体库核心、LX `wy` 后备及网易云音源 HTTPS-only 播放已实施；本计划记录现状与剩余验证。
+> 最后更新：2026-11-27
 > 关联文档：`TODO.md`（工程债与修复排期）、`reference/MeloX-Android/`（多音源架构参考）
 
 ## 目标
@@ -17,7 +17,7 @@
 
 ## 一、Laetibeat 当前结论
 
-> 路线技术可行，但要拆成“音源提供者”和“播放解析器”两层。LX 后端已具备作为后备解析器的基础；网易云直连 Provider 尚未实现；当前 UI/模型仍把 LX 当顶层音源，需要中等规模重构。
+> 当前已实现用户配置 Node API 的网易云 Provider、在线媒体库核心及可选 LX `wy` 后备；Rust 内置直连仍暂缓。网易云音频流使用独立 HTTPS-only 本机转发器，和全局网络策略分开，不影响其他来源。
 
 ### 已具备
 
@@ -26,14 +26,17 @@
 - [x] 已有网易云 `wy` 的搜索、歌单、歌词实现：`search.rs` / `songlist.rs` / `lyric.rs`。
 - [x] `UiTrack` 的 `source/sourceId/id/coverId/sourceExtraJson` 足以承载网易云曲目。
 - [x] 播放后端只消费 URL，解析层改造不需要改音频引擎。
+- [x] `laetibeat_netease` 提供用户配置 Node API 的连接、二维码登录态、搜索、歌单、歌词、详情和播放 URL。
+- [x] 网易云搜索、在线歌单、每日推荐、收藏艺人/专辑及详情已接入 Flutter；网易云曲目保留自身身份。
+- [x] 网易云曲目可选 LX `wy` 后备，后备不改变队列和统计中的曲目身份。
+- [x] Android `just_audio` 与桌面 `media_kit` 的网易云播放源均可经 HTTPS-only 转发器播放；HTTP 音源升级到 HTTPS，HTTP 降级重定向会被拒绝。
 
 ### 当前缺口
 
-- [ ] 没有网易云 API/SDK、登录态、直链解析和音源配置。
-- [ ] 没有 Resolver 抽象、fallback 链、开关、总超时和错误分类。
-- [ ] `source='lx'` 仍同时表示“曲目来源”和“播放解析器”，需要拆开。
-- [ ] 封面/歌词/统计只识别 local / opensubsonic / lx，新增 netease 会错走本地。
-- [ ] `PlaybackTrack` 没有 headers；网易云直链若需要 Referer/UA/Cookie，需要扩展播放后端。
+- [ ] 播放解析仍以内联来源分支实现，尚未提取统一的 `ResolveRequest` / `ResolveResult` 类型。
+- [ ] Node API 可选 Token、自助配置安全校验等能力仍需单独核对；Rust 内置网易云直连继续暂缓。
+- [ ] Android 实测已验证一条试听流 HTTPS 返回 200；完整非试听音源、不同 CDN 和桌面 `media_kit` 仍待验证。
+- [ ] 网易云音频 HTTPS-only 不代表 App 全部网络都强制 HTTPS；API、图片及其他音源继续遵循各自现有配置。
 
 ### 建议目标模型
 
@@ -53,10 +56,10 @@
 
 - [x] 网易云首版采用用户可配置的第三方 Node API（Vercel / VPS / NAS）；官方 SDK/OpenAPI 暂缓。
 - [x] 首版不移植 Rust 内置网易云客户端；保留 `NetEaseBackend` 抽象。
-- [ ] 先做搜索 + 播放，还是直接做完整媒体库？
+- [x] 已从搜索 + 播放扩展到在线媒体库核心；更广泛的云端能力仍分阶段添加。
 - [ ] LX 完全移出音源列表，还是保留独立 LX 搜索入口？
-- [ ] 后备解析是全局开关，还是播放失败时询问？
-- [ ] 直连返回低音质/试听 URL 时，直接播放还是继续尝试 LX？
+- [x] LX 后备通过用户设置 `allowLxFallback` 控制。
+- [x] 试听或无播放 URL 时按设置尝试 LX `wy` 后备；未启用/后备失败时保留网易云试听或显示错误。
 
 ### 风险
 
@@ -85,7 +88,9 @@ Laetibeat
 请求链路：
 
 - 登录、搜索、歌单、歌词、播放 URL：手机 → 用户配置的 Node API → 网易云。
-- 音频流：手机 → 网易云 CDN，不经过 Node API。
+- 网易云音频流：播放器 → `127.0.0.1` 本机 HTTPS-only 转发器 → 网易云 CDN；源 URL 会升级为 HTTPS，任何 HTTPS→HTTP 重定向都会被拒绝。音频仍不经过 Node API。
+- 本机播放器到 loopback 转发器使用 HTTP；loopback 只绑定 `127.0.0.1`，音源到公网 CDN 的请求严格使用 HTTPS。
+- 其他 Provider 的音源不经过该转发器，行为保持不变。
 - 网易云看到的出口 IP 是 Node API 所在主机的 IP，不是手机 IP，也不是域名本身。
 - 自定义域名只是入口；Vercel 的自定义域名不会改变 Vercel 出口 IP，NAS 的域名不会改变家庭宽带出口 IP。
 
@@ -124,7 +129,7 @@ Node API 参考文档：`reference/neteaseapi.md`。
 ### 2.4 安全与运维
 
 - [ ] 公网暴露必须有访问令牌 / 反向代理鉴权 / 限流。
-- [ ] 强制 HTTPS。
+- [ ] 全 App 所有外部网络请求强制 HTTPS（本轮只为网易云音频流实施 HTTPS-only）。
 - [ ] 不暴露 NAS 管理后台。
 - [ ] Node API 容器隔离、非 root 运行。
 - [ ] Node API 镜像版本与 App 兼容检查。
@@ -290,16 +295,25 @@ Kuwo      -> kw
 - [ ] 修 P0-3（候选源退化）和 P0-4（Context 串扰）。
 - [ ] 先不接网易云直连，用测试曲目验证 fallback。
 
-### Phase 2A：网易云 Node API Provider（首版）
+### Phase 2A：网易云 Node API Provider（首版，主体已实施）
 
-- [ ] 增加网易云 API 服务配置：Base URL、可选 Token、测试连接。
-- [ ] 支持 Vercel / VPS / NAS；App 只认 Base URL，不区分部署来源。
-- [ ] 登录：二维码 / 短信，Cookie 存 `flutter_secure_storage`。
-- [ ] 接入搜索、歌曲详情、歌单、每日推荐、歌词、`/song/url/v1`。
-- [ ] 解析音质、试听、URL 过期、headers。
+- [x] 增加网易云 API 服务配置：Base URL、测试连接；可选 Token 仍待实现。
+- [x] 支持用户配置的 Vercel / VPS / NAS 地址；App 通过 Base URL 连接。
+- [x] 二维码登录与 `flutter_secure_storage` Cookie 存储；短信登录仍待验证修复。
+- [x] 接入搜索、歌曲详情、歌单、每日推荐、歌词、`/song/url/v1`。
+- [x] 解析音质、试听与 URL 有效期；按需携带的额外媒体 headers 仍待核实。
 - [ ] 错误分类：登录 / 会员 / 版权 / 地区 / 无音源 / 网络。
-- [ ] 串联 `NetEaseDirectResolver` + `LxFallbackResolver`。
+- [x] 串联网易云播放解析与可选 LX `wy` fallback；当前逻辑位于 `PlayerNotifier`，尚未抽成独立 Resolver 类型。
 - [ ] 客户端缓存、请求退避、避免重复登录；不在 URL 中携带 Cookie。
+
+### Phase 2A.1：网易云音源 HTTPS-only（已实施）
+
+- [x] 仅网易云直连和网易云曲目的 LX `wy` 后备音源经过 loopback HTTPS-only 转发器。
+- [x] `http://` 音源升级到 HTTPS；只跟随 HTTPS 重定向，拒绝 HTTPS 降级到 HTTP。
+- [x] Android / 桌面播放后端接入；其他音源不经过代理。
+- [x] Pixel 7 Debug 样例：音频 CDN HTTPS 请求返回 200；单元测试和静态分析通过。
+- [ ] 完整非试听歌曲与桌面 `media_kit` 真机验证。
+- [ ] 全 App 外部请求统一 HTTPS 不属于本阶段；API、图片和其他 Provider 需分别评估。
 
 ### Phase 2B：Rust 内置直连（暂缓）
 
@@ -309,8 +323,8 @@ Kuwo      -> kw
 
 ### Phase 3：网易云完整在线库
 
-- [ ] 专辑 / 艺人 / 歌单 / 用户收藏。
-- [ ] 搜索过滤、每日推荐、统计、scrobble。
+- [x] 搜索、在线歌单、每日推荐、收藏艺人/专辑及专辑/艺人详情核心流程。
+- [ ] 排行榜、听歌报告、网易云统计/scrobble 等扩展能力。
 - [ ] 再决定是否把 LX 从 `SongSources` 移出，或保留独立 LX 搜索入口。
 
 ---
@@ -335,4 +349,4 @@ Kuwo      -> kw
 
 ## 六、一句话结论
 
-**MeloX-Android 已证明“网易云作为主音源、LX 作为最后一级后备解析器”可行；但它靠的是大量自研逆向协议客户端，而不是一个万能 SDK。Laetibeat 首版应通过用户可配置的 Node API（Vercel / VPS / NAS）接入网易云，借鉴其 Provider/Capability、PlaybackResolution 和 fallback 顺序，先做“网易云直连 + LX `wy` 后备”这个最小闭环；Rust 内置直连留到后续。**
+**Laetibeat 已通过用户可配置的 Node API 接入网易云，并实现在线媒体库核心及可选 LX `wy` 后备；网易云音源播放额外使用 HTTPS-only 转发，阻止音源 URL 或重定向降级为 HTTP。下一步优先验证完整音源与桌面播放，再按需扩展云端能力；Rust 内置直连仍暂缓。**
