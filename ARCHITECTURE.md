@@ -1,9 +1,35 @@
 # Laetibeat Architecture
 
 > 最后更新：2026-11-27
-> 在线音源设计与验收细节见 `docs/musicapi-migration.md`；当前计划见 `PLAN.md`。
+> 分支状态：`main` / `gomusic` 使用当前 go-music-api host；`native` 分支目标为两个 Rust sidecar。
+> 在线音源当前实现见 `docs/musicapi-migration.md`；native 目标见 `docs/native-modes-migration.md`；当前计划见 `PLAN.md`。
 
-## 1. 总览
+## 0. 分支状态与目标（2026-11-27）
+
+```text
+main       当前稳定线
+gomusic    保留 go-music-api 实现（v1.0.2）
+native     新分支：删除 go-music-api，改用 Rust 原生 sidecar
+```
+
+`native` 目标：
+
+| 模式 | 后端 | 形态 |
+|---|---|---|
+| 本地 | 现有本地库 | 进程内 Rust |
+| Subsonic | `laetibeat_remote` | 进程内 Rust |
+| QQ 音乐 | `QQMusicApi-rs` | Rust sidecar |
+| 网易云音乐 | `ncm-api-rs` | Rust sidecar |
+
+- 模式切换时停止当前 sidecar，不删除数据目录
+- Cookie / Credential 按模式保存，切回时读取
+- 不需要 Docker / NAS / Node / Python
+- Android / Linux 都使用原生二进制
+
+> 下文描述当前 `main` / `gomusic` 的 Go host 架构；native 分支会替换其中的
+> `laetibeat_musicapi_host` 和 `laetibeat_online` 的 Go 专用部分。
+
+## 1. 总览（当前 gomusic）
 
 ```text
 Flutter UI

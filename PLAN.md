@@ -1,8 +1,30 @@
 # Laetibeat 多音源计划
 
-> 状态：网易云 / QQ 在线音源已通过内置 `go-music-api` host 接入；M0–M4 完成，M5 进行中。
+> 状态（2026-11-27）：在线音源进入 **native 分支** 重构。`gomusic` 分支保留当前 go-music-api 实现；`native` 分支改用 QQMusicApi-rs + ncm-api-rs 的 Rust 原生 sidecar，并做本地 / Subsonic / QQ / 网易云独立模式。
 > 最后更新：2026-11-27
-> 关联文档：`docs/musicapi-migration.md`（迁移设计与验收）、`docs/release-checklist.md`（发版）、`TODO.md`（工程债）、`THIRD_PARTY_NOTICES.md`（AGPL/第三方许可）
+> 关联文档：`docs/native-modes-migration.md`（native 分支设计）、`docs/musicapi-migration.md`（gomusic 分支设计与验收）、`docs/release-checklist.md`（发版）、`TODO.md`（工程债）、`THIRD_PARTY_NOTICES.md`（许可）
+
+## 2026-11-27 方向调整：native 分支
+
+旧方案（go-music-api）完整保留在 `gomusic` 分支，不再作为新功能主线。
+
+新方案：
+
+| 模式 | 后端 | 形态 |
+|---|---|---|
+| 本地 | 现有本地库 | 进程内 Rust |
+| Subsonic | `laetibeat_remote` | 进程内 Rust |
+| QQ 音乐 | `QQMusicApi-rs` | Rust sidecar |
+| 网易云音乐 | `ncm-api-rs` | Rust sidecar |
+
+- 不依赖 Docker / NAS / Node / Python
+- 每个模式独立启动/停止
+- 切换模式停止旧 sidecar，但保留 Cookie / Credential
+- 切回时重新读取凭证并启动
+
+详细设计、阶段与验收见 `docs/native-modes-migration.md`。
+
+> 下文为 `gomusic` 分支的历史计划，保留作为回退参考。
 
 ## 目标
 

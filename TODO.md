@@ -1,11 +1,25 @@
 # Laetibeat 项目蓝图
 
 > 最后更新：2026-11-27
-> 当前阶段：在线音源迁移 M0–M4 完成。网易云 / QQ 通过内置 `go-music-api` host 接入；Android arm64/armv7/x86_64 与 Linux x64 均已打包 host。当前进入 M5（清理、文档、AGPL、CI 矩阵）。
+> 当前阶段：native 分支启动。`gomusic` 分支保留 go-music-api 实现；`native` 分支改用 QQMusicApi-rs + ncm-api-rs 的 Rust 原生 sidecar，并做本地 / Subsonic / QQ / 网易云独立模式。
 >
-> **重要**：本文件下方涉及「网易云 Node API」「`laetibeat_netease`」「网易云 Provider」的条目是历史记录；`main` 已移除旧实现，请以 `docs/musicapi-migration.md` 与 `PLAN.md` 为准。
+> **重要**：本文件下方涉及「网易云 Node API」「`laetibeat_netease`」「网易云 Provider」的条目是历史记录；`main` / `gomusic` 已移除旧 Node 实现。native 分支设计见 `docs/native-modes-migration.md`。
 
-## 2026-11-27 在线音源迁移（已完成）
+## 2026-11-27 native 分支启动
+
+- [x] 确认 `QQMusicApi-rs` 可作为 Rust sidecar
+- [x] 确认 `ncm-api-rs` 可作为 Rust sidecar；Android arm64 编译验证通过
+- [x] 新增 `docs/native-modes-migration.md`
+- [ ] 创建并推送 `gomusic` 分支
+- [ ] 创建并推送 `native` 分支
+- [ ] `laetibeat_qq_host` spike
+- [ ] `laetibeat_netease_host` spike
+- [ ] `AppMode` 模式控制器
+- [ ] 模式切换停止服务 / 保留 Cookie
+- [ ] UI 按模式显示不同内容
+- [ ] 删除 go-music-api 与 Go 打包链
+
+## 2026-11-27 在线音源迁移（gomusic 分支，已完成）
 
 - 架构：Flutter → Rust `laetibeat_online` → 内置/远程 `laetibeat_musicapi_host` → go-music-api + music-lib
 - 支持平台：网易云、QQ（搜索、歌单、专辑、榜单、热门、播放、LRC、扫码登录、我的歌单）
@@ -13,7 +27,7 @@
 - 远程模式：HTTPS + Bearer token；loopback 例外
 - 网易云搜索：music-lib 本地单函数 fork（linux/forward 已 502，改 weapi）
 - 播放：在线直链经 HTTPS-only 本机转发器；支持 LX fallback
-- 文档：`docs/musicapi-migration.md`（设计/验收）、`PLAN.md`（当前计划）、`THIRD_PARTY_NOTICES.md`（AGPL）
+- 文档：`docs/musicapi-migration.md`（gomusic 设计/验收）、`docs/native-modes-migration.md`（native 目标）、`PLAN.md`、`THIRD_PARTY_NOTICES.md`（AGPL）
 - 旧网易云 Node API 实现保留在 `api` 分支，不再维护
 - 发版流程：`docs/release-checklist.md`；本地预检：`scripts/release_preflight.sh v1.0.2 --build`
 

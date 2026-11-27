@@ -1,5 +1,6 @@
-# Laetibeat 在线音源迁移设计（最终方案）
+# Laetibeat 在线音源迁移设计（gomusic 分支）
 
+> **分支限定**：本方案仅适用于 `gomusic` 分支。`native` 分支已转向 `QQMusicApi-rs`（QQ）+ `ncm-api-rs`（网易云）的 Rust 原生 sidecar，详见 `docs/native-modes-migration.md`。
 > 最后更新：2026-11-27
 > 决策：旧网易云 Node API 已从 `main` 删除；**不做 overlay / 兼容层**；网易云和 QQ 统一走 `go-music-api`；host 随 App 内置，不再需要 NAS/Docker；发现页已接入网易云/QQ 平台切换。
 > 旧实现完整保存在 `api` 分支；本文档只描述 `main` 的目标方案。

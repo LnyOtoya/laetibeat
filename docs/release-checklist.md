@@ -1,6 +1,7 @@
 # Release Checklist
 
-> 当前目标版本：`1.0.2`（2026-11-27）
+> 当前目标版本：`1.0.2`（2026-11-27，gomusic 分支）
+> native 分支发布前需要重新确认版本号、host 二进制、许可证与模式切换验收。
 > 版本策略：tag `vMAJOR.MINOR.PATCH`；`pubspec` 使用 `X.Y.Z+VERSION_CODE`。
 > `versionCode = MAJOR * 1000000 + MINOR * 1000 + PATCH`。
 > split APK 会在 base versionCode 上叠加 ABI offset：armv7 `+1000`、arm64 `+2000`、x86_64 `+4000`。
