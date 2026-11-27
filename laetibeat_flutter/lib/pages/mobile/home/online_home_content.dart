@@ -115,6 +115,7 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
               !_hiddenBlockCodes.contains(block.code) &&
               block.title.trim().isNotEmpty &&
               block.items.isNotEmpty &&
+              block.code != 'HOMEPAGE_BLOCK_TAILORED_SONG' &&
               !block.title.contains('根据你喜爱的歌曲推荐'),
         )
         .toList(growable: false);
