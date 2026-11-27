@@ -217,6 +217,135 @@ pub struct OnlineQuality {
     pub vip: bool,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ApiHomeFeed {
+    #[serde(default)]
+    pub cursor: Option<String>,
+    #[serde(default)]
+    pub blocks: Vec<ApiHomeBlock>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ApiHomeBlock {
+    #[serde(default)]
+    pub code: String,
+    #[serde(default, rename = "showType")]
+    pub show_type: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub action: String,
+    #[serde(default)]
+    pub items: Vec<ApiHomeItem>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ApiHomeItem {
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub subtitle: String,
+    #[serde(default)]
+    pub cover: String,
+    #[serde(default)]
+    pub section: String,
+    #[serde(default)]
+    pub artists: String,
+    #[serde(default)]
+    pub album: String,
+    #[serde(default)]
+    pub album_id: String,
+    #[serde(default)]
+    pub duration: i64,
+    #[serde(default)]
+    pub play_count: i64,
+    #[serde(default)]
+    pub track_count: i64,
+    #[serde(default)]
+    pub action: String,
+    #[serde(default)]
+    pub source: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct OnlineHomeFeed {
+    pub cursor: Option<String>,
+    pub blocks: Vec<OnlineHomeBlock>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct OnlineHomeBlock {
+    pub code: String,
+    pub show_type: String,
+    pub title: String,
+    pub action: String,
+    pub items: Vec<OnlineHomeItem>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct OnlineHomeItem {
+    pub kind: String,
+    pub id: String,
+    pub title: String,
+    pub subtitle: String,
+    pub cover_url: Option<String>,
+    pub section: String,
+    pub artists: String,
+    pub album: String,
+    pub album_id: String,
+    pub duration_seconds: u64,
+    pub play_count: u64,
+    pub track_count: u32,
+    pub action: String,
+    pub source: String,
+}
+
+impl OnlineHomeFeed {
+    pub fn from_api(feed: ApiHomeFeed) -> Self {
+        Self {
+            cursor: feed.cursor,
+            blocks: feed
+                .blocks
+                .into_iter()
+                .map(|block| OnlineHomeBlock {
+                    code: block.code,
+                    show_type: block.show_type,
+                    title: block.title,
+                    action: block.action,
+                    items: block
+                        .items
+                        .into_iter()
+                        .map(|item| OnlineHomeItem {
+                            kind: item.kind,
+                            id: item.id,
+                            title: item.title,
+                            subtitle: item.subtitle,
+                            cover_url: https_url(item.cover),
+                            section: item.section,
+                            artists: item.artists,
+                            album: item.album,
+                            album_id: item.album_id,
+                            duration_seconds: item.duration.max(0) as u64,
+                            play_count: item.play_count.max(0) as u64,
+                            track_count: item.track_count.max(0) as u32,
+                            action: item.action,
+                            source: if item.source.trim().is_empty() {
+                                "netease".to_string()
+                            } else {
+                                item.source
+                            },
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct OnlineSearchResult {
     pub songs: Vec<OnlineTrack>,

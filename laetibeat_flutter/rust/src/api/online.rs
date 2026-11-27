@@ -1,7 +1,8 @@
 use flutter_rust_bridge::frb;
 use laetibeat_online::{
-    OnlineAlbum, OnlineClient, OnlinePlatformStatus, OnlinePlaylist, OnlineQrResult,
-    OnlineQrSession, OnlineQuality, OnlineTopList, OnlineTrack,
+    OnlineAlbum, OnlineClient, OnlineHomeBlock, OnlineHomeFeed, OnlineHomeItem,
+    OnlinePlatformStatus, OnlinePlaylist, OnlineQrResult, OnlineQrSession, OnlineQuality,
+    OnlineTopList, OnlineTrack,
 };
 
 use crate::api::simple::UiTrack;
@@ -90,6 +91,39 @@ pub struct UiOnlineQrResult {
     pub cookie_saved: bool,
 }
 
+#[frb(non_opaque)]
+pub struct UiOnlineHomeFeed {
+    pub cursor: Option<String>,
+    pub blocks: Vec<UiOnlineHomeBlock>,
+}
+
+#[frb(non_opaque)]
+pub struct UiOnlineHomeBlock {
+    pub code: String,
+    pub show_type: String,
+    pub title: String,
+    pub action: String,
+    pub items: Vec<UiOnlineHomeItem>,
+}
+
+#[frb(non_opaque)]
+pub struct UiOnlineHomeItem {
+    pub kind: String,
+    pub id: String,
+    pub title: String,
+    pub subtitle: String,
+    pub cover_url: Option<String>,
+    pub section: String,
+    pub artists: String,
+    pub album: String,
+    pub album_id: String,
+    pub duration_seconds: u64,
+    pub play_count: u64,
+    pub track_count: u32,
+    pub action: String,
+    pub source: String,
+}
+
 fn client(base_url: &str, token: Option<String>) -> Result<OnlineClient, String> {
     OnlineClient::new(base_url, token.as_deref()).map_err(|error| error.to_string())
 }
@@ -100,6 +134,20 @@ pub fn online_health(base_url: String, token: Option<String>) -> Result<UiOnline
     Ok(UiOnlineStatus {
         base_url: client.base_url().to_string(),
     })
+}
+
+pub fn online_home_feed(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+    refresh: Option<bool>,
+    cursor: Option<String>,
+) -> Result<UiOnlineHomeFeed, String> {
+    let client = client(&base_url, token)?;
+    let feed = client
+        .home_feed(&source, refresh.unwrap_or(false), cursor.as_deref())
+        .map_err(|error| error.to_string())?;
+    Ok(map_home_feed(feed))
 }
 
 pub fn online_search_songs(
@@ -368,6 +416,42 @@ fn map_track(client: &OnlineClient, track: OnlineTrack) -> UiTrack {
         channels: None,
         modified_ms: None,
         file_size: track.file_size,
+    }
+}
+
+fn map_home_feed(feed: OnlineHomeFeed) -> UiOnlineHomeFeed {
+    UiOnlineHomeFeed {
+        cursor: feed.cursor,
+        blocks: feed.blocks.into_iter().map(map_home_block).collect(),
+    }
+}
+
+fn map_home_block(block: OnlineHomeBlock) -> UiOnlineHomeBlock {
+    UiOnlineHomeBlock {
+        code: block.code,
+        show_type: block.show_type,
+        title: block.title,
+        action: block.action,
+        items: block.items.into_iter().map(map_home_item).collect(),
+    }
+}
+
+fn map_home_item(item: OnlineHomeItem) -> UiOnlineHomeItem {
+    UiOnlineHomeItem {
+        kind: item.kind,
+        id: item.id,
+        title: item.title,
+        subtitle: item.subtitle,
+        cover_url: item.cover_url,
+        section: item.section,
+        artists: item.artists,
+        album: item.album,
+        album_id: item.album_id,
+        duration_seconds: item.duration_seconds,
+        play_count: item.play_count,
+        track_count: item.track_count,
+        action: item.action,
+        source: item.source,
     }
 }
 

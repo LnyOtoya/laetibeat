@@ -108,6 +108,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/v1/system/qr_login/{source}", get(qr_status_compat))
         .route("/laetibeat/system/platforms", get(platforms))
         .route("/laetibeat/system/platforms/{source}", delete(logout))
+        .route("/api/v1/home/feed", get(home_feed))
         .route("/api/v1/playlist/detail", get(playlist_detail))
         .route("/api/v1/album/detail", get(album_detail))
         .route("/api/v1/playlist/user", get(user_playlists))
@@ -449,6 +450,217 @@ async fn qualities() -> ApiResult {
             ]
         }
     })))
+}
+
+#[derive(Debug, Deserialize)]
+struct HomeFeedParams {
+    refresh: Option<String>,
+    cursor: Option<String>,
+}
+
+async fn home_feed(
+    State(state): State<SharedState>,
+    Query(params): Query<HomeFeedParams>,
+) -> ApiResult {
+    let refresh = matches!(
+        params.refresh.as_deref(),
+        Some("1" | "true" | "True" | "yes")
+    );
+    let cursor = params.cursor.unwrap_or_default();
+    let query = NcmQuery::new()
+        .param("refresh", if refresh { "true" } else { "false" })
+        .param("cursor", &cursor);
+    let client = state.client.lock().await;
+    let response = client
+        .homepage_block_page(&query)
+        .await
+        .map_err(ncm_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": map_home_feed(&response.body),
+    })))
+}
+
+fn map_home_feed(body: &Value) -> Value {
+    let data = body.get("data").unwrap_or(body);
+    let cursor = data.get("cursor").and_then(|value| {
+        if value.is_null() {
+            None
+        } else {
+            let text = value_string(value);
+            if text.is_empty() {
+                None
+            } else {
+                Some(text)
+            }
+        }
+    });
+    let blocks = data
+        .get("blocks")
+        .and_then(Value::as_array)
+        .map(|items| items.iter().map(map_home_block).collect::<Vec<_>>())
+        .unwrap_or_default();
+    json!({ "cursor": cursor, "blocks": blocks })
+}
+
+fn map_home_block(block: &Value) -> Value {
+    let code = first_string(block, &["blockCode"]);
+    let show_type = first_string(block, &["showType"]);
+    let ui = block.get("uiElement");
+    let title = ui
+        .and_then(|value| value.pointer("/subTitle/title"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let action = block
+        .get("action")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let mut items = Vec::new();
+    if let Some(creatives) = block.get("creatives").and_then(Value::as_array) {
+        for creative in creatives {
+            let section = creative
+                .pointer("/uiElement/mainTitle/title")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            if let Some(resources) = creative.get("resources").and_then(Value::as_array) {
+                for resource in resources {
+                    items.push(map_home_resource(resource, section));
+                }
+            }
+        }
+    }
+    if items.is_empty() {
+        if let Some(banners) = block.pointer("/extInfo/banners").and_then(Value::as_array) {
+            items.extend(banners.iter().map(map_home_banner));
+        }
+    }
+    json!({
+        "code": code,
+        "showType": show_type,
+        "title": title,
+        "action": action,
+        "items": items,
+    })
+}
+
+fn map_home_resource(resource: &Value, section: &str) -> Value {
+    let kind = first_string(resource, &["resourceType"]);
+    let id = resource
+        .get("resourceId")
+        .map(value_string)
+        .unwrap_or_default();
+    let ui = resource.get("uiElement");
+    let title = ui
+        .and_then(|value| value.pointer("/mainTitle/title"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let subtitle = ui
+        .and_then(|value| value.pointer("/subTitle/title"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let cover = ui
+        .and_then(|value| value.pointer("/image/imageUrl"))
+        .and_then(Value::as_str)
+        .map(normalize_https)
+        .unwrap_or_default();
+    let action = resource
+        .get("action")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let ext = resource.get("resourceExtInfo");
+    let artists = ext
+        .and_then(|value| value.get("artists"))
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.get("name").and_then(Value::as_str))
+                .collect::<Vec<_>>()
+                .join("/")
+        })
+        .unwrap_or_default();
+    let song = ext.and_then(|value| value.get("song"));
+    let album = song.and_then(|value| value.get("al"));
+    let album_name = album
+        .and_then(|value| value.get("name"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let album_id = album
+        .and_then(|value| value.get("id"))
+        .map(value_string)
+        .unwrap_or_default();
+    let duration = song
+        .and_then(|value| value.get("dt").or_else(|| value.get("duration")))
+        .and_then(Value::as_i64)
+        .map(|value| if value > 1000 { value / 1000 } else { value })
+        .unwrap_or(0);
+    let play_count = ext
+        .and_then(|value| value.get("playCount"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let track_count = ext
+        .and_then(|value| {
+            value
+                .get("songCount")
+                .or_else(|| value.get("trackCount"))
+                .or_else(|| value.get("songnum"))
+        })
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    json!({
+        "kind": kind,
+        "id": id,
+        "title": title,
+        "subtitle": subtitle,
+        "cover": cover,
+        "section": section,
+        "artists": artists,
+        "album": album_name,
+        "album_id": album_id,
+        "duration": duration,
+        "play_count": play_count,
+        "track_count": track_count,
+        "action": action,
+        "source": "netease",
+    })
+}
+
+fn map_home_banner(banner: &Value) -> Value {
+    let id = banner.get("targetId").map(value_string).unwrap_or_default();
+    let cover = banner
+        .get("pic")
+        .and_then(Value::as_str)
+        .map(normalize_https)
+        .unwrap_or_default();
+    let title = banner
+        .get("typeTitle")
+        .and_then(Value::as_str)
+        .or_else(|| banner.get("mainTitle").and_then(Value::as_str))
+        .unwrap_or("")
+        .to_string();
+    json!({
+        "kind": "banner",
+        "id": id,
+        "title": title,
+        "subtitle": "",
+        "cover": cover,
+        "section": "",
+        "artists": "",
+        "album": "",
+        "album_id": "",
+        "duration": 0,
+        "play_count": 0,
+        "track_count": 0,
+        "action": banner.get("url").and_then(Value::as_str).unwrap_or(""),
+        "source": "netease",
+    })
 }
 
 #[derive(Debug, Deserialize)]
@@ -1025,4 +1237,55 @@ fn env_first(names: &[&str]) -> Option<String> {
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty())
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn maps_home_feed_blocks_and_resources() {
+        let body = json!({
+            "data": {
+                "cursor": "next-page",
+                "blocks": [
+                    {
+                        "blockCode": "HOMEPAGE_BLOCK_MGC_PLAYLIST",
+                        "showType": "HOMEPAGE_SLIDE_PLAYLIST",
+                        "uiElement": {"subTitle": {"title": "网易云音乐的雷达歌单"}},
+                        "creatives": [
+                            {
+                                "uiElement": {"mainTitle": {"title": ""}},
+                                "resources": [
+                                    {
+                                        "resourceType": "list",
+                                        "resourceId": "123",
+                                        "uiElement": {
+                                            "mainTitle": {"title": "华语私人雷达"},
+                                            "subTitle": {"title": "每日更新"},
+                                            "image": {"imageUrl": "http://example.com/cover.jpg"}
+                                        },
+                                        "resourceExtInfo": {"playCount": 42, "songCount": 30}
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        });
+
+        let mapped = map_home_feed(&body);
+        assert_eq!(mapped["cursor"], "next-page");
+        assert_eq!(mapped["blocks"][0]["code"], "HOMEPAGE_BLOCK_MGC_PLAYLIST");
+        assert_eq!(mapped["blocks"][0]["title"], "网易云音乐的雷达歌单");
+        assert_eq!(mapped["blocks"][0]["items"][0]["kind"], "list");
+        assert_eq!(mapped["blocks"][0]["items"][0]["id"], "123");
+        assert_eq!(
+            mapped["blocks"][0]["items"][0]["cover"],
+            "https://example.com/cover.jpg"
+        );
+        assert_eq!(mapped["blocks"][0]["items"][0]["play_count"], 42);
+    }
 }

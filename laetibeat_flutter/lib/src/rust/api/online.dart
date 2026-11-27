@@ -7,13 +7,27 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'simple.dart';
 
-// These functions are ignored because they are not marked as `pub`: `client`, `map_album`, `map_platform_status`, `map_playlist`, `map_qr_result`, `map_qr_session`, `map_quality`, `map_top_list`, `map_track`
+// These functions are ignored because they are not marked as `pub`: `client`, `map_album`, `map_home_block`, `map_home_feed`, `map_home_item`, `map_platform_status`, `map_playlist`, `map_qr_result`, `map_qr_session`, `map_quality`, `map_top_list`, `map_track`
 
 Future<UiOnlineStatus> onlineHealth({required String baseUrl, String? token}) =>
     RustLib.instance.api.crateApiOnlineOnlineHealth(
       baseUrl: baseUrl,
       token: token,
     );
+
+Future<UiOnlineHomeFeed> onlineHomeFeed({
+  required String baseUrl,
+  String? token,
+  required String source,
+  bool? refresh,
+  String? cursor,
+}) => RustLib.instance.api.crateApiOnlineOnlineHomeFeed(
+  baseUrl: baseUrl,
+  token: token,
+  source: source,
+  refresh: refresh,
+  cursor: cursor,
+);
 
 Future<List<UiTrack>> onlineSearchSongs({
   required String baseUrl,
@@ -258,6 +272,130 @@ class UiOnlineAlbum {
           coverUrl == other.coverUrl &&
           trackCount == other.trackCount &&
           artist == other.artist;
+}
+
+class UiOnlineHomeBlock {
+  final String code;
+  final String showType;
+  final String title;
+  final String action;
+  final List<UiOnlineHomeItem> items;
+
+  const UiOnlineHomeBlock({
+    required this.code,
+    required this.showType,
+    required this.title,
+    required this.action,
+    required this.items,
+  });
+
+  @override
+  int get hashCode =>
+      code.hashCode ^
+      showType.hashCode ^
+      title.hashCode ^
+      action.hashCode ^
+      items.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiOnlineHomeBlock &&
+          runtimeType == other.runtimeType &&
+          code == other.code &&
+          showType == other.showType &&
+          title == other.title &&
+          action == other.action &&
+          items == other.items;
+}
+
+class UiOnlineHomeFeed {
+  final String? cursor;
+  final List<UiOnlineHomeBlock> blocks;
+
+  const UiOnlineHomeFeed({this.cursor, required this.blocks});
+
+  @override
+  int get hashCode => cursor.hashCode ^ blocks.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiOnlineHomeFeed &&
+          runtimeType == other.runtimeType &&
+          cursor == other.cursor &&
+          blocks == other.blocks;
+}
+
+class UiOnlineHomeItem {
+  final String kind;
+  final String id;
+  final String title;
+  final String subtitle;
+  final String? coverUrl;
+  final String section;
+  final String artists;
+  final String album;
+  final String albumId;
+  final BigInt durationSeconds;
+  final BigInt playCount;
+  final int trackCount;
+  final String action;
+  final String source;
+
+  const UiOnlineHomeItem({
+    required this.kind,
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    this.coverUrl,
+    required this.section,
+    required this.artists,
+    required this.album,
+    required this.albumId,
+    required this.durationSeconds,
+    required this.playCount,
+    required this.trackCount,
+    required this.action,
+    required this.source,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      id.hashCode ^
+      title.hashCode ^
+      subtitle.hashCode ^
+      coverUrl.hashCode ^
+      section.hashCode ^
+      artists.hashCode ^
+      album.hashCode ^
+      albumId.hashCode ^
+      durationSeconds.hashCode ^
+      playCount.hashCode ^
+      trackCount.hashCode ^
+      action.hashCode ^
+      source.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiOnlineHomeItem &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          id == other.id &&
+          title == other.title &&
+          subtitle == other.subtitle &&
+          coverUrl == other.coverUrl &&
+          section == other.section &&
+          artists == other.artists &&
+          album == other.album &&
+          albumId == other.albumId &&
+          durationSeconds == other.durationSeconds &&
+          playCount == other.playCount &&
+          trackCount == other.trackCount &&
+          action == other.action &&
+          source == other.source;
 }
 
 class UiOnlineLyric {

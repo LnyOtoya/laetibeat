@@ -21,6 +21,23 @@ typedef OnlineUserPlaylistKey = ({String source, int page, int limit});
 
 typedef OnlineHotSongsKey = ({String source, int limit});
 
+typedef OnlineHomeFeedKey = ({String source, bool refresh, int generation});
+
+final onlineHomeFeedProvider = FutureProvider.autoDispose
+    .family<rust_online.UiOnlineHomeFeed, OnlineHomeFeedKey>((ref, key) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('当前模式 sidecar 未启动');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlineHomeFeed(
+        baseUrl: baseUrl,
+        token: token,
+        source: key.source,
+        refresh: key.refresh,
+      );
+    });
+
 final onlinePlatformStatusesProvider =
     FutureProvider.autoDispose<List<rust_online.UiOnlinePlatformStatus>>((
       ref,

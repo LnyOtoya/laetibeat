@@ -18,7 +18,9 @@
 - [x] 模式切换停止服务 / 保留 Cookie
 - [x] 搜索 / 发现 / 播放 / 登录按模式切换
 - [x] 一级导航按模式动态变化
-- [ ] 首页 / 媒体库 / 统计页面内容按模式区分
+- [x] 网易云首页动态 feed（block / refresh / cursor）
+- [ ] QQ 首页动态 feed
+- [ ] 媒体库 / 统计页面内容按模式区分
 - [x] Android / Linux 打包两个 Rust host
 - [x] CI 增加 Rust host 矩阵
 - [x] 删除 go-music-api 与 Go 打包链
