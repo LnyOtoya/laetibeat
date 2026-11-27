@@ -139,6 +139,9 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
         .value
         ?.firstOrNull
         ?.coverId;
+    debugPrint(
+      'home covers daily=$dailyCover heart=$likedCover roam=$roamCover',
+    );
     final playlistBlock = _findBlock(feed, const <String>{
       'HOMEPAGE_BLOCK_PLAYLIST_RCMD',
       'HOMEPAGE_BLOCK_OFFICIAL_PLAYLIST',
@@ -147,7 +150,7 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
       'HOMEPAGE_BLOCK_MGC_PLAYLIST',
     });
     return OnlineShortcutRow(
-      dailyCover: dailyCover,
+      dailyCover: dailyCover ?? playlistBlock?.items.firstOrNull?.coverUrl,
       heartCover: likedCover,
       playlistCover: playlistBlock?.items.firstOrNull?.coverUrl,
       roamCover: roamCover,
