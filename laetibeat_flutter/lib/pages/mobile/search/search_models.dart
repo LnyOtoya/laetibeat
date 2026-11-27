@@ -3,7 +3,7 @@
 enum MobileSearchCategory { songs, playlists, albums, artists }
 
 /// Source filter used by the search page's split filter button.
-enum MobileSearchSourceFilter { all, local, subsonic, lx }
+enum MobileSearchSourceFilter { all, local, subsonic, lx, netease, qq }
 
 /// One clickable suggestion shown below the library search bar.
 class MobileSearchSuggestion {

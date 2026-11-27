@@ -1,0 +1,324 @@
+use serde::Deserialize;
+
+use crate::error::{OnlineError, Result};
+use crate::http::HttpClient;
+use crate::model::{
+    map_album, map_playlist, map_quality, map_song, map_top_list, ApiHotSongsData, ApiLyricData,
+    ApiPlaylist, ApiQualitiesData, ApiSearchData, ApiSong, ApiTopListsData, ApiUrlData,
+    ApiUserPlaylistsData, OnlineAlbum, OnlineLyric, OnlinePlaylist, OnlineQuality,
+    OnlineResolvedAudio, OnlineSearchResult, OnlineTopList, OnlineTrack,
+};
+
+#[derive(Debug, Deserialize)]
+struct HealthResponse {
+    #[serde(default)]
+    status: String,
+}
+
+pub struct OnlineClient {
+    http: HttpClient,
+    instance_id: String,
+}
+
+impl OnlineClient {
+    pub fn new(base_url: &str, token: Option<&str>) -> Result<Self> {
+        let http = HttpClient::new(base_url, token)?;
+        let instance_id = format!("musicapi:{}", http.base_url());
+        Ok(Self { http, instance_id })
+    }
+
+    /// 规范化后的服务地址。
+    pub fn base_url(&self) -> &str {
+        self.http.base_url()
+    }
+
+    /// 用于 `UiTrack.sourceId` 的服务实例标识。
+    pub fn instance_id(&self) -> &str {
+        &self.instance_id
+    }
+
+    pub fn health(&self) -> Result<()> {
+        let response: HealthResponse = self.http.get_json("/laetibeat/health", &[])?;
+        if response.status == "ok" {
+            Ok(())
+        } else {
+            Err(OnlineError::Api("健康检查未返回 ok".to_string()))
+        }
+    }
+
+    pub fn search_songs(
+        &self,
+        source: &str,
+        query: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<OnlineTrack>> {
+        Ok(self.search(source, query, "song", limit, offset)?.songs)
+    }
+
+    pub fn search_playlists(
+        &self,
+        source: &str,
+        query: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<OnlinePlaylist>> {
+        Ok(self
+            .search(source, query, "playlist", limit, offset)?
+            .playlists)
+    }
+
+    pub fn search_albums(
+        &self,
+        source: &str,
+        query: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<OnlineAlbum>> {
+        Ok(self.search(source, query, "album", limit, offset)?.albums)
+    }
+
+    pub fn search(
+        &self,
+        source: &str,
+        query: &str,
+        kind: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<OnlineSearchResult> {
+        let data: ApiSearchData = self.http.get_data(
+            "/api/v1/music/search",
+            &[
+                ("q", query.to_string()),
+                ("type", kind.to_string()),
+                ("sources", source.to_string()),
+                ("limit", limit.max(1).to_string()),
+                ("offset", offset.to_string()),
+            ],
+        )?;
+
+        Ok(OnlineSearchResult {
+            songs: data
+                .songs
+                .unwrap_or_default()
+                .into_iter()
+                .map(|song| map_song(source, song))
+                .collect(),
+            playlists: data
+                .playlists
+                .unwrap_or_default()
+                .into_iter()
+                .map(|playlist| map_playlist(source, playlist))
+                .collect(),
+            albums: data
+                .albums
+                .unwrap_or_default()
+                .into_iter()
+                .map(|album| map_album(source, album))
+                .collect(),
+        })
+    }
+
+    pub fn playlist_tracks(&self, source: &str, id: &str) -> Result<Vec<OnlineTrack>> {
+        let songs = self
+            .http
+            .get_data_opt::<Vec<ApiSong>>(
+                "/api/v1/playlist/detail",
+                &[("source", source.to_string()), ("id", id.to_string())],
+            )?
+            .unwrap_or_default();
+        Ok(songs
+            .into_iter()
+            .map(|song| map_song(source, song))
+            .collect())
+    }
+
+    pub fn album_tracks(&self, source: &str, id: &str) -> Result<Vec<OnlineTrack>> {
+        let songs = self
+            .http
+            .get_data_opt::<Vec<ApiSong>>(
+                "/api/v1/album/detail",
+                &[("source", source.to_string()), ("id", id.to_string())],
+            )?
+            .unwrap_or_default();
+        Ok(songs
+            .into_iter()
+            .map(|song| map_song(source, song))
+            .collect())
+    }
+
+    pub fn user_playlists(
+        &self,
+        source: &str,
+        page: u32,
+        limit: u32,
+    ) -> Result<Vec<OnlinePlaylist>> {
+        let data: ApiUserPlaylistsData = self.http.get_data(
+            "/api/v1/playlist/user",
+            &[
+                ("source", source.to_string()),
+                ("page", page.max(1).to_string()),
+                ("limit", limit.max(1).to_string()),
+            ],
+        )?;
+        Ok(data
+            .playlists
+            .unwrap_or_default()
+            .into_iter()
+            .map(|playlist| map_playlist(source, playlist))
+            .collect())
+    }
+
+    pub fn recommend_playlists(&self, source: &str) -> Result<Vec<OnlinePlaylist>> {
+        let playlists = self
+            .http
+            .get_data_opt::<Vec<ApiPlaylist>>(
+                "/api/v1/playlist/recommend",
+                &[("sources", source.to_string())],
+            )?
+            .unwrap_or_default();
+        Ok(playlists
+            .into_iter()
+            .map(|playlist| map_playlist(source, playlist))
+            .collect())
+    }
+
+    pub fn top_lists(&self, source: &str) -> Result<Vec<OnlineTopList>> {
+        let data: ApiTopListsData = self.http.get_data(
+            "/api/v1/ranking/toplists",
+            &[("sources", source.to_string())],
+        )?;
+        Ok(data
+            .toplists
+            .unwrap_or_default()
+            .into_iter()
+            .map(|top_list| map_top_list(source, top_list))
+            .collect())
+    }
+
+    pub fn top_list_songs(&self, source: &str, id: &str) -> Result<Vec<OnlineTrack>> {
+        let data: ApiHotSongsData = self.http.get_data(
+            "/api/v1/ranking/toplist",
+            &[
+                ("source", source.to_string()),
+                ("toplist_id", id.to_string()),
+            ],
+        )?;
+        Ok(data
+            .songs
+            .unwrap_or_default()
+            .into_iter()
+            .map(|song| map_song(source, song))
+            .collect())
+    }
+
+    pub fn hot_songs(&self, source: &str, limit: u32) -> Result<Vec<OnlineTrack>> {
+        let data: ApiHotSongsData = self.http.get_data(
+            "/api/v1/ranking/hot",
+            &[
+                ("source", source.to_string()),
+                ("limit", limit.max(1).to_string()),
+            ],
+        )?;
+        Ok(data
+            .songs
+            .unwrap_or_default()
+            .into_iter()
+            .map(|song| map_song(source, song))
+            .collect())
+    }
+
+    pub fn resolve_audio(
+        &self,
+        source: &str,
+        id: &str,
+        quality: &str,
+    ) -> Result<OnlineResolvedAudio> {
+        let data: ApiUrlData = self.http.get_data(
+            "/api/v1/music/url",
+            &[
+                ("source", source.to_string()),
+                ("id", id.to_string()),
+                ("quality", quality.to_string()),
+            ],
+        )?;
+        if data.url.trim().is_empty() {
+            return Err(OnlineError::Api("没有返回可播放地址".to_string()));
+        }
+        Ok(OnlineResolvedAudio {
+            url: data.url,
+            quality: data.quality,
+            ext: data.ext,
+        })
+    }
+
+    pub fn lyric(&self, source: &str, id: &str) -> Result<OnlineLyric> {
+        let data: ApiLyricData = self.http.get_data(
+            "/api/v1/music/lyric",
+            &[("source", source.to_string()), ("id", id.to_string())],
+        )?;
+        Ok(OnlineLyric { lyric: data.lyric })
+    }
+
+    pub fn qualities(&self, source: &str) -> Result<Vec<OnlineQuality>> {
+        let data: ApiQualitiesData = self
+            .http
+            .get_data("/api/v1/music/qualities", &[("source", source.to_string())])?;
+        Ok(data.qualities.into_iter().map(map_quality).collect())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn instance_id_uses_normalized_base_url() {
+        let client = OnlineClient::new("http://127.0.0.1:8080/", Some("t")).unwrap();
+        assert_eq!(client.instance_id(), "musicapi:http://127.0.0.1:8080");
+    }
+
+    /// 本地联调：
+    /// `LAETIBEAT_MUSICAPI_BASE_URL=http://127.0.0.1:PORT \
+    ///  LAETIBEAT_MUSICAPI_TOKEN=secret \
+    ///  cargo test -p laetibeat_online live_probe -- --ignored`
+    #[test]
+    #[ignore]
+    fn live_probe() {
+        let base_url =
+            std::env::var("LAETIBEAT_MUSICAPI_BASE_URL").expect("set LAETIBEAT_MUSICAPI_BASE_URL");
+        let token = std::env::var("LAETIBEAT_MUSICAPI_TOKEN").ok();
+        let client = OnlineClient::new(&base_url, token.as_deref()).unwrap();
+        client.health().unwrap();
+
+        let qq_songs = client.search_songs("qq", "稻香", 10, 0).unwrap();
+        assert!(!qq_songs.is_empty(), "QQ search returned no songs");
+        assert!(qq_songs[0].ui_id().starts_with("qq:"));
+
+        let netease_songs = client.search_songs("netease", "稻香", 10, 0).unwrap();
+        assert!(
+            !netease_songs.is_empty(),
+            "NetEase search returned no songs (music-lib patch missing?)"
+        );
+        assert!(netease_songs[0].ui_id().starts_with("netease:"));
+        if let Some(cover) = &netease_songs[0].cover_url {
+            assert!(
+                cover.starts_with("https://"),
+                "cover must be HTTPS: {cover}"
+            );
+        }
+
+        let resolved = client
+            .resolve_audio("qq", "002PZvTU4YHsBI", "standard")
+            .unwrap();
+        assert!(!resolved.url.is_empty());
+
+        let netease_resolved = client
+            .resolve_audio("netease", "1973665667", "high")
+            .unwrap();
+        assert!(!netease_resolved.url.is_empty());
+
+        let lyric = client.lyric("netease", "1973665667").unwrap();
+        assert!(!lyric.lyric.is_empty());
+    }
+}

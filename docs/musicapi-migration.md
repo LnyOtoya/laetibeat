@@ -148,14 +148,12 @@ Android 打包条件：
 
 纯 go-music-api 下，网易云搜索是唯一阻塞项：
 
-- 上游 `music-lib/netease.cloudSearch` 使用 `linux/forward`，实测返回空。
+- 上游 `music-lib/netease.cloudSearch` 使用 `linux/forward`，实测返回 **HTTP 502**。
 - 已实测 `weapi /weapi/cloudsearch/pc` 正常。
-- 修复约 15 行：把 `cloudSearch` 改为 `EncryptWeApi` + `POST https://music.163.com/weapi/cloudsearch/pc`，解析 `result.songs`。
+- 已采用**单函数本地 fork**：`laetibeat_musicapi_host/third_party/music-lib/netease/netease.go` 的 `cloudSearch` 改为 `EncryptWeApi` + `POST https://music.163.com/weapi/cloudsearch/pc`；host `go.mod` 使用 `replace` 指到该目录。
+- 其余 `music-lib` 代码不变；`third_party/music-lib/PATCH.md` 记录唯一改动。
 
-交付方式：
-
-1. 先给 `music-lib` 提 PR；
-2. 若上游暂时不合，fork `music-lib`，只保留这一处 commit，`go.mod` pin 到 fork。
+删除路径：上游修复后，删除 `third_party/music-lib` 和 `replace`，bump `music-lib` 版本即可。
 
 这不是 overlay，是修 `go-music-api` 的 provider bug。
 
@@ -398,22 +396,23 @@ QQ 的 `extra` 只有 `songmid` 和 `song_id`；先按 `songmid` 尝试 LX `tx`�
 
 ## 10. 分阶段实施
 
-### M0：Host 骨架（当前）
+### M0：Host 骨架（已完成）
 
-- [ ] `laetibeat_musicapi_host/` Go module
-- [ ] `main.go`：addr/token/data dir
-- [ ] `bearer.go`：鉴权 + 路由屏蔽
-- [ ] `go.mod`：`go-music-api v1.0.2` + `music-lib`
-- [ ] Linux 构建、启动、健康检查
-- [ ] 单元测试：401/200、随机端口、data dir
+- [x] `laetibeat_musicapi_host/` Go module
+- [x] `main.go`：addr/token/data dir
+- [x] `security.go`：鉴权 + 路由屏蔽 + CORS/日志/请求体限制
+- [x] `go.mod`：`go-music-api v1.0.2` + 本地 patched `music-lib`
+- [x] Linux 构建、启动、健康检查
+- [x] 单元测试：401/200、随机端口、data dir、路由屏蔽
 
-### M1：Rust 客户端 + 核心在线
+### M1：Rust 客户端 + 核心在线（已完成）
 
-- [ ] `laetibeat_online` crate + HTTPS 策略
-- [ ] search / playlist / album / url / lyric / qualities
-- [ ] 设置页：内置/远程、token、测试连接
-- [ ] 网易云搜索 weapi 修复（music-lib PR/fork）
-- [ ] 搜索页接入网易云/QQ；播放链路接入
+- [x] `laetibeat_online` crate + HTTPS 策略
+- [x] search / playlist / album / user playlist / recommend / top / hot / url / lyric / qualities
+- [x] 设置页：远程/本机地址、token、测试连接、默认音质、LX 后备
+- [x] 网易云搜索 weapi 修复（本地 music-lib fork）
+- [x] 搜索页接入网易云/QQ；播放链路 + HTTPS 代理 + LX fallback
+- [x] 实机联调：网易云/QQ 搜索、QQ/网易云直链、网易云歌词
 - **验收**：两个平台可搜索、播放、看 LRC。
 
 ### M2：发现页平台选择

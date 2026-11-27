@@ -7,12 +7,15 @@ import 'package:laetibeat/src/rust/api/library.dart' as rust_library;
 import 'package:laetibeat/src/rust/api/metadata.dart' as rust_meta;
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/lyrics.dart' as rust_lyrics;
+import 'package:laetibeat/src/rust/api/online.dart' as rust_online;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 import 'package:saf/saf.dart';
 
 import '../../core/services/saf_uri.dart';
 import '../settings/lyrics_settings.dart';
+import '../settings/online_provider.dart';
+import '../settings/online_settings.dart';
 import 'lx_track.dart';
 import 'player_provider.dart';
 
@@ -111,6 +114,28 @@ class RemoteLyricProvider implements LyricProvider {
   }
 }
 
+/// 在线音源（网易云 / QQ）歌词来源。当前只返回普通 LRC。
+class OnlineTrackLyricProvider implements LyricProvider {
+  OnlineTrackLyricProvider(this._ref);
+
+  final Ref _ref;
+
+  @override
+  Future<Lyrics?> lyrics(rust.UiTrack track) async {
+    final baseUrl = _ref.read(onlineBaseUrlProvider);
+    if (baseUrl.isEmpty) return null;
+    final token = await _ref.read(onlineTokenProvider.future);
+    final lyric = await rust_online.onlineLyric(
+      baseUrl: baseUrl,
+      token: token,
+      source: track.source,
+      trackId: onlinePlatformId(track),
+    );
+    if (lyric.lyric.trim().isEmpty) return null;
+    return _toLyrics(lyric.lyric);
+  }
+}
+
 /// LX 音源歌词来源。歌词解析和网络请求都在 Rust 侧完成。
 class LxLyricProvider implements LyricProvider {
   LxLyricProvider();
@@ -186,6 +211,7 @@ class LyricsRepository {
   LyricsRepository({
     required this.fileProvider,
     required this.remoteProvider,
+    required this.onlineProvider,
     required this.lxProvider,
     required this.lrclibProvider,
     required this.liriqoProvider,
@@ -194,6 +220,7 @@ class LyricsRepository {
 
   final FileLyricProvider fileProvider;
   final RemoteLyricProvider remoteProvider;
+  final OnlineTrackLyricProvider onlineProvider;
   final LxLyricProvider lxProvider;
   final LrclibLyricProvider lrclibProvider;
   final LiriqoLyricProvider liriqoProvider;
@@ -220,6 +247,9 @@ class LyricsRepository {
   Future<Lyrics?> _loadOwnLyrics(rust.UiTrack track) async {
     if (track.source == 'opensubsonic' && track.sourceId.isNotEmpty) {
       return remoteProvider.lyrics(track);
+    }
+    if (track.source == 'netease' || track.source == 'qq') {
+      return onlineProvider.lyrics(track);
     }
     if (track.source == 'lx' && track.sourceId.isNotEmpty) {
       return lxProvider.lyrics(track);
@@ -280,6 +310,10 @@ final remoteLyricProvider = Provider<RemoteLyricProvider>((ref) {
   return RemoteLyricProvider();
 });
 
+final onlineTrackLyricProvider = Provider<OnlineTrackLyricProvider>((ref) {
+  return OnlineTrackLyricProvider(ref);
+});
+
 final lxLyricProvider = Provider<LxLyricProvider>((ref) {
   return LxLyricProvider();
 });
@@ -296,6 +330,7 @@ final lyricsRepositoryProvider = Provider<LyricsRepository>((ref) {
   return LyricsRepository(
     fileProvider: ref.watch(fileLyricProvider),
     remoteProvider: ref.watch(remoteLyricProvider),
+    onlineProvider: ref.watch(onlineTrackLyricProvider),
     lxProvider: ref.watch(lxLyricProvider),
     lrclibProvider: ref.watch(lrclibLyricProvider),
     liriqoProvider: ref.watch(liriqoLyricProvider),

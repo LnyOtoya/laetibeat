@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
+import 'package:laetibeat/src/rust/api/online.dart' as rust_online;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 import 'package:laetibeat/widgets/player/lx_search_provider.dart';
@@ -12,6 +13,7 @@ import 'package:laetibeat/widgets/playlist_provider.dart';
 import 'package:laetibeat/widgets/remote_browser_provider.dart';
 import 'package:laetibeat/widgets/settings/cover_shape_settings.dart';
 import 'package:laetibeat/widgets/settings/music_library_provider.dart';
+import 'package:laetibeat/widgets/settings/online_provider.dart';
 import 'package:laetibeat/widgets/settings/search_settings.dart';
 import 'package:laetibeat/widgets/settings/persistence.dart';
 import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
@@ -24,6 +26,8 @@ import '../library/artists/artist_detail_page.dart';
 import '../library/playlists/local_playlist_detail_page.dart';
 import '../library/playlists/lx_playlist_preview_page.dart';
 import '../library/playlists/playlist_actions.dart';
+import '../library/online/online_detail_pages.dart';
+import '../library/online/online_widgets.dart';
 import '../library/playlists/remote_playlist_detail_page.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
@@ -631,6 +635,14 @@ class _SearchFilterButton extends StatelessWidget {
           value: MobileSearchSourceFilter.lx,
           child: Text(l10n.searchFilterLx),
         ),
+        const M3ESplitButtonItem(
+          value: MobileSearchSourceFilter.netease,
+          child: Text('网易云'),
+        ),
+        const M3ESplitButtonItem(
+          value: MobileSearchSourceFilter.qq,
+          child: Text('QQ'),
+        ),
       ],
     );
   }
@@ -653,6 +665,36 @@ class _SearchResults extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
+    final onlineSource = switch (filter) {
+      MobileSearchSourceFilter.netease => 'netease',
+      MobileSearchSourceFilter.qq => 'qq',
+      _ => null,
+    };
+    if (onlineSource != null) {
+      return switch (category) {
+        MobileSearchCategory.songs => _OnlineSongsResults(
+          query: query,
+          source: onlineSource,
+        ),
+        MobileSearchCategory.playlists => _OnlinePlaylistResults(
+          query: query,
+          source: onlineSource,
+        ),
+        MobileSearchCategory.albums => _OnlineAlbumResults(
+          query: query,
+          source: onlineSource,
+        ),
+        MobileSearchCategory.artists => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              '${onlineSourceLabel(onlineSource)}暂不支持艺人搜索',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      };
+    }
     if (category == MobileSearchCategory.songs &&
         (filter == MobileSearchSourceFilter.all ||
             filter == MobileSearchSourceFilter.local ||
@@ -1689,4 +1731,190 @@ Widget _loading() {
     padding: EdgeInsets.symmetric(vertical: 32),
     child: Center(child: CircularProgressIndicator()),
   );
+}
+
+
+class _OnlineSongsResults extends ConsumerWidget {
+  const _OnlineSongsResults({required this.query, required this.source});
+
+  final String query;
+  final String source;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final results = ref.watch(
+      onlineSongSearchProvider((
+        source: source,
+        query: query,
+        limit: onlineSearchPageSize,
+        offset: 0,
+      )),
+    );
+
+    return results.when(
+      loading: _loading,
+      error: (Object error, StackTrace? stack) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text('加载失败：$error', textAlign: TextAlign.center),
+        ),
+      ),
+      data: (List<rust.UiTrack> tracks) {
+        if (tracks.isEmpty) {
+          return _empty(l10n, message: '没有找到歌曲');
+        }
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          children: <Widget>[
+            M3EList(
+              color: M3ETheme.of(context).colorScheme.surface,
+              variant: M3ECardVariant.filled,
+              itemCount: tracks.length,
+              onTap: (int index) => ref
+                  .read(playerProvider.notifier)
+                  .load(tracks, index, source: onlineSourceLabel(source)),
+              itemBuilder: (BuildContext context, int index) {
+                final track = tracks[index];
+                return M3EListItem(
+                  headline: track.title,
+                  supportingText: track.artist,
+                  leading: OnlineCover(url: track.coverId),
+                  trailing: _sourceChip(onlineSourceLabel(source), source),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _OnlinePlaylistResults extends ConsumerWidget {
+  const _OnlinePlaylistResults({required this.query, required this.source});
+
+  final String query;
+  final String source;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final results = ref.watch(
+      onlinePlaylistSearchProvider((
+        source: source,
+        query: query,
+        limit: onlineSearchPageSize,
+        offset: 0,
+      )),
+    );
+
+    return results.when(
+      loading: _loading,
+      error: (Object error, StackTrace? stack) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text('加载失败：$error', textAlign: TextAlign.center),
+        ),
+      ),
+      data: (List<rust_online.UiOnlinePlaylist> playlists) {
+        if (playlists.isEmpty) {
+          return _empty(l10n, message: '没有找到歌单');
+        }
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          children: <Widget>[
+            M3EList(
+              color: M3ETheme.of(context).colorScheme.surface,
+              variant: M3ECardVariant.filled,
+              itemCount: playlists.length,
+              onTap: (int index) => pushMobileRootPage(
+                context,
+                OnlinePlaylistDetailPage(playlist: playlists[index]),
+                name: 'online-playlist',
+              ),
+              itemBuilder: (BuildContext context, int index) {
+                final playlist = playlists[index];
+                final supporting = <String>[
+                  if (playlist.creator != null && playlist.creator!.isNotEmpty)
+                    playlist.creator!,
+                  if (playlist.trackCount > 0) '${playlist.trackCount} 首',
+                ];
+                return M3EListItem(
+                  headline: playlist.name,
+                  supportingText: supporting.isEmpty ? '歌单' : supporting.join(' · '),
+                  leading: OnlineCover(url: playlist.coverUrl),
+                  trailing: _sourceChip(onlineSourceLabel(source), source),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _OnlineAlbumResults extends ConsumerWidget {
+  const _OnlineAlbumResults({required this.query, required this.source});
+
+  final String query;
+  final String source;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final results = ref.watch(
+      onlineAlbumSearchProvider((
+        source: source,
+        query: query,
+        limit: onlineSearchPageSize,
+        offset: 0,
+      )),
+    );
+
+    return results.when(
+      loading: _loading,
+      error: (Object error, StackTrace? stack) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text('加载失败：$error', textAlign: TextAlign.center),
+        ),
+      ),
+      data: (List<rust_online.UiOnlineAlbum> albums) {
+        if (albums.isEmpty) {
+          return _empty(l10n, message: '没有找到专辑');
+        }
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          children: <Widget>[
+            M3EList(
+              color: M3ETheme.of(context).colorScheme.surface,
+              variant: M3ECardVariant.filled,
+              itemCount: albums.length,
+              onTap: (int index) => pushMobileRootPage(
+                context,
+                OnlineAlbumDetailPage(album: albums[index]),
+                name: 'online-album',
+              ),
+              itemBuilder: (BuildContext context, int index) {
+                final album = albums[index];
+                final supporting = <String>[
+                  if (album.artist != null && album.artist!.isNotEmpty)
+                    album.artist!,
+                  if (album.trackCount > 0) '${album.trackCount} 首',
+                ];
+                return M3EListItem(
+                  headline: album.name,
+                  supportingText: supporting.isEmpty ? '专辑' : supporting.join(' · '),
+                  leading: OnlineCover(url: album.coverUrl),
+                  trailing: _sourceChip(onlineSourceLabel(source), source),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 }

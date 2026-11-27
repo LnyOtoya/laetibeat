@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:media_kit/media_kit.dart' as mk;
 
+import '../../core/playback/online_audio_https_proxy.dart';
+
 // ---------------------------------------------------------------------------
 // 播放后端抽象
 // ---------------------------------------------------------------------------
@@ -22,10 +24,18 @@ class PlaybackTrack {
   /// 当前 URL 是否只是试听片段。
   final bool isPreview;
 
+  /// 在线音源需要随请求携带的头部（Referer / User-Agent 等）。
+  final Map<String, String> headers;
+
+  /// 在线音源需要经过本机 HTTPS-only 转发器。
+  final bool enforceHttps;
+
   const PlaybackTrack({
     required this.uri,
     this.fallbackDuration = Duration.zero,
     this.isPreview = false,
+    this.headers = const <String, String>{},
+    this.enforceHttps = false,
   });
 }
 
@@ -118,6 +128,8 @@ class MediaKitBackend implements PlaybackBackend {
   }
 
   late final mk.Player _player = mk.Player();
+  final OnlineAudioHttpsProxy _audioProxy = OnlineAudioHttpsProxy();
+  String? _activeProxyUrl;
 
   @override
   Stream<Duration> get positionStream => _player.stream.position;
@@ -174,7 +186,26 @@ class MediaKitBackend implements PlaybackBackend {
 
   @override
   Future<void> open(PlaybackTrack track, {bool play = true}) async {
-    await _player.open(mk.Media(track.uri), play: play);
+    final proxyUrl = track.enforceHttps
+        ? await _audioProxy.register(track.uri, headers: track.headers)
+        : null;
+    try {
+      await _player.open(
+        mk.Media(
+          proxyUrl ?? track.uri,
+          httpHeaders: proxyUrl == null && track.headers.isNotEmpty
+              ? track.headers
+              : null,
+        ),
+        play: play,
+      );
+    } on Object {
+      _audioProxy.release(proxyUrl);
+      rethrow;
+    }
+    final previousProxyUrl = _activeProxyUrl;
+    _activeProxyUrl = proxyUrl;
+    _audioProxy.release(previousProxyUrl);
   }
 
   @override
@@ -192,11 +223,21 @@ class MediaKitBackend implements PlaybackBackend {
 
   @override
   Future<void> stop() async {
-    await _player.stop();
+    try {
+      await _player.stop();
+    } finally {
+      _audioProxy.release(_activeProxyUrl);
+      _activeProxyUrl = null;
+    }
   }
 
   @override
   Future<void> dispose() async {
-    await _player.dispose();
+    try {
+      await _player.dispose();
+    } finally {
+      _activeProxyUrl = null;
+      await _audioProxy.close();
+    }
   }
 }

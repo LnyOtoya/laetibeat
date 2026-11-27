@@ -1,9 +1,7 @@
 use flutter_rust_bridge::frb;
-use laetibeat_core::model::{MusicLibrary, SourceType, Track};
 use laetibeat_core::metadata::file_from_fd;
-use laetibeat_core::scanner::{
-    parse_audio_track_from_file, scan_directory_incremental,
-};
+use laetibeat_core::model::{MusicLibrary, SourceType, Track};
+use laetibeat_core::scanner::{parse_audio_track_from_file, scan_directory_incremental};
 use std::path::PathBuf;
 
 // 桌面弹出系统原生文件夹选择框；移动端由 Flutter 原生选择器处理

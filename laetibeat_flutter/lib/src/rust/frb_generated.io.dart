@@ -7,6 +7,7 @@ import 'api/library.dart';
 import 'api/lx.dart';
 import 'api/lyrics.dart';
 import 'api/metadata.dart';
+import 'api/online.dart';
 import 'api/playlists.dart';
 import 'api/simple.dart';
 import 'api/stats.dart';
@@ -135,6 +136,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UiOnlineAlbum> dco_decode_list_ui_online_album(dynamic raw);
+
+  @protected
+  List<UiOnlinePlaylist> dco_decode_list_ui_online_playlist(dynamic raw);
+
+  @protected
+  List<UiOnlineQuality> dco_decode_list_ui_online_quality(dynamic raw);
+
+  @protected
+  List<UiOnlineTopList> dco_decode_list_ui_online_top_list(dynamic raw);
+
+  @protected
   List<UiPlayEvent> dco_decode_list_ui_play_event(dynamic raw);
 
   @protected
@@ -260,6 +273,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiLyricsSearchResult dco_decode_ui_lyrics_search_result(dynamic raw);
+
+  @protected
+  UiOnlineAlbum dco_decode_ui_online_album(dynamic raw);
+
+  @protected
+  UiOnlineLyric dco_decode_ui_online_lyric(dynamic raw);
+
+  @protected
+  UiOnlinePlaylist dco_decode_ui_online_playlist(dynamic raw);
+
+  @protected
+  UiOnlineQuality dco_decode_ui_online_quality(dynamic raw);
+
+  @protected
+  UiOnlineResolvedAudio dco_decode_ui_online_resolved_audio(dynamic raw);
+
+  @protected
+  UiOnlineStatus dco_decode_ui_online_status(dynamic raw);
+
+  @protected
+  UiOnlineTopList dco_decode_ui_online_top_list(dynamic raw);
 
   @protected
   UiPlayEvent dco_decode_ui_play_event(dynamic raw);
@@ -445,6 +479,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UiOnlineAlbum> sse_decode_list_ui_online_album(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<UiOnlinePlaylist> sse_decode_list_ui_online_playlist(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<UiOnlineQuality> sse_decode_list_ui_online_quality(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<UiOnlineTopList> sse_decode_list_ui_online_top_list(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<UiPlayEvent> sse_decode_list_ui_play_event(SseDeserializer deserializer);
 
   @protected
@@ -600,6 +654,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UiLyricsSearchResult sse_decode_ui_lyrics_search_result(
     SseDeserializer deserializer,
   );
+
+  @protected
+  UiOnlineAlbum sse_decode_ui_online_album(SseDeserializer deserializer);
+
+  @protected
+  UiOnlineLyric sse_decode_ui_online_lyric(SseDeserializer deserializer);
+
+  @protected
+  UiOnlinePlaylist sse_decode_ui_online_playlist(SseDeserializer deserializer);
+
+  @protected
+  UiOnlineQuality sse_decode_ui_online_quality(SseDeserializer deserializer);
+
+  @protected
+  UiOnlineResolvedAudio sse_decode_ui_online_resolved_audio(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  UiOnlineStatus sse_decode_ui_online_status(SseDeserializer deserializer);
+
+  @protected
+  UiOnlineTopList sse_decode_ui_online_top_list(SseDeserializer deserializer);
 
   @protected
   UiPlayEvent sse_decode_ui_play_event(SseDeserializer deserializer);
@@ -832,6 +909,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_ui_online_album(
+    List<UiOnlineAlbum> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_ui_online_playlist(
+    List<UiOnlinePlaylist> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_ui_online_quality(
+    List<UiOnlineQuality> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_ui_online_top_list(
+    List<UiOnlineTopList> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_ui_play_event(
     List<UiPlayEvent> self,
     SseSerializer serializer,
@@ -1032,6 +1133,42 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_ui_lyrics_search_result(
     UiLyricsSearchResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_online_album(UiOnlineAlbum self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ui_online_lyric(UiOnlineLyric self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ui_online_playlist(
+    UiOnlinePlaylist self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_online_quality(
+    UiOnlineQuality self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_online_resolved_audio(
+    UiOnlineResolvedAudio self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_online_status(
+    UiOnlineStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_online_top_list(
+    UiOnlineTopList self,
     SseSerializer serializer,
   );
 

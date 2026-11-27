@@ -1,0 +1,249 @@
+import 'dart:convert';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:laetibeat/src/rust/api/online.dart' as rust_online;
+import 'package:laetibeat/src/rust/api/simple.dart' as rust;
+
+import 'online_settings.dart';
+
+const int onlineSearchPageSize = 10;
+
+typedef OnlineSearchKey = ({
+  String source,
+  String query,
+  int limit,
+  int offset,
+});
+
+typedef OnlineListKey = ({String source, String id});
+
+typedef OnlineUserPlaylistKey = ({String source, int page, int limit});
+
+typedef OnlineHotSongsKey = ({String source, int limit});
+
+final onlineStatusProvider =
+    FutureProvider.autoDispose<rust_online.UiOnlineStatus>((ref) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlineHealth(baseUrl: baseUrl, token: token);
+    });
+
+final onlineSongSearchProvider = FutureProvider.autoDispose
+    .family<List<rust.UiTrack>, OnlineSearchKey>((ref, key) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlineSearchSongs(
+        baseUrl: baseUrl,
+        token: token,
+        source: key.source,
+        query: key.query,
+        limit: key.limit,
+        offset: key.offset,
+      );
+    });
+
+final onlinePlaylistSearchProvider = FutureProvider.autoDispose
+    .family<List<rust_online.UiOnlinePlaylist>, OnlineSearchKey>((
+      ref,
+      key,
+    ) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlineSearchPlaylists(
+        baseUrl: baseUrl,
+        token: token,
+        source: key.source,
+        query: key.query,
+        limit: key.limit,
+        offset: key.offset,
+      );
+    });
+
+final onlineAlbumSearchProvider = FutureProvider.autoDispose
+    .family<List<rust_online.UiOnlineAlbum>, OnlineSearchKey>((ref, key) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlineSearchAlbums(
+        baseUrl: baseUrl,
+        token: token,
+        source: key.source,
+        query: key.query,
+        limit: key.limit,
+        offset: key.offset,
+      );
+    });
+
+final onlinePlaylistTracksProvider = FutureProvider.autoDispose
+    .family<List<rust.UiTrack>, OnlineListKey>((ref, key) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlinePlaylistTracks(
+        baseUrl: baseUrl,
+        token: token,
+        source: key.source,
+        playlistId: key.id,
+      );
+    });
+
+final onlineAlbumTracksProvider = FutureProvider.autoDispose
+    .family<List<rust.UiTrack>, OnlineListKey>((ref, key) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlineAlbumTracks(
+        baseUrl: baseUrl,
+        token: token,
+        source: key.source,
+        albumId: key.id,
+      );
+    });
+
+final onlineUserPlaylistsProvider = FutureProvider.autoDispose
+    .family<List<rust_online.UiOnlinePlaylist>, OnlineUserPlaylistKey>((
+      ref,
+      key,
+    ) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlineUserPlaylists(
+        baseUrl: baseUrl,
+        token: token,
+        source: key.source,
+        page: key.page,
+        limit: key.limit,
+      );
+    });
+
+final onlineRecommendPlaylistsProvider = FutureProvider.autoDispose
+    .family<List<rust_online.UiOnlinePlaylist>, String>((ref, source) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlineRecommendPlaylists(
+        baseUrl: baseUrl,
+        token: token,
+        source: source,
+      );
+    });
+
+final onlineTopListsProvider = FutureProvider.autoDispose
+    .family<List<rust_online.UiOnlineTopList>, String>((ref, source) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlineTopLists(
+        baseUrl: baseUrl,
+        token: token,
+        source: source,
+      );
+    });
+
+final onlineTopListSongsProvider = FutureProvider.autoDispose
+    .family<List<rust.UiTrack>, OnlineListKey>((ref, key) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlineTopListSongs(
+        baseUrl: baseUrl,
+        token: token,
+        source: key.source,
+        topListId: key.id,
+      );
+    });
+
+final onlineHotSongsProvider = FutureProvider.autoDispose
+    .family<List<rust.UiTrack>, OnlineHotSongsKey>((ref, key) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlineHotSongs(
+        baseUrl: baseUrl,
+        token: token,
+        source: key.source,
+        limit: key.limit,
+      );
+    });
+
+final onlineLyricProvider = FutureProvider.autoDispose
+    .family<rust_online.UiOnlineLyric, OnlineListKey>((ref, key) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlineLyric(
+        baseUrl: baseUrl,
+        token: token,
+        source: key.source,
+        trackId: key.id,
+      );
+    });
+
+/// 从 `UiTrack` 中取出平台内 id；兼容旧快照与 `sourceExtraJson`。
+String onlinePlatformId(rust.UiTrack track) {
+  final extra = track.sourceExtraJson;
+  if (extra != null && extra.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(extra);
+      if (decoded is Map) {
+        for (final key in <String>['platformId', 'songId', 'songmid']) {
+          final value = decoded[key];
+          if (value is String && value.isNotEmpty) return value;
+          if (value is num) return value.toInt().toString();
+        }
+      }
+    } catch (_) {
+      // 快照损坏，回退到 id。
+    }
+  }
+  final prefix = '${track.source}:';
+  if (track.id.startsWith(prefix)) {
+    return track.id.substring(prefix.length);
+  }
+  return track.id;
+}
+
+String onlineSourceLabel(String source) {
+  return switch (source) {
+    'netease' => '网易云',
+    'qq' => 'QQ 音乐',
+    _ => source,
+  };
+}
+
+/// 在线 source 到 LX 平台 key 的映射。
+String? onlineLxPlatform(String source) {
+  return switch (source) {
+    'netease' => 'wy',
+    'qq' => 'tx',
+    _ => null,
+  };
+}

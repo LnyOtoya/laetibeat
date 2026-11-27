@@ -142,7 +142,9 @@ impl LxSourceManager {
                     .duration_since(std::time::UNIX_EPOCH)
                     .map(|elapsed| elapsed.as_secs() as i64)
                     .unwrap_or(0);
-                if let Err(error) = self.store.set_declaration(id, declaration, &script_hash, at)
+                if let Err(error) = self
+                    .store
+                    .set_declaration(id, declaration, &script_hash, at)
                 {
                     log::warn!("lx.store cache declaration failed id={id}: {error}");
                 }
@@ -485,9 +487,11 @@ send(EVENT_NAMES.inited, {
         let record = manager.import_script(SCRIPT).unwrap();
         manager.set_enabled(&record.id, true).unwrap();
 
-        let updated = format!("{SCRIPT}
+        let updated = format!(
+            "{SCRIPT}
 // bumped
-");
+"
+        );
         let same = manager.import_script(&updated).unwrap();
         assert_eq!(same.id, record.id);
         let entry = manager.get(&record.id).unwrap();

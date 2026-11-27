@@ -1336,16 +1336,10 @@ mod tests {
         assert_eq!(query_artists_on(&conn, "default").unwrap().len(), 1);
         let albums = query_albums_on(&conn, "default", Some("a1")).unwrap();
         assert_eq!(albums.len(), 1);
-        assert_eq!(
-            albums[0].created.as_deref(),
-            Some("2024-01-02T03:04:05Z")
-        );
+        assert_eq!(albums[0].created.as_deref(), Some("2024-01-02T03:04:05Z"));
         let tracks = query_tracks_on(&conn, "default", "al1").unwrap();
         assert_eq!(tracks[0].title, "Song One");
-        assert_eq!(
-            tracks[0].created.as_deref(),
-            Some("2024-01-02T03:04:05Z")
-        );
+        assert_eq!(tracks[0].created.as_deref(), Some("2024-01-02T03:04:05Z"));
 
         // 搜索命中艺术家、专辑与曲目
         let result = search_on(&conn, "default", "alpha", 10, 10, 10).unwrap();
@@ -1483,12 +1477,8 @@ mod tests {
 
         migrate(&conn).unwrap();
 
-        assert!(
-            table_columns(&conn, "remote_albums").contains(&"created".to_string())
-        );
-        assert!(
-            table_columns(&conn, "remote_tracks").contains(&"created".to_string())
-        );
+        assert!(table_columns(&conn, "remote_albums").contains(&"created".to_string()));
+        assert!(table_columns(&conn, "remote_tracks").contains(&"created".to_string()));
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();

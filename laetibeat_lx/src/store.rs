@@ -116,16 +116,15 @@ impl LxSourceStore {
 
         write_atomic(&script_path, script.as_bytes())?;
 
-        let existing_index = self.records.iter().position(|record| {
-            record.id == id || manifest_identity(&record.manifest) == identity
-        });
+        let existing_index = self
+            .records
+            .iter()
+            .position(|record| record.id == id || manifest_identity(&record.manifest) == identity);
         if let Some(index) = existing_index {
             let mut existing = self.records.remove(index);
             // If a previous import already used the stable id, merge the stale
             // duplicate into the record we keep.
-            if let Some(duplicate_index) =
-                self.records.iter().position(|record| record.id == id)
-            {
+            if let Some(duplicate_index) = self.records.iter().position(|record| record.id == id) {
                 let duplicate = self.records.remove(duplicate_index);
                 existing.enabled |= duplicate.enabled;
                 existing.active |= duplicate.active;

@@ -60,7 +60,10 @@ pub fn init_playlist_db(path: String) -> Result<(), String> {
 }
 
 pub fn list_local_playlists() -> Result<Vec<UiLocalPlaylistSummary>, String> {
-    Ok(core_playlists::list()?.into_iter().map(map_summary).collect())
+    Ok(core_playlists::list()?
+        .into_iter()
+        .map(map_summary)
+        .collect())
 }
 
 pub fn get_local_playlist(id: i64) -> Result<Option<UiLocalPlaylistDetail>, String> {
@@ -91,10 +94,7 @@ pub fn remove_local_playlist_item(playlist_id: i64, item_id: i64) -> Result<bool
     core_playlists::remove_item(playlist_id, item_id)
 }
 
-pub fn reorder_local_playlist_items(
-    playlist_id: i64,
-    item_ids: Vec<i64>,
-) -> Result<(), String> {
+pub fn reorder_local_playlist_items(playlist_id: i64, item_ids: Vec<i64>) -> Result<(), String> {
     core_playlists::reorder(playlist_id, &item_ids)
 }
 

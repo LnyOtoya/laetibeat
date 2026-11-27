@@ -2,8 +2,8 @@
 
 use opensubsonic::data::{
     AlbumId3, AlbumWithSongsId3, ArtistId3, ArtistWithAlbumsId3, Child, LyricsList,
-    Playlist as OsPlaylist, PlaylistWithSongs as OsPlaylistWithSongs,
-    ServerInfo as OsServerInfo, StructuredLyrics,
+    Playlist as OsPlaylist, PlaylistWithSongs as OsPlaylistWithSongs, ServerInfo as OsServerInfo,
+    StructuredLyrics,
 };
 use opensubsonic::{
     AlbumListOptions, AlbumListType, Auth, Client, Search3Options, StreamOptions,
@@ -142,7 +142,9 @@ fn runtime() -> Result<&'static Runtime, String> {
         .build()
         .map_err(map_err)?;
     let _ = RUNTIME.set(runtime);
-    RUNTIME.get().ok_or_else(|| "远端运行时初始化失败".to_string())
+    RUNTIME
+        .get()
+        .ok_or_else(|| "远端运行时初始化失败".to_string())
 }
 
 fn clients() -> &'static Mutex<HashMap<String, Arc<Client>>> {
@@ -182,9 +184,7 @@ fn build_client(config: &SubsonicConfig) -> Result<Client, String> {
 /// 用于设置页的"测试"按钮,避免测试成功后关闭弹层却留下未保存的客户端。
 pub fn test(config: &SubsonicConfig) -> Result<RemoteServerInfo, String> {
     let client = build_client(config)?;
-    let info = runtime()?
-        .block_on(client.server_info())
-        .map_err(map_err)?;
+    let info = runtime()?.block_on(client.server_info()).map_err(map_err)?;
     Ok(map_server_info(info))
 }
 
@@ -214,9 +214,7 @@ pub fn remove(source_id: &str) -> Result<(), String> {
 /// 重新 ping 服务器
 pub fn ping(source_id: &str) -> Result<RemoteServerInfo, String> {
     let client = client(source_id)?;
-    let info = runtime()?
-        .block_on(client.server_info())
-        .map_err(map_err)?;
+    let info = runtime()?.block_on(client.server_info()).map_err(map_err)?;
     Ok(map_server_info(info))
 }
 
@@ -293,7 +291,11 @@ fn structured_lyrics_to_text(list: &LyricsList) -> Option<String> {
             continue;
         }
         // 只取主歌词;没有 kind 的旧服务端也视为主歌词
-        let is_main = entry.kind.as_deref().map(|kind| kind == "main").unwrap_or(true);
+        let is_main = entry
+            .kind
+            .as_deref()
+            .map(|kind| kind == "main")
+            .unwrap_or(true);
         if !is_main {
             continue;
         }
@@ -326,11 +328,7 @@ fn structured_lyrics_to_text(list: &LyricsList) -> Option<String> {
             }
         }
         let text = out.trim_end().to_string();
-        if text.is_empty() {
-            None
-        } else {
-            Some(text)
-        }
+        if text.is_empty() { None } else { Some(text) }
     } else {
         let text = entry
             .line
@@ -462,10 +460,7 @@ pub fn get_artist(source_id: &str, artist_id: &str) -> Result<RemoteArtistDetail
 }
 
 /// 获取艺术家简介(ID3 getArtistInfo2)。
-pub fn get_artist_biography(
-    source_id: &str,
-    artist_id: &str,
-) -> Result<Option<String>, String> {
+pub fn get_artist_biography(source_id: &str, artist_id: &str) -> Result<Option<String>, String> {
     let client = client(source_id)?;
     let info = runtime()?
         .block_on(client.get_artist_info2(artist_id, None, None))
@@ -682,7 +677,6 @@ mod tests {
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // LRCLIB
 // ---------------------------------------------------------------------------
@@ -829,7 +823,6 @@ fn lrclib_text(item: LrclibLyrics) -> Option<String> {
         .or_else(|| item.plain_lyrics.filter(|text| !text.trim().is_empty()))
         .map(|text| text.trim().to_string())
 }
-
 
 /// 一条可供用户选择的歌词搜索结果。
 #[derive(Debug, Clone)]
@@ -999,15 +992,13 @@ fn liriqo_qrc(track: &LiriqoTrack) -> Option<String> {
         if line.words.is_empty() {
             continue;
         }
-        let line_end = line
-            .end
-            .unwrap_or_else(|| {
-                line.words
-                    .iter()
-                    .map(|word| word.end)
-                    .max()
-                    .unwrap_or(line.start)
-            });
+        let line_end = line.end.unwrap_or_else(|| {
+            line.words
+                .iter()
+                .map(|word| word.end)
+                .max()
+                .unwrap_or(line.start)
+        });
         let line_duration = (line_end - line.start).max(0);
         output.push_str(&format!("[{},{}]", line.start, line_duration));
         for word in &line.words {
@@ -1027,7 +1018,6 @@ fn liriqo_qrc(track: &LiriqoTrack) -> Option<String> {
         Some(output)
     }
 }
-
 
 /// 搜索 LRCLIB 的多条候选歌词。
 pub fn search_lrclib_lyrics(
@@ -1066,18 +1056,28 @@ pub fn search_lrclib_lyrics(
                 continue;
             };
             results.push(LyricsSearchResult {
-                id: item
-                    .id
-                    .map(|id| id.to_string())
-                    .unwrap_or_else(|| format!("lrclib:{}:{}", item.artist_name.clone().unwrap_or_default(), item.track_name.clone().unwrap_or_default())),
+                id: item.id.map(|id| id.to_string()).unwrap_or_else(|| {
+                    format!(
+                        "lrclib:{}:{}",
+                        item.artist_name.clone().unwrap_or_default(),
+                        item.track_name.clone().unwrap_or_default()
+                    )
+                }),
                 source: "lrclib".to_string(),
                 provider: "LRCLIB".to_string(),
                 title: item.track_name.clone().unwrap_or_else(|| title.to_string()),
-                artist: item.artist_name.clone().unwrap_or_else(|| artist.to_string()),
+                artist: item
+                    .artist_name
+                    .clone()
+                    .unwrap_or_else(|| artist.to_string()),
                 album: item.album_name.clone().unwrap_or_default(),
                 duration_seconds: item.duration.map(|value| value as i64).unwrap_or(0),
                 synced,
-                sync_level: if synced { "line".to_string() } else { "plain".to_string() },
+                sync_level: if synced {
+                    "line".to_string()
+                } else {
+                    "plain".to_string()
+                },
                 has_translation: false,
                 translation: None,
                 text,
@@ -1189,12 +1189,20 @@ fn liriqo_translation(track: &LiriqoTrack) -> Option<String> {
         return Some(text.to_string());
     }
     let value = track.translations.as_ref()?;
-    if let Some(text) = value.as_str().map(str::trim).filter(|text| !text.is_empty()) {
+    if let Some(text) = value
+        .as_str()
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+    {
         return Some(text.to_string());
     }
     let object = value.as_object()?;
     for value in object.values() {
-        if let Some(text) = value.as_str().map(str::trim).filter(|text| !text.is_empty()) {
+        if let Some(text) = value
+            .as_str()
+            .map(str::trim)
+            .filter(|text| !text.is_empty())
+        {
             return Some(text.to_string());
         }
     }

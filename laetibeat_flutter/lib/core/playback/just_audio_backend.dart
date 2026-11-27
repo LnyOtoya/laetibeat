@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart' as ja;
 import 'package:laetibeat/widgets/player/playback_backend.dart';
 
 import 'audio_effects.dart';
+import 'online_audio_https_proxy.dart';
 
 /// Android/iOS 播放后端。
 ///
@@ -18,6 +19,8 @@ class JustAudioBackend implements PlaybackBackend, AudioEffectsController {
   }
 
   final ja.AndroidEqualizer _equalizer = ja.AndroidEqualizer();
+  final OnlineAudioHttpsProxy _audioProxy = OnlineAudioHttpsProxy();
+  String? _activeProxyUrl;
   late final ja.AudioPlayer _player = ja.AudioPlayer(
     audioPipeline: ja.AudioPipeline(
       androidAudioEffects: <ja.AndroidAudioEffect>[_equalizer],
@@ -168,7 +171,25 @@ class JustAudioBackend implements PlaybackBackend, AudioEffectsController {
 
   @override
   Future<void> open(PlaybackTrack track, {bool play = true}) async {
-    await _player.setAudioSource(ja.AudioSource.uri(Uri.parse(track.uri)));
+    final proxyUrl = track.enforceHttps
+        ? await _audioProxy.register(track.uri, headers: track.headers)
+        : null;
+    try {
+      await _player.setAudioSource(
+        ja.AudioSource.uri(
+          Uri.parse(proxyUrl ?? track.uri),
+          headers: proxyUrl == null && track.headers.isNotEmpty
+              ? track.headers
+              : null,
+        ),
+      );
+    } on Object {
+      _audioProxy.release(proxyUrl);
+      rethrow;
+    }
+    final previousProxyUrl = _activeProxyUrl;
+    _activeProxyUrl = proxyUrl;
+    _audioProxy.release(previousProxyUrl);
     if (play) {
       await _player.play();
     }
@@ -195,13 +216,23 @@ class JustAudioBackend implements PlaybackBackend, AudioEffectsController {
 
   @override
   Future<void> stop() async {
-    await _player.stop();
+    try {
+      await _player.stop();
+    } finally {
+      _audioProxy.release(_activeProxyUrl);
+      _activeProxyUrl = null;
+    }
   }
 
   @override
   Future<void> dispose() async {
-    await _interruptionSubscription?.cancel();
-    await _noisySubscription?.cancel();
-    await _player.dispose();
+    try {
+      await _interruptionSubscription?.cancel();
+      await _noisySubscription?.cancel();
+      await _player.dispose();
+    } finally {
+      _activeProxyUrl = null;
+      await _audioProxy.close();
+    }
   }
 }

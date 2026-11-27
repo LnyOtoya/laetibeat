@@ -22,8 +22,7 @@ pub const PLAYLIST_SEARCH_PLATFORMS: &[&str] = &["kw", "kg", "tx", "wy", "mg"];
 const MG_UA: &str = "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) \
 AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1";
 const MG_REFERER: &str = "https://m.music.migu.cn/";
-const MG_PLAYLIST_SWITCH: &str =
-    r#"{"song":0,"album":0,"singer":0,"tagSong":0,"mvSong":0,"bestShow":0,"songlist":1,"lyricSong":0}"#;
+const MG_PLAYLIST_SWITCH: &str = r#"{"song":0,"album":0,"singer":0,"tagSong":0,"mvSong":0,"bestShow":0,"songlist":1,"lyricSong":0}"#;
 /// NetEase returns only 10 tracks from the playlist detail API, so the remaining
 /// ids are fetched in batches from `/api/v3/song/detail`.
 const WY_TRACK_BATCH: usize = 200;
@@ -125,24 +124,20 @@ fn search_playlists_inner(
             )));
         }
     }
-    let body = get_text(
-        client
-            .get("http://search.kuwo.cn/r.s")
-            .query(&[
-                ("all", keyword),
-                ("pn", &(page - 1).to_string()),
-                ("rn", &limit.to_string()),
-                ("rformat", "json"),
-                ("encoding", "utf8"),
-                ("ver", "mbox"),
-                ("vipver", "MUSIC_8.7.7.0_BCS37"),
-                ("plat", "pc"),
-                ("devid", "28156413"),
-                ("ft", "playlist"),
-                ("pay", "0"),
-                ("needliveshow", "0"),
-            ]),
-    )?;
+    let body = get_text(client.get("http://search.kuwo.cn/r.s").query(&[
+        ("all", keyword),
+        ("pn", &(page - 1).to_string()),
+        ("rn", &limit.to_string()),
+        ("rformat", "json"),
+        ("encoding", "utf8"),
+        ("ver", "mbox"),
+        ("vipver", "MUSIC_8.7.7.0_BCS37"),
+        ("plat", "pc"),
+        ("devid", "28156413"),
+        ("ft", "playlist"),
+        ("pay", "0"),
+        ("needliveshow", "0"),
+    ]))?;
     let parsed: Value = serde_json::from_str(&js_object_to_json(&body))
         .map_err(|error| LxError::Request(format!("parse kw playlists: {error}")))?;
     let mut result = Vec::new();
@@ -232,22 +227,18 @@ fn get_playlist_detail_inner(
             )));
         }
     }
-    let body = get_json(
-        client
-            .get("http://nplserver.kuwo.cn/pl.svc")
-            .query(&[
-                ("op", "getlistinfo"),
-                ("pid", playlist_id),
-                ("pn", &(page - 1).to_string()),
-                ("rn", &limit.to_string()),
-                ("encode", "utf8"),
-                ("keyset", "pl2012"),
-                ("identity", "kuwo"),
-                ("pcmp4", "1"),
-                ("vipver", "MUSIC_9.0.5.0_W1"),
-                ("newver", "1"),
-            ]),
-    )?;
+    let body = get_json(client.get("http://nplserver.kuwo.cn/pl.svc").query(&[
+        ("op", "getlistinfo"),
+        ("pid", playlist_id),
+        ("pn", &(page - 1).to_string()),
+        ("rn", &limit.to_string()),
+        ("encode", "utf8"),
+        ("keyset", "pl2012"),
+        ("identity", "kuwo"),
+        ("pcmp4", "1"),
+        ("vipver", "MUSIC_9.0.5.0_W1"),
+        ("newver", "1"),
+    ]))?;
     if body.get("result").and_then(Value::as_str) != Some("ok") {
         return Err(LxError::Request("kw playlist request failed".to_string()));
     }
@@ -309,7 +300,6 @@ pub fn get_playlist_all(platform: &str, playlist_id: &str) -> Result<LxPlaylistD
     }
 }
 
-
 fn search_tx_playlists(
     client: &Client,
     keyword: &str,
@@ -331,8 +321,7 @@ fn search_tx_playlists(
             }
         }
     }
-    Err(last_error
-        .unwrap_or_else(|| LxError::Request("tx playlist search failed".to_string())))
+    Err(last_error.unwrap_or_else(|| LxError::Request("tx playlist search failed".to_string())))
 }
 
 fn search_tx_playlists_once(
@@ -355,7 +344,10 @@ fn search_tx_playlists_once(
                 ("inCharset", "utf8"),
                 ("outCharset", "utf-8"),
             ])
-            .header("User-Agent", "Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36")
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36",
+            )
             .header("Referer", "https://y.qq.com/")
             .header("Origin", "https://y.qq.com"),
     )?;
@@ -365,10 +357,7 @@ fn search_tx_playlists_once(
     Ok(parse_tx_playlist_summaries(&body))
 }
 
-fn get_tx_playlist_detail(
-    client: &Client,
-    playlist_id: &str,
-) -> Result<LxPlaylistDetail> {
+fn get_tx_playlist_detail(client: &Client, playlist_id: &str) -> Result<LxPlaylistDetail> {
     let body = get_json(
         client
             .get("https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg")
@@ -389,7 +378,10 @@ fn get_tx_playlist_detail(
                 ("needNewCode", "0"),
             ])
             .header("Origin", "https://y.qq.com")
-            .header("Referer", format!("https://y.qq.com/n/yqq/playsquare/{playlist_id}.html")),
+            .header(
+                "Referer",
+                format!("https://y.qq.com/n/yqq/playsquare/{playlist_id}.html"),
+            ),
     )?;
     if body.get("code").and_then(Value::as_i64) != Some(0) {
         return Err(LxError::Request("tx playlist detail failed".to_string()));
@@ -418,7 +410,10 @@ fn get_tx_playlist_detail(
             id: playlist_id.to_string(),
             name: clean(cdlist.get("dissname").and_then(Value::as_str).unwrap_or("")),
             author: clean(cdlist.get("nickname").and_then(Value::as_str).unwrap_or("")),
-            cover_url: cdlist.get("logo").and_then(Value::as_str).map(str::to_string),
+            cover_url: cdlist
+                .get("logo")
+                .and_then(Value::as_str)
+                .map(str::to_string),
             play_count: cdlist
                 .get("visitnum")
                 .and_then(value_string)
@@ -433,7 +428,6 @@ fn get_tx_playlist_detail(
         has_more: false,
     })
 }
-
 
 // ---------------------------------------------------------------------------
 // Kugou (kg)
@@ -549,7 +543,11 @@ fn get_kg_playlist_detail(
         info: LxPlaylistSummary {
             source: "kg".to_string(),
             id: playlist_id.to_string(),
-            name: clean(info.get("specialname").and_then(Value::as_str).unwrap_or("")),
+            name: clean(
+                info.get("specialname")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+            ),
             author: clean(info.get("nickname").and_then(Value::as_str).unwrap_or("")),
             cover_url: kg_image_url(info.get("imgurl").and_then(Value::as_str)),
             play_count: info
@@ -746,7 +744,12 @@ fn get_wy_playlist_detail(
                 .and_then(value_string)
                 .unwrap_or_default(),
             total,
-            description: clean(playlist.get("description").and_then(Value::as_str).unwrap_or("")),
+            description: clean(
+                playlist
+                    .get("description")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+            ),
         },
         has_more: end < ids.len(),
         tracks,
@@ -1152,8 +1155,14 @@ fn parse_tx_track(item: &Value) -> Option<LxSearchTrack> {
         ))
     };
     let mut extra = BTreeMap::new();
-    if let Some(media_mid) = file.and_then(|value| value.get("media_mid")).and_then(Value::as_str) {
-        extra.insert("strMediaMid".to_string(), Value::String(media_mid.to_string()));
+    if let Some(media_mid) = file
+        .and_then(|value| value.get("media_mid"))
+        .and_then(Value::as_str)
+    {
+        extra.insert(
+            "strMediaMid".to_string(),
+            Value::String(media_mid.to_string()),
+        );
     }
     if let Some(song_id) = item.get("id").and_then(value_u64) {
         extra.insert("songId".to_string(), Value::String(song_id.to_string()));
@@ -1232,7 +1241,9 @@ fn get_text(request: reqwest::blocking::RequestBuilder) -> Result<String> {
         .bytes()
         .map_err(|error| LxError::Request(error.to_string()))?;
     if bytes.len() > MAX_RESPONSE_BYTES {
-        return Err(LxError::Request("playlist response is too large".to_string()));
+        return Err(LxError::Request(
+            "playlist response is too large".to_string(),
+        ));
     }
     // 部分老接口声明 charset=utf-8 但实际返回 GBK（如 QQ 歌单搜索），这里做宽松解码。
     Ok(decode_text(&bytes))

@@ -1,0 +1,335 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:laetibeat/src/rust/api/online.dart' as rust_online;
+import 'package:material_3_expressive/material_3_expressive.dart';
+import 'package:material_ui/material_ui.dart';
+
+import '../../../../design/design.dart';
+import '../../../../widgets/settings/online_provider.dart';
+import '../../../../widgets/settings/online_settings.dart';
+import '../../widgets/mobile_large_subpage_app_bar.dart';
+
+/// 在线音源服务配置。
+///
+/// 当前版本先支持填写远程/本机 go-music-api 地址；内置进程启动在后续版本接入。
+class MobileOnlineMusicSettingsPage extends ConsumerStatefulWidget {
+  const MobileOnlineMusicSettingsPage({super.key});
+
+  @override
+  ConsumerState<MobileOnlineMusicSettingsPage> createState() =>
+      _MobileOnlineMusicSettingsPageState();
+}
+
+class _MobileOnlineMusicSettingsPageState
+    extends ConsumerState<MobileOnlineMusicSettingsPage> {
+  final TextEditingController _baseUrlController = TextEditingController();
+  final TextEditingController _tokenController = TextEditingController();
+
+  bool _allowLxFallback = false;
+  String _quality = kOnlineDefaultQuality;
+  bool _saving = false;
+  bool _testing = false;
+  String? _statusText;
+  bool _statusIsError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final settings = ref.read(onlineSettingsProvider);
+    _baseUrlController.text = settings.baseUrl;
+    _allowLxFallback = settings.allowLxFallback;
+    _quality = settings.defaultQuality;
+    unawaited(_loadToken());
+  }
+
+  @override
+  void dispose() {
+    _baseUrlController.dispose();
+    _tokenController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadToken() async {
+    try {
+      final token = await ref.read(onlineTokenProvider.future);
+      if (!mounted) return;
+      _tokenController.text = token ?? '';
+    } catch (error) {
+      debugPrint('读取在线音源 token 失败: $error');
+    }
+  }
+
+  Future<void> _save() async {
+    final raw = normalizeOnlineBaseUrl(_baseUrlController.text);
+    if (raw.isNotEmpty && !isValidOnlineBaseUrl(raw)) {
+      M3ESnackbar.show(
+        context,
+        message: '地址无效：远程必须使用 https，只有 127.0.0.1/localhost 允许 http',
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(onlineSettingsProvider.notifier)
+          .save(
+            baseUrl: raw,
+            allowLxFallback: _allowLxFallback,
+            defaultQuality: _quality,
+          );
+      await ref
+          .read(onlineTokenProvider.notifier)
+          .save(_tokenController.text);
+      ref.invalidate(onlineStatusProvider);
+      if (!mounted) return;
+      M3ESnackbar.show(context, message: '已保存');
+    } catch (error) {
+      if (mounted) {
+        M3ESnackbar.show(context, message: '保存失败：$error');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _testConnection() async {
+    final raw = normalizeOnlineBaseUrl(_baseUrlController.text);
+    if (raw.isEmpty || !isValidOnlineBaseUrl(raw)) {
+      M3ESnackbar.show(context, message: '请先填写有效的服务地址');
+      return;
+    }
+
+    setState(() {
+      _testing = true;
+      _statusText = '正在连接…';
+      _statusIsError = false;
+    });
+    try {
+      final token = _tokenController.text.trim();
+      final status = await rust_online.onlineHealth(
+        baseUrl: raw,
+        token: token.isEmpty ? null : token,
+      );
+      if (!mounted) return;
+      setState(() {
+        _statusText = '连接成功：${status.baseUrl}';
+        _statusIsError = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _statusText = '连接失败：$error';
+        _statusIsError = true;
+      });
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
+  }
+
+  Future<void> _pickQuality() async {
+    const labels = <String, String>{
+      '自动': 'auto',
+      '标准 128k': 'standard',
+      '高品质 320k': 'high',
+      '无损': 'lossless',
+      'Hi-Res': 'hires',
+      '母带': 'master',
+    };
+    String? current;
+    for (final entry in labels.entries) {
+      if (entry.value == _quality) {
+        current = entry.key;
+        break;
+      }
+    }
+    final picked = await M3EDialog.showSelectionScreen(
+      context,
+      title: '默认音质',
+      options: labels.keys.toList(growable: false),
+      initialSelection: <String>[if (current != null) current],
+      icon: const Icon(M3EIcons.graphic_eq),
+    );
+    if (picked == null || picked.isEmpty) return;
+    final value = labels[picked.first];
+    if (value == null) return;
+    setState(() => _quality = value);
+    await ref
+        .read(onlineSettingsProvider.notifier)
+        .setDefaultQuality(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Scaffold(
+      backgroundColor: scheme.surface,
+      appBar: mobileLargeSubpageAppBar(context, title: '在线音乐'),
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          children: <Widget>[
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: scheme.secondaryContainer,
+                borderRadius: AppRadii.lgAll,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Icon(
+                    M3EIcons.info,
+                    size: AppIconSize.md,
+                    color: scheme.onSecondaryContainer,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      '当前版本请填写可访问的 go-music-api 地址。'
+                      '远程地址必须使用 https；本机 127.0.0.1/localhost 允许 http。'
+                      '内置服务启动将在后续版本接入。',
+                      style: theme.typeScale.bodyMedium.copyWith(
+                        color: scheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            M3ETextField(
+              controller: _baseUrlController,
+              variant: M3ETextFieldVariant.filled,
+              label: '服务地址',
+              supportingText: '例如 https://music.example.com 或 http://127.0.0.1:33531',
+              supportingTextOnFocusOnly: false,
+              keyboardType: TextInputType.url,
+              textInputAction: TextInputAction.next,
+              placeholder: 'https://music.example.com',
+              onChanged: (_) {
+                if (_statusText != null) {
+                  setState(() {
+                    _statusText = null;
+                    _statusIsError = false;
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            M3ETextField(
+              controller: _tokenController,
+              variant: M3ETextFieldVariant.filled,
+              label: '访问 Token',
+              supportingText: '对应 host 的 LAETIBEAT_MUSICAPI_TOKEN，可留空',
+              supportingTextOnFocusOnly: false,
+              obscureText: true,
+              showPasswordToggle: true,
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            M3EList(
+              color: scheme.surface,
+              variant: M3ECardVariant.filled,
+              itemCount: 2,
+              onTap: (int index) {
+                if (index == 0) {
+                  unawaited(_pickQuality());
+                } else {
+                  setState(() => _allowLxFallback = !_allowLxFallback);
+                  unawaited(
+                    ref
+                        .read(onlineSettingsProvider.notifier)
+                        .setAllowLxFallback(_allowLxFallback),
+                  );
+                }
+              },
+              itemBuilder: (BuildContext context, int index) {
+                if (index == 0) {
+                  return M3EListItem(
+                    headline: '默认音质',
+                    supportingText: _qualityLabel(_quality),
+                    leading: const Icon(M3EIcons.graphic_eq),
+                    trailing: const Icon(M3EIcons.chevron_right),
+                  );
+                }
+                return M3EListItem(
+                  headline: '洛雪后备',
+                  supportingText: '无版权或试听时尝试用洛雪解析完整音源',
+                  leading: const Icon(M3EIcons.extension),
+                  trailing: M3ESwitch(
+                    value: _allowLxFallback,
+                    onChanged: (bool value) {
+                      setState(() => _allowLxFallback = value);
+                      unawaited(
+                        ref
+                            .read(onlineSettingsProvider.notifier)
+                            .setAllowLxFallback(value),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: M3EButton(
+                    style: M3EButtonStyle.tonal,
+                    label: Text(_testing ? '测试中…' : '测试连接'),
+                    onPressed: _testing ? null : _testConnection,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: M3EButton(
+                    style: M3EButtonStyle.filled,
+                    label: Text(_saving ? '保存中…' : '保存'),
+                    onPressed: _saving ? null : _save,
+                  ),
+                ),
+              ],
+            ),
+            if (_statusText != null) ...<Widget>[
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: _statusIsError
+                      ? scheme.errorContainer
+                      : scheme.tertiaryContainer,
+                  borderRadius: AppRadii.mdAll,
+                ),
+                child: Text(
+                  _statusText!,
+                  style: theme.typeScale.bodyMedium.copyWith(
+                    color: _statusIsError
+                        ? scheme.onErrorContainer
+                        : scheme.onTertiaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _qualityLabel(String value) {
+    return switch (value) {
+      'auto' => '自动',
+      'standard' => '标准 128k',
+      'high' => '高品质 320k',
+      'lossless' => '无损',
+      'hires' => 'Hi-Res',
+      'master' => '母带',
+      _ => value,
+    };
+  }
+}

@@ -280,12 +280,12 @@ fn clean_fallback_title(value: &str) -> String {
         .unwrap_or(trimmed.len());
     if digit_end > 0 && digit_end < trimmed.len() {
         let rest = trimmed[digit_end..].trim_start_matches(|character: char| {
-            character == '.' ||
-                character == '-' ||
-                character == '_' ||
-                character == ' ' ||
-                character == '、' ||
-                character == '　'
+            character == '.'
+                || character == '-'
+                || character == '_'
+                || character == ' '
+                || character == '、'
+                || character == '　'
         });
         if !rest.is_empty() {
             return rest.trim().to_string();

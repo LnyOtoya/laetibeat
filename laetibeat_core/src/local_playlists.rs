@@ -1,7 +1,7 @@
 use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 
 const SCHEMA_VERSION: i64 = 3;
 
@@ -366,17 +366,19 @@ impl LocalPlaylistStore {
             )
             .optional()
             .map_err(map_err)?;
-        row.map(|(id, name, created_at, updated_at, source, source_list_id, last_synced_at)| {
-            self.summary_basic(
-                id,
-                name,
-                created_at,
-                updated_at,
-                source,
-                source_list_id,
-                last_synced_at,
-            )
-        })
+        row.map(
+            |(id, name, created_at, updated_at, source, source_list_id, last_synced_at)| {
+                self.summary_basic(
+                    id,
+                    name,
+                    created_at,
+                    updated_at,
+                    source,
+                    source_list_id,
+                    last_synced_at,
+                )
+            },
+        )
         .transpose()
     }
 
@@ -447,7 +449,9 @@ pub fn init_db(path: &str) -> Result<(), String> {
         .map_err(|_| "歌单库已初始化".to_string())
 }
 
-fn with_store<T>(f: impl FnOnce(&mut LocalPlaylistStore) -> Result<T, String>) -> Result<T, String> {
+fn with_store<T>(
+    f: impl FnOnce(&mut LocalPlaylistStore) -> Result<T, String>,
+) -> Result<T, String> {
     let mut guard = STORE
         .get()
         .ok_or_else(|| "歌单库尚未初始化".to_string())?
@@ -654,7 +658,10 @@ mod tests {
         assert_eq!(list[0].id, playlist.id);
 
         store.rename(playlist.id, "Night Drive").unwrap();
-        assert_eq!(store.get(playlist.id).unwrap().unwrap().playlist.name, "Night Drive");
+        assert_eq!(
+            store.get(playlist.id).unwrap().unwrap().playlist.name,
+            "Night Drive"
+        );
         assert!(store.delete(playlist.id).unwrap());
         assert!(store.get(playlist.id).unwrap().is_none());
     }
@@ -697,7 +704,9 @@ mod tests {
         store
             .add_tracks(playlist.id, &[track("a"), track("b"), track("c")])
             .unwrap();
-        store.mark_subscribed(playlist.id, "tx", "3805603854").unwrap();
+        store
+            .mark_subscribed(playlist.id, "tx", "3805603854")
+            .unwrap();
 
         // 覆盖为新的集合：旧条目必须全部消失
         let added = store

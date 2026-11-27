@@ -198,8 +198,8 @@ pub fn resolve_lx_lyric(source: String, music: UiLxMusicInfo) -> Result<Option<U
     }
 
     let music_info: LxMusicInfo = music.into();
-    with_manager(|manager| {
-        match manager.resolve_lyric(&source, &music_info) {
+    with_manager(
+        |manager| match manager.resolve_lyric(&source, &music_info) {
             Ok(value) => {
                 let parsed = parse_lyric(value);
                 let now = core_lib::now_ms();
@@ -212,8 +212,7 @@ pub fn resolve_lx_lyric(source: String, music: UiLxMusicInfo) -> Result<Option<U
                             "lxlyric": &lyric.lxlyric,
                         })
                         .to_string();
-                        let synced =
-                            lyric.lxlyric.is_some() || lyric.lyric.contains('[');
+                        let synced = lyric.lxlyric.is_some() || lyric.lyric.contains('[');
                         let _ = core_lib::put_lyrics_cache(
                             &cache_key,
                             "lx",
@@ -239,8 +238,8 @@ pub fn resolve_lx_lyric(source: String, music: UiLxMusicInfo) -> Result<Option<U
                 Ok(parsed)
             }
             Err(error) => Err(format_error(error)),
-        }
-    })
+        },
+    )
 }
 
 pub fn resolve_lx_pic(source: String, music: UiLxMusicInfo) -> Result<Option<String>, String> {

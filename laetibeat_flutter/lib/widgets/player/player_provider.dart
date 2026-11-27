@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
+import 'package:laetibeat/src/rust/api/online.dart' as rust_online;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 import '../../core/providers/playback_backend_provider.dart';
@@ -11,9 +12,12 @@ import '../settings/subsonic_provider.dart';
 import '../recommendation_provider.dart';
 import '../settings/fade_settings.dart';
 import '../settings/lx_settings.dart';
+import '../settings/online_provider.dart';
+import '../settings/online_settings.dart';
 import 'playback_backend.dart';
 import 'playback_session_tracker.dart';
 import 'lx_track.dart';
+import 'lx_search_provider.dart';
 import 'playback_stats.dart';
 
 //播放状态:当前曲目/播放中/进度/来源/队列
@@ -564,7 +568,10 @@ class PlayerNotifier extends Notifier<PlayerState> {
     final generation = ++_openGeneration;
     try {
       // 远端要先解析 stream URL;期间暂停旧音频,避免旧曲继续出声
-      if (track.source == 'opensubsonic' || track.source == 'lx') {
+      if (track.source == 'opensubsonic' ||
+          track.source == 'lx' ||
+          track.source == 'netease' ||
+          track.source == 'qq') {
         await _backend.pause();
         if (generation != _openGeneration) return;
       }
@@ -741,6 +748,36 @@ class PlayerNotifier extends Notifier<PlayerState> {
     rust.UiTrack t, {
     bool refreshLx = false,
   }) async {
+    if (t.source == 'netease' || t.source == 'qq') {
+      final baseUrl = ref.read(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.read(onlineTokenProvider.future);
+      final quality = ref.read(onlineDefaultQualityProvider);
+      try {
+        final resolved = await rust_online.onlineResolveAudio(
+          baseUrl: baseUrl,
+          token: token,
+          source: t.source,
+          trackId: onlinePlatformId(t),
+          quality: quality,
+        );
+        return PlaybackTrack(
+          uri: resolved.url,
+          headers: _onlineHeaders(t.source),
+          fallbackDuration: _durationOf(t),
+          enforceHttps: true,
+        );
+      } catch (error) {
+        if (error.toString().contains('需要登录')) rethrow;
+        if (ref.read(onlineAllowLxFallbackProvider)) {
+          final fallback = await _resolveOnlineLxFallback(t);
+          if (fallback != null) return fallback;
+        }
+        rethrow;
+      }
+    }
     if (t.source == 'lx' && t.sourceId.isNotEmpty) {
       final music = lxMusicInfoFromTrack(t);
       final preferred = ref.read(lxDefaultQualityProvider);
@@ -828,6 +865,75 @@ class PlayerNotifier extends Notifier<PlayerState> {
         ? t.path
         : Uri.file(t.path).toString();
     return PlaybackTrack(uri: uri, fallbackDuration: _durationOf(t));
+  }
+
+  Map<String, String> _onlineHeaders(String source) {
+    const userAgent =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36';
+    return switch (source) {
+      'netease' => <String, String>{
+        'Referer': 'https://music.163.com/',
+        'User-Agent': userAgent,
+      },
+      'qq' => <String, String>{
+        'Referer': 'https://y.qq.com/',
+        'User-Agent': userAgent,
+      },
+      _ => const <String, String>{},
+    };
+  }
+
+  /// 在线音源无版权/试听时，尝试对应平台的洛雪解析。
+  Future<PlaybackTrack?> _resolveOnlineLxFallback(rust.UiTrack track) async {
+    final platform = onlineLxPlatform(track.source);
+    if (platform == null) return null;
+    final ready = await ref
+        .read(lxRuntimeProvider.notifier)
+        .ensurePlayable(platform)
+        .timeout(const Duration(seconds: 12), onTimeout: () => false);
+    if (!ready) {
+      debugPrint('在线 LX fallback: $platform 不可用');
+      return null;
+    }
+
+    final singers = track.artist
+        .split('、')
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    final music = rust_lx.UiLxMusicInfo(
+      source: platform,
+      id: onlinePlatformId(track),
+      name: track.title,
+      singer: singers,
+      album: track.album,
+      albumId: track.albumId,
+      interval: track.durationSeconds.toInt(),
+      img: track.coverId,
+      extraJson: track.sourceExtraJson,
+    );
+    final preferred = ref.read(lxDefaultQualityProvider);
+    final qualities = <String>{preferred, '320k', '128k'};
+    for (final quality in qualities) {
+      try {
+        final url = await rust_lx.resolveLxMusicUrl(
+          source: platform,
+          music: music,
+          quality: quality,
+        );
+        if (url.isEmpty) continue;
+        debugPrint('在线 LX fallback 成功 source=$platform quality=$quality');
+        return PlaybackTrack(
+          uri: url,
+          fallbackDuration: _durationOf(track),
+          enforceHttps: true,
+        );
+      } catch (error) {
+        debugPrint('在线 LX fallback 失败 quality=$quality: $error');
+      }
+    }
+    return null;
   }
 
   //从解析的'03:24'时长文本转成 Duration,失败则用整曲默认值

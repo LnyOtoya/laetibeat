@@ -16,10 +16,8 @@ pub(crate) fn init_logging() {
     );
     #[cfg(not(target_os = "android"))]
     {
-        let _ = env_logger::Builder::from_env(
-            env_logger::Env::default().default_filter_or("info"),
-        )
-        .try_init();
+        let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+            .try_init();
     }
 }
 

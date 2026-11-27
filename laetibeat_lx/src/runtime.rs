@@ -211,10 +211,7 @@ impl LxRuntime {
     }
 }
 
-fn install_interrupt_handler(
-    runtime: &Runtime,
-    deadline: Arc<Mutex<Option<Instant>>>,
-) {
+fn install_interrupt_handler(runtime: &Runtime, deadline: Arc<Mutex<Option<Instant>>>) {
     runtime.set_interrupt_handler(Some(Box::new(move || deadline_reached(&deadline))));
 }
 

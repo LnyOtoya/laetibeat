@@ -12,6 +12,7 @@ import 'about/mobile_about_settings_page.dart';
 import 'appearance/mobile_appearance_settings_page.dart';
 import 'audio/mobile_audio_settings_page.dart';
 import 'content/mobile_content_settings_page.dart';
+import 'online/mobile_online_music_settings_page.dart';
 import 'storage/mobile_storage_settings_page.dart';
 
 /// 移动端设置页面。
@@ -79,6 +80,13 @@ class MobileSettingsPage extends ConsumerWidget {
                           icon: M3EIcons.library_music,
                         ),
                       ),
+                      const m3e_core.M3EListItem(
+                        headline: Text('在线音乐'),
+                        supportingText: Text('go-music-api 服务、音质与洛雪后备'),
+                        leading: _SettingsLeadingAvatar(
+                          icon: M3EIcons.language,
+                        ),
+                      ),
                       m3e_core.M3EListItem(
                         headline: Text(l10n.settingsStorage),
                         supportingText: Text(l10n.settingsStorageSupporting),
@@ -132,10 +140,16 @@ class MobileSettingsPage extends ConsumerWidget {
       case 3:
         pushMobileRootPage(
           context,
+          const MobileOnlineMusicSettingsPage(),
+          name: MobileRoutes.onlineMusicSettings,
+        );
+      case 4:
+        pushMobileRootPage(
+          context,
           const MobileStorageSettingsPage(),
           name: MobileRoutes.storageSettings,
         );
-      case 5:
+      case 6:
         pushMobileRootPage(
           context,
           const MobileAboutSettingsPage(),

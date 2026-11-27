@@ -10,7 +10,9 @@ Color searchSourceColor(BuildContext context, String sourceKey) {
   return switch (sourceKey) {
     'local' => scheme.primary,
     'tx' => const Color(0xFF31C27C), // QQ Music
+    'qq' => const Color(0xFF31C27C), // QQ Music
     'wy' => const Color(0xFFC20C0C), // NetEase Cloud Music
+    'netease' => const Color(0xFFC20C0C), // NetEase Cloud Music
     'kg' => const Color(0xFF00A1FF), // Kugou Music
     'navidrome' => const Color(0xFF2563EB), // Navidrome blue
     'subsonic' => const Color(0xFF3B82F6), // Subsonic blue

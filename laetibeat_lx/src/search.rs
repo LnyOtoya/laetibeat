@@ -291,10 +291,7 @@ pub(crate) fn ordered_quality_types(
 ///
 /// `extra` is persisted as `sourceExtraJson` and handed to the source script as
 /// `musicInfo.types`, so the player can use it without any extra FFI field.
-pub(crate) fn insert_quality_types(
-    extra: &mut BTreeMap<String, Value>,
-    types: Vec<&'static str>,
-) {
+pub(crate) fn insert_quality_types(extra: &mut BTreeMap<String, Value>, types: Vec<&'static str>) {
     if types.is_empty() {
         return;
     }
@@ -348,11 +345,7 @@ pub(crate) fn tx_quality_types(file: &Value) -> Vec<&'static str> {
 
 /// NetEase: `l` / `h` / `sq` / `hr` objects on the song.
 pub(crate) fn wy_quality_types(song: &Value) -> Vec<&'static str> {
-    let has = |key: &str| {
-        song.get(key)
-            .map(|value| !value.is_null())
-            .unwrap_or(false)
-    };
+    let has = |key: &str| song.get(key).map(|value| !value.is_null()).unwrap_or(false);
     ordered_quality_types(has("l"), has("h"), has("sq"), has("hr"))
 }
 
@@ -707,8 +700,8 @@ pub(crate) fn mg_sign(keyword: &str, device_id: &str, timestamp: &str) -> String
 ///
 /// Shared with playlist search/detail in `songlist.rs`.
 pub(crate) fn eapi_json(client: &Client, path: &str, payload: &Value) -> Result<Value> {
-    let text = serde_json::to_string(payload)
-        .map_err(|error| LxError::Request(error.to_string()))?;
+    let text =
+        serde_json::to_string(payload).map_err(|error| LxError::Request(error.to_string()))?;
     let digest = md5_hex(&format!("nobody{path}use{text}md5forencrypt"));
     let data = format!("{path}-36cd479b6b5-{text}-36cd479b6b5-{digest}");
     let params =
@@ -1009,10 +1002,9 @@ mod tests {
         .unwrap();
         assert_eq!(tx_quality_types(&tx), vec!["320k", "128k"]);
 
-        let wy: Value = serde_json::from_str(
-            r#"{"l":{"br":128000},"h":{"br":320000},"sq":null,"hr":null}"#,
-        )
-        .unwrap();
+        let wy: Value =
+            serde_json::from_str(r#"{"l":{"br":128000},"h":{"br":320000},"sq":null,"hr":null}"#)
+                .unwrap();
         assert_eq!(wy_quality_types(&wy), vec!["320k", "128k"]);
 
         let mg: Value = serde_json::from_str(

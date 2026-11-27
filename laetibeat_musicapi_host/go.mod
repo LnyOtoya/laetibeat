@@ -56,3 +56,5 @@ require (
 	golang.org/x/tools v0.47.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
+
+replace github.com/guohuiyuan/music-lib => ./third_party/music-lib
