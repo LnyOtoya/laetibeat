@@ -86,11 +86,12 @@ Laetibeat bundles a separately running Go host for online music sources:
 | 组件 | 许可证 | 上游 |
 | --- | --- | --- |
 | `qqmusic-api`（`laetibeat_qq_host` 依赖） | GPL-3.0-only | https://github.com/jinzhongjia/QQMusicApi-rs |
-| `ncm-api-rs`（计划中的网易云 host） | WTFPL | https://github.com/SPlayer-Dev/ncm-api-rs |
+| `ncm-api-rs`（`laetibeat_netease_host` 依赖） | WTFPL | https://github.com/SPlayer-Dev/ncm-api-rs |
 
 - `laetibeat_qq_host` 作为独立 sidecar 分发；源码与 GPL-3.0 许可证见
   `laetibeat_qq_host/`。
-- `ncm-api-rs` 尚未接入；接入时补充其 LICENSE 与发布资产。
+- `laetibeat_netease_host` 作为独立 sidecar 分发；host 代码 MIT，依赖
+  `ncm-api-rs` 为 WTFPL，LICENSE 见 `laetibeat_netease_host/LICENSE`。
 
 ## Native and platform components
 

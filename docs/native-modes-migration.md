@@ -217,10 +217,10 @@ qqmusic-api = { path = "../reference/QQMusicApi-rs/crates/qqmusic-api" }
 依赖：
 
 ```toml
-ncm-api-rs = { path = "../reference/ncm-api-rs", features = ["server"] }
+ncm-api-rs = { git = "https://github.com/SPlayer-Dev/ncm-api-rs", rev = "133b65bfe482e41ebccf018870d3fce07bf58eb3" }
 ```
 
-但不直接使用 `ncm-server` 默认配置：
+不使用 `ncm-server` 默认配置：
 
 - 默认 `0.0.0.0:3000`
 - 默认 CORS 全开
@@ -353,13 +353,15 @@ jniLibs/<abi>/liblaetibeat_netease_host.so
 - [x] Android 真机 health/search 验证
 - [ ] 真实扫码成功并验证 credential 持久化
 
-### N2：NetEase host spike
+### N2：NetEase host spike（已完成主体）
 
-- [ ] `laetibeat_netease_host` crate
-- [ ] 搜索 / 播放 URL / 歌词
-- [ ] 二维码登录
-- [ ] Cookie 持久化
-- [ ] Linux + Android arm64 构建（已验证库可编译）
+- [x] `laetibeat_netease_host` crate
+- [x] 搜索 / 播放 URL / 歌词
+- [x] 二维码登录 + 游客 token 注册
+- [x] Cookie 保存/加载代码
+- [x] Linux + Android arm64 构建
+- [x] Android 真机 health/search/url 验证
+- [ ] 真实扫码成功并验证 cookies.json 持久化
 
 ### N3：模式控制器
 
@@ -410,6 +412,12 @@ Android 24
 NDK r28c
 ```
 
+- `ncm-api-rs` 在 Android arm64 的依赖链通过编译；`laetibeat_netease_host`
+  Linux release 7.7 MB，Android arm64 release 7.9 MB。
+- NetEase 未登录时会通过 eapi 游客注册获取 `MUSIC_A`；`song_url_v1` 失败时
+  host 回退到旧的 `br=999000` URL 接口。
+- `laetibeat_netease_host` Linux/Android live：health / search / url / lyric /
+  QR 创建与 `waiting` 轮询均通过。
 - `QQMusicApi-rs` 默认纯 Rust（`tls-graviola`），aarch64 / x86_64 不需要 C 工具链。
 - `laetibeat_qq_host`：
   - Linux release：13 MB

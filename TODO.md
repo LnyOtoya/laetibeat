@@ -13,7 +13,7 @@
 - [x] 创建并推送 `gomusic` 分支
 - [x] 创建并推送 `native` 分支
 - [x] `laetibeat_qq_host` spike（搜索/URL/歌词/QR；真实扫码待验证）
-- [ ] `laetibeat_netease_host` spike
+- [x] `laetibeat_netease_host` spike（搜索/URL/歌词/QR；真实扫码待验证）
 - [ ] `AppMode` 模式控制器
 - [ ] 模式切换停止服务 / 保留 Cookie
 - [ ] UI 按模式显示不同内容

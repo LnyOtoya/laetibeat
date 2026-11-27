@@ -1,0 +1,23 @@
+[package]
+name = "laetibeat_netease_host"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Laetibeat embedded NetEase Cloud Music host"
+publish = false
+
+[[bin]]
+name = "laetibeat_netease_host"
+path = "src/main.rs"
+
+[dependencies]
+ncm-api-rs = { git = "https://github.com/SPlayer-Dev/ncm-api-rs", rev = "133b65bfe482e41ebccf018870d3fce07bf58eb3", package = "ncm-api-rs" }
+axum = "0.8"
+base64 = "0.22"
+md-5 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+subtle = "2"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
