@@ -396,12 +396,24 @@ class _LikedSongRecommendationsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final block = blocks
+    // 优先使用真正的 TAILORED_SONG block；部分账号/风控状态下网易云
+    // 不会返回这个 block，此时回退到首页已有的「猜你喜欢」歌曲区块。
+    final tailored = blocks
         .where(
           (value) =>
-              value.title.contains('根据你喜爱的歌曲推荐') && value.items.isNotEmpty,
+              (value.code == 'HOMEPAGE_BLOCK_TAILORED_SONG' ||
+                  value.title.contains('根据你喜爱的歌曲推荐')) &&
+              value.items.isNotEmpty,
         )
         .firstOrNull;
+    final fallback = blocks
+        .where(
+          (value) =>
+              value.code == 'HOMEPAGE_BLOCK_STYLE_RCMD' &&
+              value.items.isNotEmpty,
+        )
+        .firstOrNull;
+    final block = tailored ?? fallback;
     final tracks =
         block?.items
             .where((item) => item.kind == 'song')
