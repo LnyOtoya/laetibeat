@@ -363,13 +363,17 @@ jniLibs/<abi>/liblaetibeat_netease_host.so
 - [x] Android 真机 health/search/url 验证
 - [ ] 真实扫码成功并验证 cookies.json 持久化
 
-### N3：模式控制器
+### N3：模式控制器（已完成主体）
 
-- [ ] `AppMode` provider
-- [ ] sidecar start/stop
-- [ ] 数据目录按模式隔离
-- [ ] 切换时暂停播放
-- [ ] 切换回来恢复 Cookie
+- [x] `AppMode` provider + `app.mode` 持久化
+- [x] `ModeHostController` start / stop / restart / switch
+- [x] 数据目录按模式隔离：`modes/{qq,netease}`
+- [x] 切换时暂停播放
+- [x] 启动时按已保存模式自动拉起 sidecar
+- [x] 设置页「音源模式」入口与状态卡
+- [x] 开发期 `--dart-define=LAETIBEAT_QQ_HOST_PATH=...` 路径覆盖
+- [ ] 页面实际消费 `modeRuntimeProvider`（N4）
+- [ ] Android / Linux host 打包后的真机切换验证（N5）
 
 ### N4：UI 分模式
 
@@ -425,6 +429,11 @@ NDK r28c
   - Linux live：health / search / url / lyric / QR 创建均 200
   - Android 真机：host 启动、health、QQ 搜索通过
   - QR 轮询已返回 waiting/scanned；真实扫码与 credential 持久化待人工验证
+- N3 Flutter 检查：`flutter analyze` 0 error；`flutter test` 27 passed。
+  - 当前 `onlineHostProvider` 仍为 gomusic 兼容页面启动 Go host；native sidecar
+    由 `modeHostProvider` 并行管理，N4/N6 切换页面后移除 Go host。
+  - N3 的 Android/Linux 模式切换需要 N5 打包 host 后才能端到端验证；开发期可用
+    `--dart-define=LAETIBEAT_QQ_HOST_PATH=...` / `LAETIBEAT_NETEASE_HOST_PATH=...`。
 
 ## 13. 相关文档
 

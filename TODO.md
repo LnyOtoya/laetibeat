@@ -14,8 +14,8 @@
 - [x] 创建并推送 `native` 分支
 - [x] `laetibeat_qq_host` spike（搜索/URL/歌词/QR；真实扫码待验证）
 - [x] `laetibeat_netease_host` spike（搜索/URL/歌词/QR；真实扫码待验证）
-- [ ] `AppMode` 模式控制器
-- [ ] 模式切换停止服务 / 保留 Cookie
+- [x] `AppMode` 模式控制器
+- [x] 模式切换停止服务 / 保留 Cookie
 - [ ] UI 按模式显示不同内容
 - [ ] 删除 go-music-api 与 Go 打包链
 - [ ] native 通过 PR 合并回 main

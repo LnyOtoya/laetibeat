@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- native 分支：`AppMode`（本地 / Subsonic / QQ / 网易云）与 `app.mode` 持久化。
+- native 分支：`ModeHostController` 管理 QQ / 网易云 Rust sidecar 的启动、停止、重启与切换。
+- native 分支：按模式隔离数据目录 `modes/{qq,netease}`，切换时暂停播放并自动恢复 Cookie / Credential。
+- native 分支：设置页「音源模式」入口、sidecar 状态与开发期 host 路径覆盖。
+
 ## [1.0.2] - 2026-11-27
 
 ### Added
