@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:laetibeat/shared/layout/app_bottom_inset.dart';
-import 'package:laetibeat/widgets/settings/online_music_settings.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -11,9 +10,6 @@ import '../mobile_navigation.dart';
 import '../routes.dart';
 import 'library_source_filter.dart';
 import 'mobile_library_subpages.dart';
-import 'netease/netease_daily_page.dart';
-import 'netease/netease_playlists_page.dart';
-import 'netease/netease_subscriptions_pages.dart';
 
 /// 媒体库首页。
 ///
@@ -28,8 +24,6 @@ class MobileLibraryPage extends ConsumerWidget {
     final scheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
     final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
-    final onlineSource = ref.watch(selectedOnlineMusicSourceProvider);
-
     final localSegments = <_LibrarySegment>[
       _LibrarySegment(
         icon: M3EIcons.cloud,
@@ -86,7 +80,6 @@ class MobileLibraryPage extends ConsumerWidget {
       ),
     ];
 
-    final onlineSegments = _buildOnlineSegments(onlineSource);
 
     void openSegment(_LibrarySegment segment) {
       final page = segment.page;
@@ -133,65 +126,12 @@ class MobileLibraryPage extends ConsumerWidget {
             const ValueKey<String>('library_group_local'),
             localSegments,
           ),
-          const SizedBox(height: AppSpacing.xl),
-          buildSection(
-            '在线音乐 · ${onlineSource.label}',
-            const ValueKey<String>('library_group_online'),
-            onlineSegments,
-          ),
         ],
       ),
     );
   }
 
-  List<_LibrarySegment> _buildOnlineSegments(OnlineMusicSource source) {
-    final message = '${source.label}尚未接入，请先在设置中配置 API';
 
-    return <_LibrarySegment>[
-      _LibrarySegment(
-        icon: M3EIcons.person,
-        title: '艺人',
-        routeName: MobileRoutes.libraryArtists,
-        page: switch (source) {
-          OnlineMusicSource.netease => const NeteaseArtistsPage(),
-        },
-      ),
-      _LibrarySegment(
-        icon: M3EIcons.queue_music,
-        title: '我的在线歌单',
-        routeName: MobileRoutes.libraryPlaylists,
-        page: switch (source) {
-          OnlineMusicSource.netease => const NeteasePlaylistsPage(),
-        },
-      ),
-      _LibrarySegment(
-        icon: M3EIcons.auto_awesome,
-        title: '每日推荐',
-        routeName: MobileRoutes.discovery,
-        page: switch (source) {
-          OnlineMusicSource.netease => const NeteaseDailyPage(),
-        },
-      ),
-      _LibrarySegment(
-        icon: M3EIcons.album,
-        title: '专辑',
-        routeName: MobileRoutes.libraryAlbums,
-        page: switch (source) {
-          OnlineMusicSource.netease => const NeteaseAlbumsPage(),
-        },
-      ),
-      _LibrarySegment(
-        icon: M3EIcons.radio,
-        title: '电台',
-        routeName: MobileRoutes.libraryPodcasts,
-        page: _LibraryPlaceholderPage(
-          title: '电台',
-          message: message,
-          icon: M3EIcons.radio,
-        ),
-      ),
-    ];
-  }
 }
 
 class _LibrarySegment {

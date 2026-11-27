@@ -23,12 +23,9 @@ abstract final class MobileRoutes {
   static const String colorMapping = '/settings/appearance/color-mapping';
   static const String audioSettings = '/settings/audio';
   static const String contentSettings = '/settings/content';
-  static const String onlineMusicSettings = '/settings/online-music';
   static const String musicSources = '/settings/music-sources';
   static const String opensubsonicConfig =
       '/settings/music-sources/opensubsonic';
-  static const String neteaseConfig = '/settings/music-sources/netease';
-  static const String neteaseLogin = '/settings/music-sources/netease/login';
   static const String lxSources = '/settings/music-sources/lx';
   static const String storageSettings = '/settings/storage';
 }

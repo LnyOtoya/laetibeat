@@ -11,7 +11,6 @@ crate-type = ["cdylib", "staticlib"]
 flutter_rust_bridge = "=2.13.0"
 laetibeat_core = { path = "../../laetibeat_core" }
 laetibeat_remote = { path = "../../laetibeat_remote" }
-laetibeat_netease = { path = "../../laetibeat_netease" }
 laetibeat_lx = { path = "../../laetibeat_lx" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

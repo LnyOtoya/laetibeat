@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
-import 'package:laetibeat/widgets/cache/netease_cover_cache.dart';
 import 'package:laetibeat/widgets/player/lx_search_provider.dart';
 import 'package:laetibeat/widgets/player/cover_provider.dart';
 import 'package:laetibeat/widgets/player/lx_track.dart';
@@ -13,19 +12,15 @@ import 'package:laetibeat/widgets/playlist_provider.dart';
 import 'package:laetibeat/widgets/remote_browser_provider.dart';
 import 'package:laetibeat/widgets/settings/cover_shape_settings.dart';
 import 'package:laetibeat/widgets/settings/music_library_provider.dart';
-import 'package:laetibeat/widgets/settings/netease_provider.dart';
 import 'package:laetibeat/widgets/settings/search_settings.dart';
 import 'package:laetibeat/widgets/settings/persistence.dart';
 import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../library/albums/album_detail_page.dart';
 import '../library/artists/artist_detail_page.dart';
-import '../library/netease/netease_album_artist_pages.dart';
-import '../library/netease/netease_playlists_page.dart';
 import '../library/playlists/local_playlist_detail_page.dart';
 import '../library/playlists/lx_playlist_preview_page.dart';
 import '../library/playlists/playlist_actions.dart';
@@ -636,10 +631,6 @@ class _SearchFilterButton extends StatelessWidget {
           value: MobileSearchSourceFilter.lx,
           child: Text(l10n.searchFilterLx),
         ),
-        const M3ESplitButtonItem(
-          value: MobileSearchSourceFilter.netease,
-          child: Text('网易云'),
-        ),
       ],
     );
   }
@@ -680,18 +671,6 @@ class _SearchResults extends ConsumerWidget {
         query: query,
         platform: lxPlatform!,
       );
-    }
-    if (filter == MobileSearchSourceFilter.netease) {
-      switch (category) {
-        case MobileSearchCategory.songs:
-          return _NeteaseSongsResults(query: query);
-        case MobileSearchCategory.playlists:
-          return _NeteasePlaylistResults(query: query);
-        case MobileSearchCategory.albums:
-          return _NeteaseAlbumResults(query: query);
-        case MobileSearchCategory.artists:
-          return _NeteaseArtistResults(query: query);
-      }
     }
     final isPlaylistCategory = category == MobileSearchCategory.playlists;
     final isLxFilter = filter == MobileSearchSourceFilter.lx;
@@ -1265,342 +1244,6 @@ class _SearchResults extends ConsumerWidget {
     ];
     if (tracks.isEmpty) return;
     ref.read(playerProvider.notifier).load(tracks, 0, source: album.title);
-  }
-}
-
-class _NeteaseAlbumResults extends ConsumerWidget {
-  const _NeteaseAlbumResults({required this.query});
-
-  final String query;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = M3ETheme.of(context);
-    final l10n = AppLocalizations.of(context);
-    final results = ref.watch(
-      neteaseAlbumSearchProvider((keywords: query, limit: 50, offset: 0)),
-    );
-
-    return results.when(
-      loading: _loading,
-      error: (error, _) => _NeteaseSearchError(message: '$error'),
-      data: (albums) {
-        if (albums.isEmpty) {
-          return _empty(l10n, message: l10n.searchNoAlbumResults);
-        }
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          children: <Widget>[
-            M3EList(
-              color: theme.colorScheme.surface,
-              variant: M3ECardVariant.filled,
-              itemCount: albums.length,
-              onTap: (int index) {
-                final album = albums[index];
-                prefetchNeteaseCover(ref, album.coverUrl);
-                pushMobileRootPage(
-                  context,
-                  NeteaseAlbumDetailPage(album: album),
-                  name: MobileRoutes.libraryAlbums,
-                );
-              },
-              itemBuilder: (BuildContext context, int index) {
-                final album = albums[index];
-                return M3EListItem(
-                  headline: album.name,
-                  supportingText: '${album.artist} · ${album.trackCount} 首',
-                  leading: _NeteaseSearchImage(url: album.coverUrl),
-                  trailing: _sourceChip('网易云', 'wy'),
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _NeteaseArtistResults extends ConsumerWidget {
-  const _NeteaseArtistResults({required this.query});
-
-  final String query;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = M3ETheme.of(context);
-    final l10n = AppLocalizations.of(context);
-    final results = ref.watch(
-      neteaseArtistSearchProvider((keywords: query, limit: 50, offset: 0)),
-    );
-
-    return results.when(
-      loading: _loading,
-      error: (error, _) => _NeteaseSearchError(message: '$error'),
-      data: (artists) {
-        if (artists.isEmpty) {
-          return _empty(l10n, message: l10n.searchNoArtistResults);
-        }
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          children: <Widget>[
-            M3EList(
-              color: theme.colorScheme.surface,
-              variant: M3ECardVariant.filled,
-              itemCount: artists.length,
-              onTap: (int index) {
-                final artist = artists[index];
-                prefetchNeteaseCover(ref, artist.coverUrl);
-                pushMobileRootPage(
-                  context,
-                  NeteaseArtistDetailPage(artist: artist),
-                  name: MobileRoutes.libraryArtists,
-                );
-              },
-              itemBuilder: (BuildContext context, int index) {
-                final artist = artists[index];
-                return M3EListItem(
-                  headline: artist.name,
-                  supportingText: artist.alias.isEmpty
-                      ? '${artist.albumSize} 张专辑'
-                      : '${artist.alias.join(' / ')} · ${artist.albumSize} 张专辑',
-                  leading: _NeteaseSearchImage(
-                    url: artist.coverUrl,
-                    circular: true,
-                  ),
-                  trailing: _sourceChip('网易云', 'wy'),
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _NeteaseSearchImage extends ConsumerWidget {
-  const _NeteaseSearchImage({required this.url, this.circular = false});
-
-  final String? url;
-  final bool circular;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = M3ETheme.of(context);
-    final cacheSize = (44 * MediaQuery.devicePixelRatioOf(context)).round();
-    final value = url;
-    final bytes = value == null || value.isEmpty
-        ? null
-        : ref.watch(neteaseImageProvider(value)).value;
-    return ClipRRect(
-      borderRadius: circular ? BorderRadius.circular(22) : AppRadii.smAll,
-      child: SizedBox.square(
-        dimension: 44,
-        child: bytes == null || bytes.isEmpty
-            ? ColoredBox(
-                color: theme.colorScheme.secondaryContainer,
-                child: Icon(
-                  circular ? M3EIcons.person : M3EIcons.album,
-                  size: 20,
-                  color: theme.colorScheme.onSecondaryContainer,
-                ),
-              )
-            : Image.memory(
-                bytes,
-                fit: BoxFit.cover,
-                cacheWidth: cacheSize,
-                cacheHeight: cacheSize,
-              ),
-      ),
-    );
-  }
-}
-
-class _NeteaseSearchError extends StatelessWidget {
-  const _NeteaseSearchError({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = M3ETheme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-      child: Center(
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: theme.typeScale.bodyMedium.copyWith(
-            color: theme.colorScheme.error,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NeteasePlaylistResults extends ConsumerWidget {
-  const _NeteasePlaylistResults({required this.query});
-
-  final String query;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = M3ETheme.of(context);
-    final l10n = AppLocalizations.of(context);
-    final results = ref.watch(
-      neteasePlaylistSearchProvider((keywords: query, limit: 50, offset: 0)),
-    );
-
-    return results.when(
-      loading: _loading,
-      error: (error, _) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        child: Center(
-          child: Text(
-            '$error',
-            textAlign: TextAlign.center,
-            style: theme.typeScale.bodyMedium.copyWith(
-              color: theme.colorScheme.error,
-            ),
-          ),
-        ),
-      ),
-      data: (playlists) {
-        if (playlists.isEmpty) {
-          return _empty(l10n, message: l10n.searchNoPlaylistResults);
-        }
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          children: <Widget>[
-            M3EList(
-              color: theme.colorScheme.surface,
-              variant: M3ECardVariant.filled,
-              itemCount: playlists.length,
-              onTap: (int index) {
-                final playlist = playlists[index];
-                prefetchNeteaseCover(ref, playlist.coverUrl);
-                pushMobileRootPage(
-                  context,
-                  NeteasePlaylistDetailPage(playlist: playlist),
-                  name: MobileRoutes.libraryPlaylists,
-                );
-              },
-              itemBuilder: (BuildContext context, int index) {
-                final playlist = playlists[index];
-                return M3EListItem(
-                  headline: playlist.name,
-                  supportingText: [
-                    if (playlist.creator != null) playlist.creator!,
-                    '${playlist.trackCount} 首',
-                  ].join(' · '),
-                  leading: _NeteaseSearchPlaylistCover(url: playlist.coverUrl),
-                  trailing: _sourceChip('网易云', 'wy'),
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _NeteaseSearchPlaylistCover extends ConsumerWidget {
-  const _NeteaseSearchPlaylistCover({required this.url});
-
-  final String? url;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = M3ETheme.of(context);
-    final cacheSize = (44 * MediaQuery.devicePixelRatioOf(context)).round();
-    final value = url;
-    final bytes = value == null || value.isEmpty
-        ? null
-        : ref.watch(neteasePlaylistCoverProvider(value)).value;
-    return M3EShapeContainer(
-      kind: ref.watch(searchCoverShapeProvider),
-      width: 44,
-      height: 44,
-      clipBehavior: Clip.antiAlias,
-      child: ColoredBox(
-        color: theme.colorScheme.secondaryContainer,
-        child: bytes == null || bytes.isEmpty
-            ? Icon(
-                M3EIcons.queue_music,
-                size: 20,
-                color: theme.colorScheme.onSecondaryContainer,
-              )
-            : Image.memory(
-                bytes,
-                fit: BoxFit.cover,
-                cacheWidth: cacheSize,
-                cacheHeight: cacheSize,
-              ),
-      ),
-    );
-  }
-}
-
-class _NeteaseSongsResults extends ConsumerWidget {
-  const _NeteaseSongsResults({required this.query});
-
-  final String query;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = M3ETheme.of(context);
-    final l10n = AppLocalizations.of(context);
-    final results = ref.watch(
-      neteaseSearchProvider((keywords: query, limit: 50, offset: 0)),
-    );
-
-    return results.when(
-      loading: _loading,
-      error: (error, _) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        child: Center(
-          child: Text(
-            '$error',
-            textAlign: TextAlign.center,
-            style: theme.typeScale.bodyMedium.copyWith(
-              color: theme.colorScheme.error,
-            ),
-          ),
-        ),
-      ),
-      data: (tracks) {
-        if (tracks.isEmpty) {
-          return _empty(l10n, message: l10n.searchNoResults);
-        }
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          children: <Widget>[
-            M3EList(
-              color: theme.colorScheme.surface,
-              variant: M3ECardVariant.filled,
-              itemCount: tracks.length,
-              onTap: (int index) {
-                ref
-                    .read(playerProvider.notifier)
-                    .load(tracks, index, source: '网易云搜索');
-              },
-              itemBuilder: (BuildContext context, int index) {
-                final track = tracks[index];
-                return M3EListItem(
-                  headline: track.title,
-                  supportingText: track.artist,
-                  leading: _SearchResultCover(track: track),
-                  trailing: _sourceChip('网易云', 'wy'),
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 }
 

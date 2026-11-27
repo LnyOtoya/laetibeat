@@ -4,7 +4,6 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../l10n/generated/app_localizations.dart';
-import '../../../widgets/settings/online_music_settings.dart';
 
 import '../mobile_navigation.dart';
 import '../routes.dart';
@@ -13,7 +12,6 @@ import 'about/mobile_about_settings_page.dart';
 import 'appearance/mobile_appearance_settings_page.dart';
 import 'audio/mobile_audio_settings_page.dart';
 import 'content/mobile_content_settings_page.dart';
-import 'online/mobile_online_music_settings_page.dart';
 import 'storage/mobile_storage_settings_page.dart';
 
 /// 移动端设置页面。
@@ -27,7 +25,6 @@ class MobileSettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
-    final onlineSource = ref.watch(selectedOnlineMusicSourceProvider);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -83,13 +80,6 @@ class MobileSettingsPage extends ConsumerWidget {
                         ),
                       ),
                       m3e_core.M3EListItem(
-                        headline: const Text('在线音乐'),
-                        supportingText: Text('当前：${onlineSource.label}'),
-                        leading: _SettingsLeadingAvatar(
-                          icon: M3EIcons.language,
-                        ),
-                      ),
-                      m3e_core.M3EListItem(
                         headline: Text(l10n.settingsStorage),
                         supportingText: Text(l10n.settingsStorageSupporting),
                         leading: _SettingsLeadingAvatar(icon: M3EIcons.storage),
@@ -142,16 +132,10 @@ class MobileSettingsPage extends ConsumerWidget {
       case 3:
         pushMobileRootPage(
           context,
-          const MobileOnlineMusicSettingsPage(),
-          name: MobileRoutes.onlineMusicSettings,
-        );
-      case 4:
-        pushMobileRootPage(
-          context,
           const MobileStorageSettingsPage(),
           name: MobileRoutes.storageSettings,
         );
-      case 6:
+      case 5:
         pushMobileRootPage(
           context,
           const MobileAboutSettingsPage(),

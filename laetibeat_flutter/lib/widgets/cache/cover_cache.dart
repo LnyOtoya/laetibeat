@@ -5,8 +5,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
-const int kDefaultNeteaseCoverCacheMb = 128;
-
 /// 远端封面磁盘缓存:按 sourceId 分目录,总容量 LRU 淘汰。
 /// 文件名使用 base64Url,避免 coverId 里的特殊字符影响路径。
 class RemoteCoverDiskCache {
@@ -261,12 +259,6 @@ final RemoteCoverDiskCache remoteCoverDiskCache = RemoteCoverDiskCache();
 /// LX 音源封面磁盘缓存，和 Subsonic 封面分目录统计与清理。
 final RemoteCoverDiskCache lxCoverDiskCache = RemoteCoverDiskCache(
   rootName: 'lx_covers',
-);
-
-/// 网易云封面磁盘缓存，与其他音源独立限额、独立清理。
-final RemoteCoverDiskCache neteaseCoverDiskCache = RemoteCoverDiskCache(
-  maxBytes: kDefaultNeteaseCoverCacheMb * 1024 * 1024,
-  rootName: 'netease_covers',
 );
 
 /// 清理某个音源的封面缓存

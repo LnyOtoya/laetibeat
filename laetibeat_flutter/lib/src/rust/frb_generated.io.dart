@@ -7,7 +7,6 @@ import 'api/library.dart';
 import 'api/lx.dart';
 import 'api/lyrics.dart';
 import 'api/metadata.dart';
-import 'api/netease.dart';
 import 'api/playlists.dart';
 import 'api/simple.dart';
 import 'api/stats.dart';
@@ -100,9 +99,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Int64List dco_decode_list_prim_i_64_strict(dynamic raw);
 
   @protected
-  Uint64List dco_decode_list_prim_u_64_strict(dynamic raw);
-
-  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
@@ -137,23 +133,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<UiLyricsSearchResult> dco_decode_list_ui_lyrics_search_result(
     dynamic raw,
   );
-
-  @protected
-  List<UiNeteaseAlbum> dco_decode_list_ui_netease_album(dynamic raw);
-
-  @protected
-  List<UiNeteaseArtist> dco_decode_list_ui_netease_artist(dynamic raw);
-
-  @protected
-  List<UiNeteaseHomeCard> dco_decode_list_ui_netease_home_card(dynamic raw);
-
-  @protected
-  List<UiNeteaseHomeSection> dco_decode_list_ui_netease_home_section(
-    dynamic raw,
-  );
-
-  @protected
-  List<UiNeteasePlaylist> dco_decode_list_ui_netease_playlist(dynamic raw);
 
   @protected
   List<UiPlayEvent> dco_decode_list_ui_play_event(dynamic raw);
@@ -281,48 +260,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiLyricsSearchResult dco_decode_ui_lyrics_search_result(dynamic raw);
-
-  @protected
-  UiNeteaseAlbum dco_decode_ui_netease_album(dynamic raw);
-
-  @protected
-  UiNeteaseAlbumDetail dco_decode_ui_netease_album_detail(dynamic raw);
-
-  @protected
-  UiNeteaseArtist dco_decode_ui_netease_artist(dynamic raw);
-
-  @protected
-  UiNeteaseArtistDetail dco_decode_ui_netease_artist_detail(dynamic raw);
-
-  @protected
-  UiNeteaseCaptchaResult dco_decode_ui_netease_captcha_result(dynamic raw);
-
-  @protected
-  UiNeteaseHomeCard dco_decode_ui_netease_home_card(dynamic raw);
-
-  @protected
-  UiNeteaseHomeSection dco_decode_ui_netease_home_section(dynamic raw);
-
-  @protected
-  UiNeteaseLoginResult dco_decode_ui_netease_login_result(dynamic raw);
-
-  @protected
-  UiNeteaseLyric dco_decode_ui_netease_lyric(dynamic raw);
-
-  @protected
-  UiNeteasePlaylist dco_decode_ui_netease_playlist(dynamic raw);
-
-  @protected
-  UiNeteaseQrCheck dco_decode_ui_netease_qr_check(dynamic raw);
-
-  @protected
-  UiNeteaseQrCode dco_decode_ui_netease_qr_code(dynamic raw);
-
-  @protected
-  UiNeteaseStatus dco_decode_ui_netease_status(dynamic raw);
-
-  @protected
-  UiNeteaseStream dco_decode_ui_netease_stream(dynamic raw);
 
   @protected
   UiPlayEvent dco_decode_ui_play_event(dynamic raw);
@@ -464,9 +401,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Int64List sse_decode_list_prim_i_64_strict(SseDeserializer deserializer);
 
   @protected
-  Uint64List sse_decode_list_prim_u_64_strict(SseDeserializer deserializer);
-
-  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
@@ -507,31 +441,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<UiLyricsSearchResult> sse_decode_list_ui_lyrics_search_result(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  List<UiNeteaseAlbum> sse_decode_list_ui_netease_album(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  List<UiNeteaseArtist> sse_decode_list_ui_netease_artist(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  List<UiNeteaseHomeCard> sse_decode_list_ui_netease_home_card(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  List<UiNeteaseHomeSection> sse_decode_list_ui_netease_home_section(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  List<UiNeteasePlaylist> sse_decode_list_ui_netease_playlist(
     SseDeserializer deserializer,
   );
 
@@ -691,62 +600,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UiLyricsSearchResult sse_decode_ui_lyrics_search_result(
     SseDeserializer deserializer,
   );
-
-  @protected
-  UiNeteaseAlbum sse_decode_ui_netease_album(SseDeserializer deserializer);
-
-  @protected
-  UiNeteaseAlbumDetail sse_decode_ui_netease_album_detail(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  UiNeteaseArtist sse_decode_ui_netease_artist(SseDeserializer deserializer);
-
-  @protected
-  UiNeteaseArtistDetail sse_decode_ui_netease_artist_detail(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  UiNeteaseCaptchaResult sse_decode_ui_netease_captcha_result(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  UiNeteaseHomeCard sse_decode_ui_netease_home_card(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  UiNeteaseHomeSection sse_decode_ui_netease_home_section(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  UiNeteaseLoginResult sse_decode_ui_netease_login_result(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  UiNeteaseLyric sse_decode_ui_netease_lyric(SseDeserializer deserializer);
-
-  @protected
-  UiNeteasePlaylist sse_decode_ui_netease_playlist(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  UiNeteaseQrCheck sse_decode_ui_netease_qr_check(SseDeserializer deserializer);
-
-  @protected
-  UiNeteaseQrCode sse_decode_ui_netease_qr_code(SseDeserializer deserializer);
-
-  @protected
-  UiNeteaseStatus sse_decode_ui_netease_status(SseDeserializer deserializer);
-
-  @protected
-  UiNeteaseStream sse_decode_ui_netease_stream(SseDeserializer deserializer);
 
   @protected
   UiPlayEvent sse_decode_ui_play_event(SseDeserializer deserializer);
@@ -925,12 +778,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_prim_u_64_strict(
-    Uint64List self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -981,36 +828,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_ui_lyrics_search_result(
     List<UiLyricsSearchResult> self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_list_ui_netease_album(
-    List<UiNeteaseAlbum> self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_list_ui_netease_artist(
-    List<UiNeteaseArtist> self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_list_ui_netease_home_card(
-    List<UiNeteaseHomeCard> self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_list_ui_netease_home_section(
-    List<UiNeteaseHomeSection> self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_list_ui_netease_playlist(
-    List<UiNeteasePlaylist> self,
     SseSerializer serializer,
   );
 
@@ -1215,90 +1032,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_ui_lyrics_search_result(
     UiLyricsSearchResult self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_album(
-    UiNeteaseAlbum self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_album_detail(
-    UiNeteaseAlbumDetail self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_artist(
-    UiNeteaseArtist self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_artist_detail(
-    UiNeteaseArtistDetail self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_captcha_result(
-    UiNeteaseCaptchaResult self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_home_card(
-    UiNeteaseHomeCard self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_home_section(
-    UiNeteaseHomeSection self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_login_result(
-    UiNeteaseLoginResult self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_lyric(
-    UiNeteaseLyric self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_playlist(
-    UiNeteasePlaylist self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_qr_check(
-    UiNeteaseQrCheck self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_qr_code(
-    UiNeteaseQrCode self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_status(
-    UiNeteaseStatus self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_ui_netease_stream(
-    UiNeteaseStream self,
     SseSerializer serializer,
   );
 

@@ -1,6 +1,8 @@
 # Laetibeat 在线音源迁移设计
 
-> 状态：**草案，待确认后实施**
+> **2026-11-27 决策更新**：已决定不做 overlay、不保留旧 Node API 兼容层；旧网易云代码已从 `main` 删除，发现页仅保留空壳。本文档的「兼容层 / overlay」章节（D2、§4.4 等）已作废，待按「纯 go-music-api + 网易云/QQ 统一能力」重写。
+>
+> 状态：**草案，待重写**
 > 目标：保留现有全部 UI，彻底移除对外部「网易云 Node API」的依赖，改为 `go-music-api` + 自建薄 host；洛雪（LX）继续作为用户可选的 fallback 解析器。
 > 关联：`PLAN.md`、`TODO.md`、`reference/go-music-api/`、`reference/api-enhanced/`、`reference/neteaseapi.md`
 

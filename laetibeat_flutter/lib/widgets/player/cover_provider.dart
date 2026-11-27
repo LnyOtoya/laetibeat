@@ -12,7 +12,6 @@ import 'package:saf/saf.dart';
 
 import '../../core/services/saf_uri.dart';
 import '../cache/cover_cache.dart';
-import '../cache/netease_cover_cache.dart';
 import 'cover_color.dart';
 import 'lx_track.dart';
 import 'player_provider.dart';
@@ -345,10 +344,6 @@ final playbackCoverProvider = FutureProvider<PlaybackCover?>((ref) async {
   final coverId = track.coverId;
   if (track.source == 'lx') {
     bytes = await ref.read(lxCoverSourceProvider).cover(track);
-  } else if (track.source == 'netease' &&
-      coverId != null &&
-      coverId.isNotEmpty) {
-    bytes = await ref.read(neteaseCoverSourceProvider).coverUrl(coverId);
   } else if (track.source == 'opensubsonic' &&
       coverId != null &&
       coverId.isNotEmpty) {
@@ -372,9 +367,6 @@ final trackCoverProvider = FutureProvider.family<Uint8List?, rust.UiTrack>((
   final coverId = track.coverId;
   if (track.source == 'lx') {
     return ref.read(lxCoverSourceProvider).cover(track);
-  }
-  if (track.source == 'netease' && coverId != null && coverId.isNotEmpty) {
-    return ref.read(neteaseCoverSourceProvider).coverUrl(coverId);
   }
   if (track.source == 'opensubsonic' && coverId != null && coverId.isNotEmpty) {
     return ref.read(remoteCoverSourceProvider).cover(track.sourceId, coverId);

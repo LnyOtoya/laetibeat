@@ -7,7 +7,6 @@ import 'api/library.dart';
 import 'api/lx.dart';
 import 'api/lyrics.dart';
 import 'api/metadata.dart';
-import 'api/netease.dart';
 import 'api/playlists.dart';
 import 'api/simple.dart';
 import 'api/stats.dart';
@@ -75,7 +74,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1897920835;
+  int get rustContentHash => 1124677816;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -182,191 +181,6 @@ abstract class RustLibApi extends BaseApi {
     required PlatformInt64 id,
     required String source,
     required String sourceListId,
-  });
-
-  Future<UiNeteaseAlbumDetail> crateApiNeteaseNeteaseAlbumDetail({
-    required String baseUrl,
-    required BigInt albumId,
-  });
-
-  Future<List<UiNeteaseAlbum>> crateApiNeteaseNeteaseArtistAlbums({
-    required String baseUrl,
-    required BigInt artistId,
-    int? limit,
-    int? offset,
-  });
-
-  Future<UiNeteaseArtistDetail> crateApiNeteaseNeteaseArtistDetail({
-    required String baseUrl,
-    required BigInt artistId,
-  });
-
-  Future<List<UiTrack>> crateApiNeteaseNeteaseArtistTopSongs({
-    required String baseUrl,
-    required BigInt artistId,
-  });
-
-  Future<List<UiTrack>> crateApiNeteaseNeteaseDailyRecommendations({
-    required String baseUrl,
-    String? cookie,
-  });
-
-  Future<Uint8List> crateApiNeteaseNeteaseGetCover({required String url});
-
-  Future<List<UiNeteaseHomeSection>> crateApiNeteaseNeteaseHomeSections({
-    required String baseUrl,
-    required String cookie,
-    bool? refresh,
-  });
-
-  Future<List<UiTrack>> crateApiNeteaseNeteaseIntelligenceList({
-    required String baseUrl,
-    required String cookie,
-    required BigInt songId,
-    required BigInt playlistId,
-    BigInt? startSongId,
-  });
-
-  Future<Uint64List> crateApiNeteaseNeteaseLikedSongIds({
-    required String baseUrl,
-    required BigInt uid,
-    required String cookie,
-  });
-
-  Future<List<UiTrack>> crateApiNeteaseNeteaseLikedSongRecommendations({
-    required String baseUrl,
-    required String cookie,
-  });
-
-  Future<UiNeteaseLoginResult> crateApiNeteaseNeteaseLoginCellphone({
-    required String baseUrl,
-    required String phone,
-    required String captcha,
-    String? countrycode,
-  });
-
-  Future<UiNeteaseLyric> crateApiNeteaseNeteaseLyric({
-    required String baseUrl,
-    required String songId,
-  });
-
-  Future<List<UiTrack>> crateApiNeteaseNeteasePersonalFm({
-    required String baseUrl,
-    String? cookie,
-  });
-
-  Future<List<UiTrack>> crateApiNeteaseNeteasePersonalFmMode({
-    required String baseUrl,
-    required String mode,
-    String? submode,
-    String? cookie,
-  });
-
-  Future<List<UiNeteasePlaylist>> crateApiNeteaseNeteasePersonalizedPlaylists({
-    required String baseUrl,
-    int? limit,
-    String? cookie,
-  });
-
-  Future<List<UiTrack>> crateApiNeteaseNeteasePlaylistTracks({
-    required String baseUrl,
-    required BigInt playlistId,
-    String? cookie,
-    int? limit,
-    int? offset,
-  });
-
-  Future<UiNeteaseQrCheck> crateApiNeteaseNeteaseQrCheck({
-    required String baseUrl,
-    required String key,
-  });
-
-  Future<UiNeteaseQrCode> crateApiNeteaseNeteaseQrCreate({
-    required String baseUrl,
-  });
-
-  Future<List<UiNeteasePlaylist>> crateApiNeteaseNeteaseRadarPlaylists({
-    required String baseUrl,
-    String? cookie,
-  });
-
-  Future<List<UiTrack>> crateApiNeteaseNeteaseSearch({
-    required String baseUrl,
-    required String keywords,
-    int? limit,
-    int? offset,
-  });
-
-  Future<List<UiNeteaseAlbum>> crateApiNeteaseNeteaseSearchAlbums({
-    required String baseUrl,
-    required String keywords,
-    int? limit,
-    int? offset,
-  });
-
-  Future<List<UiNeteaseArtist>> crateApiNeteaseNeteaseSearchArtists({
-    required String baseUrl,
-    required String keywords,
-    int? limit,
-    int? offset,
-  });
-
-  Future<List<UiNeteasePlaylist>> crateApiNeteaseNeteaseSearchPlaylists({
-    required String baseUrl,
-    required String keywords,
-    int? limit,
-    int? offset,
-  });
-
-  Future<UiNeteaseCaptchaResult> crateApiNeteaseNeteaseSendCaptcha({
-    required String baseUrl,
-    required String phone,
-    String? countrycode,
-  });
-
-  Future<List<UiTrack>> crateApiNeteaseNeteaseSimilarSongs({
-    required String baseUrl,
-    required BigInt songId,
-    String? cookie,
-  });
-
-  Future<List<UiTrack>> crateApiNeteaseNeteaseSongDetail({
-    required String baseUrl,
-    required List<String> songIds,
-  });
-
-  Future<UiNeteaseStream> crateApiNeteaseNeteaseSongUrl({
-    required String baseUrl,
-    required String songId,
-    String? level,
-    String? cookie,
-  });
-
-  Future<UiNeteaseStatus> crateApiNeteaseNeteaseStatus({
-    required String baseUrl,
-    String? cookie,
-  });
-
-  Future<List<UiNeteaseAlbum>> crateApiNeteaseNeteaseSubscribedAlbums({
-    required String baseUrl,
-    required String cookie,
-    int? limit,
-    int? offset,
-  });
-
-  Future<List<UiNeteaseArtist>> crateApiNeteaseNeteaseSubscribedArtists({
-    required String baseUrl,
-    required String cookie,
-    int? limit,
-    int? offset,
-  });
-
-  Future<List<UiNeteasePlaylist>> crateApiNeteaseNeteaseUserPlaylists({
-    required String baseUrl,
-    required BigInt uid,
-    required String cookie,
-    int? limit,
-    int? offset,
   });
 
   Future<UiTrack> crateApiSimpleParseSafTrack({
@@ -1513,1150 +1327,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<UiNeteaseAlbumDetail> crateApiNeteaseNeteaseAlbumDetail({
-    required String baseUrl,
-    required BigInt albumId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_u_64(albumId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 27,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_ui_netease_album_detail,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseAlbumDetailConstMeta,
-        argValues: [baseUrl, albumId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseAlbumDetailConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_album_detail",
-        argNames: ["baseUrl", "albumId"],
-      );
-
-  @override
-  Future<List<UiNeteaseAlbum>> crateApiNeteaseNeteaseArtistAlbums({
-    required String baseUrl,
-    required BigInt artistId,
-    int? limit,
-    int? offset,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_u_64(artistId, serializer);
-          sse_encode_opt_box_autoadd_u_32(limit, serializer);
-          sse_encode_opt_box_autoadd_u_32(offset, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 28,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_netease_album,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseArtistAlbumsConstMeta,
-        argValues: [baseUrl, artistId, limit, offset],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseArtistAlbumsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_artist_albums",
-        argNames: ["baseUrl", "artistId", "limit", "offset"],
-      );
-
-  @override
-  Future<UiNeteaseArtistDetail> crateApiNeteaseNeteaseArtistDetail({
-    required String baseUrl,
-    required BigInt artistId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_u_64(artistId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 29,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_ui_netease_artist_detail,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseArtistDetailConstMeta,
-        argValues: [baseUrl, artistId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseArtistDetailConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_artist_detail",
-        argNames: ["baseUrl", "artistId"],
-      );
-
-  @override
-  Future<List<UiTrack>> crateApiNeteaseNeteaseArtistTopSongs({
-    required String baseUrl,
-    required BigInt artistId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_u_64(artistId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 30,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_track,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseArtistTopSongsConstMeta,
-        argValues: [baseUrl, artistId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseArtistTopSongsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_artist_top_songs",
-        argNames: ["baseUrl", "artistId"],
-      );
-
-  @override
-  Future<List<UiTrack>> crateApiNeteaseNeteaseDailyRecommendations({
-    required String baseUrl,
-    String? cookie,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_opt_String(cookie, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 31,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_track,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseDailyRecommendationsConstMeta,
-        argValues: [baseUrl, cookie],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseDailyRecommendationsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_daily_recommendations",
-        argNames: ["baseUrl", "cookie"],
-      );
-
-  @override
-  Future<Uint8List> crateApiNeteaseNeteaseGetCover({required String url}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(url, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 32,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_prim_u_8_strict,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseGetCoverConstMeta,
-        argValues: [url],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseGetCoverConstMeta =>
-      const TaskConstMeta(debugName: "netease_get_cover", argNames: ["url"]);
-
-  @override
-  Future<List<UiNeteaseHomeSection>> crateApiNeteaseNeteaseHomeSections({
-    required String baseUrl,
-    required String cookie,
-    bool? refresh,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(cookie, serializer);
-          sse_encode_opt_box_autoadd_bool(refresh, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 33,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_netease_home_section,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseHomeSectionsConstMeta,
-        argValues: [baseUrl, cookie, refresh],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseHomeSectionsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_home_sections",
-        argNames: ["baseUrl", "cookie", "refresh"],
-      );
-
-  @override
-  Future<List<UiTrack>> crateApiNeteaseNeteaseIntelligenceList({
-    required String baseUrl,
-    required String cookie,
-    required BigInt songId,
-    required BigInt playlistId,
-    BigInt? startSongId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(cookie, serializer);
-          sse_encode_u_64(songId, serializer);
-          sse_encode_u_64(playlistId, serializer);
-          sse_encode_opt_box_autoadd_u_64(startSongId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 34,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_track,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseIntelligenceListConstMeta,
-        argValues: [baseUrl, cookie, songId, playlistId, startSongId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseIntelligenceListConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_intelligence_list",
-        argNames: ["baseUrl", "cookie", "songId", "playlistId", "startSongId"],
-      );
-
-  @override
-  Future<Uint64List> crateApiNeteaseNeteaseLikedSongIds({
-    required String baseUrl,
-    required BigInt uid,
-    required String cookie,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_u_64(uid, serializer);
-          sse_encode_String(cookie, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 35,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_prim_u_64_strict,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseLikedSongIdsConstMeta,
-        argValues: [baseUrl, uid, cookie],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseLikedSongIdsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_liked_song_ids",
-        argNames: ["baseUrl", "uid", "cookie"],
-      );
-
-  @override
-  Future<List<UiTrack>> crateApiNeteaseNeteaseLikedSongRecommendations({
-    required String baseUrl,
-    required String cookie,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(cookie, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 36,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_track,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseLikedSongRecommendationsConstMeta,
-        argValues: [baseUrl, cookie],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseLikedSongRecommendationsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_liked_song_recommendations",
-        argNames: ["baseUrl", "cookie"],
-      );
-
-  @override
-  Future<UiNeteaseLoginResult> crateApiNeteaseNeteaseLoginCellphone({
-    required String baseUrl,
-    required String phone,
-    required String captcha,
-    String? countrycode,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(phone, serializer);
-          sse_encode_String(captcha, serializer);
-          sse_encode_opt_String(countrycode, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 37,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_ui_netease_login_result,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseLoginCellphoneConstMeta,
-        argValues: [baseUrl, phone, captcha, countrycode],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseLoginCellphoneConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_login_cellphone",
-        argNames: ["baseUrl", "phone", "captcha", "countrycode"],
-      );
-
-  @override
-  Future<UiNeteaseLyric> crateApiNeteaseNeteaseLyric({
-    required String baseUrl,
-    required String songId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(songId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 38,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_ui_netease_lyric,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseLyricConstMeta,
-        argValues: [baseUrl, songId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseLyricConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_lyric",
-        argNames: ["baseUrl", "songId"],
-      );
-
-  @override
-  Future<List<UiTrack>> crateApiNeteaseNeteasePersonalFm({
-    required String baseUrl,
-    String? cookie,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_opt_String(cookie, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 39,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_track,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteasePersonalFmConstMeta,
-        argValues: [baseUrl, cookie],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteasePersonalFmConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_personal_fm",
-        argNames: ["baseUrl", "cookie"],
-      );
-
-  @override
-  Future<List<UiTrack>> crateApiNeteaseNeteasePersonalFmMode({
-    required String baseUrl,
-    required String mode,
-    String? submode,
-    String? cookie,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(mode, serializer);
-          sse_encode_opt_String(submode, serializer);
-          sse_encode_opt_String(cookie, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 40,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_track,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteasePersonalFmModeConstMeta,
-        argValues: [baseUrl, mode, submode, cookie],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteasePersonalFmModeConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_personal_fm_mode",
-        argNames: ["baseUrl", "mode", "submode", "cookie"],
-      );
-
-  @override
-  Future<List<UiNeteasePlaylist>> crateApiNeteaseNeteasePersonalizedPlaylists({
-    required String baseUrl,
-    int? limit,
-    String? cookie,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_opt_box_autoadd_u_32(limit, serializer);
-          sse_encode_opt_String(cookie, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 41,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_netease_playlist,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteasePersonalizedPlaylistsConstMeta,
-        argValues: [baseUrl, limit, cookie],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteasePersonalizedPlaylistsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_personalized_playlists",
-        argNames: ["baseUrl", "limit", "cookie"],
-      );
-
-  @override
-  Future<List<UiTrack>> crateApiNeteaseNeteasePlaylistTracks({
-    required String baseUrl,
-    required BigInt playlistId,
-    String? cookie,
-    int? limit,
-    int? offset,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_u_64(playlistId, serializer);
-          sse_encode_opt_String(cookie, serializer);
-          sse_encode_opt_box_autoadd_u_32(limit, serializer);
-          sse_encode_opt_box_autoadd_u_32(offset, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 42,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_track,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteasePlaylistTracksConstMeta,
-        argValues: [baseUrl, playlistId, cookie, limit, offset],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteasePlaylistTracksConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_playlist_tracks",
-        argNames: ["baseUrl", "playlistId", "cookie", "limit", "offset"],
-      );
-
-  @override
-  Future<UiNeteaseQrCheck> crateApiNeteaseNeteaseQrCheck({
-    required String baseUrl,
-    required String key,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(key, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 43,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_ui_netease_qr_check,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseQrCheckConstMeta,
-        argValues: [baseUrl, key],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseQrCheckConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_qr_check",
-        argNames: ["baseUrl", "key"],
-      );
-
-  @override
-  Future<UiNeteaseQrCode> crateApiNeteaseNeteaseQrCreate({
-    required String baseUrl,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 44,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_ui_netease_qr_code,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseQrCreateConstMeta,
-        argValues: [baseUrl],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseQrCreateConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_qr_create",
-        argNames: ["baseUrl"],
-      );
-
-  @override
-  Future<List<UiNeteasePlaylist>> crateApiNeteaseNeteaseRadarPlaylists({
-    required String baseUrl,
-    String? cookie,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_opt_String(cookie, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 45,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_netease_playlist,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseRadarPlaylistsConstMeta,
-        argValues: [baseUrl, cookie],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseRadarPlaylistsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_radar_playlists",
-        argNames: ["baseUrl", "cookie"],
-      );
-
-  @override
-  Future<List<UiTrack>> crateApiNeteaseNeteaseSearch({
-    required String baseUrl,
-    required String keywords,
-    int? limit,
-    int? offset,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(keywords, serializer);
-          sse_encode_opt_box_autoadd_u_32(limit, serializer);
-          sse_encode_opt_box_autoadd_u_32(offset, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 46,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_track,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseSearchConstMeta,
-        argValues: [baseUrl, keywords, limit, offset],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseSearchConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_search",
-        argNames: ["baseUrl", "keywords", "limit", "offset"],
-      );
-
-  @override
-  Future<List<UiNeteaseAlbum>> crateApiNeteaseNeteaseSearchAlbums({
-    required String baseUrl,
-    required String keywords,
-    int? limit,
-    int? offset,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(keywords, serializer);
-          sse_encode_opt_box_autoadd_u_32(limit, serializer);
-          sse_encode_opt_box_autoadd_u_32(offset, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 47,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_netease_album,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseSearchAlbumsConstMeta,
-        argValues: [baseUrl, keywords, limit, offset],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseSearchAlbumsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_search_albums",
-        argNames: ["baseUrl", "keywords", "limit", "offset"],
-      );
-
-  @override
-  Future<List<UiNeteaseArtist>> crateApiNeteaseNeteaseSearchArtists({
-    required String baseUrl,
-    required String keywords,
-    int? limit,
-    int? offset,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(keywords, serializer);
-          sse_encode_opt_box_autoadd_u_32(limit, serializer);
-          sse_encode_opt_box_autoadd_u_32(offset, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 48,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_netease_artist,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseSearchArtistsConstMeta,
-        argValues: [baseUrl, keywords, limit, offset],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseSearchArtistsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_search_artists",
-        argNames: ["baseUrl", "keywords", "limit", "offset"],
-      );
-
-  @override
-  Future<List<UiNeteasePlaylist>> crateApiNeteaseNeteaseSearchPlaylists({
-    required String baseUrl,
-    required String keywords,
-    int? limit,
-    int? offset,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(keywords, serializer);
-          sse_encode_opt_box_autoadd_u_32(limit, serializer);
-          sse_encode_opt_box_autoadd_u_32(offset, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 49,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_netease_playlist,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseSearchPlaylistsConstMeta,
-        argValues: [baseUrl, keywords, limit, offset],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseSearchPlaylistsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_search_playlists",
-        argNames: ["baseUrl", "keywords", "limit", "offset"],
-      );
-
-  @override
-  Future<UiNeteaseCaptchaResult> crateApiNeteaseNeteaseSendCaptcha({
-    required String baseUrl,
-    required String phone,
-    String? countrycode,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(phone, serializer);
-          sse_encode_opt_String(countrycode, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 50,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_ui_netease_captcha_result,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseSendCaptchaConstMeta,
-        argValues: [baseUrl, phone, countrycode],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseSendCaptchaConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_send_captcha",
-        argNames: ["baseUrl", "phone", "countrycode"],
-      );
-
-  @override
-  Future<List<UiTrack>> crateApiNeteaseNeteaseSimilarSongs({
-    required String baseUrl,
-    required BigInt songId,
-    String? cookie,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_u_64(songId, serializer);
-          sse_encode_opt_String(cookie, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 51,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_track,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseSimilarSongsConstMeta,
-        argValues: [baseUrl, songId, cookie],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseSimilarSongsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_similar_songs",
-        argNames: ["baseUrl", "songId", "cookie"],
-      );
-
-  @override
-  Future<List<UiTrack>> crateApiNeteaseNeteaseSongDetail({
-    required String baseUrl,
-    required List<String> songIds,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_list_String(songIds, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 52,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_track,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseSongDetailConstMeta,
-        argValues: [baseUrl, songIds],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseSongDetailConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_song_detail",
-        argNames: ["baseUrl", "songIds"],
-      );
-
-  @override
-  Future<UiNeteaseStream> crateApiNeteaseNeteaseSongUrl({
-    required String baseUrl,
-    required String songId,
-    String? level,
-    String? cookie,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(songId, serializer);
-          sse_encode_opt_String(level, serializer);
-          sse_encode_opt_String(cookie, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 53,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_ui_netease_stream,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseSongUrlConstMeta,
-        argValues: [baseUrl, songId, level, cookie],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseSongUrlConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_song_url",
-        argNames: ["baseUrl", "songId", "level", "cookie"],
-      );
-
-  @override
-  Future<UiNeteaseStatus> crateApiNeteaseNeteaseStatus({
-    required String baseUrl,
-    String? cookie,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_opt_String(cookie, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 54,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_ui_netease_status,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseStatusConstMeta,
-        argValues: [baseUrl, cookie],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseStatusConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_status",
-        argNames: ["baseUrl", "cookie"],
-      );
-
-  @override
-  Future<List<UiNeteaseAlbum>> crateApiNeteaseNeteaseSubscribedAlbums({
-    required String baseUrl,
-    required String cookie,
-    int? limit,
-    int? offset,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(cookie, serializer);
-          sse_encode_opt_box_autoadd_u_32(limit, serializer);
-          sse_encode_opt_box_autoadd_u_32(offset, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 55,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_netease_album,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseSubscribedAlbumsConstMeta,
-        argValues: [baseUrl, cookie, limit, offset],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseSubscribedAlbumsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_subscribed_albums",
-        argNames: ["baseUrl", "cookie", "limit", "offset"],
-      );
-
-  @override
-  Future<List<UiNeteaseArtist>> crateApiNeteaseNeteaseSubscribedArtists({
-    required String baseUrl,
-    required String cookie,
-    int? limit,
-    int? offset,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_String(cookie, serializer);
-          sse_encode_opt_box_autoadd_u_32(limit, serializer);
-          sse_encode_opt_box_autoadd_u_32(offset, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 56,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_netease_artist,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseSubscribedArtistsConstMeta,
-        argValues: [baseUrl, cookie, limit, offset],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseSubscribedArtistsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_subscribed_artists",
-        argNames: ["baseUrl", "cookie", "limit", "offset"],
-      );
-
-  @override
-  Future<List<UiNeteasePlaylist>> crateApiNeteaseNeteaseUserPlaylists({
-    required String baseUrl,
-    required BigInt uid,
-    required String cookie,
-    int? limit,
-    int? offset,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(baseUrl, serializer);
-          sse_encode_u_64(uid, serializer);
-          sse_encode_String(cookie, serializer);
-          sse_encode_opt_box_autoadd_u_32(limit, serializer);
-          sse_encode_opt_box_autoadd_u_32(offset, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 57,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_ui_netease_playlist,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiNeteaseNeteaseUserPlaylistsConstMeta,
-        argValues: [baseUrl, uid, cookie, limit, offset],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiNeteaseNeteaseUserPlaylistsConstMeta =>
-      const TaskConstMeta(
-        debugName: "netease_user_playlists",
-        argNames: ["baseUrl", "uid", "cookie", "limit", "offset"],
-      );
-
-  @override
   Future<UiTrack> crateApiSimpleParseSafTrack({
     required int fd,
     required String documentUri,
@@ -2678,7 +1348,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 58,
+            funcId: 27,
             port: port_,
           );
         },
@@ -2722,7 +1392,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 59,
+            funcId: 28,
             port: port_,
           );
         },
@@ -2752,7 +1422,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 60,
+            funcId: 29,
             port: port_,
           );
         },
@@ -2779,7 +1449,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 61,
+            funcId: 30,
             port: port_,
           );
         },
@@ -2815,7 +1485,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 62,
+            funcId: 31,
             port: port_,
           );
         },
@@ -2850,7 +1520,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 63,
+            funcId: 32,
             port: port_,
           );
         },
@@ -2883,7 +1553,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 64,
+            funcId: 33,
             port: port_,
           );
         },
@@ -2918,7 +1588,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 65,
+            funcId: 34,
             port: port_,
           );
         },
@@ -2951,7 +1621,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 66,
+            funcId: 35,
             port: port_,
           );
         },
@@ -2984,7 +1654,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 67,
+            funcId: 36,
             port: port_,
           );
         },
@@ -3019,7 +1689,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 68,
+            funcId: 37,
             port: port_,
           );
         },
@@ -3054,7 +1724,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 69,
+            funcId: 38,
             port: port_,
           );
         },
@@ -3085,7 +1755,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 70,
+            funcId: 39,
             port: port_,
           );
         },
@@ -3113,7 +1783,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 71,
+            funcId: 40,
             port: port_,
           );
         },
@@ -3141,7 +1811,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 72,
+            funcId: 41,
             port: port_,
           );
         },
@@ -3169,7 +1839,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 73,
+            funcId: 42,
             port: port_,
           );
         },
@@ -3197,7 +1867,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 74,
+            funcId: 43,
             port: port_,
           );
         },
@@ -3237,7 +1907,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 75,
+            funcId: 44,
             port: port_,
           );
         },
@@ -3279,7 +1949,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 76,
+            funcId: 45,
             port: port_,
           );
         },
@@ -3310,7 +1980,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 77,
+            funcId: 46,
             port: port_,
           );
         },
@@ -3338,7 +2008,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 78,
+            funcId: 47,
             port: port_,
           );
         },
@@ -3370,7 +2040,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 79,
+            funcId: 48,
             port: port_,
           );
         },
@@ -3405,7 +2075,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 80,
+            funcId: 49,
             port: port_,
           );
         },
@@ -3440,7 +2110,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 81,
+            funcId: 50,
             port: port_,
           );
         },
@@ -3473,7 +2143,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 82,
+            funcId: 51,
             port: port_,
           );
         },
@@ -3508,7 +2178,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 83,
+            funcId: 52,
             port: port_,
           );
         },
@@ -3544,7 +2214,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 84,
+            funcId: 53,
             port: port_,
           );
         },
@@ -3579,7 +2249,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 85,
+            funcId: 54,
             port: port_,
           );
         },
@@ -3611,7 +2281,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 86,
+            funcId: 55,
             port: port_,
           );
         },
@@ -3646,7 +2316,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 87,
+            funcId: 56,
             port: port_,
           );
         },
@@ -3685,7 +2355,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 88,
+            funcId: 57,
             port: port_,
           );
         },
@@ -3723,7 +2393,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 89,
+            funcId: 58,
             port: port_,
           );
         },
@@ -3760,7 +2430,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 90,
+            funcId: 59,
             port: port_,
           );
         },
@@ -3800,7 +2470,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 91,
+            funcId: 60,
             port: port_,
           );
         },
@@ -3841,7 +2511,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 92,
+            funcId: 61,
             port: port_,
           );
         },
@@ -3876,7 +2546,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 93,
+            funcId: 62,
             port: port_,
           );
         },
@@ -3911,7 +2581,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 94,
+            funcId: 63,
             port: port_,
           );
         },
@@ -3946,7 +2616,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 95,
+            funcId: 64,
             port: port_,
           );
         },
@@ -3983,7 +2653,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 96,
+            funcId: 65,
             port: port_,
           );
         },
@@ -4018,7 +2688,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 97,
+            funcId: 66,
             port: port_,
           );
         },
@@ -4053,7 +2723,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 98,
+            funcId: 67,
             port: port_,
           );
         },
@@ -4088,7 +2758,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 99,
+            funcId: 68,
             port: port_,
           );
         },
@@ -4123,7 +2793,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 100,
+            funcId: 69,
             port: port_,
           );
         },
@@ -4156,7 +2826,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 101,
+            funcId: 70,
             port: port_,
           );
         },
@@ -4193,7 +2863,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 102,
+            funcId: 71,
             port: port_,
           );
         },
@@ -4232,7 +2902,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 103,
+            funcId: 72,
             port: port_,
           );
         },
@@ -4271,7 +2941,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 104,
+            funcId: 73,
             port: port_,
           );
         },
@@ -4306,7 +2976,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 105,
+            funcId: 74,
             port: port_,
           );
         },
@@ -4339,7 +3009,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 106,
+            funcId: 75,
             port: port_,
           );
         },
@@ -4376,7 +3046,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 107,
+            funcId: 76,
             port: port_,
           );
         },
@@ -4411,7 +3081,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 108,
+            funcId: 77,
             port: port_,
           );
         },
@@ -4450,7 +3120,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 109,
+            funcId: 78,
             port: port_,
           );
         },
@@ -4491,7 +3161,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 110,
+            funcId: 79,
             port: port_,
           );
         },
@@ -4532,7 +3202,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 111,
+            funcId: 80,
             port: port_,
           );
         },
@@ -4577,7 +3247,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 112,
+            funcId: 81,
             port: port_,
           );
         },
@@ -4623,7 +3293,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 113,
+            funcId: 82,
             port: port_,
           );
         },
@@ -4661,7 +3331,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 114,
+              funcId: 83,
               port: port_,
             );
           },
@@ -4704,7 +3374,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 115,
+            funcId: 84,
             port: port_,
           );
         },
@@ -4734,7 +3404,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 116,
+            funcId: 85,
             port: port_,
           );
         },
@@ -4897,12 +3567,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  Uint64List dco_decode_list_prim_u_64_strict(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dcoDecodeUint64List(raw);
-  }
-
-  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
@@ -4980,40 +3644,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return (raw as List<dynamic>)
         .map(dco_decode_ui_lyrics_search_result)
         .toList();
-  }
-
-  @protected
-  List<UiNeteaseAlbum> dco_decode_list_ui_netease_album(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return (raw as List<dynamic>).map(dco_decode_ui_netease_album).toList();
-  }
-
-  @protected
-  List<UiNeteaseArtist> dco_decode_list_ui_netease_artist(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return (raw as List<dynamic>).map(dco_decode_ui_netease_artist).toList();
-  }
-
-  @protected
-  List<UiNeteaseHomeCard> dco_decode_list_ui_netease_home_card(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return (raw as List<dynamic>).map(dco_decode_ui_netease_home_card).toList();
-  }
-
-  @protected
-  List<UiNeteaseHomeSection> dco_decode_list_ui_netease_home_section(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return (raw as List<dynamic>)
-        .map(dco_decode_ui_netease_home_section)
-        .toList();
-  }
-
-  @protected
-  List<UiNeteasePlaylist> dco_decode_list_ui_netease_playlist(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return (raw as List<dynamic>).map(dco_decode_ui_netease_playlist).toList();
   }
 
   @protected
@@ -5469,212 +4099,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       hasTranslation: dco_decode_bool(arr[9]),
       translation: dco_decode_opt_String(arr[10]),
       text: dco_decode_String(arr[11]),
-    );
-  }
-
-  @protected
-  UiNeteaseAlbum dco_decode_ui_netease_album(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
-    return UiNeteaseAlbum(
-      id: dco_decode_u_64(arr[0]),
-      name: dco_decode_String(arr[1]),
-      artist: dco_decode_String(arr[2]),
-      artistId: dco_decode_u_64(arr[3]),
-      coverUrl: dco_decode_opt_String(arr[4]),
-      trackCount: dco_decode_u_32(arr[5]),
-      publishTimeMs: dco_decode_opt_box_autoadd_i_64(arr[6]),
-    );
-  }
-
-  @protected
-  UiNeteaseAlbumDetail dco_decode_ui_netease_album_detail(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return UiNeteaseAlbumDetail(
-      album: dco_decode_ui_netease_album(arr[0]),
-      tracks: dco_decode_list_ui_track(arr[1]),
-    );
-  }
-
-  @protected
-  UiNeteaseArtist dco_decode_ui_netease_artist(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-    return UiNeteaseArtist(
-      id: dco_decode_u_64(arr[0]),
-      name: dco_decode_String(arr[1]),
-      coverUrl: dco_decode_opt_String(arr[2]),
-      albumSize: dco_decode_u_32(arr[3]),
-      alias: dco_decode_list_String(arr[4]),
-    );
-  }
-
-  @protected
-  UiNeteaseArtistDetail dco_decode_ui_netease_artist_detail(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return UiNeteaseArtistDetail(
-      artist: dco_decode_ui_netease_artist(arr[0]),
-      tracks: dco_decode_list_ui_track(arr[1]),
-    );
-  }
-
-  @protected
-  UiNeteaseCaptchaResult dco_decode_ui_netease_captcha_result(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return UiNeteaseCaptchaResult(
-      code: dco_decode_i_32(arr[0]),
-      message: dco_decode_String(arr[1]),
-    );
-  }
-
-  @protected
-  UiNeteaseHomeCard dco_decode_ui_netease_home_card(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
-    return UiNeteaseHomeCard(
-      id: dco_decode_String(arr[0]),
-      title: dco_decode_String(arr[1]),
-      subtitle: dco_decode_opt_String(arr[2]),
-      coverUrl: dco_decode_opt_String(arr[3]),
-      kind: dco_decode_String(arr[4]),
-      playCount: dco_decode_opt_box_autoadd_u_64(arr[5]),
-      specialType: dco_decode_opt_box_autoadd_i_32(arr[6]),
-      artist: dco_decode_opt_String(arr[7]),
-      artistId: dco_decode_opt_box_autoadd_u_64(arr[8]),
-      resourceUrl: dco_decode_opt_String(arr[9]),
-    );
-  }
-
-  @protected
-  UiNeteaseHomeSection dco_decode_ui_netease_home_section(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-    return UiNeteaseHomeSection(
-      blockCode: dco_decode_String(arr[0]),
-      title: dco_decode_String(arr[1]),
-      layout: dco_decode_String(arr[2]),
-      cards: dco_decode_list_ui_netease_home_card(arr[3]),
-      tracks: dco_decode_list_ui_track(arr[4]),
-    );
-  }
-
-  @protected
-  UiNeteaseLoginResult dco_decode_ui_netease_login_result(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return UiNeteaseLoginResult(
-      cookie: dco_decode_String(arr[0]),
-      nickname: dco_decode_opt_String(arr[1]),
-      userId: dco_decode_opt_box_autoadd_u_64(arr[2]),
-    );
-  }
-
-  @protected
-  UiNeteaseLyric dco_decode_ui_netease_lyric(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return UiNeteaseLyric(
-      lyric: dco_decode_String(arr[0]),
-      translated: dco_decode_opt_String(arr[1]),
-      wordByWord: dco_decode_opt_String(arr[2]),
-    );
-  }
-
-  @protected
-  UiNeteasePlaylist dco_decode_ui_netease_playlist(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
-    return UiNeteasePlaylist(
-      id: dco_decode_u_64(arr[0]),
-      name: dco_decode_String(arr[1]),
-      coverUrl: dco_decode_opt_String(arr[2]),
-      trackCount: dco_decode_u_32(arr[3]),
-      creator: dco_decode_opt_String(arr[4]),
-      playCount: dco_decode_opt_box_autoadd_u_64(arr[5]),
-      specialType: dco_decode_opt_box_autoadd_i_32(arr[6]),
-    );
-  }
-
-  @protected
-  UiNeteaseQrCheck dco_decode_ui_netease_qr_check(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return UiNeteaseQrCheck(
-      code: dco_decode_i_32(arr[0]),
-      message: dco_decode_String(arr[1]),
-      cookie: dco_decode_opt_String(arr[2]),
-    );
-  }
-
-  @protected
-  UiNeteaseQrCode dco_decode_ui_netease_qr_code(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return UiNeteaseQrCode(
-      key: dco_decode_String(arr[0]),
-      qrUrl: dco_decode_String(arr[1]),
-      qrImageBase64: dco_decode_opt_String(arr[2]),
-    );
-  }
-
-  @protected
-  UiNeteaseStatus dco_decode_ui_netease_status(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
-    return UiNeteaseStatus(
-      reachable: dco_decode_bool(arr[0]),
-      loggedIn: dco_decode_bool(arr[1]),
-      code: dco_decode_i_32(arr[2]),
-      nickname: dco_decode_opt_String(arr[3]),
-      userId: dco_decode_opt_box_autoadd_u_64(arr[4]),
-      avatarUrl: dco_decode_opt_String(arr[5]),
-    );
-  }
-
-  @protected
-  UiNeteaseStream dco_decode_ui_netease_stream(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
-    return UiNeteaseStream(
-      url: dco_decode_opt_String(arr[0]),
-      bitrate: dco_decode_opt_box_autoadd_u_64(arr[1]),
-      level: dco_decode_opt_String(arr[2]),
-      expiresInSeconds: dco_decode_opt_box_autoadd_u_64(arr[3]),
-      isTrial: dco_decode_bool(arr[4]),
-      trialEndSeconds: dco_decode_opt_box_autoadd_u_64(arr[5]),
-      fee: dco_decode_opt_box_autoadd_i_64(arr[6]),
-      message: dco_decode_opt_String(arr[7]),
     );
   }
 
@@ -6151,13 +4575,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  Uint64List sse_decode_list_prim_u_64_strict(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var len_ = sse_decode_i_32(deserializer);
-    return deserializer.buffer.getUint64List(len_);
-  }
-
-  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
@@ -6282,76 +4699,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <UiLyricsSearchResult>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_ui_lyrics_search_result(deserializer));
-    }
-    return ans_;
-  }
-
-  @protected
-  List<UiNeteaseAlbum> sse_decode_list_ui_netease_album(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <UiNeteaseAlbum>[];
-    for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(sse_decode_ui_netease_album(deserializer));
-    }
-    return ans_;
-  }
-
-  @protected
-  List<UiNeteaseArtist> sse_decode_list_ui_netease_artist(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <UiNeteaseArtist>[];
-    for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(sse_decode_ui_netease_artist(deserializer));
-    }
-    return ans_;
-  }
-
-  @protected
-  List<UiNeteaseHomeCard> sse_decode_list_ui_netease_home_card(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <UiNeteaseHomeCard>[];
-    for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(sse_decode_ui_netease_home_card(deserializer));
-    }
-    return ans_;
-  }
-
-  @protected
-  List<UiNeteaseHomeSection> sse_decode_list_ui_netease_home_section(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <UiNeteaseHomeSection>[];
-    for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(sse_decode_ui_netease_home_section(deserializer));
-    }
-    return ans_;
-  }
-
-  @protected
-  List<UiNeteasePlaylist> sse_decode_list_ui_netease_playlist(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <UiNeteasePlaylist>[];
-    for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(sse_decode_ui_netease_playlist(deserializer));
     }
     return ans_;
   }
@@ -7019,243 +5366,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  UiNeteaseAlbum sse_decode_ui_netease_album(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_id = sse_decode_u_64(deserializer);
-    var var_name = sse_decode_String(deserializer);
-    var var_artist = sse_decode_String(deserializer);
-    var var_artistId = sse_decode_u_64(deserializer);
-    var var_coverUrl = sse_decode_opt_String(deserializer);
-    var var_trackCount = sse_decode_u_32(deserializer);
-    var var_publishTimeMs = sse_decode_opt_box_autoadd_i_64(deserializer);
-    return UiNeteaseAlbum(
-      id: var_id,
-      name: var_name,
-      artist: var_artist,
-      artistId: var_artistId,
-      coverUrl: var_coverUrl,
-      trackCount: var_trackCount,
-      publishTimeMs: var_publishTimeMs,
-    );
-  }
-
-  @protected
-  UiNeteaseAlbumDetail sse_decode_ui_netease_album_detail(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_album = sse_decode_ui_netease_album(deserializer);
-    var var_tracks = sse_decode_list_ui_track(deserializer);
-    return UiNeteaseAlbumDetail(album: var_album, tracks: var_tracks);
-  }
-
-  @protected
-  UiNeteaseArtist sse_decode_ui_netease_artist(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_id = sse_decode_u_64(deserializer);
-    var var_name = sse_decode_String(deserializer);
-    var var_coverUrl = sse_decode_opt_String(deserializer);
-    var var_albumSize = sse_decode_u_32(deserializer);
-    var var_alias = sse_decode_list_String(deserializer);
-    return UiNeteaseArtist(
-      id: var_id,
-      name: var_name,
-      coverUrl: var_coverUrl,
-      albumSize: var_albumSize,
-      alias: var_alias,
-    );
-  }
-
-  @protected
-  UiNeteaseArtistDetail sse_decode_ui_netease_artist_detail(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_artist = sse_decode_ui_netease_artist(deserializer);
-    var var_tracks = sse_decode_list_ui_track(deserializer);
-    return UiNeteaseArtistDetail(artist: var_artist, tracks: var_tracks);
-  }
-
-  @protected
-  UiNeteaseCaptchaResult sse_decode_ui_netease_captcha_result(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_code = sse_decode_i_32(deserializer);
-    var var_message = sse_decode_String(deserializer);
-    return UiNeteaseCaptchaResult(code: var_code, message: var_message);
-  }
-
-  @protected
-  UiNeteaseHomeCard sse_decode_ui_netease_home_card(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_id = sse_decode_String(deserializer);
-    var var_title = sse_decode_String(deserializer);
-    var var_subtitle = sse_decode_opt_String(deserializer);
-    var var_coverUrl = sse_decode_opt_String(deserializer);
-    var var_kind = sse_decode_String(deserializer);
-    var var_playCount = sse_decode_opt_box_autoadd_u_64(deserializer);
-    var var_specialType = sse_decode_opt_box_autoadd_i_32(deserializer);
-    var var_artist = sse_decode_opt_String(deserializer);
-    var var_artistId = sse_decode_opt_box_autoadd_u_64(deserializer);
-    var var_resourceUrl = sse_decode_opt_String(deserializer);
-    return UiNeteaseHomeCard(
-      id: var_id,
-      title: var_title,
-      subtitle: var_subtitle,
-      coverUrl: var_coverUrl,
-      kind: var_kind,
-      playCount: var_playCount,
-      specialType: var_specialType,
-      artist: var_artist,
-      artistId: var_artistId,
-      resourceUrl: var_resourceUrl,
-    );
-  }
-
-  @protected
-  UiNeteaseHomeSection sse_decode_ui_netease_home_section(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_blockCode = sse_decode_String(deserializer);
-    var var_title = sse_decode_String(deserializer);
-    var var_layout = sse_decode_String(deserializer);
-    var var_cards = sse_decode_list_ui_netease_home_card(deserializer);
-    var var_tracks = sse_decode_list_ui_track(deserializer);
-    return UiNeteaseHomeSection(
-      blockCode: var_blockCode,
-      title: var_title,
-      layout: var_layout,
-      cards: var_cards,
-      tracks: var_tracks,
-    );
-  }
-
-  @protected
-  UiNeteaseLoginResult sse_decode_ui_netease_login_result(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_cookie = sse_decode_String(deserializer);
-    var var_nickname = sse_decode_opt_String(deserializer);
-    var var_userId = sse_decode_opt_box_autoadd_u_64(deserializer);
-    return UiNeteaseLoginResult(
-      cookie: var_cookie,
-      nickname: var_nickname,
-      userId: var_userId,
-    );
-  }
-
-  @protected
-  UiNeteaseLyric sse_decode_ui_netease_lyric(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_lyric = sse_decode_String(deserializer);
-    var var_translated = sse_decode_opt_String(deserializer);
-    var var_wordByWord = sse_decode_opt_String(deserializer);
-    return UiNeteaseLyric(
-      lyric: var_lyric,
-      translated: var_translated,
-      wordByWord: var_wordByWord,
-    );
-  }
-
-  @protected
-  UiNeteasePlaylist sse_decode_ui_netease_playlist(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_id = sse_decode_u_64(deserializer);
-    var var_name = sse_decode_String(deserializer);
-    var var_coverUrl = sse_decode_opt_String(deserializer);
-    var var_trackCount = sse_decode_u_32(deserializer);
-    var var_creator = sse_decode_opt_String(deserializer);
-    var var_playCount = sse_decode_opt_box_autoadd_u_64(deserializer);
-    var var_specialType = sse_decode_opt_box_autoadd_i_32(deserializer);
-    return UiNeteasePlaylist(
-      id: var_id,
-      name: var_name,
-      coverUrl: var_coverUrl,
-      trackCount: var_trackCount,
-      creator: var_creator,
-      playCount: var_playCount,
-      specialType: var_specialType,
-    );
-  }
-
-  @protected
-  UiNeteaseQrCheck sse_decode_ui_netease_qr_check(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_code = sse_decode_i_32(deserializer);
-    var var_message = sse_decode_String(deserializer);
-    var var_cookie = sse_decode_opt_String(deserializer);
-    return UiNeteaseQrCheck(
-      code: var_code,
-      message: var_message,
-      cookie: var_cookie,
-    );
-  }
-
-  @protected
-  UiNeteaseQrCode sse_decode_ui_netease_qr_code(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_key = sse_decode_String(deserializer);
-    var var_qrUrl = sse_decode_String(deserializer);
-    var var_qrImageBase64 = sse_decode_opt_String(deserializer);
-    return UiNeteaseQrCode(
-      key: var_key,
-      qrUrl: var_qrUrl,
-      qrImageBase64: var_qrImageBase64,
-    );
-  }
-
-  @protected
-  UiNeteaseStatus sse_decode_ui_netease_status(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_reachable = sse_decode_bool(deserializer);
-    var var_loggedIn = sse_decode_bool(deserializer);
-    var var_code = sse_decode_i_32(deserializer);
-    var var_nickname = sse_decode_opt_String(deserializer);
-    var var_userId = sse_decode_opt_box_autoadd_u_64(deserializer);
-    var var_avatarUrl = sse_decode_opt_String(deserializer);
-    return UiNeteaseStatus(
-      reachable: var_reachable,
-      loggedIn: var_loggedIn,
-      code: var_code,
-      nickname: var_nickname,
-      userId: var_userId,
-      avatarUrl: var_avatarUrl,
-    );
-  }
-
-  @protected
-  UiNeteaseStream sse_decode_ui_netease_stream(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_url = sse_decode_opt_String(deserializer);
-    var var_bitrate = sse_decode_opt_box_autoadd_u_64(deserializer);
-    var var_level = sse_decode_opt_String(deserializer);
-    var var_expiresInSeconds = sse_decode_opt_box_autoadd_u_64(deserializer);
-    var var_isTrial = sse_decode_bool(deserializer);
-    var var_trialEndSeconds = sse_decode_opt_box_autoadd_u_64(deserializer);
-    var var_fee = sse_decode_opt_box_autoadd_i_64(deserializer);
-    var var_message = sse_decode_opt_String(deserializer);
-    return UiNeteaseStream(
-      url: var_url,
-      bitrate: var_bitrate,
-      level: var_level,
-      expiresInSeconds: var_expiresInSeconds,
-      isTrial: var_isTrial,
-      trialEndSeconds: var_trialEndSeconds,
-      fee: var_fee,
-      message: var_message,
-    );
-  }
-
-  @protected
   UiPlayEvent sse_decode_ui_play_event(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_source = sse_decode_String(deserializer);
@@ -7836,16 +5946,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_list_prim_u_64_strict(
-    Uint64List self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.length, serializer);
-    serializer.buffer.putUint64List(self);
-  }
-
-  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -7957,66 +6057,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_ui_lyrics_search_result(item, serializer);
-    }
-  }
-
-  @protected
-  void sse_encode_list_ui_netease_album(
-    List<UiNeteaseAlbum> self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.length, serializer);
-    for (final item in self) {
-      sse_encode_ui_netease_album(item, serializer);
-    }
-  }
-
-  @protected
-  void sse_encode_list_ui_netease_artist(
-    List<UiNeteaseArtist> self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.length, serializer);
-    for (final item in self) {
-      sse_encode_ui_netease_artist(item, serializer);
-    }
-  }
-
-  @protected
-  void sse_encode_list_ui_netease_home_card(
-    List<UiNeteaseHomeCard> self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.length, serializer);
-    for (final item in self) {
-      sse_encode_ui_netease_home_card(item, serializer);
-    }
-  }
-
-  @protected
-  void sse_encode_list_ui_netease_home_section(
-    List<UiNeteaseHomeSection> self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.length, serializer);
-    for (final item in self) {
-      sse_encode_ui_netease_home_section(item, serializer);
-    }
-  }
-
-  @protected
-  void sse_encode_list_ui_netease_playlist(
-    List<UiNeteasePlaylist> self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.length, serializer);
-    for (final item in self) {
-      sse_encode_ui_netease_playlist(item, serializer);
     }
   }
 
@@ -8527,184 +6567,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.hasTranslation, serializer);
     sse_encode_opt_String(self.translation, serializer);
     sse_encode_String(self.text, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_album(
-    UiNeteaseAlbum self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_64(self.id, serializer);
-    sse_encode_String(self.name, serializer);
-    sse_encode_String(self.artist, serializer);
-    sse_encode_u_64(self.artistId, serializer);
-    sse_encode_opt_String(self.coverUrl, serializer);
-    sse_encode_u_32(self.trackCount, serializer);
-    sse_encode_opt_box_autoadd_i_64(self.publishTimeMs, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_album_detail(
-    UiNeteaseAlbumDetail self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_ui_netease_album(self.album, serializer);
-    sse_encode_list_ui_track(self.tracks, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_artist(
-    UiNeteaseArtist self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_64(self.id, serializer);
-    sse_encode_String(self.name, serializer);
-    sse_encode_opt_String(self.coverUrl, serializer);
-    sse_encode_u_32(self.albumSize, serializer);
-    sse_encode_list_String(self.alias, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_artist_detail(
-    UiNeteaseArtistDetail self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_ui_netease_artist(self.artist, serializer);
-    sse_encode_list_ui_track(self.tracks, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_captcha_result(
-    UiNeteaseCaptchaResult self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.code, serializer);
-    sse_encode_String(self.message, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_home_card(
-    UiNeteaseHomeCard self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.id, serializer);
-    sse_encode_String(self.title, serializer);
-    sse_encode_opt_String(self.subtitle, serializer);
-    sse_encode_opt_String(self.coverUrl, serializer);
-    sse_encode_String(self.kind, serializer);
-    sse_encode_opt_box_autoadd_u_64(self.playCount, serializer);
-    sse_encode_opt_box_autoadd_i_32(self.specialType, serializer);
-    sse_encode_opt_String(self.artist, serializer);
-    sse_encode_opt_box_autoadd_u_64(self.artistId, serializer);
-    sse_encode_opt_String(self.resourceUrl, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_home_section(
-    UiNeteaseHomeSection self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.blockCode, serializer);
-    sse_encode_String(self.title, serializer);
-    sse_encode_String(self.layout, serializer);
-    sse_encode_list_ui_netease_home_card(self.cards, serializer);
-    sse_encode_list_ui_track(self.tracks, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_login_result(
-    UiNeteaseLoginResult self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.cookie, serializer);
-    sse_encode_opt_String(self.nickname, serializer);
-    sse_encode_opt_box_autoadd_u_64(self.userId, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_lyric(
-    UiNeteaseLyric self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.lyric, serializer);
-    sse_encode_opt_String(self.translated, serializer);
-    sse_encode_opt_String(self.wordByWord, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_playlist(
-    UiNeteasePlaylist self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_64(self.id, serializer);
-    sse_encode_String(self.name, serializer);
-    sse_encode_opt_String(self.coverUrl, serializer);
-    sse_encode_u_32(self.trackCount, serializer);
-    sse_encode_opt_String(self.creator, serializer);
-    sse_encode_opt_box_autoadd_u_64(self.playCount, serializer);
-    sse_encode_opt_box_autoadd_i_32(self.specialType, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_qr_check(
-    UiNeteaseQrCheck self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.code, serializer);
-    sse_encode_String(self.message, serializer);
-    sse_encode_opt_String(self.cookie, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_qr_code(
-    UiNeteaseQrCode self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.key, serializer);
-    sse_encode_String(self.qrUrl, serializer);
-    sse_encode_opt_String(self.qrImageBase64, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_status(
-    UiNeteaseStatus self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_bool(self.reachable, serializer);
-    sse_encode_bool(self.loggedIn, serializer);
-    sse_encode_i_32(self.code, serializer);
-    sse_encode_opt_String(self.nickname, serializer);
-    sse_encode_opt_box_autoadd_u_64(self.userId, serializer);
-    sse_encode_opt_String(self.avatarUrl, serializer);
-  }
-
-  @protected
-  void sse_encode_ui_netease_stream(
-    UiNeteaseStream self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_opt_String(self.url, serializer);
-    sse_encode_opt_box_autoadd_u_64(self.bitrate, serializer);
-    sse_encode_opt_String(self.level, serializer);
-    sse_encode_opt_box_autoadd_u_64(self.expiresInSeconds, serializer);
-    sse_encode_bool(self.isTrial, serializer);
-    sse_encode_opt_box_autoadd_u_64(self.trialEndSeconds, serializer);
-    sse_encode_opt_box_autoadd_i_64(self.fee, serializer);
-    sse_encode_opt_String(self.message, serializer);
   }
 
   @protected

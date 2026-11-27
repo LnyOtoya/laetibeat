@@ -4,7 +4,6 @@ import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 
 import '../../l10n/generated/app_localizations.dart';
-import '../settings/netease_provider.dart';
 
 /// Convert the app's generic track into the music info expected by LX.
 ///
@@ -19,29 +18,6 @@ rust_lx.UiLxMusicInfo lxMusicInfoFromTrack(rust.UiTrack track) {
     id: track.id,
     name: track.title,
     singer: <String>[if (track.artist.trim().isNotEmpty) track.artist],
-    album: track.album,
-    albumId: track.albumId,
-    interval: track.durationSeconds.toInt(),
-    img: track.coverId,
-    extraJson: track.sourceExtraJson,
-  );
-}
-
-/// Convert a NetEase provider track into the `wy` music info expected by LX.
-///
-/// NetEase tracks use `sourceId` for the API base URL, not the LX platform key,
-/// so [lxMusicInfoFromTrack] cannot be reused directly.
-rust_lx.UiLxMusicInfo neteaseLxMusicInfoFromTrack(rust.UiTrack track) {
-  final singers = track.artist
-      .split('、')
-      .map((value) => value.trim())
-      .where((value) => value.isNotEmpty)
-      .toList(growable: false);
-  return rust_lx.UiLxMusicInfo(
-    source: 'wy',
-    id: neteaseSongIdFromTrack(track),
-    name: track.title,
-    singer: singers,
     album: track.album,
     albumId: track.albumId,
     interval: track.durationSeconds.toInt(),

@@ -1693,16 +1693,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "laetibeat_netease"
-version = "0.1.0"
-dependencies = [
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "laetibeat_remote"
 version = "0.1.0"
 dependencies = [
@@ -2581,7 +2571,6 @@ dependencies = [
  "jni",
  "laetibeat_core",
  "laetibeat_lx",
- "laetibeat_netease",
  "laetibeat_remote",
  "log",
  "rfd",

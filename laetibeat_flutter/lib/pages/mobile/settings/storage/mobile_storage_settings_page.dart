@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/library.dart' as rust_library;
 import 'package:laetibeat/widgets/cache/cover_cache.dart';
-import 'package:laetibeat/widgets/cache/netease_cover_cache.dart';
 import 'package:laetibeat/widgets/player/cover_provider.dart';
 import 'package:laetibeat/widgets/player/lx_search_provider.dart';
 import 'package:laetibeat/widgets/settings/cache_usage_service.dart';
@@ -186,12 +185,6 @@ class _CacheBodyState extends ConsumerState<_CacheBody>
             title: l10n.cacheLx,
             usage: usage.lx,
           ),
-          const SizedBox(height: 20),
-          _CacheGroupSection(
-            title: l10n.cacheNetease,
-            usage: usage.netease,
-            onClear: () => _clearNeteaseCovers(context),
-          ),
           const SizedBox(height: 28),
           _TotalCacheLimitCard(
             selectedMb: limits.totalMb,
@@ -229,7 +222,6 @@ class _CacheBodyState extends ConsumerState<_CacheBody>
       await rust_library.clearLyricsCache();
       await remoteCoverDiskCache.clearAll();
       await lxCoverDiskCache.clearAll();
-      await neteaseCoverDiskCache.clearAll();
       await ref.read(librarySnapshotStoreProvider).clear();
       for (final server in servers) {
         await rust_library.clearRemoteLibrary(sourceId: server.id);
@@ -237,7 +229,6 @@ class _CacheBodyState extends ConsumerState<_CacheBody>
       ref.invalidate(coverProvider);
       ref.invalidate(remoteCoverSourceProvider);
       ref.invalidate(lxCoverSourceProvider);
-      ref.invalidate(neteaseCoverSourceProvider);
       ref.invalidate(lxSearchProvider);
       ref.invalidate(musicLibraryProvider);
       // Invalidate 会创建新的缓存实例；重新套用用户配置的总上限。
@@ -249,17 +240,7 @@ class _CacheBodyState extends ConsumerState<_CacheBody>
     }
   }
 
-  Future<void> _clearNeteaseCovers(BuildContext context) async {
-    final l10n = AppLocalizations.of(context);
-    try {
-      await neteaseCoverDiskCache.clearAll();
-      ref.invalidate(neteaseCoverSourceProvider);
-      await _refresh();
-      if (context.mounted) _showMessage(context, l10n.cacheCleared);
-    } catch (error) {
-      if (context.mounted) _showMessage(context, error.toString());
-    }
-  }
+
 }
 
 class _StorageSummary extends StatelessWidget {
@@ -401,12 +382,10 @@ class _CacheGroupSection extends StatelessWidget {
   const _CacheGroupSection({
     required this.title,
     required this.usage,
-    this.onClear,
   });
 
   final String title;
   final CacheGroupUsage usage;
-  final VoidCallback? onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -454,12 +433,6 @@ class _CacheGroupSection extends StatelessWidget {
                   ),
                 ),
               ),
-              if (onClear != null)
-                M3EButton(
-                  style: M3EButtonStyle.tonal,
-                  label: Text(l10n.clearGroupCache),
-                  onPressed: onClear,
-                ),
             ],
           ),
         ),

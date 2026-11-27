@@ -3,19 +3,14 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
-import 'package:laetibeat/src/rust/api/netease.dart' as rust_netease;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'package:laetibeat/src/rust/api/subsonic.dart' as rust_subsonic;
 import '../../core/providers/playback_backend_provider.dart';
 import '../settings/persistence.dart';
-import '../settings/netease_provider.dart';
-import '../settings/netease_session.dart';
-import '../settings/netease_settings.dart';
 import '../settings/subsonic_provider.dart';
 import '../recommendation_provider.dart';
 import '../settings/fade_settings.dart';
 import '../settings/lx_settings.dart';
-import 'lx_search_provider.dart';
 import 'playback_backend.dart';
 import 'playback_session_tracker.dart';
 import 'lx_track.dart';
@@ -569,9 +564,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
     final generation = ++_openGeneration;
     try {
       // 远端要先解析 stream URL;期间暂停旧音频,避免旧曲继续出声
-      if (track.source == 'opensubsonic' ||
-          track.source == 'lx' ||
-          track.source == 'netease') {
+      if (track.source == 'opensubsonic' || track.source == 'lx') {
         await _backend.pause();
         if (generation != _openGeneration) return;
       }
@@ -748,43 +741,6 @@ class PlayerNotifier extends Notifier<PlayerState> {
     rust.UiTrack t, {
     bool refreshLx = false,
   }) async {
-    if (t.source == 'netease') {
-      final baseUrl = ref.read(neteaseBaseUrlProvider);
-      if (baseUrl.isEmpty) {
-        throw StateError('请先在设置中配置网易云 API 地址');
-      }
-      final cookie = await ref.read(neteaseCookieProvider.future);
-      final stream = await rust_netease.neteaseSongUrl(
-        baseUrl: baseUrl,
-        songId: neteaseSongIdFromTrack(t),
-        level: 'exhigh',
-        cookie: cookie,
-      );
-      final url = stream.url;
-      final allowFallback = ref.read(neteaseSettingsProvider).allowLxFallback;
-      final needsFallback = stream.isTrial || url == null || url.isEmpty;
-      debugPrint(
-        '网易云直连 songId=${neteaseSongIdFromTrack(t)} '
-        'trial=${stream.isTrial} hasUrl=${url != null} '
-        'allowFallback=$allowFallback',
-      );
-      final wantsFallback = allowFallback && needsFallback;
-      if (wantsFallback) {
-        final fallback = await _resolveNeteaseLxFallback(t);
-        if (fallback != null) return fallback;
-      } else if (needsFallback) {
-        debugPrint('网易云试听/无 URL，但未开启洛雪后备');
-      }
-      if (url == null || url.isEmpty) {
-        throw StateError(stream.message ?? '网易云没有返回可播放地址');
-      }
-      return PlaybackTrack(
-        uri: url,
-        fallbackDuration: _durationOf(t),
-        isPreview: stream.isTrial,
-        enforceHttps: true,
-      );
-    }
     if (t.source == 'lx' && t.sourceId.isNotEmpty) {
       final music = lxMusicInfoFromTrack(t);
       final preferred = ref.read(lxDefaultQualityProvider);
@@ -872,41 +828,6 @@ class PlayerNotifier extends Notifier<PlayerState> {
         ? t.path
         : Uri.file(t.path).toString();
     return PlaybackTrack(uri: uri, fallbackDuration: _durationOf(t));
-  }
-
-  /// 网易云直连只有试听/无 URL 时，尝试 LX `wy`。
-  Future<PlaybackTrack?> _resolveNeteaseLxFallback(rust.UiTrack track) async {
-    final ready = await ref
-        .read(lxRuntimeProvider.notifier)
-        .ensurePlayable('wy')
-        .timeout(const Duration(seconds: 12), onTimeout: () => false);
-    if (!ready) {
-      debugPrint('网易云 LX fallback: wy 不可用');
-      return null;
-    }
-
-    final preferred = ref.read(lxDefaultQualityProvider);
-    final qualities = <String>{preferred, '320k', '128k'};
-    final music = neteaseLxMusicInfoFromTrack(track);
-    for (final quality in qualities) {
-      try {
-        final url = await rust_lx.resolveLxMusicUrl(
-          source: 'wy',
-          music: music,
-          quality: quality,
-        );
-        if (url.isEmpty) continue;
-        debugPrint('网易云 LX fallback 成功 quality=$quality');
-        return PlaybackTrack(
-          uri: url,
-          fallbackDuration: _durationOf(track),
-          enforceHttps: true,
-        );
-      } catch (error) {
-        debugPrint('网易云 LX fallback 失败 quality=$quality: $error');
-      }
-    }
-    return null;
   }
 
   //从解析的'03:24'时长文本转成 Duration,失败则用整曲默认值
