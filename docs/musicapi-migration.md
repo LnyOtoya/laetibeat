@@ -34,8 +34,9 @@
 - M1 已完成：Rust 客户端、设置页、搜索/播放/歌词、music-lib 网易云搜索修复。
 - M2 已完成：发现页 AppBar 平台选择、推荐歌单/排行榜/热门歌曲、平台持久化。
 - M3 已完成：网易云 / QQ / 微信扫码登录、host `cookies.json`、账号状态与退出、发现页「我的歌单」。
+- M4 已完成：Android arm64 / Linux x64 内置 host、自动启动/健康检查/异常重启/父进程退出清理、内置/远程模式切换。
 
-自动化已验证二维码会话创建与轮询；真正扫码登录需在设备上人工确认。
+Android 真机已验证：内置 host 启动、DNS、网易云/QQ 搜索、发现页内容、播放、kill 后自动重启、force-stop 后 host 退出。
 
 ---
 
@@ -437,13 +438,17 @@ QQ 的 `extra` 只有 `songmid` 和 `song_id`；先按 `songmid` 尝试 LX `tx`�
 - [x] 发现页「我的歌单」按登录状态显示
 - **验收**：登录后可看我的歌单；重启后仍保持（二维码会话创建/轮询已自动化验证，扫码需人工）。
 
-### M4：内置打包
+### M4：内置打包（已完成）
 
-- [ ] Android jniLibs + extractNativeLibs + useLegacyPackaging
-- [ ] Linux CMake 打包
-- [ ] Dart 进程管理 + 健康检查 + 重启
-- [ ] 真机验证 DNS、播放、后台
-- **验收**：无 NAS/Docker 可完整使用。
+- [x] Android arm64 jniLibs + `extractNativeLibs` + `useLegacyPackaging`
+- [x] Gradle 自动调用 NDK clang + CGO 构建 host
+- [x] Linux CMake 自动构建并安装 host 到 bundle/lib
+- [x] Dart 进程管理：随机端口/token、读 listen 行、健康检查、异常重启、父进程退出清理
+- [x] 内置/远程模式切换与运行时地址覆盖
+- [x] Android 真机验证 DNS、搜索、发现页、播放、kill 重启、force-stop 清理
+- [x] Linux bundle host 二进制启动与健康检查
+- **验收**：Android arm64 / Linux x64 无需 NAS/Docker 可完整使用。
+- 备注：当前 Gradle 只构建 arm64 host；armv7/x86_64 设备请用远程模式。
 
 ### M5：清理与合规
 

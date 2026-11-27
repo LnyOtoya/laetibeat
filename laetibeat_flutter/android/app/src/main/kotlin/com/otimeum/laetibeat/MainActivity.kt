@@ -34,6 +34,16 @@ class MainActivity : AudioServiceActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            HOST_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getNativeLibraryDir" -> result.success(applicationInfo.nativeLibraryDir)
+                else -> result.notImplemented()
+            }
+        }
     }
 
     /**
@@ -68,6 +78,7 @@ class MainActivity : AudioServiceActivity() {
     private companion object {
         const val NOTIFICATION_PERMISSION_REQUEST = 1001
         const val SYSTEM_COLORS_CHANNEL = "com.otimeum.laetibeat/system_colors"
+        const val HOST_CHANNEL = "com.otimeum.laetibeat/host"
 
         val ROLE_RESOURCES = linkedMapOf(
             "primary" to "system_primary",

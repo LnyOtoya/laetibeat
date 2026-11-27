@@ -12,6 +12,13 @@ Laetibeat 的内置音乐服务 host。它把
 
 上游源码不做任何修改。升级只需修改 `go.mod` 的版本号。
 
+Flutter 构建会自动调用本目录：
+
+- Android：`android/app/build.gradle.kts` 用 NDK clang + CGO 构建 arm64 host，输出到 `jniLibs/arm64-v8a/`
+- Linux：`linux/CMakeLists.txt` 用 `CGO_ENABLED=0` 构建并安装到 `bundle/lib/`
+
+前提：构建机需要安装 Go 1.25+；Android 还需要与 Flutter 对齐的 NDK。
+
 ## 构建
 
 ```bash
@@ -27,7 +34,7 @@ NDK=$ANDROID_SDK/ndk/28.2.13676358
 CC=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang
 CGO_ENABLED=1 GOOS=android GOARCH=arm64 CC=$CC \
   go build -buildmode=pie -trimpath -ldflags '-s -w' \
-  -o build/arm64-v8a/liblaetibeat_musicapi.so .
+  -o build/arm64-v8a/liblaetibeat_musicapi_host.so .
 ```
 
 ## 运行
@@ -65,6 +72,7 @@ curl -H 'Authorization: Bearer secret' \
 | `LAETIBEAT_MUSICAPI_ADDR` | `127.0.0.1:0` | 监听地址 |
 | `LAETIBEAT_MUSICAPI_TOKEN` | 空 | 为空时不鉴权；内置模式必须设置 |
 | `LAETIBEAT_MUSICAPI_DATA_DIR` | 当前目录 | Cookie 等写入目录 |
+| `LAETIBEAT_MUSICAPI_PARENT_PID` | 空 | 内置模式父进程 PID；父进程退出后自动退出 |
 
 ## 安全说明
 

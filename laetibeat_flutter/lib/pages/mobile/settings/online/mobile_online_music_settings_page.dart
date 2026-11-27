@@ -6,6 +6,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../design/design.dart';
+import '../../../../widgets/settings/online_host.dart';
 import '../../../../widgets/settings/online_provider.dart';
 import '../../../../widgets/settings/online_settings.dart';
 import '../../mobile_navigation.dart';
@@ -28,6 +29,7 @@ class _MobileOnlineMusicSettingsPageState
   final TextEditingController _baseUrlController = TextEditingController();
   final TextEditingController _tokenController = TextEditingController();
 
+  OnlineMode _mode = OnlineMode.remote;
   bool _allowLxFallback = false;
   String _quality = kOnlineDefaultQuality;
   bool _saving = false;
@@ -39,6 +41,13 @@ class _MobileOnlineMusicSettingsPageState
   void initState() {
     super.initState();
     final settings = ref.read(onlineSettingsProvider);
+    final supported = ref.read(onlineHostProvider.notifier).supported;
+    _mode = supported ? settings.mode : OnlineMode.remote;
+    if (!supported && settings.mode == OnlineMode.builtin) {
+      unawaited(
+        ref.read(onlineSettingsProvider.notifier).setMode(OnlineMode.remote),
+      );
+    }
     _baseUrlController.text = settings.baseUrl;
     _allowLxFallback = settings.allowLxFallback;
     _quality = settings.defaultQuality;
@@ -72,7 +81,10 @@ class _MobileOnlineMusicSettingsPageState
       return;
     }
 
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _mode = OnlineMode.remote;
+    });
     try {
       await ref
           .read(onlineSettingsProvider.notifier)
@@ -171,6 +183,8 @@ class _MobileOnlineMusicSettingsPageState
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: <Widget>[
+            _buildModeSelector(theme),
+            const SizedBox(height: AppSpacing.md),
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
@@ -188,9 +202,9 @@ class _MobileOnlineMusicSettingsPageState
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      '当前版本请填写可访问的 go-music-api 地址。'
-                      '远程地址必须使用 https；本机 127.0.0.1/localhost 允许 http。'
-                      '内置服务启动将在后续版本接入。',
+                      _mode == OnlineMode.builtin
+                          ? '内置服务随 App 启动，无需额外部署。首次使用可能需要几秒启动时间；Cookie 保存在应用私有目录。'
+                          : '远程地址必须使用 https；本机 127.0.0.1/localhost 允许 http。',
                       style: theme.typeScale.bodyMedium.copyWith(
                         color: scheme.onSecondaryContainer,
                       ),
@@ -199,37 +213,42 @@ class _MobileOnlineMusicSettingsPageState
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            M3ETextField(
-              controller: _baseUrlController,
-              variant: M3ETextFieldVariant.filled,
-              label: '服务地址',
-              supportingText:
-                  '例如 https://music.example.com 或 http://127.0.0.1:33531',
-              supportingTextOnFocusOnly: false,
-              keyboardType: TextInputType.url,
-              textInputAction: TextInputAction.next,
-              placeholder: 'https://music.example.com',
-              onChanged: (_) {
-                if (_statusText != null) {
-                  setState(() {
-                    _statusText = null;
-                    _statusIsError = false;
-                  });
-                }
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-            M3ETextField(
-              controller: _tokenController,
-              variant: M3ETextFieldVariant.filled,
-              label: '访问 Token',
-              supportingText: '对应 host 的 LAETIBEAT_MUSICAPI_TOKEN，可留空',
-              supportingTextOnFocusOnly: false,
-              obscureText: true,
-              showPasswordToggle: true,
-              textInputAction: TextInputAction.done,
-            ),
+            if (_mode == OnlineMode.builtin) ...<Widget>[
+              const SizedBox(height: AppSpacing.md),
+              _buildBuiltinStatus(theme),
+            ] else ...<Widget>[
+              const SizedBox(height: AppSpacing.lg),
+              M3ETextField(
+                controller: _baseUrlController,
+                variant: M3ETextFieldVariant.filled,
+                label: '服务地址',
+                supportingText:
+                    '例如 https://music.example.com 或 http://127.0.0.1:33531',
+                supportingTextOnFocusOnly: false,
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.next,
+                placeholder: 'https://music.example.com',
+                onChanged: (_) {
+                  if (_statusText != null) {
+                    setState(() {
+                      _statusText = null;
+                      _statusIsError = false;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              M3ETextField(
+                controller: _tokenController,
+                variant: M3ETextFieldVariant.filled,
+                label: '访问 Token',
+                supportingText: '对应 host 的 LAETIBEAT_MUSICAPI_TOKEN，可留空',
+                supportingTextOnFocusOnly: false,
+                obscureText: true,
+                showPasswordToggle: true,
+                textInputAction: TextInputAction.done,
+              ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             M3EList(
               color: scheme.surface,
@@ -278,26 +297,28 @@ class _MobileOnlineMusicSettingsPageState
             Text('账号', style: theme.typeScale.titleSmall),
             const SizedBox(height: AppSpacing.sm),
             _buildAccountList(theme),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: M3EButton(
-                    style: M3EButtonStyle.tonal,
-                    label: Text(_testing ? '测试中…' : '测试连接'),
-                    onPressed: _testing ? null : _testConnection,
+            if (_mode == OnlineMode.remote) ...<Widget>[
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: M3EButton(
+                      style: M3EButtonStyle.tonal,
+                      label: Text(_testing ? '测试中…' : '测试连接'),
+                      onPressed: _testing ? null : _testConnection,
+                    ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: M3EButton(
-                    style: M3EButtonStyle.filled,
-                    label: Text(_saving ? '保存中…' : '保存'),
-                    onPressed: _saving ? null : _save,
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: M3EButton(
+                      style: M3EButtonStyle.filled,
+                      label: Text(_saving ? '保存中…' : '保存'),
+                      onPressed: _saving ? null : _save,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
             if (_statusText != null) ...<Widget>[
               const SizedBox(height: AppSpacing.md),
               Container(
@@ -324,10 +345,157 @@ class _MobileOnlineMusicSettingsPageState
     );
   }
 
+  Widget _buildModeSelector(M3EThemeData theme) {
+    if (!ref.read(onlineHostProvider.notifier).supported) {
+      return Text(
+        '当前平台仅支持远程服务',
+        style: theme.typeScale.bodyMedium.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text('服务模式', style: theme.typeScale.titleSmall),
+        const SizedBox(height: AppSpacing.sm),
+        M3ESegmentedButton<OnlineMode>(
+          segments: const <M3ESegment<OnlineMode>>[
+            M3ESegment(value: OnlineMode.builtin, label: '内置服务'),
+            M3ESegment(value: OnlineMode.remote, label: '远程服务'),
+          ],
+          selected: <OnlineMode>{_mode},
+          onSelectionChanged: (Set<OnlineMode> values) {
+            unawaited(_changeMode(values.first));
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBuiltinStatus(M3EThemeData theme) {
+    final host = ref.watch(onlineHostProvider);
+    final scheme = theme.colorScheme;
+    final (
+      IconData icon,
+      String title,
+      String? detail,
+      Color background,
+    ) = switch (host.status) {
+      OnlineHostStatus.running => (
+        M3EIcons.check_circle,
+        '内置服务运行中',
+        host.baseUrl,
+        scheme.tertiaryContainer,
+      ),
+      OnlineHostStatus.starting => (
+        M3EIcons.hourglass_top,
+        '正在启动内置服务…',
+        null,
+        scheme.secondaryContainer,
+      ),
+      OnlineHostStatus.error => (
+        M3EIcons.error_outline,
+        '内置服务启动失败',
+        host.error,
+        scheme.errorContainer,
+      ),
+      OnlineHostStatus.stopped => (
+        M3EIcons.cloud_off,
+        '内置服务未启动',
+        '点击启动，或回到发现页自动启动。',
+        scheme.surfaceContainerHighest,
+      ),
+    };
+    final foreground = host.status == OnlineHostStatus.error
+        ? scheme.onErrorContainer
+        : scheme.onSurface;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: AppRadii.lgAll,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(icon, size: AppIconSize.md, color: foreground),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.typeScale.titleSmall.copyWith(color: foreground),
+                ),
+              ),
+              M3EButton(
+                style: M3EButtonStyle.tonal,
+                size: M3EButtonSize.sm,
+                label: Text(host.isRunning ? '重启' : '启动'),
+                onPressed: host.isStarting
+                    ? null
+                    : () => unawaited(
+                        host.isRunning ? _restartBuiltin() : _startBuiltin(),
+                      ),
+              ),
+            ],
+          ),
+          if (detail != null && detail.isNotEmpty) ...<Widget>[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              detail,
+              style: theme.typeScale.bodySmall.copyWith(
+                color: foreground.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _changeMode(OnlineMode mode) async {
+    if (_mode == mode) return;
+    if (mode == OnlineMode.builtin &&
+        !ref.read(onlineHostProvider.notifier).supported) {
+      M3ESnackbar.show(context, message: '当前平台仅支持远程服务');
+      return;
+    }
+    setState(() {
+      _mode = mode;
+      _statusText = null;
+      _statusIsError = false;
+    });
+    await ref.read(onlineSettingsProvider.notifier).setMode(mode);
+    if (mode == OnlineMode.builtin) {
+      await ref.read(onlineHostProvider.notifier).startIfNeeded();
+    } else {
+      await ref.read(onlineHostProvider.notifier).stop();
+    }
+    ref.invalidate(onlineStatusProvider);
+    ref.invalidate(onlinePlatformStatusesProvider);
+  }
+
+  Future<void> _startBuiltin() async {
+    await ref.read(onlineHostProvider.notifier).start();
+    ref.invalidate(onlineStatusProvider);
+    ref.invalidate(onlinePlatformStatusesProvider);
+  }
+
+  Future<void> _restartBuiltin() async {
+    await ref.read(onlineHostProvider.notifier).restart();
+    ref.invalidate(onlineStatusProvider);
+    ref.invalidate(onlinePlatformStatusesProvider);
+  }
+
   Widget _buildAccountList(M3EThemeData theme) {
     final scheme = theme.colorScheme;
     final statuses = ref.watch(onlinePlatformStatusesProvider);
-    final configured = ref.watch(onlineBaseUrlProvider).isNotEmpty;
+    final host = ref.watch(onlineHostProvider);
+    final configured = _mode == OnlineMode.builtin
+        ? host.isRunning
+        : ref.watch(onlineBaseUrlProvider).isNotEmpty;
 
     return M3EList(
       color: scheme.surface,
@@ -358,7 +526,9 @@ class _MobileOnlineMusicSettingsPageState
             style: M3EButtonStyle.tonal,
             size: M3EButtonSize.sm,
             label: Text(hasCookie ? '退出' : '登录'),
-            onPressed: hasCookie
+            onPressed: !configured
+                ? null
+                : hasCookie
                 ? () => unawaited(_logout(source))
                 : () => unawaited(
                     index == 0 ? _openLogin('netease') : _openQqLogin(),

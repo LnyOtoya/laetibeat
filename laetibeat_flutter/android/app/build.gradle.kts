@@ -1,3 +1,4 @@
+import java.io.File
 import java.io.FileInputStream
 import java.util.Properties
 import org.gradle.api.GradleException
@@ -56,6 +57,13 @@ android {
         }
     }
 
+    packaging {
+        jniLibs {
+            // 内置 go-music-api host 以 .so 形式打包，必须解压后执行。
+            useLegacyPackaging = true
+        }
+    }
+
     buildTypes {
         debug {
             // 与日常 release 并存安装，flutter run 不会覆盖日常版本。
@@ -91,6 +99,65 @@ dependencies {
     // rustls-platform-verifier 的 Android JVM 组件。
     // 版本必须与 Cargo.lock 中的 rustls-platform-verifier-android 对齐。
     implementation("org.rustls:rustls-platform-verifier:0.2.0")
+}
+
+// 把 Go host 编译进 jniLibs/arm64-v8a。Android 上 Go 的纯 Go DNS
+// 不可用，必须用 NDK clang + CGO 构建 PIE。
+val repoRoot = rootProject.projectDir.parentFile.parentFile
+val musicApiHostDir = File(repoRoot, "laetibeat_musicapi_host")
+val musicApiJniDir = file("src/main/jniLibs/arm64-v8a")
+val musicApiHostSo = File(musicApiJniDir, "liblaetibeat_musicapi_host.so")
+
+fun androidNdkHostTag(): String {
+    val os = System.getProperty("os.name").lowercase()
+    return when {
+        os.contains("mac") -> "darwin-x86_64"
+        os.contains("windows") -> "windows-x86_64"
+        else -> "linux-x86_64"
+    }
+}
+
+val buildMusicApiHost by tasks.registering(Exec::class) {
+    group = "flutter"
+    description = "Build embedded go-music-api host for Android arm64"
+    workingDir = musicApiHostDir
+    val clang = File(
+        android.sdkDirectory,
+        "ndk/${flutter.ndkVersion}/toolchains/llvm/prebuilt/" +
+            "${androidNdkHostTag()}/bin/aarch64-linux-android24-clang",
+    )
+    doFirst {
+        if (!clang.exists()) {
+            throw GradleException("找不到 Android NDK clang：${clang.absolutePath}")
+        }
+        musicApiJniDir.mkdirs()
+    }
+    environment("CGO_ENABLED", "1")
+    environment("GOOS", "android")
+    environment("GOARCH", "arm64")
+    environment("CC", clang.absolutePath)
+    commandLine(
+        "go",
+        "build",
+        "-buildmode=pie",
+        "-trimpath",
+        "-ldflags",
+        "-s -w",
+        "-o",
+        musicApiHostSo.absolutePath,
+        ".",
+    )
+    inputs.files(
+        fileTree(musicApiHostDir) {
+            include("**/*.go", "go.mod", "go.sum")
+            exclude("build/**", "bin/**")
+        },
+    )
+    outputs.file(musicApiHostSo)
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(buildMusicApiHost)
 }
 
 val requestedReleaseBuild = gradle.startParameter.taskNames.any {

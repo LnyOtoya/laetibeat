@@ -23,6 +23,7 @@ import '../widgets/player/cover_provider.dart';
 import '../widgets/player/playback_backend.dart';
 import '../widgets/settings/cache_usage_service.dart';
 import '../widgets/settings/display_settings.dart';
+import '../widgets/settings/online_host.dart';
 import '../widgets/settings/persistence.dart';
 import '../widgets/settings/subsonic_provider.dart';
 import 'app.dart';
@@ -149,6 +150,9 @@ Future<void> bootstrap() async {
     ),
   );
 
+  // 内置在线音源在首帧后启动，避免 Go 进程启动阻塞 UI。
+  unawaited(container.read(onlineHostProvider.notifier).startIfNeeded());
+
   // 启动后套用用户保存的缓存上限；磁盘 LRU 扫描放在首帧之后，避免阻塞启动。
   unawaited(_applyStartupCacheLimits(container));
 
@@ -187,9 +191,7 @@ Future<void> _applyStartupCacheLimits(ProviderContainer container) async {
 }
 
 Future<void> _applyStartupHighRefresh(ProviderContainer container) async {
-  await applyHighRefreshRatePreference(
-    container.read(highRefreshRateProvider),
-  );
+  await applyHighRefreshRatePreference(container.read(highRefreshRateProvider));
 }
 
 /// 在 runApp 之前为 Android 通知渠道选择语言。

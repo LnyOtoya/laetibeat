@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -20,9 +21,10 @@ import (
 )
 
 const (
-	envAddr    = "LAETIBEAT_MUSICAPI_ADDR"
-	envToken   = "LAETIBEAT_MUSICAPI_TOKEN"
-	envDataDir = "LAETIBEAT_MUSICAPI_DATA_DIR"
+	envAddr      = "LAETIBEAT_MUSICAPI_ADDR"
+	envToken     = "LAETIBEAT_MUSICAPI_TOKEN"
+	envDataDir   = "LAETIBEAT_MUSICAPI_DATA_DIR"
+	envParentPID = "LAETIBEAT_MUSICAPI_PARENT_PID"
 
 	listenLinePrefix = "LAETIBEAT_MUSICAPI_LISTEN="
 	defaultAddr      = "127.0.0.1:0"
@@ -54,6 +56,13 @@ func run() error {
 	mux.HandleFunc("/laetibeat/health", handleHealth)
 	registerSystemRoutes(mux)
 	mux.Handle("/", engine)
+
+	// 内置模式下 App 进程退出后，子进程不要变成孤儿进程。
+	if raw := strings.TrimSpace(os.Getenv(envParentPID)); raw != "" {
+		if parentPID, err := strconv.Atoi(raw); err == nil && parentPID > 0 {
+			go watchParent(parentPID)
+		}
+	}
 
 	token := strings.TrimSpace(os.Getenv(envToken))
 	handler := withAccessLog(withSecurity(mux, token))
@@ -104,6 +113,16 @@ func run() error {
 		return fmt.Errorf("serve: %w", err)
 	}
 	return nil
+}
+
+func watchParent(parentPID int) {
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		if os.Getppid() != parentPID {
+			os.Exit(0)
+		}
+	}
 }
 
 func ensureDataDir(dir string) error {

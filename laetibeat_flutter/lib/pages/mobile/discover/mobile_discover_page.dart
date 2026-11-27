@@ -8,6 +8,7 @@ import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/layout/app_bottom_inset.dart';
 import '../../../widgets/player/player_provider.dart';
+import '../../../widgets/settings/online_host.dart';
 import '../../../widgets/settings/online_provider.dart';
 import '../../../widgets/settings/online_settings.dart';
 import '../library/online/online_detail_pages.dart';
@@ -32,6 +33,10 @@ class MobileDiscoverPage extends ConsumerWidget {
     final scheme = theme.colorScheme;
     final platform = ref.watch(discoverPlatformProvider);
     final baseUrl = ref.watch(onlineBaseUrlProvider);
+    final mode = ref.watch(
+      onlineSettingsProvider.select((settings) => settings.mode),
+    );
+    final host = ref.watch(onlineHostProvider);
     final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
 
     return AppScaffold(
@@ -52,7 +57,13 @@ class MobileDiscoverPage extends ConsumerWidget {
         ],
       ),
       body: baseUrl.isEmpty
-          ? _OnlineUnconfigured(bottomInset: bottomInset)
+          ? _buildOnlinePlaceholder(
+              context,
+              ref,
+              mode: mode,
+              host: host,
+              bottomInset: bottomInset,
+            )
           : M3ERefreshIndicator(
               onRefresh: () => _refresh(ref, platform),
               child: ListView(
@@ -92,6 +103,48 @@ class MobileDiscoverPage extends ConsumerWidget {
       orElse: () => current,
     );
     await ref.read(discoverPlatformProvider.notifier).select(selected);
+  }
+
+  Widget _buildOnlinePlaceholder(
+    BuildContext context,
+    WidgetRef ref, {
+    required OnlineMode mode,
+    required OnlineHostState host,
+    required double bottomInset,
+  }) {
+    if (mode == OnlineMode.remote) {
+      return _OnlineUnconfigured(bottomInset: bottomInset);
+    }
+    if (host.isStarting) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              CircularProgressIndicator(),
+              SizedBox(height: AppSpacing.md),
+              Text('正在启动内置音源…'),
+            ],
+          ),
+        ),
+      );
+    }
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: AppEmptyState(
+          title: host.hasError ? '内置音源启动失败' : '内置音源未启动',
+          message: host.error ?? '点击启动内置服务，无需额外部署。',
+          icon: host.hasError ? M3EIcons.error_outline : M3EIcons.cloud_off,
+          action: M3EButton(
+            style: M3EButtonStyle.filled,
+            label: Text(host.hasError ? '重试' : '启动'),
+            onPressed: () => ref.read(onlineHostProvider.notifier).start(),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _refresh(WidgetRef ref, DiscoverPlatform platform) async {
