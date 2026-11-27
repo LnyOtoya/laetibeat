@@ -11,7 +11,8 @@ mod musicapi;
 pub use error::{OnlineError, Result};
 pub use http::validate_base_url;
 pub use model::{
-    OnlineAlbum, OnlineLyric, OnlinePlaylist, OnlineQuality, OnlineResolvedAudio,
-    OnlineSearchResult, OnlineTopList, OnlineTrack,
+    OnlineAlbum, OnlineLyric, OnlinePlatformStatus, OnlinePlaylist, OnlineQrResult,
+    OnlineQrSession, OnlineQuality, OnlineResolvedAudio, OnlineSearchResult, OnlineTopList,
+    OnlineTrack,
 };
 pub use musicapi::OnlineClient;

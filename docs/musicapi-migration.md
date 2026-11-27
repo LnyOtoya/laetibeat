@@ -33,8 +33,9 @@
 - 旧实现保存在 `api` 分支。
 - M1 已完成：Rust 客户端、设置页、搜索/播放/歌词、music-lib 网易云搜索修复。
 - M2 已完成：发现页 AppBar 平台选择、推荐歌单/排行榜/热门歌曲、平台持久化。
+- M3 已完成：网易云 / QQ / 微信扫码登录、host `cookies.json`、账号状态与退出、发现页「我的歌单」。
 
-当前「我的歌单」仍显示登录提示，扫码登录与 Cookie 状态在 M3 接入。
+自动化已验证二维码会话创建与轮询；真正扫码登录需在设备上人工确认。
 
 ---
 
@@ -426,13 +427,15 @@ QQ 的 `extra` 只有 `songmid` 和 `song_id`；先按 `songmid` 尝试 LX `tx`�
 - [ ] 我的歌单：等待 M3 登录后接入（当前显示登录提示）
 - **验收**：切换平台后显示对应内容；两平台互不影响。
 
-### M3：登录与 Cookie
+### M3：登录与 Cookie（已完成）
 
-- [ ] 网易云 QR、QQ/微信 QR
-- [ ] host `cookies.json`
-- [ ] `/laetibeat/system/platforms` 状态
-- [ ] 退出登录
-- **验收**：登录后可看我的歌单；重启后仍保持。
+- [x] 网易云 QR、QQ QR、微信 QR
+- [x] host `cookies.json`（数据目录内，重启后恢复）
+- [x] `GET /laetibeat/system/platforms` 只返回 `has_cookie`
+- [x] `DELETE /laetibeat/system/platforms/{source}` 退出登录
+- [x] 设置页账号区：登录 / 退出 / 状态
+- [x] 发现页「我的歌单」按登录状态显示
+- **验收**：登录后可看我的歌单；重启后仍保持（二维码会话创建/轮询已自动化验证，扫码需人工）。
 
 ### M4：内置打包
 

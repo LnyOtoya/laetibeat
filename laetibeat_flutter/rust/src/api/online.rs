@@ -1,6 +1,7 @@
 use flutter_rust_bridge::frb;
 use laetibeat_online::{
-    OnlineAlbum, OnlineClient, OnlinePlaylist, OnlineQuality, OnlineTopList, OnlineTrack,
+    OnlineAlbum, OnlineClient, OnlinePlatformStatus, OnlinePlaylist, OnlineQrResult,
+    OnlineQrSession, OnlineQuality, OnlineTopList, OnlineTrack,
 };
 
 use crate::api::simple::UiTrack;
@@ -64,6 +65,29 @@ pub struct UiOnlineQuality {
     pub format: String,
     pub bitrate: Option<u32>,
     pub vip: bool,
+}
+
+#[frb(non_opaque)]
+pub struct UiOnlinePlatformStatus {
+    pub source: String,
+    pub has_cookie: bool,
+}
+
+#[frb(non_opaque)]
+pub struct UiOnlineQrSession {
+    pub source: String,
+    pub key: String,
+    pub url: String,
+    pub image_url: String,
+    pub expires_at: Option<i64>,
+}
+
+#[frb(non_opaque)]
+pub struct UiOnlineQrResult {
+    pub source: String,
+    pub status: String,
+    pub message: String,
+    pub cookie_saved: bool,
 }
 
 fn client(base_url: &str, token: Option<String>) -> Result<OnlineClient, String> {
@@ -271,6 +295,51 @@ pub fn online_qualities(
     Ok(qualities.into_iter().map(map_quality).collect())
 }
 
+pub fn online_platform_statuses(
+    base_url: String,
+    token: Option<String>,
+) -> Result<Vec<UiOnlinePlatformStatus>, String> {
+    let client = client(&base_url, token)?;
+    let statuses = client
+        .platform_statuses()
+        .map_err(|error| error.to_string())?;
+    Ok(statuses.into_iter().map(map_platform_status).collect())
+}
+
+pub fn online_logout(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+) -> Result<(), String> {
+    let client = client(&base_url, token)?;
+    client.logout(&source).map_err(|error| error.to_string())
+}
+
+pub fn online_qr_create(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+) -> Result<UiOnlineQrSession, String> {
+    let client = client(&base_url, token)?;
+    let session = client
+        .qr_login_create(&source)
+        .map_err(|error| error.to_string())?;
+    Ok(map_qr_session(session))
+}
+
+pub fn online_qr_check(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+    key: String,
+) -> Result<UiOnlineQrResult, String> {
+    let client = client(&base_url, token)?;
+    let result = client
+        .qr_login_check(&source, &key)
+        .map_err(|error| error.to_string())?;
+    Ok(map_qr_result(result))
+}
+
 fn map_track(client: &OnlineClient, track: OnlineTrack) -> UiTrack {
     let seconds = track.duration_seconds;
     let duration = format!("{}:{:02}", seconds / 60, seconds % 60);
@@ -347,5 +416,31 @@ fn map_quality(quality: OnlineQuality) -> UiOnlineQuality {
         format: quality.format,
         bitrate: quality.bitrate,
         vip: quality.vip,
+    }
+}
+
+fn map_platform_status(status: OnlinePlatformStatus) -> UiOnlinePlatformStatus {
+    UiOnlinePlatformStatus {
+        source: status.source,
+        has_cookie: status.has_cookie,
+    }
+}
+
+fn map_qr_session(session: OnlineQrSession) -> UiOnlineQrSession {
+    UiOnlineQrSession {
+        source: session.source,
+        key: session.key,
+        url: session.url,
+        image_url: session.image_url,
+        expires_at: session.expires_at,
+    }
+}
+
+fn map_qr_result(result: OnlineQrResult) -> UiOnlineQrResult {
+    UiOnlineQrResult {
+        source: result.source,
+        status: result.status,
+        message: result.message,
+        cookie_saved: result.cookie_saved,
     }
 }

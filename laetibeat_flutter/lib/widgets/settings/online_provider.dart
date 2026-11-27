@@ -21,6 +21,25 @@ typedef OnlineUserPlaylistKey = ({String source, int page, int limit});
 
 typedef OnlineHotSongsKey = ({String source, int limit});
 
+final onlinePlatformStatusesProvider =
+    FutureProvider.autoDispose<List<rust_online.UiOnlinePlatformStatus>>((
+      ref,
+    ) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('请先在设置中配置在线音源服务');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlinePlatformStatuses(baseUrl: baseUrl, token: token);
+    });
+
+bool onlineHasCookie(
+  List<rust_online.UiOnlinePlatformStatus> statuses,
+  String source,
+) {
+  return statuses.any((status) => status.source == source && status.hasCookie);
+}
+
 final onlineStatusProvider =
     FutureProvider.autoDispose<rust_online.UiOnlineStatus>((ref) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);

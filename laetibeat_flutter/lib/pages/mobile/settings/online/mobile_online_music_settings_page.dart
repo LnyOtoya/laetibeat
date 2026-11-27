@@ -8,7 +8,9 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../design/design.dart';
 import '../../../../widgets/settings/online_provider.dart';
 import '../../../../widgets/settings/online_settings.dart';
+import '../../mobile_navigation.dart';
 import '../../widgets/mobile_large_subpage_app_bar.dart';
+import 'mobile_online_login_page.dart';
 
 /// 在线音源服务配置。
 ///
@@ -79,9 +81,7 @@ class _MobileOnlineMusicSettingsPageState
             allowLxFallback: _allowLxFallback,
             defaultQuality: _quality,
           );
-      await ref
-          .read(onlineTokenProvider.notifier)
-          .save(_tokenController.text);
+      await ref.read(onlineTokenProvider.notifier).save(_tokenController.text);
       ref.invalidate(onlineStatusProvider);
       if (!mounted) return;
       M3ESnackbar.show(context, message: '已保存');
@@ -155,9 +155,7 @@ class _MobileOnlineMusicSettingsPageState
     final value = labels[picked.first];
     if (value == null) return;
     setState(() => _quality = value);
-    await ref
-        .read(onlineSettingsProvider.notifier)
-        .setDefaultQuality(value);
+    await ref.read(onlineSettingsProvider.notifier).setDefaultQuality(value);
   }
 
   @override
@@ -206,7 +204,8 @@ class _MobileOnlineMusicSettingsPageState
               controller: _baseUrlController,
               variant: M3ETextFieldVariant.filled,
               label: '服务地址',
-              supportingText: '例如 https://music.example.com 或 http://127.0.0.1:33531',
+              supportingText:
+                  '例如 https://music.example.com 或 http://127.0.0.1:33531',
               supportingTextOnFocusOnly: false,
               keyboardType: TextInputType.url,
               textInputAction: TextInputAction.next,
@@ -276,6 +275,10 @@ class _MobileOnlineMusicSettingsPageState
               },
             ),
             const SizedBox(height: AppSpacing.lg),
+            Text('账号', style: theme.typeScale.titleSmall),
+            const SizedBox(height: AppSpacing.sm),
+            _buildAccountList(theme),
+            const SizedBox(height: AppSpacing.lg),
             Row(
               children: <Widget>[
                 Expanded(
@@ -319,6 +322,98 @@ class _MobileOnlineMusicSettingsPageState
         ),
       ),
     );
+  }
+
+  Widget _buildAccountList(M3EThemeData theme) {
+    final scheme = theme.colorScheme;
+    final statuses = ref.watch(onlinePlatformStatusesProvider);
+    final configured = ref.watch(onlineBaseUrlProvider).isNotEmpty;
+
+    return M3EList(
+      color: scheme.surface,
+      variant: M3ECardVariant.filled,
+      itemCount: 2,
+      itemBuilder: (BuildContext context, int index) {
+        final source = index == 0 ? 'netease' : 'qq';
+        final label = index == 0 ? '网易云音乐' : 'QQ 音乐';
+        final hasCookie =
+            statuses.value?.any(
+              (status) => status.source == source && status.hasCookie,
+            ) ??
+            false;
+        final statusText = !configured
+            ? '未配置服务'
+            : statuses.isLoading
+            ? '读取中…'
+            : statuses.hasError
+            ? '状态不可用'
+            : hasCookie
+            ? '已登录'
+            : '未登录';
+        return M3EListItem(
+          headline: label,
+          supportingText: statusText,
+          leading: Icon(index == 0 ? M3EIcons.music_note : M3EIcons.forum),
+          trailing: M3EButton(
+            style: M3EButtonStyle.tonal,
+            size: M3EButtonSize.sm,
+            label: Text(hasCookie ? '退出' : '登录'),
+            onPressed: hasCookie
+                ? () => unawaited(_logout(source))
+                : () => unawaited(
+                    index == 0 ? _openLogin('netease') : _openQqLogin(),
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openLogin(String source) async {
+    final ok = await pushMobileRootPage<bool>(
+      context,
+      MobileOnlineLoginPage(source: source),
+      name: 'online-login',
+    );
+    if (!mounted) return;
+    ref.invalidate(onlinePlatformStatusesProvider);
+    if (ok == true) {
+      ref.invalidate(onlineUserPlaylistsProvider);
+      M3ESnackbar.show(context, message: '登录成功');
+    }
+  }
+
+  Future<void> _openQqLogin() async {
+    final picked = await M3EDialog.showSelectionScreen(
+      context,
+      title: 'QQ 登录方式',
+      options: const <String>['QQ 扫码', '微信扫码'],
+      icon: const Icon(M3EIcons.login),
+    );
+    if (picked == null || picked.isEmpty) return;
+    await _openLogin(picked.first == '微信扫码' ? 'qq_wx' : 'qq');
+  }
+
+  Future<void> _logout(String source) async {
+    final baseUrl = ref.read(onlineBaseUrlProvider);
+    if (baseUrl.isEmpty) return;
+    try {
+      final token = await ref.read(onlineTokenProvider.future);
+      await rust_online.onlineLogout(
+        baseUrl: baseUrl,
+        token: token,
+        source: source,
+      );
+      ref.invalidate(onlinePlatformStatusesProvider);
+      ref.invalidate(onlineUserPlaylistsProvider);
+      if (mounted) {
+        M3ESnackbar.show(context, message: '已退出登录');
+      }
+    } catch (error) {
+      if (mounted) {
+        M3ESnackbar.show(context, message: '退出失败：$error');
+      }
+    }
   }
 
   String _qualityLabel(String value) {

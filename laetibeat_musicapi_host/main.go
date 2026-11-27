@@ -52,6 +52,7 @@ func run() error {
 	engine := router.SetupRouter()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/laetibeat/health", handleHealth)
+	registerSystemRoutes(mux)
 	mux.Handle("/", engine)
 
 	token := strings.TrimSpace(os.Getenv(envToken))

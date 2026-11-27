@@ -3,10 +3,12 @@ use serde::Deserialize;
 use crate::error::{OnlineError, Result};
 use crate::http::HttpClient;
 use crate::model::{
-    map_album, map_playlist, map_quality, map_song, map_top_list, ApiHotSongsData, ApiLyricData,
-    ApiPlaylist, ApiQualitiesData, ApiSearchData, ApiSong, ApiTopListsData, ApiUrlData,
-    ApiUserPlaylistsData, OnlineAlbum, OnlineLyric, OnlinePlaylist, OnlineQuality,
-    OnlineResolvedAudio, OnlineSearchResult, OnlineTopList, OnlineTrack,
+    map_album, map_platform_status, map_playlist, map_qr_result, map_qr_session, map_quality,
+    map_song, map_top_list, ApiHotSongsData, ApiLyricData, ApiPlatformStatus, ApiPlaylist,
+    ApiQrResult, ApiQrSession, ApiQualitiesData, ApiSearchData, ApiSong, ApiTopListsData,
+    ApiUrlData, ApiUserPlaylistsData, OnlineAlbum, OnlineLyric, OnlinePlatformStatus,
+    OnlinePlaylist, OnlineQrResult, OnlineQrSession, OnlineQuality, OnlineResolvedAudio,
+    OnlineSearchResult, OnlineTopList, OnlineTrack,
 };
 
 #[derive(Debug, Deserialize)]
@@ -266,6 +268,34 @@ impl OnlineClient {
             .get_data("/api/v1/music/qualities", &[("source", source.to_string())])?;
         Ok(data.qualities.into_iter().map(map_quality).collect())
     }
+
+    pub fn platform_statuses(&self) -> Result<Vec<OnlinePlatformStatus>> {
+        let statuses: Vec<ApiPlatformStatus> =
+            self.http.get_json("/laetibeat/system/platforms", &[])?;
+        Ok(statuses.into_iter().map(map_platform_status).collect())
+    }
+
+    pub fn logout(&self, source: &str) -> Result<()> {
+        let _: serde_json::Value = self
+            .http
+            .delete_data(&format!("/laetibeat/system/platforms/{source}"))?;
+        Ok(())
+    }
+
+    pub fn qr_login_create(&self, source: &str) -> Result<OnlineQrSession> {
+        let session: ApiQrSession = self
+            .http
+            .post_data(&format!("/api/v1/system/qr_login/{source}"), &[])?;
+        Ok(map_qr_session(session))
+    }
+
+    pub fn qr_login_check(&self, source: &str, key: &str) -> Result<OnlineQrResult> {
+        let result: ApiQrResult = self.http.get_data(
+            &format!("/api/v1/system/qr_login/{source}"),
+            &[("key", key.to_string())],
+        )?;
+        Ok(map_qr_result(result))
+    }
 }
 
 #[cfg(test)]
@@ -320,10 +350,11 @@ mod tests {
 
         let recommend = client.recommend_playlists("netease").unwrap();
         assert!(!recommend.is_empty(), "NetEase recommend playlists empty");
-        let recommended_tracks = client
-            .playlist_tracks("netease", &recommend[0].id)
-            .unwrap();
-        assert!(!recommended_tracks.is_empty(), "NetEase playlist tracks empty");
+        let recommended_tracks = client.playlist_tracks("netease", &recommend[0].id).unwrap();
+        assert!(
+            !recommended_tracks.is_empty(),
+            "NetEase playlist tracks empty"
+        );
 
         let top_lists = client.top_lists("qq").unwrap();
         assert!(!top_lists.is_empty(), "QQ top lists empty");
@@ -332,6 +363,49 @@ mod tests {
 
         let hot = client.hot_songs("netease", 5).unwrap();
         assert!(!hot.is_empty(), "NetEase hot songs empty");
+
+        let statuses = client.platform_statuses().unwrap();
+        assert!(
+            statuses.iter().any(|status| status.source == "netease"),
+            "platform statuses missing netease"
+        );
+
+        let session = client.qr_login_create("netease").unwrap();
+        assert!(!session.key.is_empty(), "NetEase QR key empty");
+        assert!(!session.url.is_empty(), "NetEase QR URL empty");
+        let qr = client.qr_login_check("netease", &session.key).unwrap();
+        assert!(
+            matches!(
+                qr.status.as_str(),
+                "waiting" | "scanned" | "success" | "expired" | "failed"
+            ),
+            "unexpected QR status: {}",
+            qr.status
+        );
+
+        let qq_session = client.qr_login_create("qq").unwrap();
+        assert!(
+            !qq_session.image_url.is_empty() || !qq_session.url.is_empty(),
+            "QQ QR session has neither image nor URL"
+        );
+        let qq_qr = client.qr_login_check("qq", &qq_session.key).unwrap();
+        assert!(
+            matches!(
+                qq_qr.status.as_str(),
+                "waiting" | "scanned" | "success" | "expired" | "failed"
+            ),
+            "unexpected QQ QR status: {}",
+            qq_qr.status
+        );
+
+        client.logout("netease").unwrap();
+        let after_logout = client.platform_statuses().unwrap();
+        assert!(
+            after_logout
+                .iter()
+                .all(|status| status.source != "netease" || !status.has_cookie),
+            "logout did not clear NetEase cookie"
+        );
 
         let lyric = client.lyric("netease", "1973665667").unwrap();
         assert!(!lyric.lyric.is_empty());

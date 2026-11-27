@@ -418,3 +418,91 @@ mod tests {
         assert_eq!(album.track_count, 10);
     }
 }
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ApiQrSession {
+    #[serde(default)]
+    pub source: String,
+    #[serde(default)]
+    pub key: String,
+    #[serde(default)]
+    pub url: String,
+    #[serde(default)]
+    pub image_url: String,
+    #[serde(default)]
+    pub expires_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ApiQrResult {
+    #[serde(default)]
+    pub source: String,
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub message: String,
+    #[serde(default)]
+    pub extra: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ApiPlatformStatus {
+    #[serde(default)]
+    pub source: String,
+    #[serde(default)]
+    pub has_cookie: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct OnlineQrSession {
+    pub source: String,
+    pub key: String,
+    pub url: String,
+    pub image_url: String,
+    pub expires_at: Option<i64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct OnlineQrResult {
+    pub source: String,
+    pub status: String,
+    pub message: String,
+    pub cookie_saved: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct OnlinePlatformStatus {
+    pub source: String,
+    pub has_cookie: bool,
+}
+
+pub(crate) fn map_qr_session(session: ApiQrSession) -> OnlineQrSession {
+    OnlineQrSession {
+        source: session.source,
+        key: session.key,
+        url: session.url,
+        image_url: session.image_url,
+        expires_at: session.expires_at,
+    }
+}
+
+pub(crate) fn map_qr_result(result: ApiQrResult) -> OnlineQrResult {
+    let cookie_saved = result
+        .extra
+        .get("cookie_saved")
+        .map(|value| value == "true")
+        .unwrap_or(false);
+    OnlineQrResult {
+        source: result.source,
+        status: result.status,
+        message: result.message,
+        cookie_saved,
+    }
+}
+
+pub(crate) fn map_platform_status(status: ApiPlatformStatus) -> OnlinePlatformStatus {
+    OnlinePlatformStatus {
+        source: status.source,
+        has_cookie: status.has_cookie,
+    }
+}

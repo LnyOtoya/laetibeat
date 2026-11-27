@@ -14,6 +14,7 @@ import '../library/online/online_detail_pages.dart';
 import '../library/online/online_widgets.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
+import '../settings/online/mobile_online_login_page.dart';
 import '../settings/online/mobile_online_music_settings_page.dart';
 import 'discover_platform.dart';
 
@@ -67,7 +68,7 @@ class MobileDiscoverPage extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.xl),
                   _HotSongsSection(source: platform.source),
                   const SizedBox(height: AppSpacing.xl),
-                  _MyPlaylistsNotice(platform: platform),
+                  _MyPlaylistsSection(platform: platform),
                 ],
               ),
             ),
@@ -145,10 +146,7 @@ class _SectionContainer extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          AppSectionHeader(
-            title: title,
-            titleRole: AppTextRole.titleMedium,
-          ),
+          AppSectionHeader(title: title, titleRole: AppTextRole.titleMedium),
           const SizedBox(height: AppSpacing.sm),
           child,
         ],
@@ -420,42 +418,117 @@ class _HotSongsSection extends ConsumerWidget {
   }
 }
 
-class _MyPlaylistsNotice extends StatelessWidget {
-  const _MyPlaylistsNotice({required this.platform});
+class _MyPlaylistsSection extends ConsumerWidget {
+  const _MyPlaylistsSection({required this.platform});
 
   final DiscoverPlatform platform;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statuses = ref.watch(onlinePlatformStatusesProvider);
+    return statuses.when(
+      loading: () => const _SectionContainer(
+        title: '我的歌单',
+        child: _SectionLoading(height: 120),
+      ),
+      error: (Object error, StackTrace? stack) => _SectionContainer(
+        title: '我的歌单',
+        child: _LoginNotice(platform: platform, message: '无法获取登录状态：$error'),
+      ),
+      data: (List<rust_online.UiOnlinePlatformStatus> list) {
+        if (!onlineHasCookie(list, platform.source)) {
+          return _SectionContainer(
+            title: '我的歌单',
+            child: _LoginNotice(
+              platform: platform,
+              message: '登录 ${platform.label} 后可查看「我的歌单」。',
+            ),
+          );
+        }
+        final key = (source: platform.source, page: 1, limit: 30);
+        final async = ref.watch(onlineUserPlaylistsProvider(key));
+        return _SectionContainer(
+          title: '我的歌单',
+          child: async.when(
+            loading: () => const _SectionLoading(height: 210),
+            error: (Object error, StackTrace? stack) => _SectionMessage(
+              message: '加载失败：$error',
+              onRetry: () => ref.invalidate(onlineUserPlaylistsProvider(key)),
+            ),
+            data: (List<rust_online.UiOnlinePlaylist> playlists) {
+              if (playlists.isEmpty) {
+                return const _SectionMessage(message: '暂无歌单');
+              }
+              return SizedBox(
+                height: 210,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: playlists.length,
+                  separatorBuilder: (BuildContext context, int index) =>
+                      const SizedBox(width: AppSpacing.sm),
+                  itemBuilder: (BuildContext context, int index) {
+                    return _PlaylistCard(playlist: playlists[index]);
+                  },
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LoginNotice extends ConsumerWidget {
+  const _LoginNotice({required this.platform, required this.message});
+
+  final DiscoverPlatform platform;
+  final String message;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
     final scheme = theme.colorScheme;
-    final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: gutter),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: scheme.secondaryContainer,
-          borderRadius: AppRadii.lgAll,
-        ),
-        child: Row(
-          children: <Widget>[
-            Icon(
-              M3EIcons.lock,
-              size: AppIconSize.md,
-              color: scheme.onSecondaryContainer,
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                '登录 ${platform.label} 后可查看「我的歌单」；登录能力将在下一步接入。',
-                style: theme.typeScale.bodyMedium.copyWith(
-                  color: scheme.onSecondaryContainer,
-                ),
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer,
+        borderRadius: AppRadii.lgAll,
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(
+            M3EIcons.lock,
+            size: AppIconSize.md,
+            color: scheme.onSecondaryContainer,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.typeScale.bodyMedium.copyWith(
+                color: scheme.onSecondaryContainer,
               ),
             ),
-          ],
-        ),
+          ),
+          M3EButton(
+            style: M3EButtonStyle.tonal,
+            size: M3EButtonSize.sm,
+            label: const Text('去登录'),
+            onPressed: () async {
+              final ok = await pushMobileRootPage<bool>(
+                context,
+                MobileOnlineLoginPage(source: platform.source),
+                name: 'online-login',
+              );
+              if (!context.mounted) return;
+              ref.invalidate(onlinePlatformStatusesProvider);
+              if (ok == true) {
+                ref.invalidate(onlineUserPlaylistsProvider);
+              }
+            },
+          ),
+        ],
       ),
     );
   }

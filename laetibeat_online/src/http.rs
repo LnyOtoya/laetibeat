@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use reqwest::blocking::{Client, RequestBuilder};
 use reqwest::redirect::{Attempt, Policy};
-use reqwest::{StatusCode, Url};
+use reqwest::{Method, StatusCode, Url};
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 
@@ -114,13 +114,36 @@ impl HttpClient {
         path: &str,
         query: &[(&str, String)],
     ) -> Result<D> {
-        let request = self.request(path).query(query);
+        let request = self.request(Method::GET, path).query(query);
         self.send(request)
     }
 
-    fn request(&self, path: &str) -> RequestBuilder {
+    pub(crate) fn post_data<D: DeserializeOwned>(
+        &self,
+        path: &str,
+        query: &[(&str, String)],
+    ) -> Result<D> {
+        let request = self.request(Method::POST, path).query(query);
+        let response: ApiResponse<D> = self.send(request)?;
+        if response.code != 200 {
+            return Err(OnlineError::Api(if response.msg.is_empty() {
+                format!("接口返回 code={}", response.code)
+            } else {
+                response.msg
+            }));
+        }
+        response
+            .data
+            .ok_or_else(|| OnlineError::Api("接口返回缺少 data".to_string()))
+    }
+
+    pub(crate) fn delete_data<D: DeserializeOwned>(&self, path: &str) -> Result<D> {
+        self.send(self.request(Method::DELETE, path))
+    }
+
+    fn request(&self, method: Method, path: &str) -> RequestBuilder {
         let url = format!("{}{}", self.base_url, path);
-        let request = self.client.get(url);
+        let request = self.client.request(method, url);
         match self.token.as_deref() {
             Some(token) => request.header("Authorization", format!("Bearer {token}")),
             None => request,

@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'simple.dart';
 
-// These functions are ignored because they are not marked as `pub`: `client`, `map_album`, `map_playlist`, `map_quality`, `map_top_list`, `map_track`
+// These functions are ignored because they are not marked as `pub`: `client`, `map_album`, `map_platform_status`, `map_playlist`, `map_qr_result`, `map_qr_session`, `map_quality`, `map_top_list`, `map_track`
 
 Future<UiOnlineStatus> onlineHealth({required String baseUrl, String? token}) =>
     RustLib.instance.api.crateApiOnlineOnlineHealth(
@@ -181,6 +181,46 @@ Future<List<UiOnlineQuality>> onlineQualities({
   source: source,
 );
 
+Future<List<UiOnlinePlatformStatus>> onlinePlatformStatuses({
+  required String baseUrl,
+  String? token,
+}) => RustLib.instance.api.crateApiOnlineOnlinePlatformStatuses(
+  baseUrl: baseUrl,
+  token: token,
+);
+
+Future<void> onlineLogout({
+  required String baseUrl,
+  String? token,
+  required String source,
+}) => RustLib.instance.api.crateApiOnlineOnlineLogout(
+  baseUrl: baseUrl,
+  token: token,
+  source: source,
+);
+
+Future<UiOnlineQrSession> onlineQrCreate({
+  required String baseUrl,
+  String? token,
+  required String source,
+}) => RustLib.instance.api.crateApiOnlineOnlineQrCreate(
+  baseUrl: baseUrl,
+  token: token,
+  source: source,
+);
+
+Future<UiOnlineQrResult> onlineQrCheck({
+  required String baseUrl,
+  String? token,
+  required String source,
+  required String key,
+}) => RustLib.instance.api.crateApiOnlineOnlineQrCheck(
+  baseUrl: baseUrl,
+  token: token,
+  source: source,
+  key: key,
+);
+
 class UiOnlineAlbum {
   final String source;
   final String id;
@@ -236,6 +276,24 @@ class UiOnlineLyric {
           lyric == other.lyric;
 }
 
+class UiOnlinePlatformStatus {
+  final String source;
+  final bool hasCookie;
+
+  const UiOnlinePlatformStatus({required this.source, required this.hasCookie});
+
+  @override
+  int get hashCode => source.hashCode ^ hasCookie.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiOnlinePlatformStatus &&
+          runtimeType == other.runtimeType &&
+          source == other.source &&
+          hasCookie == other.hasCookie;
+}
+
 class UiOnlinePlaylist {
   final String source;
   final String id;
@@ -285,6 +343,72 @@ class UiOnlinePlaylist {
           creator == other.creator &&
           description == other.description &&
           link == other.link;
+}
+
+class UiOnlineQrResult {
+  final String source;
+  final String status;
+  final String message;
+  final bool cookieSaved;
+
+  const UiOnlineQrResult({
+    required this.source,
+    required this.status,
+    required this.message,
+    required this.cookieSaved,
+  });
+
+  @override
+  int get hashCode =>
+      source.hashCode ^
+      status.hashCode ^
+      message.hashCode ^
+      cookieSaved.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiOnlineQrResult &&
+          runtimeType == other.runtimeType &&
+          source == other.source &&
+          status == other.status &&
+          message == other.message &&
+          cookieSaved == other.cookieSaved;
+}
+
+class UiOnlineQrSession {
+  final String source;
+  final String key;
+  final String url;
+  final String imageUrl;
+  final PlatformInt64? expiresAt;
+
+  const UiOnlineQrSession({
+    required this.source,
+    required this.key,
+    required this.url,
+    required this.imageUrl,
+    this.expiresAt,
+  });
+
+  @override
+  int get hashCode =>
+      source.hashCode ^
+      key.hashCode ^
+      url.hashCode ^
+      imageUrl.hashCode ^
+      expiresAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UiOnlineQrSession &&
+          runtimeType == other.runtimeType &&
+          source == other.source &&
+          key == other.key &&
+          url == other.url &&
+          imageUrl == other.imageUrl &&
+          expiresAt == other.expiresAt;
 }
 
 class UiOnlineQuality {

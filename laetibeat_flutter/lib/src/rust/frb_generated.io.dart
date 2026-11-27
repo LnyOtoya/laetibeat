@@ -139,6 +139,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<UiOnlineAlbum> dco_decode_list_ui_online_album(dynamic raw);
 
   @protected
+  List<UiOnlinePlatformStatus> dco_decode_list_ui_online_platform_status(
+    dynamic raw,
+  );
+
+  @protected
   List<UiOnlinePlaylist> dco_decode_list_ui_online_playlist(dynamic raw);
 
   @protected
@@ -281,7 +286,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UiOnlineLyric dco_decode_ui_online_lyric(dynamic raw);
 
   @protected
+  UiOnlinePlatformStatus dco_decode_ui_online_platform_status(dynamic raw);
+
+  @protected
   UiOnlinePlaylist dco_decode_ui_online_playlist(dynamic raw);
+
+  @protected
+  UiOnlineQrResult dco_decode_ui_online_qr_result(dynamic raw);
+
+  @protected
+  UiOnlineQrSession dco_decode_ui_online_qr_session(dynamic raw);
 
   @protected
   UiOnlineQuality dco_decode_ui_online_quality(dynamic raw);
@@ -484,6 +498,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UiOnlinePlatformStatus> sse_decode_list_ui_online_platform_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<UiOnlinePlaylist> sse_decode_list_ui_online_playlist(
     SseDeserializer deserializer,
   );
@@ -662,7 +681,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UiOnlineLyric sse_decode_ui_online_lyric(SseDeserializer deserializer);
 
   @protected
+  UiOnlinePlatformStatus sse_decode_ui_online_platform_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   UiOnlinePlaylist sse_decode_ui_online_playlist(SseDeserializer deserializer);
+
+  @protected
+  UiOnlineQrResult sse_decode_ui_online_qr_result(SseDeserializer deserializer);
+
+  @protected
+  UiOnlineQrSession sse_decode_ui_online_qr_session(
+    SseDeserializer deserializer,
+  );
 
   @protected
   UiOnlineQuality sse_decode_ui_online_quality(SseDeserializer deserializer);
@@ -915,6 +947,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_ui_online_platform_status(
+    List<UiOnlinePlatformStatus> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_ui_online_playlist(
     List<UiOnlinePlaylist> self,
     SseSerializer serializer,
@@ -1143,8 +1181,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_ui_online_lyric(UiOnlineLyric self, SseSerializer serializer);
 
   @protected
+  void sse_encode_ui_online_platform_status(
+    UiOnlinePlatformStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_ui_online_playlist(
     UiOnlinePlaylist self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_online_qr_result(
+    UiOnlineQrResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_online_qr_session(
+    UiOnlineQrSession self,
     SseSerializer serializer,
   );
 
