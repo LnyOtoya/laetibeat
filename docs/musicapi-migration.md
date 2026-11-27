@@ -461,6 +461,7 @@ QQ 的 `extra` 只有 `songmid` 和 `song_id`；先按 `songmid` 尝试 LX `tx`�
 - [x] `THIRD_PARTY_NOTICES.md` 增加 go-music-api / music-lib / qr_flutter
 - [x] 关于页增加「在线音源源码」入口与 LicenseRegistry AGPL 条目
 - [x] CI host 矩阵：Linux amd64/arm64 + Android arm64/armv7/x86_64
+- [x] 发版预检脚本与检查清单（`scripts/release_preflight.sh`、`docs/release-checklist.md`）
 - [ ] 首次 GitHub Actions 运行验证
 
 ---

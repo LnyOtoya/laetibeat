@@ -15,6 +15,7 @@
 - 播放：在线直链经 HTTPS-only 本机转发器；支持 LX fallback
 - 文档：`docs/musicapi-migration.md`（设计/验收）、`PLAN.md`（当前计划）、`THIRD_PARTY_NOTICES.md`（AGPL）
 - 旧网易云 Node API 实现保留在 `api` 分支，不再维护
+- 发版流程：`docs/release-checklist.md`；本地预检：`scripts/release_preflight.sh v1.0.2 --build`
 
 ## 当前状态速览
 

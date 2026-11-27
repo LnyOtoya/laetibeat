@@ -2,7 +2,7 @@
 
 > 状态：网易云 / QQ 在线音源已通过内置 `go-music-api` host 接入；M0–M4 完成，M5 进行中。
 > 最后更新：2026-11-27
-> 关联文档：`docs/musicapi-migration.md`（迁移设计与验收）、`TODO.md`（工程债）、`THIRD_PARTY_NOTICES.md`（AGPL/第三方许可）
+> 关联文档：`docs/musicapi-migration.md`（迁移设计与验收）、`docs/release-checklist.md`（发版）、`TODO.md`（工程债）、`THIRD_PARTY_NOTICES.md`（AGPL/第三方许可）
 
 ## 目标
 
@@ -116,6 +116,7 @@ docs/musicapi-migration.md     迁移设计、阶段验收、风险
 - [x] 关于页增加 AGPL 源码入口与 LicenseRegistry 条目
 - [x] `TODO.md` 顶部更新当前状态并标注历史条目
 - [x] `ARCHITECTURE.md` 与实现同步
+- [x] 发版预检脚本 `scripts/release_preflight.sh` 与 `docs/release-checklist.md`
 - [ ] 首次 CI / Release 验证
 
 ## 历史

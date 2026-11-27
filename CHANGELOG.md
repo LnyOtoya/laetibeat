@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-27
+
 ### Added
 
 - 内置 go-music-api host：Android arm64/armv7/x86_64 与 Linux x64 随 App 分发，无需额外部署。

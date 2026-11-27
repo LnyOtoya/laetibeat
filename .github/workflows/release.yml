@@ -66,6 +66,33 @@ jobs:
           echo "code=${code}" >> "${GITHUB_OUTPUT}"
           echo "versionCode=${code}"
 
+      - name: Validate version files
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.name }}"
+          code="${{ steps.version.outputs.code }}"
+          grep -Eq "^version: ${version}\\+${code}$" laetibeat_flutter/pubspec.yaml
+          python3 - "$version" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          version = sys.argv[1]
+          text = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          pattern = re.compile(
+              rf"^## \[{re.escape(version)}\] - \d{{4}}-\d{{2}}-\d{{2}}\n(.*?)(?=^## \[|\Z)",
+              re.MULTILINE | re.DOTALL,
+          )
+          match = pattern.search(text)
+          if match is None:
+              raise SystemExit(f"CHANGELOG.md missing non-empty [{version}] section")
+          if not match.group(1).strip():
+              raise SystemExit(f"CHANGELOG.md [{version}] section is empty")
+          PY
+          test -s laetibeat_musicapi_host/LICENSE
+          test -s laetibeat_musicapi_host/third_party/music-lib/LICENSE
+
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
