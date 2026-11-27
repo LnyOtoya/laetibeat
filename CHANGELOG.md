@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- UI Skin 骨架：`ui.skin` 持久化、`AppSkin` 契约与注册表；默认皮肤仍为 Material 3 Expressive。
+
+### Fixed
+
+- 修复 QQ / 网易云模式下搜索被误判为“当前模式不提供在线搜索”。
+
 ## [1.1.0] - 2026-11-27
 
 ### Upgrade Notice

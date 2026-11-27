@@ -22,8 +22,12 @@
 - [x] CI 增加 Rust host 矩阵
 - [x] 删除 go-music-api 与 Go 打包链
 - [x] 保留 `laetibeat_online` 作为 native host 统一客户端
-- [ ] native 通过 PR 合并回 main
-- [ ] 在 main 上发布 v2.0.0（或确认后的版本）
+- [x] native 通过 PR 合并回 main（PR #1）
+- [x] 发布 1.1.0 版本号、CHANGELOG 与预检
+- [ ] 确认 1.1.0 Release 资产
+- [x] UI Skin 骨架（默认 Material 3 Expressive）
+- [ ] Spotify 皮肤
+- [ ] Apple Music 皮肤
 
 ## 2026-11-27 在线音源迁移（gomusic 分支，已完成）
 
