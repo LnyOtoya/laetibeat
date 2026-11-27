@@ -216,6 +216,12 @@ jobs:
             release-assets/LICENSE-AGPL-3.0-go-music-api
           cp ../laetibeat_musicapi_host/third_party/music-lib/LICENSE \
             release-assets/LICENSE-AGPL-3.0-music-lib
+          cp ../laetibeat_qq_host/LICENSE \
+            release-assets/LICENSE-GPL-3.0-QQMusicApi-rs
+          cp ../laetibeat_netease_host/LICENSE \
+            release-assets/LICENSE-MIT-netease-host
+          cp ../laetibeat_netease_host/LICENSE-WTFPL \
+            release-assets/LICENSE-WTFPL-ncm-api-rs
           sha256sum release-assets/*.apk release-assets/LICENSE-* \
             release-assets/THIRD_PARTY_NOTICES.md > release-assets/SHA256SUMS.txt
           ls -lh release-assets

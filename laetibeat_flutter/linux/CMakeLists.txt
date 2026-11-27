@@ -93,6 +93,53 @@ else()
   message(WARNING "go not found: embedded go-music-api host will not be bundled")
 endif()
 
+# QQ / 网易云 Rust sidecar：与 Flutter bundle 一起分发到 lib/。
+find_program(CARGO_EXECUTABLE cargo)
+if(CARGO_EXECUTABLE)
+  set(RUST_ONLINE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+  if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+    set(RUST_ONLINE_TARGET "aarch64-unknown-linux-gnu")
+  else()
+    set(RUST_ONLINE_TARGET "x86_64-unknown-linux-gnu")
+  endif()
+  set(RUST_ONLINE_SOURCES)
+  foreach(directory IN ITEMS laetibeat_qq_host laetibeat_netease_host)
+    file(GLOB_RECURSE HOST_SOURCES
+      "${RUST_ONLINE_ROOT}/${directory}/*.rs"
+      "${RUST_ONLINE_ROOT}/${directory}/Cargo.toml")
+    list(APPEND RUST_ONLINE_SOURCES ${HOST_SOURCES})
+  endforeach()
+  list(APPEND RUST_ONLINE_SOURCES
+    "${RUST_ONLINE_ROOT}/Cargo.toml"
+    "${RUST_ONLINE_ROOT}/Cargo.lock")
+
+  set(RUST_ONLINE_OUTPUTS)
+  foreach(host IN ITEMS qq netease)
+    set(output "${CMAKE_CURRENT_BINARY_DIR}/laetibeat_${host}_host")
+    add_custom_command(
+      OUTPUT "${output}"
+      COMMAND ${CMAKE_COMMAND} -E env
+        "RUSTFLAGS=-C strip=symbols"
+        "${CARGO_EXECUTABLE}" build
+          --release
+          -p "laetibeat_${host}_host"
+          --target "${RUST_ONLINE_TARGET}"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${RUST_ONLINE_ROOT}/target/${RUST_ONLINE_TARGET}/release/laetibeat_${host}_host"
+        "${output}"
+      WORKING_DIRECTORY "${RUST_ONLINE_ROOT}"
+      DEPENDS ${RUST_ONLINE_SOURCES}
+      COMMENT "Building embedded Rust ${host} host"
+      VERBATIM)
+    list(APPEND RUST_ONLINE_OUTPUTS "${output}")
+  endforeach()
+  add_custom_target(bundle_rust_online_hosts ALL
+    DEPENDS ${RUST_ONLINE_OUTPUTS})
+  add_dependencies(${BINARY_NAME} bundle_rust_online_hosts)
+else()
+  message(WARNING "cargo not found: embedded Rust online hosts will not be bundled")
+endif()
+
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
 
@@ -146,6 +193,14 @@ if(GO_EXECUTABLE)
   install(PROGRAMS "${MUSICAPI_HOST_BINARY}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
+endif()
+
+if(CARGO_EXECUTABLE)
+  foreach(output ${RUST_ONLINE_OUTPUTS})
+    install(PROGRAMS "${output}"
+      DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+      COMPONENT Runtime)
+  endforeach()
 endif()
 
 # Copy the native assets provided by the build.dart from all packages.

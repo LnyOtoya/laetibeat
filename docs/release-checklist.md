@@ -13,7 +13,7 @@
 - [ ] 工作区干净
 - [ ] `laetibeat_flutter/pubspec.yaml` 版本与目标 tag 一致
 - [ ] `CHANGELOG.md` 有非空 `## [版本] - YYYY-MM-DD` 段落
-- [ ] `THIRD_PARTY_NOTICES.md`、`laetibeat_musicapi_host/LICENSE`、`third_party/music-lib/LICENSE` 存在
+- [ ] `THIRD_PARTY_NOTICES.md`、`laetibeat_musicapi_host/LICENSE`、`third_party/music-lib/LICENSE`、`laetibeat_qq_host/LICENSE`、`laetibeat_netease_host/LICENSE`、`laetibeat_netease_host/LICENSE-WTFPL` 存在
 - [ ] 本地 `android/key.properties` 指向正确 keystore
 - [ ] GitHub Secrets 已配置：
   - `ANDROID_KEYSTORE_BASE64`
@@ -50,6 +50,7 @@ scripts/release_preflight.sh v1.0.2 --build
 - `go test ./...`
 - release split APK：
   - 三个 ABI 均包含 `liblaetibeat_musicapi_host.so`
+  - 三个 ABI 均包含 `liblaetibeat_qq_host.so` 与 `liblaetibeat_netease_host.so`
   - `extractNativeLibs=true`
   - `versionName` / `versionCode` 正确
   - `apksigner verify` 通过
@@ -109,7 +110,8 @@ git tag -d v1.0.2
 
 ## 7. 当前 1.0.2 已知事项
 
-- 内置 host 以 AGPL-3.0 分发；源码入口见关于页与 `THIRD_PARTY_NOTICES.md`
+- go-music-api host 以 AGPL-3.0 分发；QQ host 以 GPL-3.0-only 分发；
+  网易云 host 代码 MIT、依赖 `ncm-api-rs` WTFPL；源码入口见关于页与 `THIRD_PARTY_NOTICES.md`
 - 网易云搜索依赖 `third_party/music-lib` 的 weapi 本地补丁
 - QQ 部分 VIP / 版权歌曲直链可能失败；可开启洛雪后备或登录 QQ
 - 远程 host 为单用户假设

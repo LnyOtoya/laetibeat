@@ -390,12 +390,18 @@ jniLibs/<abi>/liblaetibeat_netease_host.so
 - [ ] 本地 / Subsonic 专属页面
 - [ ] Android / Linux host 打包后真机端到端（N5）
 
-### N5：打包
+### N5：打包（已完成主体）
 
-- [ ] Android 双 host jniLibs
-- [ ] Linux 双 host bundle
-- [ ] CI host matrix
-- [ ] release assets / licenses
+- [x] Android 双 host jniLibs（Go host 暂留到 N6）
+- [x] Linux 双 host bundle
+- [x] Gradle / CMake cargo build task
+- [x] CI host matrix
+- [x] release assets / licenses
+- [x] debug APK 真机启动 QQ / NetEase sidecar
+- [x] 16 KB / 4 KB LOAD 对齐
+- [x] signed release split APK 构建（arm64 / armv7 / x86_64）
+- [ ] signed release split APK 实机安装验证（发布时执行）
+- [ ] 应用内运行中切换模式的自动化/人工验收
 
 ### N6：删除 go-music-api
 
@@ -447,6 +453,17 @@ NDK r28c
   播放 URL、平台状态、二维码创建/轮询均通过。
 - Android arm64 release：`laetibeat_qq_host` 13 MB；`laetibeat_netease_host` 9.7 MB。
 - Android 真机：最新兼容层 host 启动、QQ/网易云搜索与 URL 解析通过。
+- N5 打包：
+  - Gradle task `buildRustOnlineHosts<Abi>` 将两个 host 写入 jniLibs
+  - Android 打包后 arm64：QQ 8.8 MB / NetEase 6.3 MB（strip）
+  - Linux bundle：QQ 9.6 MB / NetEase 5.8 MB（strip）
+  - debug APK 真机：`app.mode=qq` 启动 `liblaetibeat_qq_host.so`；
+    `app.mode=netease` 启动 `liblaetibeat_netease_host.so`；force-stop 后无残留
+  - arm64 / x86_64 LOAD 对齐 0x4000，armv7 0x1000
+  - CI 增加 Rust Linux / Android 三 ABI 构建；release 资产增加 host 许可证
+  - release split APK：armv7 70.1 MB / arm64 71.9 MB / x86_64 74.1 MB
+    （含暂留的 Go host；N6 删除后预计显著缩小）
+  - release APK 已签名、`extractNativeLibs=true`、versionCode 1002002（arm64）
 
 ## 13. 相关文档
 

@@ -176,8 +176,123 @@ val musicApiHostTasks = musicApiAbis.map { target ->
     }
 }
 
+// 把 QQ / 网易云 Rust sidecar 编译进 jniLibs。cargo 产物是 PIE 可执行文件，
+// 仍以 lib*.so 命名并解压安装，和原 Go host 保持一致。
+data class RustHostAbi(
+    val abi: String,
+    val target: String,
+    val envSuffix: String,
+    val clang: String,
+    val maxPageSize: String,
+)
+
+val rustHostAbis = listOf(
+    RustHostAbi(
+        "arm64-v8a",
+        "aarch64-linux-android",
+        "aarch64_linux_android",
+        "aarch64-linux-android24-clang",
+        "16384",
+    ),
+    RustHostAbi(
+        "armeabi-v7a",
+        "armv7-linux-androideabi",
+        "armv7_linux_androideabi",
+        "armv7a-linux-androideabi24-clang",
+        "4096",
+    ),
+    RustHostAbi(
+        "x86_64",
+        "x86_64-linux-android",
+        "x86_64_linux_android",
+        "x86_64-linux-android24-clang",
+        "16384",
+    ),
+)
+
+val rustOnlineHosts = listOf("qq", "netease")
+
+val rustHostTasks = rustHostAbis.map { target ->
+    val jniDir = file("src/main/jniLibs/${target.abi}")
+    val taskName =
+        "buildRustOnlineHosts" +
+            target.abi.split('-', '_').joinToString("") { part ->
+                part.replaceFirstChar { it.uppercase() }
+            }
+    tasks.register<Exec>(taskName) {
+        group = "flutter"
+        description = "Build QQ / NetEase Rust sidecars for Android ${target.abi}"
+        workingDir = repoRoot
+        val clangFile = File(
+            android.sdkDirectory,
+            "ndk/${flutter.ndkVersion}/toolchains/llvm/prebuilt/" +
+                "${androidNdkHostTag()}/bin/${target.clang}",
+        )
+        val arFile = File(clangFile.parentFile, "llvm-ar")
+        val ranlibFile = File(clangFile.parentFile, "llvm-ranlib")
+        val linkerEnv =
+            "CARGO_TARGET_${target.target.uppercase().replace('-', '_')}_LINKER"
+        doFirst {
+            if (!clangFile.exists()) {
+                throw GradleException("找不到 Android NDK clang：${clangFile.absolutePath}")
+            }
+            jniDir.mkdirs()
+        }
+        environment("CC_${target.envSuffix}", clangFile.absolutePath)
+        environment("AR_${target.envSuffix}", arFile.absolutePath)
+        environment("RANLIB_${target.envSuffix}", ranlibFile.absolutePath)
+        environment(linkerEnv, clangFile.absolutePath)
+        environment(
+            "RUSTFLAGS",
+            "-C strip=symbols -C link-arg=-Wl,-z,max-page-size=${target.maxPageSize}",
+        )
+        commandLine(
+            "cargo",
+            "build",
+            "--release",
+            "-p",
+            "laetibeat_qq_host",
+            "-p",
+            "laetibeat_netease_host",
+            "--target",
+            target.target,
+        )
+        doLast {
+            rustOnlineHosts.forEach { host ->
+                val source = File(
+                    repoRoot,
+                    "target/${target.target}/release/laetibeat_${host}_host",
+                )
+                if (!source.exists()) {
+                    throw GradleException("Rust sidecar 构建产物不存在：${source.absolutePath}")
+                }
+                val output = File(jniDir, "liblaetibeat_${host}_host.so")
+                source.copyTo(output, overwrite = true)
+                output.setExecutable(true, false)
+            }
+        }
+        inputs.files(
+            File(repoRoot, "Cargo.toml"),
+            File(repoRoot, "Cargo.lock"),
+            fileTree(File(repoRoot, "laetibeat_qq_host")) {
+                include("**/*.rs", "Cargo.toml")
+                exclude("target/**")
+            },
+            fileTree(File(repoRoot, "laetibeat_netease_host")) {
+                include("**/*.rs", "Cargo.toml")
+                exclude("target/**")
+            },
+        )
+        outputs.files(
+            *rustOnlineHosts.map { host ->
+                File(jniDir, "liblaetibeat_${host}_host.so")
+            }.toTypedArray(),
+        )
+    }
+}
+
 tasks.named("preBuild").configure {
-    dependsOn(musicApiHostTasks)
+    dependsOn(musicApiHostTasks + rustHostTasks)
 }
 
 val requestedReleaseBuild = gradle.startParameter.taskNames.any {

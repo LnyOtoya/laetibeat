@@ -15,7 +15,7 @@ Usage: scripts/release_preflight.sh [vX.Y.Z] [--build] [--allow-dirty]
 Checks:
   - pubspec version and versionCode match the tag
   - CHANGELOG has a non-empty section for the tag
-  - Go host AGPL license files exist
+  - Go / QQ / NetEase host license files exist
   - working tree is clean (unless --allow-dirty)
   - Flutter analyze/test, cargo test, go test
   - with --build: release split APKs contain all three embedded hosts,
@@ -96,7 +96,10 @@ for file in \
   THIRD_PARTY_NOTICES.md \
   laetibeat_musicapi_host/LICENSE \
   laetibeat_musicapi_host/third_party/music-lib/LICENSE \
-  laetibeat_musicapi_host/third_party/music-lib/PATCH.md; do
+  laetibeat_musicapi_host/third_party/music-lib/PATCH.md \
+  laetibeat_qq_host/LICENSE \
+  laetibeat_netease_host/LICENSE \
+  laetibeat_netease_host/LICENSE-WTFPL; do
   if [[ ! -s "$file" ]]; then
     echo "missing required release file: $file" >&2
     exit 1
@@ -155,10 +158,15 @@ if [[ "$BUILD" -eq 1 ]]; then
       echo "missing APK: $APK" >&2
       exit 1
     fi
-    if ! unzip -l "$APK" | grep "lib/${ABI}/liblaetibeat_musicapi_host.so" >/dev/null; then
-      echo "APK missing embedded host: $APK" >&2
-      exit 1
-    fi
+    for host_so in \
+      liblaetibeat_musicapi_host.so \
+      liblaetibeat_qq_host.so \
+      liblaetibeat_netease_host.so; do
+      if ! unzip -l "$APK" | grep "lib/${ABI}/${host_so}" >/dev/null; then
+        echo "APK missing embedded host ${host_so}: $APK" >&2
+        exit 1
+      fi
+    done
     expected_abi_code=$((EXPECTED_CODE + ABI_VERSION_OFFSET[$ABI]))
     if [[ -n "$AAPT2" ]]; then
       MANIFEST="$("$AAPT2" dump xmltree "$APK" --file AndroidManifest.xml)"

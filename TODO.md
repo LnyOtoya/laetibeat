@@ -18,6 +18,8 @@
 - [x] 模式切换停止服务 / 保留 Cookie
 - [x] 搜索 / 发现 / 播放 / 登录按模式切换
 - [ ] 首页 / 本地 / Subsonic 页面按模式区分
+- [x] Android / Linux 打包两个 Rust host
+- [x] CI 增加 Rust host 矩阵
 - [ ] 删除 go-music-api 与 Go 打包链
 - [ ] native 通过 PR 合并回 main
 - [ ] 在 main 上发布 v2.0.0（或确认后的版本）
