@@ -16,7 +16,8 @@
 - [x] `laetibeat_netease_host` spike（搜索/URL/歌词/QR；真实扫码待验证）
 - [x] `AppMode` 模式控制器
 - [x] 模式切换停止服务 / 保留 Cookie
-- [ ] UI 按模式显示不同内容
+- [x] 搜索 / 发现 / 播放 / 登录按模式切换
+- [ ] 首页 / 本地 / Subsonic 页面按模式区分
 - [ ] 删除 go-music-api 与 Go 打包链
 - [ ] native 通过 PR 合并回 main
 - [ ] 在 main 上发布 v2.0.0（或确认后的版本）

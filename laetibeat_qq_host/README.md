@@ -101,6 +101,31 @@ GET /api/v1/login/qr/status?identifier=...
 `type=mobile` 的轮询尚未接入；当前支持 QQ / 微信。登录成功后凭证写入
 `credential.json`，后续启动自动加载。
 
+
+## laetibeat_online 兼容层
+
+N4 起，现有 `laetibeat_online` 客户端可直接指向本 host。兼容端点：
+
+```text
+GET    /api/v1/music/search?q=&type=song|playlist|album&sources=qq&limit=&offset=
+GET    /api/v1/music/url?source=qq&id=&quality=
+GET    /api/v1/music/lyric?source=qq&id=
+GET    /api/v1/music/qualities
+GET    /api/v1/playlist/detail?source=qq&id=
+GET    /api/v1/album/detail?source=qq&id=
+GET    /api/v1/playlist/user?source=qq&page=&limit=
+GET    /api/v1/playlist/recommend?sources=qq
+GET    /api/v1/ranking/toplists?sources=qq
+GET    /api/v1/ranking/toplist?source=qq&toplist_id=
+GET    /api/v1/ranking/hot?source=qq&limit=
+GET    /laetibeat/system/platforms
+DELETE /laetibeat/system/platforms/qq
+POST   /api/v1/system/qr_login/qq
+GET    /api/v1/system/qr_login/qq?key=
+```
+
+所有 envelope 使用 `code=200`；`data` 结构与 go-music-api 客户端 DTO 对齐。
+
 ## 安全
 
 - 默认只绑定 loopback

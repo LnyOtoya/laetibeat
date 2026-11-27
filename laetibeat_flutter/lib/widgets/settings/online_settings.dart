@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../../app/app_mode.dart';
+import 'mode_runtime.dart';
 import 'persistence.dart';
 
 const String kOnlineBaseUrlKey = 'online.base_url';
@@ -171,6 +173,11 @@ final onlineRuntimeOverridesProvider =
     );
 
 final onlineBaseUrlProvider = Provider<String>((ref) {
+  final mode = ref.watch(appModeProvider);
+  if (mode.usesOnlineHost) {
+    final runtime = ref.watch(modeRuntimeProvider);
+    return runtime.hasBaseUrl ? runtime.baseUrl! : '';
+  }
   final runtime = ref.watch(onlineRuntimeOverridesProvider);
   if (runtime.baseUrl != null) return runtime.baseUrl!;
   return ref.watch(
@@ -223,6 +230,10 @@ final onlineTokenProvider = AsyncNotifierProvider<OnlineTokenNotifier, String?>(
 class OnlineTokenNotifier extends AsyncNotifier<String?> {
   @override
   Future<String?> build() async {
+    final mode = ref.watch(appModeProvider);
+    if (mode.usesOnlineHost) {
+      return ref.watch(modeRuntimeProvider).token;
+    }
     final override = ref.watch(onlineRuntimeOverridesProvider).token;
     if (override != null) return override;
     return ref.read(onlineTokenStoreProvider).read();

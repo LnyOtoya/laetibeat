@@ -8,6 +8,9 @@
 - native 分支：`ModeHostController` 管理 QQ / 网易云 Rust sidecar 的启动、停止、重启与切换。
 - native 分支：按模式隔离数据目录 `modes/{qq,netease}`，切换时暂停播放并自动恢复 Cookie / Credential。
 - native 分支：设置页「音源模式」入口、sidecar 状态与开发期 host 路径覆盖。
+- native 分支：现有在线客户端可直接使用 QQ / 网易云 host。
+- native 分支：搜索、播放、歌词、歌单、专辑、榜单、热门、二维码登录按模式切换。
+- native 分支：发现页与账号列表跟随当前模式。
 
 ## [1.0.2] - 2026-11-27
 

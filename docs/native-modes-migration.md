@@ -375,12 +375,20 @@ jniLibs/<abi>/liblaetibeat_netease_host.so
 - [ ] 页面实际消费 `modeRuntimeProvider`（N4）
 - [ ] Android / Linux host 打包后的真机切换验证（N5）
 
-### N4：UI 分模式
+### N4：页面与在线 API（核心链路完成）
 
-- [ ] 首页 / 发现 / 搜索按模式显示
-- [ ] QQ 与网易云各自的个性化 section
-- [ ] 设置页模式选择
-- [ ] 登录/退出按模式隔离
+- [x] `onlineBaseUrlProvider` / `onlineTokenProvider` 跟随模式 sidecar
+- [x] 现有 Rust 在线客户端兼容 QQ / 网易云 host
+- [x] 搜索、播放 URL、歌词
+- [x] 歌单 / 专辑详情
+- [x] 推荐歌单 / 排行榜 / 热门歌曲
+- [x] 二维码登录 / 状态 / 退出 / 平台状态
+- [x] 发现页平台跟随当前模式
+- [x] 搜索默认源跟随当前模式
+- [x] 账号列表按模式只显示对应平台
+- [ ] 首页内容按模式区分
+- [ ] 本地 / Subsonic 专属页面
+- [ ] Android / Linux host 打包后真机端到端（N5）
 
 ### N5：打包
 
@@ -429,11 +437,16 @@ NDK r28c
   - Linux live：health / search / url / lyric / QR 创建均 200
   - Android 真机：host 启动、health、QQ 搜索通过
   - QR 轮询已返回 waiting/scanned；真实扫码与 credential 持久化待人工验证
-- N3 Flutter 检查：`flutter analyze` 0 error；`flutter test` 27 passed。
+- N3/N4 Flutter 检查：`flutter analyze` 0 error；`flutter test` 28 passed。
   - 当前 `onlineHostProvider` 仍为 gomusic 兼容页面启动 Go host；native sidecar
-    由 `modeHostProvider` 并行管理，N4/N6 切换页面后移除 Go host。
-  - N3 的 Android/Linux 模式切换需要 N5 打包 host 后才能端到端验证；开发期可用
+    由 `modeHostProvider` 并行管理，N6 移除 Go host。
+  - N4 的 Android/Linux 模式切换需要 N5 打包 host 后才能端到端验证；开发期可用
     `--dart-define=LAETIBEAT_QQ_HOST_PATH=...` / `LAETIBEAT_NETEASE_HOST_PATH=...`。
+- N4 兼容层验证：同一个 `laetibeat_online` 客户端分别指向 QQ / 网易云 host，
+  搜索、歌词、推荐歌单、歌单详情、排行榜、榜单歌曲、热门歌曲、专辑详情、
+  播放 URL、平台状态、二维码创建/轮询均通过。
+- Android arm64 release：`laetibeat_qq_host` 13 MB；`laetibeat_netease_host` 9.7 MB。
+- Android 真机：最新兼容层 host 启动、QQ/网易云搜索与 URL 解析通过。
 
 ## 13. 相关文档
 

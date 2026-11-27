@@ -11,6 +11,9 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../app/app_mode.dart';
 import '../player/player_provider.dart';
+import 'mode_runtime.dart';
+
+export 'mode_runtime.dart';
 
 const MethodChannel _modeHostChannel = MethodChannel(
   'com.otimeum.laetibeat/host',
@@ -386,24 +389,6 @@ class ModeHostController extends Notifier<ModeHostState> {
   }
 }
 
-class ModeRuntimeNotifier extends Notifier<ModeRuntime> {
-  @override
-  ModeRuntime build() => const ModeRuntime();
-
-  void set({required AppMode mode, required String baseUrl, String? token}) {
-    state = ModeRuntime(mode: mode, baseUrl: baseUrl, token: token);
-  }
-
-  void clear() {
-    if (state.baseUrl == null && state.token == null) return;
-    state = ModeRuntime(mode: state.mode);
-  }
-}
-
 final modeHostProvider = NotifierProvider<ModeHostController, ModeHostState>(
   ModeHostController.new,
-);
-
-final modeRuntimeProvider = NotifierProvider<ModeRuntimeNotifier, ModeRuntime>(
-  ModeRuntimeNotifier.new,
 );

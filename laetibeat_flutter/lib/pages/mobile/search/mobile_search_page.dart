@@ -20,6 +20,7 @@ import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../app/app_mode.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../library/albums/album_detail_page.dart';
 import '../library/artists/artist_detail_page.dart';
@@ -231,7 +232,11 @@ class _MobileSearchResultsPageState
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialQuery);
-    _filter = ref.read(defaultSearchSourceProvider);
+    _filter = switch (ref.read(appModeProvider)) {
+      AppMode.qq => MobileSearchSourceFilter.qq,
+      AppMode.netease => MobileSearchSourceFilter.netease,
+      _ => ref.read(defaultSearchSourceProvider),
+    };
     // 源可能在设置页被增删；进页面后刷新一次播放能力。
     //
     // 必须放到首帧之后：initState 仍处于 build 阶段，此时 invalidate 会让
@@ -665,10 +670,15 @@ class _SearchResults extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
-    final onlineSource = switch (filter) {
-      MobileSearchSourceFilter.netease => 'netease',
-      MobileSearchSourceFilter.qq => 'qq',
-      _ => null,
+    final appMode = ref.watch(appModeProvider);
+    final onlineSource = switch (appMode) {
+      AppMode.qq => 'qq',
+      AppMode.netease => 'netease',
+      _ => switch (filter) {
+        MobileSearchSourceFilter.netease => 'netease',
+        MobileSearchSourceFilter.qq => 'qq',
+        _ => null,
+      },
     };
     if (onlineSource != null) {
       return switch (category) {
@@ -1733,7 +1743,6 @@ Widget _loading() {
   );
 }
 
-
 class _OnlineSongsResults extends ConsumerWidget {
   const _OnlineSongsResults({required this.query, required this.source});
 
@@ -1842,7 +1851,9 @@ class _OnlinePlaylistResults extends ConsumerWidget {
                 ];
                 return M3EListItem(
                   headline: playlist.name,
-                  supportingText: supporting.isEmpty ? '歌单' : supporting.join(' · '),
+                  supportingText: supporting.isEmpty
+                      ? '歌单'
+                      : supporting.join(' · '),
                   leading: OnlineCover(url: playlist.coverUrl),
                   trailing: _sourceChip(onlineSourceLabel(source), source),
                 );
@@ -1906,7 +1917,9 @@ class _OnlineAlbumResults extends ConsumerWidget {
                 ];
                 return M3EListItem(
                   headline: album.name,
-                  supportingText: supporting.isEmpty ? '专辑' : supporting.join(' · '),
+                  supportingText: supporting.isEmpty
+                      ? '专辑'
+                      : supporting.join(' · '),
                   leading: OnlineCover(url: album.coverUrl),
                   trailing: _sourceChip(onlineSourceLabel(source), source),
                 );

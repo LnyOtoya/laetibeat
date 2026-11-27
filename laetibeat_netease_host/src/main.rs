@@ -7,11 +7,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use axum::extract::{DefaultBodyLimit, Query, State};
+use axum::extract::{DefaultBodyLimit, Path as AxumPath, Query, State};
 use axum::http::{header::AUTHORIZATION, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
@@ -103,6 +103,18 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/v1/music/lyric", get(lyric))
         .route("/api/v1/login/qr", get(qr_create))
         .route("/api/v1/login/qr/status", get(qr_status))
+        .route("/api/v1/music/qualities", get(qualities))
+        .route("/api/v1/system/qr_login/{source}", post(qr_create_compat))
+        .route("/api/v1/system/qr_login/{source}", get(qr_status_compat))
+        .route("/laetibeat/system/platforms", get(platforms))
+        .route("/laetibeat/system/platforms/{source}", delete(logout))
+        .route("/api/v1/playlist/detail", get(playlist_detail))
+        .route("/api/v1/album/detail", get(album_detail))
+        .route("/api/v1/playlist/user", get(user_playlists))
+        .route("/api/v1/playlist/recommend", get(recommend_playlists))
+        .route("/api/v1/ranking/toplists", get(top_lists))
+        .route("/api/v1/ranking/toplist", get(top_list_songs))
+        .route("/api/v1/ranking/hot", get(hot_songs))
         .layer(DefaultBodyLimit::max(4 * 1024 * 1024))
         .layer(middleware::from_fn(log_request))
         .layer(middleware::from_fn_with_state(
@@ -166,9 +178,9 @@ async fn search(State(state): State<SharedState>, Query(params): Query<SearchPar
     let client = state.client.lock().await;
     let response = client.cloudsearch(&query).await.map_err(ncm_error)?;
     Ok(Json(json!({
-        "code": 0,
+        "code": 200,
         "msg": "ok",
-        "data": response.body,
+        "data": map_search_body(&response.body),
     })))
 }
 
@@ -181,10 +193,11 @@ struct UrlParams {
 async fn song_url(State(state): State<SharedState>, Query(params): Query<UrlParams>) -> ApiResult {
     let requested = params.quality.as_deref().unwrap_or("standard");
     let level = match requested {
+        "auto" => "standard",
         "high" => "exhigh",
         "standard" => "standard",
         "lossless" => "lossless",
-        "hires" => "hires",
+        "hires" | "master" => "hires",
         other => other,
     };
     let client = state.client.lock().await;
@@ -226,7 +239,7 @@ async fn song_url(State(state): State<SharedState>, Query(params): Query<UrlPara
         ));
     }
     Ok(Json(json!({
-        "code": 0,
+        "code": 200,
         "msg": "ok",
         "data": {
             "url": url,
@@ -259,7 +272,7 @@ async fn lyric(State(state): State<SharedState>, Query(params): Query<LyricParam
         .and_then(Value::as_str)
         .unwrap_or("");
     Ok(Json(json!({
-        "code": 0,
+        "code": 200,
         "msg": "ok",
         "data": {
             "lyric": lyric,
@@ -270,6 +283,22 @@ async fn lyric(State(state): State<SharedState>, Query(params): Query<LyricParam
 }
 
 async fn qr_create(State(state): State<SharedState>) -> ApiResult {
+    let (key, qrurl, qrimg) = create_qr_data(&state).await?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "key": key,
+            "qrurl": qrurl,
+            "qrimg": qrimg,
+            "source": "netease",
+        }
+    })))
+}
+
+async fn create_qr_data(
+    state: &SharedState,
+) -> Result<(String, String, String), (StatusCode, Json<Value>)> {
     let client = state.client.lock().await;
     let key_response = client
         .login_qr_key(&NcmQuery::new())
@@ -284,14 +313,23 @@ async fn qr_create(State(state): State<SharedState>) -> ApiResult {
     let qrurl = extract_str(&create_response.body, &["/data/qrurl", "/qrurl"])
         .unwrap_or_else(|| format!("https://music.163.com/login?codekey={key}"));
     let qrimg = extract_str(&create_response.body, &["/data/qrimg", "/qrimg"]).unwrap_or_default();
+    Ok((key, qrurl, qrimg))
+}
+
+async fn qr_create_compat(
+    State(state): State<SharedState>,
+    AxumPath(_source): AxumPath<String>,
+) -> ApiResult {
+    let (key, qrurl, qrimg) = create_qr_data(&state).await?;
     Ok(Json(json!({
-        "code": 0,
+        "code": 200,
         "msg": "ok",
         "data": {
-            "key": key,
-            "qrurl": qrurl,
-            "qrimg": qrimg,
             "source": "netease",
+            "key": key,
+            "url": qrurl,
+            "image_url": qrimg,
+            "expires_at": null,
         }
     })))
 }
@@ -305,7 +343,44 @@ async fn qr_status(
     State(state): State<SharedState>,
     Query(params): Query<QrStatusParams>,
 ) -> ApiResult {
-    let query = NcmQuery::new().param("key", &params.key);
+    let (status, message, saved) = check_qr_data(&state, &params.key).await?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "status": status,
+            "message": message,
+            "cookie_saved": saved,
+            "source": "netease",
+        }
+    })))
+}
+
+async fn qr_status_compat(
+    State(state): State<SharedState>,
+    AxumPath(_source): AxumPath<String>,
+    Query(params): Query<QrStatusParams>,
+) -> ApiResult {
+    let (status, message, saved) = check_qr_data(&state, &params.key).await?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "source": "netease",
+            "status": status,
+            "message": message,
+            "extra": {
+                "cookie_saved": if saved { "true" } else { "false" },
+            }
+        }
+    })))
+}
+
+async fn check_qr_data(
+    state: &SharedState,
+    key: &str,
+) -> Result<(String, String, bool), (StatusCode, Json<Value>)> {
+    let query = NcmQuery::new().param("key", key);
     let mut client = state.client.lock().await;
     let response = client.login_qr_check(&query).await.map_err(ncm_error)?;
     let code = response
@@ -330,16 +405,437 @@ async fn qr_status(
         }
         other => ("failed", format!("登录状态异常: {other}"), false),
     };
+    Ok((status.to_string(), message, saved))
+}
+
+async fn platforms(State(state): State<SharedState>) -> ApiResult {
+    Ok(Json(json!([
+        {
+            "source": "netease",
+            "has_cookie": state.logged_in.load(Ordering::Relaxed),
+        }
+    ])))
+}
+
+async fn logout(State(state): State<SharedState>, AxumPath(source): AxumPath<String>) -> ApiResult {
+    if source != "netease" {
+        return Err(api_error(StatusCode::NOT_FOUND, "unknown NetEase source"));
+    }
+    if state.cookie_path.exists() {
+        fs::remove_file(&state.cookie_path).map_err(|error| {
+            api_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("failed to remove cookies: {error}"),
+            )
+        })?;
+    }
+    let mut client = state.client.lock().await;
+    *client = create_client(None);
+    let _ = register_guest(&mut client).await;
+    state.logged_in.store(false, Ordering::Relaxed);
+    Ok(Json(json!({ "code": 200, "msg": "ok", "data": null })))
+}
+
+async fn qualities() -> ApiResult {
     Ok(Json(json!({
-        "code": 0,
+        "code": 200,
         "msg": "ok",
         "data": {
-            "status": status,
-            "message": message,
-            "cookie_saved": saved,
-            "source": "netease",
+            "qualities": [
+                { "value": "standard", "label": "标准", "format": "mp3", "bitrate": 128000, "vip": false },
+                { "value": "high", "label": "高品质", "format": "mp3", "bitrate": 320000, "vip": false },
+                { "value": "lossless", "label": "无损", "format": "flac", "bitrate": 900000, "vip": true },
+                { "value": "hires", "label": "Hi-Res", "format": "flac", "bitrate": 1500000, "vip": true }
+            ]
         }
     })))
+}
+
+#[derive(Debug, Deserialize)]
+struct ListParams {
+    id: Option<String>,
+    page: Option<u32>,
+    limit: Option<i64>,
+    toplist_id: Option<String>,
+}
+
+async fn playlist_detail(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let id = params
+        .id
+        .as_deref()
+        .ok_or_else(|| api_error(StatusCode::BAD_REQUEST, "missing playlist id"))?;
+    let client = state.client.lock().await;
+    let response = client
+        .playlist_detail(&NcmQuery::new().param("id", id))
+        .await
+        .map_err(ncm_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": array_at(&response.body, "/playlist/tracks")
+            .into_iter()
+            .map(|item| map_ne_song(&item))
+            .collect::<Vec<_>>(),
+    })))
+}
+
+async fn album_detail(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let id = params
+        .id
+        .as_deref()
+        .ok_or_else(|| api_error(StatusCode::BAD_REQUEST, "missing album id"))?;
+    let client = state.client.lock().await;
+    let response = client
+        .album(&NcmQuery::new().param("id", id))
+        .await
+        .map_err(ncm_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": array_at(&response.body, "/songs")
+            .into_iter()
+            .map(|item| map_ne_song(&item))
+            .collect::<Vec<_>>(),
+    })))
+}
+
+async fn user_playlists(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let client = state.client.lock().await;
+    let status = match client.login_status(&NcmQuery::new()).await {
+        Ok(response) => response,
+        Err(_) => return Ok(empty_playlists()),
+    };
+    let Some(uid) = status
+        .body
+        .pointer("/profile/userId")
+        .and_then(Value::as_i64)
+    else {
+        return Ok(empty_playlists());
+    };
+    let limit = params.limit.unwrap_or(30).clamp(1, 100);
+    let page = params.page.unwrap_or(1).max(1);
+    let offset = (page as i64 - 1) * limit;
+    let uid_text = uid.to_string();
+    let limit_text = limit.to_string();
+    let offset_text = offset.to_string();
+    let response = client
+        .user_playlist(
+            &NcmQuery::new()
+                .param("uid", &uid_text)
+                .param("limit", &limit_text)
+                .param("offset", &offset_text),
+        )
+        .await
+        .map_err(ncm_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "playlists": array_at(&response.body, "/playlist")
+                .into_iter()
+                .map(|item| map_ne_playlist(&item))
+                .collect::<Vec<_>>()
+        }
+    })))
+}
+
+async fn recommend_playlists(
+    State(state): State<SharedState>,
+    Query(_params): Query<ListParams>,
+) -> ApiResult {
+    let client = state.client.lock().await;
+    let response = client
+        .personalized(&NcmQuery::new().param("limit", "20"))
+        .await
+        .map_err(ncm_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": array_at(&response.body, "/result")
+            .into_iter()
+            .map(|item| map_ne_playlist(&item))
+            .collect::<Vec<_>>()
+    })))
+}
+
+async fn top_lists(
+    State(state): State<SharedState>,
+    Query(_params): Query<ListParams>,
+) -> ApiResult {
+    let client = state.client.lock().await;
+    let response = client.toplist(&NcmQuery::new()).await.map_err(ncm_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "toplists": array_at(&response.body, "/list")
+                .into_iter()
+                .map(|item| map_ne_toplist(&item))
+                .collect::<Vec<_>>()
+        }
+    })))
+}
+
+async fn top_list_songs(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let id = params
+        .toplist_id
+        .as_deref()
+        .or(params.id.as_deref())
+        .ok_or_else(|| api_error(StatusCode::BAD_REQUEST, "missing toplist id"))?;
+    let client = state.client.lock().await;
+    let response = client
+        .playlist_detail(&NcmQuery::new().param("id", id))
+        .await
+        .map_err(ncm_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "songs": array_at(&response.body, "/playlist/tracks")
+                .into_iter()
+                .map(|item| map_ne_song(&item))
+                .collect::<Vec<_>>()
+        }
+    })))
+}
+
+async fn hot_songs(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let limit = params.limit.unwrap_or(20).clamp(1, 100);
+    let client = state.client.lock().await;
+    let response = client
+        .top_song(&NcmQuery::new().param("type", "0"))
+        .await
+        .map_err(ncm_error)?;
+    let songs = array_at(&response.body, "/data")
+        .into_iter()
+        .take(limit as usize)
+        .map(|item| map_ne_song(&item))
+        .collect::<Vec<_>>();
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": { "songs": songs }
+    })))
+}
+
+fn empty_playlists() -> Json<Value> {
+    Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": { "playlists": [] }
+    }))
+}
+
+fn array_at(value: &Value, path: &str) -> Vec<Value> {
+    value
+        .pointer(path)
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+}
+
+fn map_search_body(body: &Value) -> Value {
+    let result = body.get("result").unwrap_or(body);
+    let mut data = serde_json::Map::new();
+    if let Some(songs) = result.get("songs").and_then(Value::as_array) {
+        data.insert(
+            "songs".to_string(),
+            Value::Array(songs.iter().map(map_ne_song).collect()),
+        );
+    }
+    if let Some(playlists) = result.get("playlists").and_then(Value::as_array) {
+        data.insert(
+            "playlists".to_string(),
+            Value::Array(playlists.iter().map(map_ne_playlist).collect()),
+        );
+    }
+    if let Some(albums) = result.get("albums").and_then(Value::as_array) {
+        data.insert(
+            "albums".to_string(),
+            Value::Array(albums.iter().map(map_ne_album).collect()),
+        );
+    }
+    Value::Object(data)
+}
+
+fn map_ne_song(song: &Value) -> Value {
+    let id = first_value(song, &["id"]);
+    let name = first_string(song, &["name"]);
+    let artists = song
+        .get("ar")
+        .or_else(|| song.get("artists"))
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.get("name").and_then(Value::as_str))
+                .collect::<Vec<_>>()
+                .join("/")
+        })
+        .unwrap_or_default();
+    let album = song.get("al").or_else(|| song.get("album"));
+    let album_name = album
+        .and_then(|value| value.get("name"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let album_id = album
+        .and_then(|value| value.get("id"))
+        .map(value_string)
+        .unwrap_or_default();
+    let cover = album
+        .and_then(|value| value.get("picUrl"))
+        .and_then(Value::as_str)
+        .map(normalize_https)
+        .unwrap_or_default();
+    let dt = first_i64(song, &["dt", "duration"]).unwrap_or(0);
+    let duration = if dt > 1000 { dt / 1000 } else { dt };
+    let quality = song
+        .get("h")
+        .or_else(|| song.get("m"))
+        .or_else(|| song.get("l"));
+    let bitrate = quality
+        .and_then(|value| value.get("br"))
+        .and_then(Value::as_i64)
+        .map(|value| value / 1000)
+        .unwrap_or(0);
+    let size = quality
+        .and_then(|value| value.get("size"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let fee = first_i64(song, &["fee"])
+        .or_else(|| song.pointer("/privilege/fee").and_then(Value::as_i64))
+        .unwrap_or(0);
+    let platform_id = value_string(&id);
+    json!({
+        "id": platform_id,
+        "name": name,
+        "artist": artists,
+        "album": album_name,
+        "album_id": album_id,
+        "duration": duration,
+        "size": size,
+        "bitrate": bitrate,
+        "source": "netease",
+        "cover": cover,
+        "link": format!("https://music.163.com/song?id={}", value_string(&id)),
+        "is_vip": fee == 1 || fee == 4,
+        "extra": {
+            "platformId": value_string(&id),
+            "songId": value_string(&id),
+            "source": "netease",
+        }
+    })
+}
+
+fn map_ne_playlist(item: &Value) -> Value {
+    json!({
+        "id": first_string(item, &["id"]),
+        "name": first_string(item, &["name", "title"]),
+        "cover": normalize_https(
+            &first_string(item, &["coverImgUrl", "coverUrl", "picUrl", "pic"])
+        ),
+        "track_count": first_i64(item, &["trackCount", "songCount", "songnum"]).unwrap_or(0),
+        "play_count": first_i64(item, &["playCount", "playcount", "listennum"]).unwrap_or(0),
+        "creator": item.pointer("/creator/nickname")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        "description": first_string(item, &["description", "desc"]),
+        "source": "netease",
+        "link": format!("https://music.163.com/playlist?id={}", first_string(item, &["id"])),
+    })
+}
+
+fn map_ne_album(item: &Value) -> Value {
+    json!({
+        "id": first_string(item, &["id"]),
+        "name": first_string(item, &["name"]),
+        "cover": normalize_https(
+            &first_string(item, &["picUrl", "coverImgUrl", "coverUrl", "blurPicUrl"])
+        ),
+        "track_count": first_i64(item, &["trackCount", "size", "songCount"]).unwrap_or(0),
+        "play_count": 0,
+        "creator": item.pointer("/artist/name")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        "description": first_string(item, &["description"]),
+        "source": "netease",
+    })
+}
+
+fn map_ne_toplist(item: &Value) -> Value {
+    json!({
+        "id": first_string(item, &["id"]),
+        "name": first_string(item, &["name"]),
+        "cover": normalize_https(
+            &first_string(item, &["coverImgUrl", "picUrl", "coverUrl"])
+        ),
+        "description": first_string(item, &["description"]),
+        "update_frequency": first_string(item, &["updateFrequency"]),
+        "track_count": first_i64(item, &["trackCount", "songCount"]).unwrap_or(0),
+        "play_count": first_i64(item, &["playCount", "playcount"]).unwrap_or(0),
+        "source": "netease",
+    })
+}
+
+fn first_value(value: &Value, keys: &[&str]) -> Value {
+    for key in keys {
+        if let Some(item) = value.get(*key) {
+            return item.clone();
+        }
+    }
+    Value::Null
+}
+
+fn value_string(value: &Value) -> String {
+    match value {
+        Value::String(text) => text.clone(),
+        Value::Number(number) => number.to_string(),
+        _ => String::new(),
+    }
+}
+
+fn first_string(value: &Value, keys: &[&str]) -> String {
+    for key in keys {
+        if let Some(item) = value.get(*key) {
+            let result = value_string(item);
+            if !result.is_empty() {
+                return result;
+            }
+        }
+    }
+    String::new()
+}
+
+fn first_i64(value: &Value, keys: &[&str]) -> Option<i64> {
+    keys.iter().find_map(|key| {
+        value.get(*key).and_then(|item| {
+            item.as_i64()
+                .or_else(|| item.as_str().and_then(|text| text.parse().ok()))
+        })
+    })
+}
+
+fn normalize_https(value: &str) -> String {
+    value
+        .strip_prefix("http://")
+        .map(|rest| format!("https://{rest}"))
+        .unwrap_or_else(|| value.to_string())
 }
 
 const DEVICE_XOR_KEY: &str = "3go8&$8*3*3h0k(2)2";

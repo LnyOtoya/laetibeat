@@ -5,9 +5,11 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../design/design.dart';
+import '../../../app/app_mode.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/layout/app_bottom_inset.dart';
 import '../../../widgets/player/player_provider.dart';
+import '../../../widgets/settings/mode_host.dart';
 import '../../../widgets/settings/online_host.dart';
 import '../../../widgets/settings/online_provider.dart';
 import '../../../widgets/settings/online_settings.dart';
@@ -31,12 +33,18 @@ class MobileDiscoverPage extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final theme = M3ETheme.of(context);
     final scheme = theme.colorScheme;
-    final platform = ref.watch(discoverPlatformProvider);
+    final appMode = ref.watch(appModeProvider);
+    final platform = switch (appMode) {
+      AppMode.qq => DiscoverPlatform.qq,
+      AppMode.netease => DiscoverPlatform.netease,
+      _ => ref.watch(discoverPlatformProvider),
+    };
     final baseUrl = ref.watch(onlineBaseUrlProvider);
     final mode = ref.watch(
       onlineSettingsProvider.select((settings) => settings.mode),
     );
     final host = ref.watch(onlineHostProvider);
+    final modeHost = ref.watch(modeHostProvider);
     final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
 
     return AppScaffold(
@@ -48,20 +56,23 @@ class MobileDiscoverPage extends ConsumerWidget {
         subtitle: '${l10n.discoverSubtitle} · ${platform.label}',
         backgroundColor: AppSurfaceLevel.base.resolve(scheme),
         actionsBuilder: (bool collapsed) => <Widget>[
-          M3EIconButton(
-            variant: M3EIconButtonVariant.standard,
-            icon: const Icon(M3EIcons.swap_horiz),
-            tooltip: '切换平台',
-            onPressed: () => _pickPlatform(context, ref),
-          ),
+          if (!appMode.usesOnlineHost)
+            M3EIconButton(
+              variant: M3EIconButtonVariant.standard,
+              icon: const Icon(M3EIcons.swap_horiz),
+              tooltip: '切换平台',
+              onPressed: () => _pickPlatform(context, ref),
+            ),
         ],
       ),
       body: baseUrl.isEmpty
           ? _buildOnlinePlaceholder(
               context,
               ref,
+              appMode: appMode,
               mode: mode,
               host: host,
+              modeHost: modeHost,
               bottomInset: bottomInset,
             )
           : M3ERefreshIndicator(
@@ -108,10 +119,48 @@ class MobileDiscoverPage extends ConsumerWidget {
   Widget _buildOnlinePlaceholder(
     BuildContext context,
     WidgetRef ref, {
+    required AppMode appMode,
     required OnlineMode mode,
     required OnlineHostState host,
+    required ModeHostState modeHost,
     required double bottomInset,
   }) {
+    if (appMode.usesOnlineHost) {
+      if (modeHost.isStarting) {
+        return Center(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const CircularProgressIndicator(),
+                const SizedBox(height: AppSpacing.md),
+                Text('正在启动 ${appMode.label} sidecar…'),
+              ],
+            ),
+          ),
+        );
+      }
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: AppEmptyState(
+            title: modeHost.hasError
+                ? '${appMode.label} sidecar 启动失败'
+                : '${appMode.label} sidecar 未启动',
+            message: modeHost.error ?? '点击启动本地 sidecar；无需额外部署。',
+            icon: modeHost.hasError
+                ? M3EIcons.error_outline
+                : M3EIcons.cloud_off,
+            action: M3EButton(
+              style: M3EButtonStyle.filled,
+              label: Text(modeHost.hasError ? '重试' : '启动'),
+              onPressed: () => ref.read(modeHostProvider.notifier).start(),
+            ),
+          ),
+        ),
+      );
+    }
     if (mode == OnlineMode.remote) {
       return _OnlineUnconfigured(bottomInset: bottomInset);
     }

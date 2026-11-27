@@ -7,11 +7,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use axum::extract::{DefaultBodyLimit, Query, State};
+use axum::extract::{DefaultBodyLimit, Path as AxumPath, Query, State};
 use axum::http::{header::AUTHORIZATION, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
@@ -100,6 +100,18 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/v1/music/lyric", get(lyric))
         .route("/api/v1/login/qr", get(qr_create))
         .route("/api/v1/login/qr/status", get(qr_status))
+        .route("/api/v1/music/qualities", get(qualities))
+        .route("/api/v1/system/qr_login/{source}", post(qr_create_compat))
+        .route("/api/v1/system/qr_login/{source}", get(qr_status_compat))
+        .route("/laetibeat/system/platforms", get(platforms))
+        .route("/laetibeat/system/platforms/{source}", delete(logout))
+        .route("/api/v1/playlist/detail", get(playlist_detail))
+        .route("/api/v1/album/detail", get(album_detail))
+        .route("/api/v1/playlist/user", get(user_playlists))
+        .route("/api/v1/playlist/recommend", get(recommend_playlists))
+        .route("/api/v1/ranking/toplists", get(top_lists))
+        .route("/api/v1/ranking/toplist", get(top_list_songs))
+        .route("/api/v1/ranking/hot", get(hot_songs))
         .layer(DefaultBodyLimit::max(4 * 1024 * 1024))
         .layer(middleware::from_fn(log_request))
         .layer(middleware::from_fn_with_state(
@@ -176,16 +188,22 @@ async fn search(State(state): State<SharedState>, Query(params): Query<SearchPar
         }),
         _ => unreachable!(),
     };
-    Ok(Json(json!({ "code": 0, "msg": "ok", "data": data })))
+    Ok(Json(json!({ "code": 200, "msg": "ok", "data": data })))
 }
 
 #[derive(Debug, Deserialize)]
 struct UrlParams {
-    mid: String,
+    mid: Option<String>,
+    id: Option<String>,
     quality: Option<String>,
 }
 
 async fn song_url(State(state): State<SharedState>, Query(params): Query<UrlParams>) -> ApiResult {
+    let mid = params
+        .mid
+        .as_deref()
+        .or(params.id.as_deref())
+        .ok_or_else(|| api_error(StatusCode::BAD_REQUEST, "missing song id/mid"))?;
     let quality = params
         .quality
         .as_deref()
@@ -194,7 +212,7 @@ async fn song_url(State(state): State<SharedState>, Query(params): Query<UrlPara
     let resolved = state
         .client
         .song()
-        .playable_url(&params.mid, None, quality)
+        .playable_url(mid, None, quality)
         .await
         .map_err(upstream_error)?;
     match resolved {
@@ -205,7 +223,7 @@ async fn song_url(State(state): State<SharedState>, Query(params): Query<UrlPara
                 .map(|(_, ext)| ext)
                 .unwrap_or("");
             Ok(Json(json!({
-                "code": 0,
+                "code": 200,
                 "msg": "ok",
                 "data": {
                     "url": item.url,
@@ -225,18 +243,24 @@ async fn song_url(State(state): State<SharedState>, Query(params): Query<UrlPara
 
 #[derive(Debug, Deserialize)]
 struct LyricParams {
-    mid: String,
+    mid: Option<String>,
+    id: Option<String>,
 }
 
 async fn lyric(State(state): State<SharedState>, Query(params): Query<LyricParams>) -> ApiResult {
+    let mid = params
+        .mid
+        .as_deref()
+        .or(params.id.as_deref())
+        .ok_or_else(|| api_error(StatusCode::BAD_REQUEST, "missing song id/mid"))?;
     let response = state
         .client
         .lyric()
-        .get_lyric(params.mid.as_str())
+        .get_lyric(mid)
         .await
         .map_err(upstream_error)?;
     Ok(Json(json!({
-        "code": 0,
+        "code": 200,
         "msg": "ok",
         "data": {
             "lyric": response.lyric,
@@ -255,6 +279,24 @@ struct QrParams {
 
 async fn qr_create(State(state): State<SharedState>, Query(params): Query<QrParams>) -> ApiResult {
     let login_type = parse_login_type(params.kind.as_deref().unwrap_or("qq"))?;
+    let (identifier, mimetype, image) = create_qr_data(&state, login_type).await?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "identifier": identifier,
+            "mimetype": mimetype,
+            "image_base64": image,
+            "source": "qq",
+            "login_type": login_type.as_str(),
+        }
+    })))
+}
+
+async fn create_qr_data(
+    state: &SharedState,
+    login_type: QrLoginType,
+) -> Result<(String, String, String), (StatusCode, Json<Value>)> {
     let qr = state
         .client
         .login()
@@ -267,15 +309,28 @@ async fn qr_create(State(state): State<SharedState>, Query(params): Query<QrPara
         .lock()
         .await
         .insert(identifier.clone(), qr.clone());
+    Ok((identifier, qr.mimetype.clone(), BASE64.encode(&qr.data)))
+}
+
+async fn qr_create_compat(
+    State(state): State<SharedState>,
+    AxumPath(source): AxumPath<String>,
+) -> ApiResult {
+    let login_type = match source.as_str() {
+        "qq" => QrLoginType::Qq,
+        "qq_wx" => QrLoginType::Wx,
+        _ => return Err(api_error(StatusCode::NOT_FOUND, "unknown QQ login source")),
+    };
+    let (key, mimetype, image) = create_qr_data(&state, login_type).await?;
     Ok(Json(json!({
-        "code": 0,
+        "code": 200,
         "msg": "ok",
         "data": {
-            "identifier": identifier,
-            "mimetype": qr.mimetype,
-            "image_base64": BASE64.encode(&qr.data),
             "source": "qq",
-            "login_type": login_type.as_str(),
+            "key": key,
+            "url": "",
+            "image_url": format!("data:{mimetype};base64,{image}"),
+            "expires_at": null,
         }
     })))
 }
@@ -289,11 +344,53 @@ async fn qr_status(
     State(state): State<SharedState>,
     Query(params): Query<QrStatusParams>,
 ) -> ApiResult {
+    let (status, message, saved) = check_qr_data(&state, &params.identifier).await?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "status": status,
+            "message": message,
+            "cookie_saved": saved,
+            "source": "qq",
+        }
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct QrCompatParams {
+    key: String,
+}
+
+async fn qr_status_compat(
+    State(state): State<SharedState>,
+    AxumPath(_source): AxumPath<String>,
+    Query(params): Query<QrCompatParams>,
+) -> ApiResult {
+    let (status, message, saved) = check_qr_data(&state, &params.key).await?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "source": "qq",
+            "status": status,
+            "message": message,
+            "extra": {
+                "cookie_saved": if saved { "true" } else { "false" },
+            }
+        }
+    })))
+}
+
+async fn check_qr_data(
+    state: &SharedState,
+    identifier: &str,
+) -> Result<(String, String, bool), (StatusCode, Json<Value>)> {
     let qr = state
         .qr_sessions
         .lock()
         .await
-        .get(&params.identifier)
+        .get(identifier)
         .cloned()
         .ok_or_else(|| api_error(StatusCode::NOT_FOUND, "QR session not found"))?;
     if qr.qr_type == QrLoginType::Mobile {
@@ -319,7 +416,7 @@ async fn qr_status(
             })?;
             save_credential(&state.credential_path, &credential)?;
             state.client.set_credential(credential);
-            state.qr_sessions.lock().await.remove(&params.identifier);
+            state.qr_sessions.lock().await.remove(identifier);
             ("success", "登录成功", true)
         }
         QrCodeLoginEvent::Scan => ("scanned", "已扫码，请在手机上确认", false),
@@ -327,15 +424,211 @@ async fn qr_status(
         QrCodeLoginEvent::Timeout => ("expired", "二维码已过期", false),
         QrCodeLoginEvent::Refuse => ("failed", "登录被拒绝", false),
     };
+    Ok((status.to_string(), message.to_string(), saved))
+}
+
+async fn platforms(State(state): State<SharedState>) -> ApiResult {
+    Ok(Json(json!([
+        {
+            "source": "qq",
+            "has_cookie": state.client.credential().musicid > 0,
+        }
+    ])))
+}
+
+async fn logout(State(state): State<SharedState>, AxumPath(source): AxumPath<String>) -> ApiResult {
+    if source != "qq" && source != "qq_wx" {
+        return Err(api_error(StatusCode::NOT_FOUND, "unknown QQ source"));
+    }
+    if state.credential_path.exists() {
+        fs::remove_file(&state.credential_path).map_err(|error| {
+            api_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("failed to remove credential: {error}"),
+            )
+        })?;
+    }
+    state.client.set_credential(Credential::default());
+    Ok(Json(json!({ "code": 200, "msg": "ok", "data": null })))
+}
+
+async fn qualities() -> ApiResult {
     Ok(Json(json!({
-        "code": 0,
+        "code": 200,
         "msg": "ok",
         "data": {
-            "status": status,
-            "message": message,
-            "cookie_saved": saved,
-            "source": "qq",
+            "qualities": [
+                { "value": "standard", "label": "标准", "format": "mp3", "bitrate": 128000, "vip": false },
+                { "value": "high", "label": "高品质", "format": "mp3", "bitrate": 320000, "vip": false },
+                { "value": "lossless", "label": "无损", "format": "flac", "bitrate": 900000, "vip": true }
+            ]
         }
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct ListParams {
+    id: Option<String>,
+    page: Option<u32>,
+    limit: Option<i64>,
+    #[serde(default)]
+    toplist_id: Option<String>,
+}
+
+async fn playlist_detail(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let id = params
+        .id
+        .as_deref()
+        .ok_or_else(|| api_error(StatusCode::BAD_REQUEST, "missing playlist id"))?
+        .parse::<i64>()
+        .map_err(|_| api_error(StatusCode::BAD_REQUEST, "invalid playlist id"))?;
+    let response = state
+        .client
+        .songlist()
+        .get_detail(id)
+        .await
+        .map_err(upstream_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": response.songs.iter().map(map_song).collect::<Vec<_>>(),
+    })))
+}
+
+async fn album_detail(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let id = params
+        .id
+        .as_deref()
+        .ok_or_else(|| api_error(StatusCode::BAD_REQUEST, "missing album id"))?;
+    let response = state
+        .client
+        .album()
+        .get_song(id, 100, 1)
+        .await
+        .map_err(upstream_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": response.song_list.iter().map(map_song).collect::<Vec<_>>(),
+    })))
+}
+
+async fn user_playlists(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let musicid = state.client.credential().musicid;
+    if musicid <= 0 {
+        return Ok(Json(json!({
+            "code": 200,
+            "msg": "ok",
+            "data": { "playlists": [] }
+        })));
+    }
+    let response = state
+        .client
+        .user()
+        .get_created_songlist(musicid, None)
+        .await
+        .map_err(upstream_error)?;
+    let _ = (params.page, params.limit);
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "playlists": response.playlists.iter().map(map_user_playlist).collect::<Vec<_>>()
+        }
+    })))
+}
+
+async fn recommend_playlists(
+    State(state): State<SharedState>,
+    Query(_params): Query<ListParams>,
+) -> ApiResult {
+    let response = state
+        .client
+        .recommend()
+        .get_recommend_songlist(1, 20)
+        .await
+        .map_err(upstream_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": response.songlists.iter().map(map_recommend_playlist).collect::<Vec<_>>()
+    })))
+}
+
+async fn top_lists(
+    State(state): State<SharedState>,
+    Query(_params): Query<ListParams>,
+) -> ApiResult {
+    let response = state
+        .client
+        .top()
+        .get_category()
+        .await
+        .map_err(upstream_error)?;
+    let lists = response
+        .group
+        .iter()
+        .flat_map(|group| group.toplist.iter())
+        .map(map_top_list)
+        .collect::<Vec<_>>();
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": { "toplists": lists }
+    })))
+}
+
+async fn top_list_songs(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let raw = params
+        .toplist_id
+        .as_deref()
+        .or(params.id.as_deref())
+        .ok_or_else(|| api_error(StatusCode::BAD_REQUEST, "missing toplist id"))?;
+    let id = raw
+        .parse::<i64>()
+        .map_err(|_| api_error(StatusCode::BAD_REQUEST, "invalid toplist id"))?;
+    let limit = params.limit.unwrap_or(100).clamp(1, 300);
+    let response = state
+        .client
+        .top()
+        .get_detail(id, limit, 1, false)
+        .await
+        .map_err(upstream_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": { "songs": response.songs.iter().map(map_song).collect::<Vec<_>>() }
+    })))
+}
+
+async fn hot_songs(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let limit = params.limit.unwrap_or(20).clamp(1, 100);
+    // QQ 热歌榜 topId = 26。
+    let response = state
+        .client
+        .top()
+        .get_detail(26, limit, 1, false)
+        .await
+        .map_err(upstream_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": { "songs": response.songs.iter().map(map_song).collect::<Vec<_>>() }
     })))
 }
 
@@ -362,7 +655,7 @@ fn map_song(song: &Song) -> Value {
         "extra": {
             "songmid": song.mid,
             "media_mid": song.file.media_mid,
-            "song_id": song.id,
+            "song_id": song.id.to_string(),
             "source": "qq",
         }
     })
@@ -385,6 +678,50 @@ fn map_playlist(item: &qqmusic_api::models::search::SongListSearch) -> Value {
     })
 }
 
+fn map_user_playlist(item: &qqmusic_api::models::user::UserPlaylistSummary) -> Value {
+    json!({
+        "id": item.songlist.id.to_string(),
+        "name": item.songlist.title,
+        "cover": item.songlist.picurl,
+        "track_count": item.songlist.songnum,
+        "play_count": item.songlist.listennum,
+        "creator": item.nick,
+        "description": item.songlist.desc,
+        "source": "qq",
+    })
+}
+
+fn map_recommend_playlist(item: &qqmusic_api::models::recommend::RecommendSonglistItem) -> Value {
+    json!({
+        "id": item.id.to_string(),
+        "name": item.title,
+        "cover": item.picurl,
+        "track_count": item.songnum,
+        "play_count": item.listennum,
+        "creator": item.creator_nick,
+        "description": item.desc,
+        "source": "qq",
+    })
+}
+
+fn map_top_list(item: &qqmusic_api::models::top::TopSummary) -> Value {
+    let cover = if !item.head_pic_url.is_empty() {
+        item.head_pic_url.clone()
+    } else {
+        item.front_pic_url.clone()
+    };
+    json!({
+        "id": item.id.to_string(),
+        "name": item.name,
+        "cover": cover,
+        "description": item.intro,
+        "update_frequency": item.update_time,
+        "track_count": item.total_num,
+        "play_count": item.listen_num,
+        "source": "qq",
+    })
+}
+
 fn map_album(item: &qqmusic_api::models::search::AlbumSearch) -> Value {
     let artist = if !item.singer.is_empty() {
         item.singer.clone()
@@ -399,6 +736,7 @@ fn map_album(item: &qqmusic_api::models::search::AlbumSearch) -> Value {
         "id": item.album.mid,
         "name": item.album.name,
         "artist": artist,
+        "creator": artist,
         "cover": item.album.cover_url(CoverSize::S300),
         "track_count": 0,
         "description": item.description,

@@ -5,6 +5,7 @@ import 'package:laetibeat/src/rust/api/online.dart' as rust_online;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../app/app_mode.dart';
 import '../../../../design/design.dart';
 import '../../../../widgets/settings/online_host.dart';
 import '../../../../widgets/settings/online_provider.dart';
@@ -496,14 +497,19 @@ class _MobileOnlineMusicSettingsPageState
     final configured = _mode == OnlineMode.builtin
         ? host.isRunning
         : ref.watch(onlineBaseUrlProvider).isNotEmpty;
+    final appMode = ref.watch(appModeProvider);
+    final sources = switch (appMode) {
+      AppMode.qq => const <(String, String)>[('qq', 'QQ 音乐')],
+      AppMode.netease => const <(String, String)>[('netease', '网易云音乐')],
+      _ => const <(String, String)>[('netease', '网易云音乐'), ('qq', 'QQ 音乐')],
+    };
 
     return M3EList(
       color: scheme.surface,
       variant: M3ECardVariant.filled,
-      itemCount: 2,
+      itemCount: sources.length,
       itemBuilder: (BuildContext context, int index) {
-        final source = index == 0 ? 'netease' : 'qq';
-        final label = index == 0 ? '网易云音乐' : 'QQ 音乐';
+        final (source, label) = sources[index];
         final hasCookie =
             statuses.value?.any(
               (status) => status.source == source && status.hasCookie,
@@ -521,7 +527,9 @@ class _MobileOnlineMusicSettingsPageState
         return M3EListItem(
           headline: label,
           supportingText: statusText,
-          leading: Icon(index == 0 ? M3EIcons.music_note : M3EIcons.forum),
+          leading: Icon(
+            source == 'netease' ? M3EIcons.music_note : M3EIcons.forum,
+          ),
           trailing: M3EButton(
             style: M3EButtonStyle.tonal,
             size: M3EButtonSize.sm,
@@ -531,7 +539,9 @@ class _MobileOnlineMusicSettingsPageState
                 : hasCookie
                 ? () => unawaited(_logout(source))
                 : () => unawaited(
-                    index == 0 ? _openLogin('netease') : _openQqLogin(),
+                    source == 'netease'
+                        ? _openLogin('netease')
+                        : _openQqLogin(),
                   ),
           ),
         );

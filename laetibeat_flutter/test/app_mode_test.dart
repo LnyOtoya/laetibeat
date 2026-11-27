@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:laetibeat/app/app_mode.dart';
 import 'package:laetibeat/widgets/settings/mode_host.dart';
+import 'package:laetibeat/widgets/settings/online_settings.dart';
 import 'package:laetibeat/widgets/settings/persistence.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -52,6 +53,28 @@ void main() {
 
     container.read(modeRuntimeProvider.notifier).clear();
     expect(container.read(modeRuntimeProvider).hasBaseUrl, isFalse);
+  });
+
+  test('online base URL follows active native sidecar runtime', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      kAppModeKey: 'netease',
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final container = ProviderContainer(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+    );
+    addTearDown(container.dispose);
+
+    expect(container.read(onlineBaseUrlProvider), isEmpty);
+    container
+        .read(modeRuntimeProvider.notifier)
+        .set(
+          mode: AppMode.netease,
+          baseUrl: 'http://127.0.0.1:18102',
+          token: 'secret',
+        );
+    expect(container.read(onlineBaseUrlProvider), 'http://127.0.0.1:18102');
+    expect(await container.read(onlineTokenProvider.future), 'secret');
   });
 
   test('unknown persisted mode falls back to local', () async {
