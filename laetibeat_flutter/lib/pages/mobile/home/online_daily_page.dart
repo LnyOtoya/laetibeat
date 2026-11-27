@@ -8,7 +8,6 @@ import '../../../src/rust/api/simple.dart' as rust;
 import '../../../widgets/player/player_provider.dart';
 import '../../../widgets/settings/online_provider.dart';
 import '../library/online/online_widgets.dart';
-import '../mobile_navigation.dart';
 import '../widgets/mobile_large_subpage_app_bar.dart';
 
 /// 网易云每日推荐。

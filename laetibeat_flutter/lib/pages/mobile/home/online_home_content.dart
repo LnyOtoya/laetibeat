@@ -1,27 +1,29 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:laetibeat/src/rust/api/online.dart' as rust_online;
-import 'package:laetibeat/src/rust/api/simple.dart' as rust;
+import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../app/app_mode.dart';
 import '../../../design/design.dart';
 import '../../../shared/layout/app_bottom_inset.dart';
+import '../../../src/rust/api/online.dart' as rust_online;
+import '../../../src/rust/api/simple.dart' as rust;
 import '../../../widgets/player/player_provider.dart';
 import '../../../widgets/settings/online_provider.dart';
 import '../../../widgets/settings/online_settings.dart';
 import '../library/online/online_detail_pages.dart';
 import '../library/online/online_widgets.dart';
 import '../mobile_navigation.dart';
-import '../widgets/mobile_large_subpage_app_bar.dart';
 import '../routes.dart';
+import '../widgets/mobile_large_subpage_app_bar.dart';
 import 'online_daily_page.dart';
 
-/// 在线模式首页：网易云首页动态 feed。
+/// 在线模式首页：沿用 1.0.1 发现页的内容结构。
 ///
-/// block 不按位置硬编码；已知 block 用 renderer，未知 block 跳过。
+/// 顶部是六张横向大卡，下面是「根据你喜爱的歌曲推荐」，再往下按
+/// `/homepage/block/page` 返回的 block 渲染卡片轮播和歌曲分栏。
 class OnlineHomeContent extends ConsumerStatefulWidget {
   const OnlineHomeContent({super.key});
 
@@ -33,17 +35,13 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
   int _generation = 0;
   bool _busy = false;
 
-  void _refresh() {
-    setState(() => _generation++);
-  }
-
   @override
   Widget build(BuildContext context) {
     final mode = ref.watch(appModeProvider);
     final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
     if (!mode.usesOnlineHost) return const SizedBox.shrink();
 
-    // 网易云 home feed 已接入；QQ 待接对应的 QQ 首页接口。
+    // 网易云首页已接入；QQ 待接对应首页接口。
     if (mode != AppMode.netease) {
       return _Unavailable(
         bottomInset: bottomInset,
@@ -67,36 +65,79 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
         onRetry: _refresh,
       ),
       data: (rust_online.UiOnlineHomeFeed value) {
-        final blocks = value.blocks
-            .where(
-              (block) =>
-                  block.items.isNotEmpty &&
-                  _supportedBlocks.contains(block.code),
-            )
-            .toList(growable: false);
-        if (blocks.isEmpty) {
-          return _Unavailable(
-            bottomInset: bottomInset,
-            message: '暂时没有可展示的推荐内容',
-            onRetry: _refresh,
-          );
-        }
-        return ListView(
-          padding: EdgeInsets.only(
-            top: AppSpacing.md,
-            bottom: AppSpacing.xxl + bottomInset,
+        final sections = _visibleSections(value.blocks);
+        return RefreshIndicator(
+          onRefresh: _refreshFeed,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.only(
+              top: AppSpacing.lg,
+              bottom: AppSpacing.xxl + bottomInset,
+            ),
+            children: <Widget>[
+              _buildShortcutRow(value),
+              const SizedBox(height: AppSpacing.xl),
+              _LikedSongRecommendationsSection(blocks: value.blocks),
+              const SizedBox(height: AppSpacing.xl),
+              for (final block in sections) ...<Widget>[
+                _HomeBlockSection(block: block),
+                const SizedBox(height: AppSpacing.xl),
+              ],
+            ],
           ),
-          children: <Widget>[
-            _buildShortcutRow(value),
-            _FeedHeader(onRefresh: _refresh),
-            for (final block in blocks) ..._buildBlock(context, block),
-          ],
         );
       },
     );
   }
 
+  /// 1.0.1 发现页明确跳过的 block；这些入口已由顶部六卡或其他页面承接。
+  static const Set<String> _hiddenBlockCodes = <String>{
+    'HOMEPAGE_BANNER',
+    'HOMEPAGE_BLOCK_OLD_DRAGON_BALL',
+    'HOMEPAGE_PODCAST24',
+    'HOMEPAGE_BLOCK_STYLE_RCMD',
+    'HOMEPAGE_MUSIC_PODCAST_RCMD_BLOCK',
+    'HOMPAGE_BLOCK_VIP_RCMD',
+    'HOMEPAGE_BLOCK_OFFICIAL_PLAYLIST',
+    'HOMEPAGE_BLOCK_YUNCUN_PRODUCED',
+    'HOMEPAGE_BLOCK_VIDEO_PLAYLIST',
+    'HOMEPAGE_BLOCK_NEW_HOT_COMMENT',
+    'HOMEPAGE_BLOCK_NEW_ALBUM_NEW_SONG',
+    'HOMEPAGE_BLOCK_HOT_TOPIC',
+  };
+
+  List<rust_online.UiOnlineHomeBlock> _visibleSections(
+    List<rust_online.UiOnlineHomeBlock> blocks,
+  ) {
+    return blocks
+        .where(
+          (block) =>
+              !_hiddenBlockCodes.contains(block.code) &&
+              block.title.trim().isNotEmpty &&
+              block.items.isNotEmpty &&
+              !block.title.contains('根据你喜爱的歌曲推荐'),
+        )
+        .toList(growable: false);
+  }
+
   Widget _buildShortcutRow(rust_online.UiOnlineHomeFeed feed) {
+    final dailyCover = ref
+        .watch(onlineDailySongsProvider)
+        .value
+        ?.firstOrNull
+        ?.coverId;
+    final likedCover = ref
+        .watch(
+          onlineUserPlaylistsProvider((source: 'netease', page: 1, limit: 10)),
+        )
+        .value
+        ?.firstOrNull
+        ?.coverUrl;
+    final roamCover = ref
+        .watch(onlinePersonalFmPreviewProvider)
+        .value
+        ?.firstOrNull
+        ?.coverId;
     final playlistBlock = _findBlock(feed, const <String>{
       'HOMEPAGE_BLOCK_PLAYLIST_RCMD',
       'HOMEPAGE_BLOCK_OFFICIAL_PLAYLIST',
@@ -105,8 +146,12 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
       'HOMEPAGE_BLOCK_MGC_PLAYLIST',
     });
     return OnlineShortcutRow(
+      dailyCover: dailyCover,
+      heartCover: likedCover,
       playlistCover: playlistBlock?.items.firstOrNull?.coverUrl,
+      roamCover: roamCover,
       radarCover: radarBlock?.items.firstOrNull?.coverUrl,
+      similarCover: likedCover,
       onDaily: _openDaily,
       onHeart: _playHeart,
       onPlaylists: () =>
@@ -127,11 +172,25 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
     return null;
   }
 
-  Future<(String, String?)> _clientArgs() async {
-    final baseUrl = ref.read(onlineBaseUrlProvider);
-    if (baseUrl.isEmpty) throw StateError('当前模式 sidecar 未启动');
-    final token = await ref.read(onlineTokenProvider.future);
-    return (baseUrl, token);
+  void _refresh() {
+    setState(() => _generation++);
+  }
+
+  Future<void> _refreshFeed() async {
+    final next = _generation + 1;
+    setState(() => _generation = next);
+    final source = ref.read(appModeProvider).hostId ?? 'netease';
+    try {
+      await ref.read(
+        onlineHomeFeedProvider((
+          source: source,
+          refresh: true,
+          generation: next,
+        )).future,
+      );
+    } catch (_) {
+      // 错误由 provider 状态展示。
+    }
   }
 
   void _openDaily() {
@@ -217,6 +276,13 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
     return seed.albumId.isEmpty ? null : seed.albumId;
   }
 
+  Future<(String, String?)> _clientArgs() async {
+    final baseUrl = ref.read(onlineBaseUrlProvider);
+    if (baseUrl.isEmpty) throw StateError('当前模式 sidecar 未启动');
+    final token = await ref.read(onlineTokenProvider.future);
+    return (baseUrl, token);
+  }
+
   Future<void> _runPlayAction(
     String label,
     Future<List<rust.UiTrack>> Function() fetch,
@@ -257,288 +323,343 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
     if (!mounted) return;
     M3ESnackbar.show(context, message: message);
   }
+}
 
-  static const Set<String> _supportedBlocks = <String>{
-    'HOMEPAGE_BLOCK_PLAYLIST_RCMD',
-    'HOMEPAGE_BLOCK_MGC_PLAYLIST',
-    'HOMEPAGE_BLOCK_OFFICIAL_PLAYLIST',
-    'HOMEPAGE_BLOCK_STYLE_RCMD',
-    'HOMEPAGE_BLOCK_NEW_ALBUM_NEW_SONG',
-    'HOMEPAGE_BLOCK_NEW_HOT_COMMENT',
-  };
+rust.UiTrack _trackFromHomeItem(rust_online.UiOnlineHomeItem item) {
+  final seconds = item.durationSeconds.toInt();
+  return rust.UiTrack(
+    id: 'netease:${item.id}',
+    title: item.title,
+    artist: item.artists,
+    album: item.album,
+    albumArtist: item.artists,
+    albumId: item.albumId,
+    artistId: '',
+    duration: '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}',
+    durationSeconds: item.durationSeconds,
+    path: '',
+    source: item.source.isEmpty ? 'netease' : item.source,
+    sourceId: 'netease',
+    coverId: item.coverUrl,
+    sourceExtraJson: jsonEncode(<String, String>{
+      'platformId': item.id,
+      'source': item.source.isEmpty ? 'netease' : item.source,
+    }),
+  );
+}
 
-  List<Widget> _buildBlock(
-    BuildContext context,
-    rust_online.UiOnlineHomeBlock block,
-  ) {
-    switch (block.code) {
-      case 'HOMEPAGE_BLOCK_PLAYLIST_RCMD':
-      case 'HOMEPAGE_BLOCK_MGC_PLAYLIST':
-      case 'HOMEPAGE_BLOCK_OFFICIAL_PLAYLIST':
-        return <Widget>[
-          _buildHorizontalSection(
-            context,
-            title: block.title,
-            items: block.items,
-            height: 218,
+void _openHomeCard(BuildContext context, rust_online.UiOnlineHomeItem item) {
+  if (item.id.isEmpty) return;
+  switch (item.kind) {
+    case 'list':
+      pushMobileRootPage(
+        context,
+        OnlinePlaylistDetailPage(
+          playlist: rust_online.UiOnlinePlaylist(
+            source: item.source,
+            id: item.id,
+            name: item.title,
+            coverUrl: item.coverUrl,
+            trackCount: item.trackCount,
+            playCount: item.playCount,
+            creator: item.artists,
+            description: item.subtitle,
+            link: null,
           ),
-        ];
-      case 'HOMEPAGE_BLOCK_STYLE_RCMD':
-      case 'HOMEPAGE_BLOCK_NEW_HOT_COMMENT':
-        return <Widget>[
-          _buildHorizontalSection(
-            context,
-            title: block.title,
-            items: block.items,
-            height: 218,
+        ),
+        name: MobileRoutes.libraryPlaylists,
+      );
+    case 'album':
+    case 'digitalAlbum':
+      pushMobileRootPage(
+        context,
+        OnlineAlbumDetailPage(
+          album: rust_online.UiOnlineAlbum(
+            source: item.source,
+            id: item.id,
+            name: item.title,
+            coverUrl: item.coverUrl,
+            trackCount: item.trackCount,
+            artist: item.artists,
           ),
-        ];
-      case 'HOMEPAGE_BLOCK_NEW_ALBUM_NEW_SONG':
-        final groups = <String, List<rust_online.UiOnlineHomeItem>>{};
-        for (final item in block.items) {
-          final section = item.section.trim().isEmpty
-              ? block.title
-              : '${block.title} · ${item.section}';
-          groups
-              .putIfAbsent(section, () => <rust_online.UiOnlineHomeItem>[])
-              .add(item);
-        }
-        return <Widget>[
-          for (final entry in groups.entries)
-            _buildHorizontalSection(
-              context,
-              title: entry.key,
-              items: entry.value,
-              height: 218,
-            ),
-        ];
-      default:
-        return const <Widget>[];
-    }
+        ),
+        name: MobileRoutes.albumDetail,
+      );
   }
+}
 
-  Widget _buildHorizontalSection(
-    BuildContext context, {
-    required String title,
-    required List<rust_online.UiOnlineHomeItem> items,
-    required double height,
-  }) {
-    final theme = M3ETheme.of(context);
+class _LikedSongRecommendationsSection extends StatelessWidget {
+  const _LikedSongRecommendationsSection({required this.blocks});
+
+  final List<rust_online.UiOnlineHomeBlock> blocks;
+
+  @override
+  Widget build(BuildContext context) {
+    final block = blocks
+        .where(
+          (value) =>
+              value.title.contains('根据你喜爱的歌曲推荐') && value.items.isNotEmpty,
+        )
+        .firstOrNull;
+    final tracks =
+        block?.items
+            .where((item) => item.kind == 'song')
+            .map(_trackFromHomeItem)
+            .toList(growable: false) ??
+        const <rust.UiTrack>[];
     final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: gutter),
+          child: AppSectionHeader(
+            title: '根据你喜爱的歌曲推荐',
+            titleRole: AppTextRole.titleMedium,
+            padding: AppInsets.sectionHeader,
+          ),
+        ),
+        if (tracks.isEmpty)
           Padding(
             padding: EdgeInsets.symmetric(horizontal: gutter),
-            child: AppSectionHeader(
-              title: title.isEmpty ? '推荐' : title,
-              padding: AppInsets.sectionHeader,
+            child: const AppEmptyState(
+              title: '暂时没有推荐',
+              message: '网易云首页暂时没有返回「根据你喜爱的歌曲推荐」。',
+              icon: M3EIcons.favorite_border,
             ),
+          )
+        else
+          _HomeSongColumns(tracks: tracks, source: '根据你喜爱的歌曲推荐'),
+      ],
+    );
+  }
+}
+
+class _HomeBlockSection extends StatelessWidget {
+  const _HomeBlockSection({required this.block});
+
+  final rust_online.UiOnlineHomeBlock block;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = block.items
+        .where((item) => item.kind != 'song')
+        .toList(growable: false);
+    final tracks = block.items
+        .where((item) => item.kind == 'song')
+        .map(_trackFromHomeItem)
+        .toList(growable: false);
+    final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: gutter),
+          child: AppSectionHeader(
+            title: block.title,
+            titleRole: AppTextRole.titleMedium,
+            padding: AppInsets.sectionHeader,
           ),
-          SizedBox(
-            height: height,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: gutter),
-              itemCount: items.length,
-              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
-              itemBuilder: (BuildContext context, int index) {
-                final item = items[index];
-                return _FeedCard(
-                  item: item,
-                  theme: theme,
-                  onTap: () => _openItem(context, item),
-                );
-              },
+        ),
+        if (cards.isNotEmpty) _HomeCardCarousel(cards: cards),
+        if (cards.isNotEmpty && tracks.isNotEmpty)
+          const SizedBox(height: AppSpacing.md),
+        if (tracks.isNotEmpty)
+          _HomeSongColumns(tracks: tracks, source: block.title),
+      ],
+    );
+  }
+}
+
+class _HomeCardCarousel extends StatelessWidget {
+  const _HomeCardCarousel({required this.cards});
+
+  final List<rust_online.UiOnlineHomeItem> cards;
+
+  @override
+  Widget build(BuildContext context) {
+    final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+    final available = MediaQuery.sizeOf(context).width - gutter * 2;
+    final cardWidth = ((available - AppSpacing.lg * 2) / 2.35).clamp(
+      120.0,
+      180.0,
+    );
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: EdgeInsets.symmetric(horizontal: gutter),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          for (var index = 0; index < cards.length; index++) ...<Widget>[
+            if (index > 0) const SizedBox(width: AppSpacing.md),
+            SizedBox(
+              width: cardWidth,
+              child: _HomeCard(item: cards[index], width: cardWidth),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
-
-  void _openItem(BuildContext context, rust_online.UiOnlineHomeItem item) {
-    if (item.id.isEmpty) return;
-    switch (item.kind) {
-      case 'list':
-        pushMobileRootPage(
-          context,
-          OnlinePlaylistDetailPage(
-            playlist: rust_online.UiOnlinePlaylist(
-              source: item.source,
-              id: item.id,
-              name: item.title,
-              coverUrl: item.coverUrl,
-              trackCount: item.trackCount,
-              playCount: item.playCount,
-              creator: item.artists,
-              description: item.subtitle,
-              link: null,
-            ),
-          ),
-          name: MobileRoutes.libraryPlaylists,
-        );
-      case 'album':
-      case 'digitalAlbum':
-        pushMobileRootPage(
-          context,
-          OnlineAlbumDetailPage(
-            album: rust_online.UiOnlineAlbum(
-              source: item.source,
-              id: item.id,
-              name: item.title,
-              coverUrl: item.coverUrl,
-              trackCount: item.trackCount,
-              artist: item.artists,
-            ),
-          ),
-          name: MobileRoutes.albumDetail,
-        );
-      case 'song':
-        _playSong(item);
-    }
-  }
-
-  void _playSong(rust_online.UiOnlineHomeItem item) {
-    final seconds = item.durationSeconds.toInt();
-    final track = rust.UiTrack(
-      id: 'netease:${item.id}',
-      title: item.title,
-      artist: item.artists,
-      album: item.album,
-      albumArtist: item.artists,
-      albumId: item.albumId,
-      artistId: '',
-      duration: _formatDuration(seconds),
-      durationSeconds: item.durationSeconds,
-      path: '',
-      source: 'netease',
-      sourceId: 'netease',
-      coverId: item.coverUrl,
-      sourceExtraJson: jsonEncode(<String, String>{
-        'platformId': item.id,
-        'source': 'netease',
-      }),
-    );
-    ref
-        .read(playerProvider.notifier)
-        .load(<rust.UiTrack>[track], 0, source: '网易云首页');
-  }
-
-  String _formatDuration(int seconds) {
-    final value = seconds <= 0 ? 0 : seconds;
-    return '${value ~/ 60}:${(value % 60).toString().padLeft(2, '0')}';
-  }
 }
 
-class _FeedHeader extends StatelessWidget {
-  const _FeedHeader({required this.onRefresh});
+class _HomeCard extends StatelessWidget {
+  const _HomeCard({required this.item, required this.width});
 
-  final VoidCallback onRefresh;
+  final rust_online.UiOnlineHomeItem item;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
-    final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
-    return Padding(
-      padding: EdgeInsets.fromLTRB(gutter, 0, gutter - 8, AppSpacing.sm),
-      child: Row(
-        children: <Widget>[
-          Expanded(child: Text('为你推荐', style: theme.typeScale.titleMedium)),
-          M3EIconButton(
-            variant: M3EIconButtonVariant.standard,
-            icon: const Icon(M3EIcons.refresh),
-            tooltip: '换一批',
-            onPressed: onRefresh,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeedCard extends StatelessWidget {
-  const _FeedCard({
-    required this.item,
-    required this.theme,
-    required this.onTap,
-  });
-
-  final rust_online.UiOnlineHomeItem item;
-  final M3EThemeData theme;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final subtitle = item.subtitle.isNotEmpty
-        ? item.subtitle
-        : item.artists.isNotEmpty
-        ? item.artists
-        : item.section;
-    return SizedBox(
-      width: 132,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: AppRadii.mdAll,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            OnlineCover(url: item.coverUrl, size: 132),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              item.title.isEmpty ? '未命名' : item.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.typeScale.bodyMedium,
+    final scheme = theme.colorScheme;
+    final canOpen =
+        item.kind == 'list' ||
+        item.kind == 'album' ||
+        item.kind == 'digitalAlbum';
+    return Semantics(
+      button: canOpen,
+      label: item.title,
+      child: SizedBox(
+        width: width,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: AppRadii.lgAll,
+            onTap: canOpen ? () => _openHomeCard(context, item) : null,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                ClipRRect(
+                  borderRadius: AppRadii.lgAll,
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: OnlineCover(url: item.coverUrl, size: width),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  item.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.typeScale.bodyMedium.copyWith(
+                    color: scheme.onSurface,
+                  ),
+                ),
+              ],
             ),
-            if (subtitle.isNotEmpty) ...<Widget>[
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.typeScale.bodySmall.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _Unavailable extends StatelessWidget {
-  const _Unavailable({
-    required this.bottomInset,
-    required this.message,
-    this.onRetry,
-  });
+class _HomeSongColumns extends ConsumerWidget {
+  const _HomeSongColumns({required this.tracks, required this.source});
 
-  final double bottomInset;
-  final String message;
-  final VoidCallback? onRetry;
+  static const int _rowsPerColumn = 4;
+  static const double _rowHeight = 56;
+
+  final List<rust.UiTrack> tracks;
+  final String source;
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.only(bottom: bottomInset),
-        child: AppEmptyState(
-          title: '首页推荐暂不可用',
-          message: message,
-          icon: M3EIcons.cloud_off,
-          action: onRetry == null
-              ? null
-              : M3EButton(
-                  style: M3EButtonStyle.filled,
-                  label: const Text('重试'),
-                  onPressed: onRetry,
-                ),
-        ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+    final columnWidth = (MediaQuery.sizeOf(context).width * 0.78).clamp(
+      240.0,
+      360.0,
+    );
+    final columnCount = (tracks.length / _rowsPerColumn).ceil();
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: EdgeInsets.symmetric(horizontal: gutter),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          for (
+            var columnIndex = 0;
+            columnIndex < columnCount;
+            columnIndex++
+          ) ...<Widget>[
+            if (columnIndex > 0) const SizedBox(width: AppSpacing.lg),
+            SizedBox(
+              width: columnWidth,
+              child: Builder(
+                builder: (BuildContext context) {
+                  final start = columnIndex * _rowsPerColumn;
+                  final end = (start + _rowsPerColumn).clamp(0, tracks.length);
+                  final columnTracks = tracks.sublist(start, end);
+                  return m3e_core.M3ESegmentedList.builder(
+                    itemCount: columnTracks.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    listPadding: EdgeInsets.zero,
+                    onTap: (int index) => ref
+                        .read(playerProvider.notifier)
+                        .load(tracks, start + index, source: source),
+                    decoration: m3e_core.M3ESegmentedListDecoration(
+                      color: scheme.secondaryContainer,
+                      splashColor: scheme.onSecondaryContainer.withValues(
+                        alpha: 0.12,
+                      ),
+                      highlightColor: scheme.onSecondaryContainer.withValues(
+                        alpha: 0.08,
+                      ),
+                      hoverColor: scheme.onSecondaryContainer.withValues(
+                        alpha: 0.08,
+                      ),
+                      outerRadius: 24,
+                      innerRadius: 12,
+                      pressedRadius: 8,
+                      pressedScale: 0.98,
+                      hoveredRadius: 16,
+                      gap: 4,
+                      padding: const EdgeInsets.all(4),
+                      margin: EdgeInsets.zero,
+                    ),
+                    itemBuilder: (BuildContext context, int index) {
+                      final track = columnTracks[index];
+                      return m3e_core.M3EListItem(
+                        minHeight: _rowHeight,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 4,
+                        ),
+                        leading: OnlineCover(url: track.coverId, size: 48),
+                        headline: Text(
+                          track.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        supportingText: Text(
+                          track.artist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        headlineStyle: theme.typeScale.bodyMedium.copyWith(
+                          color: scheme.onSecondaryContainer,
+                        ),
+                        supportingTextStyle: theme.typeScale.bodySmall.copyWith(
+                          color: scheme.onSecondaryContainer.withValues(
+                            alpha: 0.75,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -547,8 +668,12 @@ class _Unavailable extends StatelessWidget {
 class OnlineShortcutRow extends StatelessWidget {
   const OnlineShortcutRow({
     super.key,
+    required this.dailyCover,
+    required this.heartCover,
     required this.playlistCover,
+    required this.roamCover,
     required this.radarCover,
+    required this.similarCover,
     required this.onDaily,
     required this.onHeart,
     required this.onPlaylists,
@@ -557,8 +682,12 @@ class OnlineShortcutRow extends StatelessWidget {
     required this.onSimilar,
   });
 
+  final String? dailyCover;
+  final String? heartCover;
   final String? playlistCover;
+  final String? roamCover;
   final String? radarCover;
+  final String? similarCover;
   final VoidCallback onDaily;
   final VoidCallback onHeart;
   final VoidCallback onPlaylists;
@@ -579,12 +708,14 @@ class OnlineShortcutRow extends StatelessWidget {
         title: '今日推荐',
         subtitle: '今日限定好歌推荐',
         icon: M3EIcons.today,
+        coverUrl: dailyCover,
         onTap: onDaily,
       ),
       _ShortcutEntry(
         title: '心动模式',
         subtitle: '红心歌曲和相似推荐',
         icon: M3EIcons.favorite,
+        coverUrl: heartCover,
         onTap: onHeart,
       ),
       _ShortcutEntry(
@@ -598,6 +729,7 @@ class OnlineShortcutRow extends StatelessWidget {
         title: '漫游',
         subtitle: '多样频道无限唱听',
         icon: M3EIcons.explore,
+        coverUrl: roamCover,
         onTap: onRoam,
       ),
       _ShortcutEntry(
@@ -611,6 +743,7 @@ class OnlineShortcutRow extends StatelessWidget {
         title: '相似歌曲',
         subtitle: '从你喜欢的歌听起',
         icon: M3EIcons.music_note,
+        coverUrl: similarCover,
         onTap: onSimilar,
       ),
     ];
@@ -818,35 +951,42 @@ class OnlineHomeBlockPage extends ConsumerWidget {
           name: MobileRoutes.albumDetail,
         );
       case 'song':
-        final seconds = item.durationSeconds.toInt();
         ref
             .read(playerProvider.notifier)
-            .load(
-              <rust.UiTrack>[
-                rust.UiTrack(
-                  id: 'netease:${item.id}',
-                  title: item.title,
-                  artist: item.artists,
-                  album: item.album,
-                  albumArtist: item.artists,
-                  albumId: item.albumId,
-                  artistId: '',
-                  duration:
-                      '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}',
-                  durationSeconds: item.durationSeconds,
-                  path: '',
-                  source: 'netease',
-                  sourceId: 'netease',
-                  coverId: item.coverUrl,
-                  sourceExtraJson: jsonEncode(<String, String>{
-                    'platformId': item.id,
-                    'source': 'netease',
-                  }),
-                ),
-              ],
-              0,
-              source: '在线推荐',
-            );
+            .load(<rust.UiTrack>[_trackFromHomeItem(item)], 0, source: '在线推荐');
     }
+  }
+}
+
+class _Unavailable extends StatelessWidget {
+  const _Unavailable({
+    required this.bottomInset,
+    required this.message,
+    this.onRetry,
+  });
+
+  final double bottomInset;
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: AppEmptyState(
+          title: '首页推荐暂不可用',
+          message: message,
+          icon: M3EIcons.cloud_off,
+          action: onRetry == null
+              ? null
+              : M3EButton(
+                  style: M3EButtonStyle.filled,
+                  label: const Text('重试'),
+                  onPressed: onRetry,
+                ),
+        ),
+      ),
+    );
   }
 }
