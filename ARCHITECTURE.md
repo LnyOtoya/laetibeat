@@ -60,6 +60,16 @@ laetibeat_qq_host (GPL-3.0-only)     laetibeat_netease_host (MIT)
 4. `runApp` 后读取 `app.mode`，按模式启动 `ModeHostController`。
 5. 后台预热 LX 运行时与缓存。
 
+### 皮肤 / 设计语言
+
+- `lib/app/skin/app_skin.dart`：`AppSkinId` 与 `AppSkin` 契约
+- `lib/app/skin/app_skin_provider.dart`：持久化 `ui.skin`
+- `lib/app/skin/app_skin_registry.dart`：皮肤实现注册表
+- `lib/skins/expressive/`：当前默认 Material 3 Expressive 根 App、Shell 与页面
+- 皮肤拥有自己的导航壳和页面；数据 provider / sidecar 生命周期共享
+- 播放媒体集成位于皮肤外层，切换皮肤不会断开系统媒体会话
+- 详细规划见 `docs/ui-skins.md`
+
 ### 模式与运行时
 
 - `lib/app/app_mode.dart`
@@ -187,6 +197,7 @@ laetibeat_qq_host (GPL-3.0-only)     laetibeat_netease_host (MIT)
 ## 8. 相关文档
 
 - `docs/native-modes-migration.md`：native 设计、N0–N6、验收
+- `docs/ui-skins.md`：皮肤架构与 Spotify / Apple Music 后续计划
 - `docs/musicapi-migration.md`：gomusic 分支历史
 - `PLAN.md`：当前计划
 - `TODO.md`：工程债
