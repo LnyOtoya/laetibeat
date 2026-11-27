@@ -1,6 +1,6 @@
 # Native Modes Migration
 
-> 状态：已决策，尚未实现。目标分支 `native`；当前 go-music-api 实现保留在 `gomusic`。
+> 状态：native 分支已实现；go-music-api 实现保留在 `gomusic` 分支。
 > 最后更新：2026-11-27
 
 ## 1. 结论
@@ -40,12 +40,12 @@ native     新分支：删除 go-music-api，使用 Rust 原生后端
 
 合并前必须满足：
 
-- [ ] `laetibeat_qq_host` 可用
-- [ ] `laetibeat_netease_host` 可用
+- [x] `laetibeat_qq_host` 可用
+- [x] `laetibeat_netease_host` 可用
 - [ ] 本地 / Subsonic / QQ / 网易云模式切换正常
 - [ ] 切换模式停止 sidecar，Cookie / Credential 可恢复
-- [ ] Android / Linux 构建通过
-- [ ] go-music-api 已从 `native` 删除
+- [x] Android / Linux 构建通过
+- [x] go-music-api 已从 `native` 删除
 - [ ] CI `test` / `host` 通过
 - [ ] 真机验证：搜索、播放、登录、后台、模式切换
 
@@ -403,13 +403,14 @@ jniLibs/<abi>/liblaetibeat_netease_host.so
 - [ ] signed release split APK 实机安装验证（发布时执行）
 - [ ] 应用内运行中切换模式的自动化/人工验收
 
-### N6：删除 go-music-api
+### N6：删除 go-music-api（已完成）
 
-- [ ] 删除 `laetibeat_musicapi_host`
-- [ ] 删除 `third_party/music-lib`
-- [ ] 删除 Go 相关 Gradle/CMake/CI
-- [ ] 删除 go-music-api Rust 客户端代码
-- [ ] 更新文档与许可证
+- [x] 删除 `laetibeat_musicapi_host`
+- [x] 删除 `third_party/music-lib`
+- [x] 删除 Go 相关 Gradle/CMake/CI
+- [x] 删除旧 `onlineHostProvider` Go builtin 逻辑
+- [x] 保留 `laetibeat_online` 作为 native host 统一客户端
+- [x] 更新文档与许可证
 
 ## 12. 已验证事实
 
@@ -443,11 +444,10 @@ NDK r28c
   - Linux live：health / search / url / lyric / QR 创建均 200
   - Android 真机：host 启动、health、QQ 搜索通过
   - QR 轮询已返回 waiting/scanned；真实扫码与 credential 持久化待人工验证
-- N3/N4 Flutter 检查：`flutter analyze` 0 error；`flutter test` 28 passed。
-  - 当前 `onlineHostProvider` 仍为 gomusic 兼容页面启动 Go host；native sidecar
-    由 `modeHostProvider` 并行管理，N6 移除 Go host。
-  - N4 的 Android/Linux 模式切换需要 N5 打包 host 后才能端到端验证；开发期可用
-    `--dart-define=LAETIBEAT_QQ_HOST_PATH=...` / `LAETIBEAT_NETEASE_HOST_PATH=...`。
+- N3/N4 Flutter 检查：`flutter analyze` 0 error；`flutter test` 29 passed。
+  - N6 已删除 `onlineHostProvider` 与 Go host；现在只由 `modeHostProvider` 管理
+    两个 Rust sidecar。
+  - N5 已完成 Android / Linux host 打包；真机已按 `app.mode` 分别启动 QQ / 网易云 host。
 - N4 兼容层验证：同一个 `laetibeat_online` 客户端分别指向 QQ / 网易云 host，
   搜索、歌词、推荐歌单、歌单详情、排行榜、榜单歌曲、热门歌曲、专辑详情、
   播放 URL、平台状态、二维码创建/轮询均通过。
@@ -464,6 +464,15 @@ NDK r28c
   - release split APK：armv7 70.1 MB / arm64 71.9 MB / x86_64 74.1 MB
     （含暂留的 Go host；N6 删除后预计显著缩小）
   - release APK 已签名、`extractNativeLibs=true`、versionCode 1002002（arm64）
+- N6 清理后：
+  - 删除 Go host、`third_party/music-lib`、Go Gradle/CMake/CI
+  - Android APK 只包含 `liblaetibeat_qq_host.so` / `liblaetibeat_netease_host.so`
+  - release arm64 从 71.9 MB 降到 60.3 MB；armv7 57.8 MB；x86_64 61.5 MB
+  - Linux bundle 只包含两个 Rust host
+  - debug APK 真机启动后只有对应模式 sidecar，无 Go 进程
+  - local 模式启动后没有 sidecar 进程
+  - `laetibeat_online` 保留为两个 host 的统一客户端
+- N6 Flutter 检查：`flutter analyze` 0 error；`flutter test` 29 passed。
 
 ## 13. 相关文档
 

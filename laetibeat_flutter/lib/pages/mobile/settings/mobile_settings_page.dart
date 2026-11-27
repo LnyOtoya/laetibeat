@@ -83,7 +83,7 @@ class MobileSettingsPage extends ConsumerWidget {
                       ),
                       const m3e_core.M3EListItem(
                         headline: Text('在线音乐'),
-                        supportingText: Text('go-music-api 服务、音质与洛雪后备'),
+                        supportingText: Text('账号、音质与洛雪后备'),
                         leading: _SettingsLeadingAvatar(
                           icon: M3EIcons.language,
                         ),

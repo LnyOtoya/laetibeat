@@ -235,7 +235,11 @@ class _MobileSearchResultsPageState
     _filter = switch (ref.read(appModeProvider)) {
       AppMode.qq => MobileSearchSourceFilter.qq,
       AppMode.netease => MobileSearchSourceFilter.netease,
-      _ => ref.read(defaultSearchSourceProvider),
+      _ => switch (ref.read(defaultSearchSourceProvider)) {
+        MobileSearchSourceFilter.netease ||
+        MobileSearchSourceFilter.qq => MobileSearchSourceFilter.all,
+        final value => value,
+      },
     };
     // 源可能在设置页被增删；进页面后刷新一次播放能力。
     //
@@ -349,6 +353,7 @@ class _MobileSearchResultsPageState
           children: <Widget>[
             _SearchFilterButton(
               filter: _filter,
+              onlineMode: ref.watch(appModeProvider),
               onChanged: (filter) => setState(() => _filter = filter),
               onBack: () => Navigator.of(context).maybePop(),
             ),
@@ -602,11 +607,13 @@ class _LxPlatformBar extends StatelessWidget {
 class _SearchFilterButton extends StatelessWidget {
   const _SearchFilterButton({
     required this.filter,
+    required this.onlineMode,
     required this.onChanged,
     required this.onBack,
   });
 
   final MobileSearchSourceFilter filter;
+  final AppMode onlineMode;
   final ValueChanged<MobileSearchSourceFilter> onChanged;
   final VoidCallback onBack;
 
@@ -640,14 +647,16 @@ class _SearchFilterButton extends StatelessWidget {
           value: MobileSearchSourceFilter.lx,
           child: Text(l10n.searchFilterLx),
         ),
-        const M3ESplitButtonItem(
-          value: MobileSearchSourceFilter.netease,
-          child: Text('网易云'),
-        ),
-        const M3ESplitButtonItem(
-          value: MobileSearchSourceFilter.qq,
-          child: Text('QQ'),
-        ),
+        if (onlineMode == AppMode.netease)
+          const M3ESplitButtonItem(
+            value: MobileSearchSourceFilter.netease,
+            child: Text('网易云'),
+          ),
+        if (onlineMode == AppMode.qq)
+          const M3ESplitButtonItem(
+            value: MobileSearchSourceFilter.qq,
+            child: Text('QQ'),
+          ),
       ],
     );
   }
@@ -674,12 +683,20 @@ class _SearchResults extends ConsumerWidget {
     final onlineSource = switch (appMode) {
       AppMode.qq => 'qq',
       AppMode.netease => 'netease',
-      _ => switch (filter) {
-        MobileSearchSourceFilter.netease => 'netease',
-        MobileSearchSourceFilter.qq => 'qq',
-        _ => null,
-      },
+      _ => null,
     };
+    if (filter == MobileSearchSourceFilter.netease ||
+        filter == MobileSearchSourceFilter.qq) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            '当前模式不提供在线搜索，请先切换到 QQ / 网易云模式。',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
     if (onlineSource != null) {
       return switch (category) {
         MobileSearchCategory.songs => _OnlineSongsResults(

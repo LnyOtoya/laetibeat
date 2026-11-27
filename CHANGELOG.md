@@ -14,6 +14,16 @@
 - native 分支：Android jniLibs / Linux bundle 打包 QQ 与网易云 Rust host。
 - native 分支：Gradle / CMake / CI / release 许可证接入双 host。
 
+### Removed
+
+- native 分支：删除 `laetibeat_musicapi_host`、`third_party/music-lib` 与 Go 打包/CI 链路。
+- native 分支：删除旧 `onlineHostProvider` 与 builtin/remote 服务地址配置。
+
+### Changed
+
+- native 分支：`laetibeat_online` 保留为两个 Rust host 的统一客户端。
+- native 分支：在线设置只保留音质、LX 后备与账号；服务地址由模式 sidecar 提供。
+
 ## [1.0.2] - 2026-11-27
 
 ### Added

@@ -59,7 +59,7 @@ android {
 
     packaging {
         jniLibs {
-            // 内置 go-music-api host 以 .so 形式打包，必须解压后执行。
+            // 内置 Rust sidecar 以 .so 形式打包，必须解压后执行。
             useLegacyPackaging = true
         }
     }
@@ -101,22 +101,7 @@ dependencies {
     implementation("org.rustls:rustls-platform-verifier:0.2.0")
 }
 
-// 把 Go host 编译进 jniLibs/arm64-v8a。Android 上 Go 的纯 Go DNS
-// 不可用，必须用 NDK clang + CGO 构建 PIE。
 val repoRoot = rootProject.projectDir.parentFile.parentFile
-val musicApiHostDir = File(repoRoot, "laetibeat_musicapi_host")
-data class MusicApiAbi(
-    val abi: String,
-    val goArch: String,
-    val goArm: String?,
-    val clang: String,
-)
-
-val musicApiAbis = listOf(
-    MusicApiAbi("arm64-v8a", "arm64", null, "aarch64-linux-android24-clang"),
-    MusicApiAbi("armeabi-v7a", "arm", "7", "armv7a-linux-androideabi24-clang"),
-    MusicApiAbi("x86_64", "amd64", null, "x86_64-linux-android24-clang"),
-)
 
 fun androidNdkHostTag(): String {
     val os = System.getProperty("os.name").lowercase()
@@ -127,57 +112,8 @@ fun androidNdkHostTag(): String {
     }
 }
 
-val musicApiHostTasks = musicApiAbis.map { target ->
-    val jniDir = file("src/main/jniLibs/${target.abi}")
-    val output = File(jniDir, "liblaetibeat_musicapi_host.so")
-    val taskName =
-        "buildMusicApiHost" +
-            target.abi.split('-', '_').joinToString("") { part ->
-                part.replaceFirstChar { it.uppercase() }
-            }
-    tasks.register<Exec>(taskName) {
-        group = "flutter"
-        description = "Build embedded go-music-api host for Android ${target.abi}"
-        workingDir = musicApiHostDir
-        val clangFile = File(
-            android.sdkDirectory,
-            "ndk/${flutter.ndkVersion}/toolchains/llvm/prebuilt/" +
-                "${androidNdkHostTag()}/bin/${target.clang}",
-        )
-        doFirst {
-            if (!clangFile.exists()) {
-                throw GradleException("找不到 Android NDK clang：${clangFile.absolutePath}")
-            }
-            jniDir.mkdirs()
-        }
-        environment("CGO_ENABLED", "1")
-        environment("GOOS", "android")
-        environment("GOARCH", target.goArch)
-        target.goArm?.let { environment("GOARM", it) }
-        environment("CC", clangFile.absolutePath)
-        commandLine(
-            "go",
-            "build",
-            "-buildmode=pie",
-            "-trimpath",
-            "-ldflags",
-            "-s -w",
-            "-o",
-            output.absolutePath,
-            ".",
-        )
-        inputs.files(
-            fileTree(musicApiHostDir) {
-                include("**/*.go", "go.mod", "go.sum")
-                exclude("build/**", "bin/**")
-            },
-        )
-        outputs.file(output)
-    }
-}
-
 // 把 QQ / 网易云 Rust sidecar 编译进 jniLibs。cargo 产物是 PIE 可执行文件，
-// 仍以 lib*.so 命名并解压安装，和原 Go host 保持一致。
+// 以 lib*.so 命名并解压安装。
 data class RustHostAbi(
     val abi: String,
     val target: String,
@@ -292,7 +228,7 @@ val rustHostTasks = rustHostAbis.map { target ->
 }
 
 tasks.named("preBuild").configure {
-    dependsOn(musicApiHostTasks + rustHostTasks)
+    dependsOn(rustHostTasks)
 }
 
 val requestedReleaseBuild = gradle.startParameter.taskNames.any {

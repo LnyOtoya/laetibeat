@@ -403,7 +403,7 @@ mod tests {
         let netease_songs = client.search_songs("netease", "稻香", 10, 0).unwrap();
         assert!(
             !netease_songs.is_empty(),
-            "NetEase search returned no songs (music-lib patch missing?)"
+            "NetEase search returned no songs"
         );
         assert!(netease_songs[0].ui_id().starts_with("netease:"));
         if let Some(cover) = &netease_songs[0].cover_url {

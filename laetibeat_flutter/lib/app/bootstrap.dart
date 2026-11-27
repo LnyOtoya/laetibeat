@@ -24,7 +24,6 @@ import '../widgets/player/playback_backend.dart';
 import '../widgets/settings/cache_usage_service.dart';
 import '../widgets/settings/display_settings.dart';
 import '../widgets/settings/mode_host.dart';
-import '../widgets/settings/online_host.dart';
 import '../widgets/settings/persistence.dart';
 import '../widgets/settings/subsonic_provider.dart';
 import 'app.dart';
@@ -153,9 +152,6 @@ Future<void> bootstrap() async {
     ),
   );
 
-  // gomusic 兼容服务在首帧后启动，避免 Go 进程启动阻塞 UI。
-  unawaited(container.read(onlineHostProvider.notifier).startIfNeeded());
-
   // native 模式 sidecar：local/subsonic 会直接返回；QQ/网易云按上次模式启动。
   unawaited(container.read(modeHostProvider.notifier).startIfNeeded());
 
@@ -175,9 +171,9 @@ Future<void> bootstrap() async {
 void _registerEmbeddedLicenses() {
   LicenseRegistry.addLicense(() async* {
     yield const LicenseEntryWithLineBreaks(<String>[
-      'go-music-api',
-      'music-lib',
-    ], embeddedMusicApiLicenseNotice);
+      'laetibeat_qq_host',
+      'laetibeat_netease_host',
+    ], embeddedOnlineHostsLicenseNotice);
   });
 }
 

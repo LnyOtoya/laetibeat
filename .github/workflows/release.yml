@@ -90,8 +90,9 @@ jobs:
           if not match.group(1).strip():
               raise SystemExit(f"CHANGELOG.md [{version}] section is empty")
           PY
-          test -s laetibeat_musicapi_host/LICENSE
-          test -s laetibeat_musicapi_host/third_party/music-lib/LICENSE
+          test -s laetibeat_qq_host/LICENSE
+          test -s laetibeat_netease_host/LICENSE
+          test -s laetibeat_netease_host/LICENSE-WTFPL
 
       - name: Install Linux dependencies
         run: |
@@ -126,16 +127,6 @@ jobs:
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.25.x"
-          cache-dependency-path: laetibeat_musicapi_host/go.sum
-
-      - name: Go test
-        working-directory: laetibeat_musicapi_host
-        run: go test ./...
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
@@ -212,10 +203,6 @@ jobs:
             "release-assets/laetibeat-${version}-x86_64.apk"
           cp ../LICENSE release-assets/LICENSE-MIT
           cp ../THIRD_PARTY_NOTICES.md release-assets/THIRD_PARTY_NOTICES.md
-          cp ../laetibeat_musicapi_host/LICENSE \
-            release-assets/LICENSE-AGPL-3.0-go-music-api
-          cp ../laetibeat_musicapi_host/third_party/music-lib/LICENSE \
-            release-assets/LICENSE-AGPL-3.0-music-lib
           cp ../laetibeat_qq_host/LICENSE \
             release-assets/LICENSE-GPL-3.0-QQMusicApi-rs
           cp ../laetibeat_netease_host/LICENSE \

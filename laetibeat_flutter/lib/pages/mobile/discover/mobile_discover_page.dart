@@ -10,15 +10,14 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/layout/app_bottom_inset.dart';
 import '../../../widgets/player/player_provider.dart';
 import '../../../widgets/settings/mode_host.dart';
-import '../../../widgets/settings/online_host.dart';
 import '../../../widgets/settings/online_provider.dart';
 import '../../../widgets/settings/online_settings.dart';
 import '../library/online/online_detail_pages.dart';
 import '../library/online/online_widgets.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
+import '../settings/mode/mobile_mode_settings_page.dart';
 import '../settings/online/mobile_online_login_page.dart';
-import '../settings/online/mobile_online_music_settings_page.dart';
 import 'discover_platform.dart';
 
 /// 移动端发现页。
@@ -40,10 +39,6 @@ class MobileDiscoverPage extends ConsumerWidget {
       _ => ref.watch(discoverPlatformProvider),
     };
     final baseUrl = ref.watch(onlineBaseUrlProvider);
-    final mode = ref.watch(
-      onlineSettingsProvider.select((settings) => settings.mode),
-    );
-    final host = ref.watch(onlineHostProvider);
     final modeHost = ref.watch(modeHostProvider);
     final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
 
@@ -55,23 +50,13 @@ class MobileDiscoverPage extends ConsumerWidget {
         title: l10n.navDiscover,
         subtitle: '${l10n.discoverSubtitle} · ${platform.label}',
         backgroundColor: AppSurfaceLevel.base.resolve(scheme),
-        actionsBuilder: (bool collapsed) => <Widget>[
-          if (!appMode.usesOnlineHost)
-            M3EIconButton(
-              variant: M3EIconButtonVariant.standard,
-              icon: const Icon(M3EIcons.swap_horiz),
-              tooltip: '切换平台',
-              onPressed: () => _pickPlatform(context, ref),
-            ),
-        ],
+        actionsBuilder: (bool collapsed) => const <Widget>[],
       ),
       body: baseUrl.isEmpty
           ? _buildOnlinePlaceholder(
               context,
               ref,
               appMode: appMode,
-              mode: mode,
-              host: host,
               modeHost: modeHost,
               bottomInset: bottomInset,
             )
@@ -97,83 +82,26 @@ class MobileDiscoverPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _pickPlatform(BuildContext context, WidgetRef ref) async {
-    final current = ref.read(discoverPlatformProvider);
-    final picked = await M3EDialog.showSelectionScreen(
-      context,
-      title: '选择发现页平台',
-      options: DiscoverPlatform.values
-          .map((platform) => platform.label)
-          .toList(growable: false),
-      initialSelection: <String>[current.label],
-      icon: const Icon(M3EIcons.language),
-    );
-    if (picked == null || picked.isEmpty) return;
-    final selected = DiscoverPlatform.values.firstWhere(
-      (platform) => platform.label == picked.first,
-      orElse: () => current,
-    );
-    await ref.read(discoverPlatformProvider.notifier).select(selected);
-  }
-
   Widget _buildOnlinePlaceholder(
     BuildContext context,
     WidgetRef ref, {
     required AppMode appMode,
-    required OnlineMode mode,
-    required OnlineHostState host,
     required ModeHostState modeHost,
     required double bottomInset,
   }) {
-    if (appMode.usesOnlineHost) {
-      if (modeHost.isStarting) {
-        return Center(
-          child: Padding(
-            padding: EdgeInsets.only(bottom: bottomInset),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                const CircularProgressIndicator(),
-                const SizedBox(height: AppSpacing.md),
-                Text('正在启动 ${appMode.label} sidecar…'),
-              ],
-            ),
-          ),
-        );
-      }
+    if (!appMode.usesOnlineHost) {
+      return _OnlineModeUnavailable(bottomInset: bottomInset);
+    }
+    if (modeHost.isStarting) {
       return Center(
         child: Padding(
           padding: EdgeInsets.only(bottom: bottomInset),
-          child: AppEmptyState(
-            title: modeHost.hasError
-                ? '${appMode.label} sidecar 启动失败'
-                : '${appMode.label} sidecar 未启动',
-            message: modeHost.error ?? '点击启动本地 sidecar；无需额外部署。',
-            icon: modeHost.hasError
-                ? M3EIcons.error_outline
-                : M3EIcons.cloud_off,
-            action: M3EButton(
-              style: M3EButtonStyle.filled,
-              label: Text(modeHost.hasError ? '重试' : '启动'),
-              onPressed: () => ref.read(modeHostProvider.notifier).start(),
-            ),
-          ),
-        ),
-      );
-    }
-    if (mode == OnlineMode.remote) {
-      return _OnlineUnconfigured(bottomInset: bottomInset);
-    }
-    if (host.isStarting) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.only(bottom: bottomInset),
-          child: const Column(
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              CircularProgressIndicator(),
-              SizedBox(height: AppSpacing.md),
-              Text('正在启动内置音源…'),
+              const CircularProgressIndicator(),
+              const SizedBox(height: AppSpacing.md),
+              Text('正在启动 ${appMode.label} sidecar…'),
             ],
           ),
         ),
@@ -183,13 +111,15 @@ class MobileDiscoverPage extends ConsumerWidget {
       child: Padding(
         padding: EdgeInsets.only(bottom: bottomInset),
         child: AppEmptyState(
-          title: host.hasError ? '内置音源启动失败' : '内置音源未启动',
-          message: host.error ?? '点击启动内置服务，无需额外部署。',
-          icon: host.hasError ? M3EIcons.error_outline : M3EIcons.cloud_off,
+          title: modeHost.hasError
+              ? '${appMode.label} sidecar 启动失败'
+              : '${appMode.label} sidecar 未启动',
+          message: modeHost.error ?? '点击启动本地 sidecar；无需额外部署。',
+          icon: modeHost.hasError ? M3EIcons.error_outline : M3EIcons.cloud_off,
           action: M3EButton(
             style: M3EButtonStyle.filled,
-            label: Text(host.hasError ? '重试' : '启动'),
-            onPressed: () => ref.read(onlineHostProvider.notifier).start(),
+            label: Text(modeHost.hasError ? '重试' : '启动'),
+            onPressed: () => ref.read(modeHostProvider.notifier).start(),
           ),
         ),
       ),
@@ -205,8 +135,8 @@ class MobileDiscoverPage extends ConsumerWidget {
   }
 }
 
-class _OnlineUnconfigured extends StatelessWidget {
-  const _OnlineUnconfigured({required this.bottomInset});
+class _OnlineModeUnavailable extends StatelessWidget {
+  const _OnlineModeUnavailable({required this.bottomInset});
 
   final double bottomInset;
 
@@ -216,16 +146,16 @@ class _OnlineUnconfigured extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.only(bottom: bottomInset),
         child: AppEmptyState(
-          title: '还没有配置在线音源',
-          message: '填写 go-music-api 服务地址后，这里会显示推荐歌单、排行榜和热门歌曲。',
+          title: '当前模式不使用在线音源',
+          message: '本地 / Subsonic 模式不启动在线 sidecar。切换到 QQ 或网易云后，这里会显示推荐、榜单和热门。',
           icon: M3EIcons.cloud_off,
           action: M3EButton(
             style: M3EButtonStyle.filled,
-            label: const Text('去配置'),
+            label: const Text('切换模式'),
             onPressed: () => pushMobileRootPage(
               context,
-              const MobileOnlineMusicSettingsPage(),
-              name: MobileRoutes.onlineMusicSettings,
+              const MobileModeSettingsPage(),
+              name: MobileRoutes.modeSettings,
             ),
           ),
         ),
