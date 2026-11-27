@@ -105,8 +105,18 @@ dependencies {
 // 不可用，必须用 NDK clang + CGO 构建 PIE。
 val repoRoot = rootProject.projectDir.parentFile.parentFile
 val musicApiHostDir = File(repoRoot, "laetibeat_musicapi_host")
-val musicApiJniDir = file("src/main/jniLibs/arm64-v8a")
-val musicApiHostSo = File(musicApiJniDir, "liblaetibeat_musicapi_host.so")
+data class MusicApiAbi(
+    val abi: String,
+    val goArch: String,
+    val goArm: String?,
+    val clang: String,
+)
+
+val musicApiAbis = listOf(
+    MusicApiAbi("arm64-v8a", "arm64", null, "aarch64-linux-android24-clang"),
+    MusicApiAbi("armeabi-v7a", "arm", "7", "armv7a-linux-androideabi24-clang"),
+    MusicApiAbi("x86_64", "amd64", null, "x86_64-linux-android24-clang"),
+)
 
 fun androidNdkHostTag(): String {
     val os = System.getProperty("os.name").lowercase()
@@ -117,47 +127,57 @@ fun androidNdkHostTag(): String {
     }
 }
 
-val buildMusicApiHost by tasks.registering(Exec::class) {
-    group = "flutter"
-    description = "Build embedded go-music-api host for Android arm64"
-    workingDir = musicApiHostDir
-    val clang = File(
-        android.sdkDirectory,
-        "ndk/${flutter.ndkVersion}/toolchains/llvm/prebuilt/" +
-            "${androidNdkHostTag()}/bin/aarch64-linux-android24-clang",
-    )
-    doFirst {
-        if (!clang.exists()) {
-            throw GradleException("找不到 Android NDK clang：${clang.absolutePath}")
+val musicApiHostTasks = musicApiAbis.map { target ->
+    val jniDir = file("src/main/jniLibs/${target.abi}")
+    val output = File(jniDir, "liblaetibeat_musicapi_host.so")
+    val taskName =
+        "buildMusicApiHost" +
+            target.abi.split('-', '_').joinToString("") { part ->
+                part.replaceFirstChar { it.uppercase() }
+            }
+    tasks.register<Exec>(taskName) {
+        group = "flutter"
+        description = "Build embedded go-music-api host for Android ${target.abi}"
+        workingDir = musicApiHostDir
+        val clangFile = File(
+            android.sdkDirectory,
+            "ndk/${flutter.ndkVersion}/toolchains/llvm/prebuilt/" +
+                "${androidNdkHostTag()}/bin/${target.clang}",
+        )
+        doFirst {
+            if (!clangFile.exists()) {
+                throw GradleException("找不到 Android NDK clang：${clangFile.absolutePath}")
+            }
+            jniDir.mkdirs()
         }
-        musicApiJniDir.mkdirs()
+        environment("CGO_ENABLED", "1")
+        environment("GOOS", "android")
+        environment("GOARCH", target.goArch)
+        target.goArm?.let { environment("GOARM", it) }
+        environment("CC", clangFile.absolutePath)
+        commandLine(
+            "go",
+            "build",
+            "-buildmode=pie",
+            "-trimpath",
+            "-ldflags",
+            "-s -w",
+            "-o",
+            output.absolutePath,
+            ".",
+        )
+        inputs.files(
+            fileTree(musicApiHostDir) {
+                include("**/*.go", "go.mod", "go.sum")
+                exclude("build/**", "bin/**")
+            },
+        )
+        outputs.file(output)
     }
-    environment("CGO_ENABLED", "1")
-    environment("GOOS", "android")
-    environment("GOARCH", "arm64")
-    environment("CC", clang.absolutePath)
-    commandLine(
-        "go",
-        "build",
-        "-buildmode=pie",
-        "-trimpath",
-        "-ldflags",
-        "-s -w",
-        "-o",
-        musicApiHostSo.absolutePath,
-        ".",
-    )
-    inputs.files(
-        fileTree(musicApiHostDir) {
-            include("**/*.go", "go.mod", "go.sum")
-            exclude("build/**", "bin/**")
-        },
-    )
-    outputs.file(musicApiHostSo)
 }
 
 tasks.named("preBuild").configure {
-    dependsOn(buildMusicApiHost)
+    dependsOn(musicApiHostTasks)
 }
 
 val requestedReleaseBuild = gradle.startParameter.taskNames.any {

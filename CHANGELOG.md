@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Added
+
+- 内置 go-music-api host：Android arm64/armv7/x86_64 与 Linux x64 随 App 分发，无需额外部署。
+- 网易云 / QQ 统一在线音源：搜索、歌单、专辑、榜单、热门、播放、LRC。
+- 网易云 / QQ / 微信扫码登录、账号状态、退出登录与「我的歌单」。
+- 发现页平台切换、推荐歌单、排行榜、热门歌曲。
+- 在线音频 HTTPS-only 本机转发器与 LX fallback。
+
+### Changed
+
+- 移除旧网易云 Node API 客户端、页面、Cookie 存储与兼容层。
+- 在线音源设置支持「内置服务 / 远程服务」两种模式。
+- 网易云搜索改用 go-music-api 的 weapi 实现（music-lib 本地补丁）。
+
+### Security
+
+- 远程 host 强制 HTTPS + Bearer token；本机 host 仅绑定 loopback。
+- 屏蔽封面代理、Cookie 明文接口、Swagger 与旧 `/music/*` 路由。
+- 内置 host 使用随机端口 / 随机 token，并在 App 退出后自动清理。
+
 ## [1.0.1] - 2026-11-27
 
 ### Security

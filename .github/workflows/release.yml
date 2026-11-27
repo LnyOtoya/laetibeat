@@ -100,6 +100,16 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache-dependency-path: laetibeat_musicapi_host/go.sum
+
+      - name: Go test
+        working-directory: laetibeat_musicapi_host
+        run: go test ./...
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
@@ -173,7 +183,14 @@ jobs:
             "release-assets/laetibeat-${version}-armeabi-v7a.apk"
           cp "build/app/outputs/flutter-apk/app-x86_64-release.apk" \
             "release-assets/laetibeat-${version}-x86_64.apk"
-          sha256sum release-assets/*.apk > release-assets/SHA256SUMS.txt
+          cp ../LICENSE release-assets/LICENSE-MIT
+          cp ../THIRD_PARTY_NOTICES.md release-assets/THIRD_PARTY_NOTICES.md
+          cp ../laetibeat_musicapi_host/LICENSE \
+            release-assets/LICENSE-AGPL-3.0-go-music-api
+          cp ../laetibeat_musicapi_host/third_party/music-lib/LICENSE \
+            release-assets/LICENSE-AGPL-3.0-music-lib
+          sha256sum release-assets/*.apk release-assets/LICENSE-* \
+            release-assets/THIRD_PARTY_NOTICES.md > release-assets/SHA256SUMS.txt
           ls -lh release-assets
 
       - name: Extract release notes
@@ -222,9 +239,6 @@ jobs:
           body_path: release-notes.md
           fail_on_unmatched_files: true
           files: |
-            laetibeat_flutter/release-assets/*.apk
-            laetibeat_flutter/release-assets/SHA256SUMS.txt
-            LICENSE
-            THIRD_PARTY_NOTICES.md
+            laetibeat_flutter/release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

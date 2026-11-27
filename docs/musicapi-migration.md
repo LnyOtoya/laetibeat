@@ -1,7 +1,7 @@
 # Laetibeat 在线音源迁移设计（最终方案）
 
 > 最后更新：2026-11-27
-> 决策：旧网易云 Node API 已从 `main` 删除；**不做 overlay / 兼容层**；网易云和 QQ 统一走 `go-music-api`；host 随 App 内置，不再需要 NAS/Docker；发现页暂时保留空壳。
+> 决策：旧网易云 Node API 已从 `main` 删除；**不做 overlay / 兼容层**；网易云和 QQ 统一走 `go-music-api`；host 随 App 内置，不再需要 NAS/Docker；发现页已接入网易云/QQ 平台切换。
 > 旧实现完整保存在 `api` 分支；本文档只描述 `main` 的目标方案。
 
 ---
@@ -15,7 +15,7 @@
 | QQ 数据来源 | 同上 |
 | 其他平台 | 暂不做，后续按同一套接口扩展 |
 | 部署形态 | App 内置 Go host，跑在 `127.0.0.1`；NAS/Docker 仅作为可选远程模式 |
-| 发现页 | 当前保留 UI 空壳；后续 AppBar 图标 + 弹窗切平台，展示两平台通用 section |
+| 发现页 | AppBar 图标 + 弹窗切平台；推荐歌单 / 排行榜 / 热门 / 我的歌单 |
 | 洛雪 LX | 保留，作为用户可选的 fallback 解析器 |
 | 许可证 | host 模块 AGPL-3.0；Flutter/Rust 主应用保持 MIT |
 
@@ -27,14 +27,14 @@
 
 - 删除 `laetibeat_netease` crate、FRB `api/netease.rs`、生成绑定。
 - 删除网易云页面、provider、设置、Cookie 存储、封面缓存、HTTPS 代理。
-- 删除发现页的网易云六卡与动态区块，只保留 UI 骨架（卡片占位 + 推荐占位 + “在线音源正在接入中”）。
-- 删除搜索页网易云筛选与结果、媒体库在线分组、设置页在线音乐入口。
+- 清理时删除发现页的网易云六卡与动态区块，只保留 UI 骨架；M2 已重新接入平台切换与通用 section。
+- 清理时删除搜索页网易云筛选与结果、媒体库在线分组、设置页在线音乐入口；M1 已重新接入网易云/QQ 搜索与设置。
 - `flutter analyze`：0 error；`flutter test`：14 passed；`cargo test --workspace`：通过。
 - 旧实现保存在 `api` 分支。
 - M1 已完成：Rust 客户端、设置页、搜索/播放/歌词、music-lib 网易云搜索修复。
 - M2 已完成：发现页 AppBar 平台选择、推荐歌单/排行榜/热门歌曲、平台持久化。
 - M3 已完成：网易云 / QQ / 微信扫码登录、host `cookies.json`、账号状态与退出、发现页「我的歌单」。
-- M4 已完成：Android arm64 / Linux x64 内置 host、自动启动/健康检查/异常重启/父进程退出清理、内置/远程模式切换。
+- M4 已完成：Android arm64/armv7/x86_64、Linux x64 内置 host；自动启动/健康检查/异常重启/父进程退出清理；内置/远程模式切换。
 
 Android 真机已验证：内置 host 启动、DNS、网易云/QQ 搜索、发现页内容、播放、kill 后自动重启、force-stop 后 host 退出。
 
@@ -44,30 +44,35 @@ Android 真机已验证：内置 host 启动、DNS、网易云/QQ 搜索、发�
 
 ```text
 Flutter UI
-  ├─ 发现页（UI 骨架，后续 AppBar 平台选择）
-  ├─ 搜索/媒体库（后续接入在线结果）
+  ├─ 发现页（网易云 / QQ 平台切换、推荐/榜单/热门/我的歌单）
+  ├─ 搜索（本地 / Subsonic / LX / 网易云 / QQ）
   └─ 播放器（本地 / Subsonic / LX / 在线）
         │ FRB
 Rust laetibeat_online
   ├─ http.rs        HTTPS-only 客户端 + redirect policy
   ├─ musicapi.rs    /api/v1/* 统一客户端
-  ├─ dto.rs         UiTrack / UiPlaylist / ResolvedAudio
+  ├─ model.rs       DTO / UiTrack / UiPlaylist / ResolvedAudio
   └─ error.rs       类型化错误
         │ HTTP（内置 loopback / 远程 HTTPS）
 laetibeat_musicapi_host（Go，AGPL-3.0）
   ├─ main.go        listen / token / data dir
-  ├─ bearer.go      Bearer 鉴权 + 路由屏蔽
+  ├─ security.go    Bearer 鉴权 + 路由屏蔽
+  ├─ system.go      平台登录状态 / 退出
   └─ go-music-api   router.SetupRouter()
         └─ music-lib（网易云 / QQ / ...）
 ```
 
 **没有 overlay，没有网易云专用 Go 路由，没有旧 Node API 形状。**
 
+例外：上游 `music-lib` 的网易云搜索 `linux/forward` 已返回 502，因此在
+`laetibeat_musicapi_host/third_party/music-lib` 中保留了**单函数 weapi 补丁**。
+这不是 overlay；上游修复后删除该目录和 `replace` 即可。
+
 ---
 
 ## 3. Host 设计
 
-### 3.1 零 fork
+### 3.1 go-music-api 零 fork（music-lib 搜索补丁）
 
 ```go
 import (
@@ -440,23 +445,23 @@ QQ 的 `extra` 只有 `songmid` 和 `song_id`；先按 `songmid` 尝试 LX `tx`�
 
 ### M4：内置打包（已完成）
 
-- [x] Android arm64 jniLibs + `extractNativeLibs` + `useLegacyPackaging`
+- [x] Android arm64/armv7/x86_64 jniLibs + `extractNativeLibs` + `useLegacyPackaging`
 - [x] Gradle 自动调用 NDK clang + CGO 构建 host
 - [x] Linux CMake 自动构建并安装 host 到 bundle/lib
 - [x] Dart 进程管理：随机端口/token、读 listen 行、健康检查、异常重启、父进程退出清理
 - [x] 内置/远程模式切换与运行时地址覆盖
 - [x] Android 真机验证 DNS、搜索、发现页、播放、kill 重启、force-stop 清理
 - [x] Linux bundle host 二进制启动与健康检查
-- **验收**：Android arm64 / Linux x64 无需 NAS/Docker 可完整使用。
-- 备注：当前 Gradle 只构建 arm64 host；armv7/x86_64 设备请用远程模式。
+- **验收**：Android arm64/armv7/x86_64、Linux x64 无需 NAS/Docker 可完整使用。
 
-### M5：清理与合规
+### M5：清理与合规（已完成）
 
-- [ ] 移除远程/内置之外不再需要的兼容代码
-- [ ] 更新 `PLAN.md` / `TODO.md` / `ARCHITECTURE.md`
-- [ ] `THIRD_PARTY_NOTICES.md` 增加 go-music-api / music-lib
-- [ ] 关于页增加 AGPL 源码链接
-- [ ] CI 构建 host 矩阵
+- [x] 移除远程/内置之外不再需要的兼容代码（旧 Node API 已在 M0 前清理）
+- [x] 更新 `PLAN.md` / `TODO.md` / 新增 `ARCHITECTURE.md`
+- [x] `THIRD_PARTY_NOTICES.md` 增加 go-music-api / music-lib / qr_flutter
+- [x] 关于页增加「在线音源源码」入口与 LicenseRegistry AGPL 条目
+- [x] CI host 矩阵：Linux amd64/arm64 + Android arm64/armv7/x86_64
+- [ ] 首次 GitHub Actions 运行验证
 
 ---
 

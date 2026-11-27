@@ -1,8 +1,10 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../app/source_links.dart';
 import 'app_info_provider.dart';
 import 'settings_pane.dart';
 
@@ -38,6 +40,12 @@ class AboutSettings extends ConsumerWidget {
             applicationVersion: version.value ?? '',
           ),
         ),
+        //AGPL 源码入口
+        M3EListItem(
+          headline: '在线音源源码',
+          supportingText: 'go-music-api / music-lib · AGPL-3.0',
+          onTap: () => _showSourceDialog(context),
+        ),
         //检查更新
         M3EListItem(
           headline: '检查更新',
@@ -54,6 +62,43 @@ class AboutSettings extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _showSourceDialog(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('在线音源源码'),
+          content: const SingleChildScrollView(
+            child: SelectableText(
+              'Laetibeat（含 host 包装与 music-lib 本地补丁）\n'
+              '$laetibeatSourceUrl\n\n'
+              'go-music-api\n$goMusicApiSourceUrl\n\n'
+              'music-lib\n$musicLibSourceUrl\n\n'
+              '内置 host 以 AGPL-3.0 分发；完整许可文本见「开源许可」。',
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('关闭'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await Clipboard.setData(
+                  const ClipboardData(text: laetibeatSourceUrl),
+                );
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+              child: const Text('复制项目链接'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

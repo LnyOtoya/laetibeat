@@ -38,6 +38,8 @@ texts should be retained when distributing binaries.
 | file_picker | MIT | https://pub.dev/packages/file_picker |
 | saf | MIT | https://pub.dev/packages/saf |
 | package_info_plus | BSD-3-Clause | https://pub.dev/packages/package_info_plus |
+| qr_flutter | BSD-3-Clause | https://pub.dev/packages/qr_flutter |
+| qr | BSD-3-Clause | https://pub.dev/packages/qr |
 
 ## Rust dependencies
 
@@ -56,6 +58,28 @@ texts should be retained when distributing binaries.
 | base64 | MIT OR Apache-2.0 | https://crates.io/crates/base64 |
 | flutter_rust_bridge | MIT | https://crates.io/crates/flutter_rust_bridge |
 | allo-isolate | Apache-2.0 | https://crates.io/crates/allo-isolate |
+
+## Bundled Go host (AGPL-3.0)
+
+Laetibeat bundles a separately running Go host for online music sources:
+
+| Component | License | Upstream |
+| --- | --- | --- |
+| go-music-api | AGPL-3.0 | https://github.com/guohuiyuan/go-music-api |
+| music-lib (locally patched copy) | AGPL-3.0 | https://github.com/guohuiyuan/music-lib |
+
+- The host is built from `laetibeat_musicapi_host/` and distributed as a
+  separate executable inside the Android APK / Linux bundle.
+- `laetibeat_musicapi_host/third_party/music-lib/` contains the pinned source
+  copy and its local patch (`PATCH.md`); its `LICENSE` file is included.
+- The host communicates with the Flutter app over a loopback HTTP API. It is
+  not linked into the Flutter/Dart process.
+- AGPL-3.0 source for the bundled versions:
+  - https://github.com/LnyOtoya/laetibeat
+  - https://github.com/guohuiyuan/go-music-api
+  - https://github.com/guohuiyuan/music-lib
+- The same source URLs are shown in the app under
+  **设置 → 关于 → 在线音源源码** and in the license page.
 
 ## Native and platform components
 
@@ -81,6 +105,6 @@ redistributing the fonts.
 ## In-app notices
 
 The app's **设置 → 关于 → 开源许可** entry shows license texts registered by
-Flutter and its Dart packages. Rust crates and native components are listed in
-this file; a future in-app third-party notices page will include their full
-texts.
+Flutter, Dart packages, and the bundled go-music-api / music-lib AGPL notice.
+**设置 → 关于 → 在线音源源码** shows the corresponding source URLs. Rust
+crates and native components are listed in this file.

@@ -1,15 +1,28 @@
 # Laetibeat 项目蓝图
 
 > 最后更新：2026-11-27
-> 当前阶段：Flutter 主线继续。网易云在线媒体库已接入搜索、用户收藏、艺人/专辑详情及歌单；2026-11-27 完成网易云音源 HTTPS-only 播放转发，并在 Pixel 7 Debug 上确认试听流经 HTTPS CDN 返回 200。接下来先补发布基础（正式签名、GitHub Actions、Release 更新检查），再按下方顺序推进。本文件记录实现状态与后续真机验证。
+> 当前阶段：在线音源迁移 M0–M4 完成。网易云 / QQ 通过内置 `go-music-api` host 接入；Android arm64/armv7/x86_64 与 Linux x64 均已打包 host。当前进入 M5（清理、文档、AGPL、CI 矩阵）。
+>
+> **重要**：本文件下方涉及「网易云 Node API」「`laetibeat_netease`」「网易云 Provider」的条目是历史记录；`main` 已移除旧实现，请以 `docs/musicapi-migration.md` 与 `PLAN.md` 为准。
+
+## 2026-11-27 在线音源迁移（已完成）
+
+- 架构：Flutter → Rust `laetibeat_online` → 内置/远程 `laetibeat_musicapi_host` → go-music-api + music-lib
+- 支持平台：网易云、QQ（搜索、歌单、专辑、榜单、热门、播放、LRC、扫码登录、我的歌单）
+- 内置模式：Android / Linux 自动启动 Go host，随机 loopback 端口 + Token；异常重启；父进程退出清理
+- 远程模式：HTTPS + Bearer token；loopback 例外
+- 网易云搜索：music-lib 本地单函数 fork（linux/forward 已 502，改 weapi）
+- 播放：在线直链经 HTTPS-only 本机转发器；支持 LX fallback
+- 文档：`docs/musicapi-migration.md`（设计/验收）、`PLAN.md`（当前计划）、`THIRD_PARTY_NOTICES.md`（AGPL）
+- 旧网易云 Node API 实现保留在 `api` 分支，不再维护
 
 ## 当前状态速览
 
 - 本地音乐：扫描、增量复用、专辑/艺术家聚合、播放、封面、歌词、统计、推荐
 - Navidrome：单服务端配置、手动同步、SQLite 快照、浏览/搜索/播放、封面/歌词、scrobble
-- 缓存：本地封面按需读取；远端与网易云封面内存 + 磁盘 LRU；歌词 SQLite 正负缓存；LX 歌词 SQLite 正缓存 + 封面磁盘 LRU；移动端缓存管理支持总上限滑块、分源明细与一键释放空间；「为你发现」按天写入 SQLite 缓存（`discovery_cache`），打开优先读缓存
+- 缓存：本地封面按需读取；远端封面内存 + 磁盘 LRU；在线音源封面当前直连 HTTPS；歌词 SQLite 正负缓存；LX 歌词 SQLite 正缓存 + 封面磁盘 LRU；移动端缓存管理支持总上限滑块、分源明细与一键释放空间；「为你发现」按天写入 SQLite 缓存（`discovery_cache`），打开优先读缓存
 - 移动端：音乐库/搜索/设置/播放页/迷你播放器已完成；首页现为「最新发行」轮播、「为你发现」、「最近加入」、「重拾旧爱」；`mobile_welcome_section` / `mobile_daily_section` 仍未接入，属于待清理旧组件
-- 移动端导航：底部 tab 为 首页 / 发现 / 媒体库 / 统计；设置入口移至首页 AppBar 折叠态；发现页目前只有空状态占位
+- 移动端导航：底部 tab 为 首页 / 发现 / 媒体库 / 统计；设置入口移至首页 AppBar 折叠态；发现页已接入网易云/QQ 平台切换、推荐歌单、排行榜、热门歌曲、我的歌单
 - 移动端设置：入口页已迁移到 `m3e_core.M3ESegmentedColumn`；具体设置子页尚未统一迁移
 - 移动端 OpenSubsonic：连接、测试、扫描、歌单、艺术家简介、专辑/曲目浏览已接入真实数据；「为你发现」使用最近聆听艺术家的 `getSimilarSongs2`
 - 音效：移动端已接入系统 5 段均衡器、淡入淡出；配置音源后自动切换默认歌曲来源
@@ -21,8 +34,8 @@
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 - 设计系统：新增 `lib/design/`（颜色/字体/间距/圆角/尺寸/动效/断点 token、Material You 官方取色、`AppArtwork` / `AppText` / `AppMediaRow` 等基础组件）；页面级左右 gutter 统一为 `AppLayout.pageGutter` + `AppPageBody`；具体页面尚未全部迁移
 - 新 UI 方向：继续 Flutter；`m3e_core` / `material_3_expressive` 只作组件库；Shell、路由、主题与取色自管；MiniPlayer + NavBar 为悬浮 BottomOverlay；Full Player 为 Root Navigator Route（2026-11-23 定稿；2026-11-24 导航内容有调整，见下方校正）
-- 发布工程：尚无正式签名、CI workflow、tag/Release；更新按钮与 GitHub Release 更新链路列入新优先级，见下方「2026-11-26 发布基础与更新链路」。
-- 多音源：网易云 Node API Provider + 洛雪 `wy` 后备已实现；网易云播放音源单独强制 HTTPS，计划和剩余验证见 `PLAN.md`
+- 发布工程：正式签名、CI/Release workflow 已配置；首个 tag/Release 与 App 内更新检查仍待完成，见下方「2026-11-26 发布基础与更新链路」。
+- 在线音源：内置 go-music-api host（网易云/QQ）+ 洛雪后备；旧 Node API Provider 已移除，见 `docs/musicapi-migration.md`
 
 ## 2026-11-26 发布基础与更新链路（新优先级）
 

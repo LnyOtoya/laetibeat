@@ -29,10 +29,12 @@ import '../widgets/settings/subsonic_provider.dart';
 import 'app.dart';
 import 'app_form_factor.dart';
 import 'app_locale.dart';
+import 'source_links.dart';
 
 /// 应用启动装配层：平台判断、平台服务选择、全局初始化都在这里完成。
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _registerEmbeddedLicenses();
 
   final formFactor = detectAppFormFactor();
 
@@ -164,6 +166,15 @@ Future<void> bootstrap() async {
   // 预热洛雪运行时：源脚本初始化可能要十几秒（QuickJS + 脚本自检），
   // 放在后台跑，用户进搜索页时通常已经就绪，不必再等。
   unawaited(_prewarmLxRuntime(container));
+}
+
+void _registerEmbeddedLicenses() {
+  LicenseRegistry.addLicense(() async* {
+    yield const LicenseEntryWithLineBreaks(<String>[
+      'go-music-api',
+      'music-lib',
+    ], embeddedMusicApiLicenseNotice);
+  });
 }
 
 Future<void> _prewarmLxRuntime(ProviderContainer container) async {
