@@ -14,7 +14,7 @@ enum DiscoverPlatform {
   final String id;
   final String label;
 
-  /// go-music-api 的 source 名称。
+  /// 在线音源的 source 名称。
   String get source => id;
 
   static DiscoverPlatform fromId(String? id) {

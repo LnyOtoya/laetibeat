@@ -59,27 +59,24 @@ texts should be retained when distributing binaries.
 | flutter_rust_bridge | MIT | https://crates.io/crates/flutter_rust_bridge |
 | allo-isolate | Apache-2.0 | https://crates.io/crates/allo-isolate |
 
-## Bundled Go host (AGPL-3.0)
-
-Laetibeat bundles a separately running Go host for online music sources:
+## Bundled native online hosts
 
 | Component | License | Upstream |
 | --- | --- | --- |
-| go-music-api | AGPL-3.0 | https://github.com/guohuiyuan/go-music-api |
-| music-lib (locally patched copy) | AGPL-3.0 | https://github.com/guohuiyuan/music-lib |
+| laetibeat_qq_host | GPL-3.0-only | https://github.com/LnyOtoya/laetibeat |
+| QQMusicApi-rs | GPL-3.0-only | https://github.com/jinzhongjia/QQMusicApi-rs |
+| laetibeat_netease_host | MIT | https://github.com/LnyOtoya/laetibeat |
+| ncm-api-rs | WTFPL | https://github.com/SPlayer-Dev/ncm-api-rs |
 
-- The host is built from `laetibeat_musicapi_host/` and distributed as a
-  separate executable inside the Android APK / Linux bundle.
-- `laetibeat_musicapi_host/third_party/music-lib/` contains the pinned source
-  copy and its local patch (`PATCH.md`); its `LICENSE` file is included.
-- The host communicates with the Flutter app over a loopback HTTP API. It is
-  not linked into the Flutter/Dart process.
-- AGPL-3.0 source for the bundled versions:
-  - https://github.com/LnyOtoya/laetibeat
-  - https://github.com/guohuiyuan/go-music-api
-  - https://github.com/guohuiyuan/music-lib
-- The same source URLs are shown in the app under
-  **设置 → 关于 → 在线音源源码** and in the license page.
+- Both hosts run as separate executables inside the Android APK / Linux bundle
+  and communicate over loopback HTTP; they are not linked into the Flutter/Dart
+  process.
+- `laetibeat_qq_host/LICENSE` (GPL-3.0) and
+  `laetibeat_netease_host/LICENSE` / `LICENSE-WTFPL` are included in release
+  assets.
+- Source URLs are shown in the app under **设置 → 关于 → 在线音源源码**.
+- The former Go host (`go-music-api` / `music-lib`) is no longer bundled on
+  the native branch; it remains only on the `gomusic` branch.
 
 ## Native and platform components
 
@@ -105,6 +102,6 @@ redistributing the fonts.
 ## In-app notices
 
 The app's **设置 → 关于 → 开源许可** entry shows license texts registered by
-Flutter, Dart packages, and the bundled go-music-api / music-lib AGPL notice.
+Flutter, Dart packages, and the bundled native online host notices.
 **设置 → 关于 → 在线音源源码** shows the corresponding source URLs. Rust
 crates and native components are listed in this file.

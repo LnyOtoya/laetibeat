@@ -4,7 +4,9 @@ on:
   push:
     branches:
       - main
+      - native
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -74,32 +76,26 @@ jobs:
 
   host:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          go-version: "1.25.x"
-          cache-dependency-path: laetibeat_musicapi_host/go.sum
+          toolchain: "1.99.0"
+          targets: "aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android"
 
-      - name: Go test
-        working-directory: laetibeat_musicapi_host
-        run: go test ./...
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
 
-      - name: Build Linux host matrix
-        working-directory: laetibeat_musicapi_host
+      - name: Build Linux Rust online hosts
         run: |
           set -euo pipefail
-          for arch in amd64 arm64; do
-            CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" \
-              go build -trimpath -ldflags "-s -w" \
-              -o "/tmp/laetibeat_musicapi_host-linux-${arch}" .
-            file "/tmp/laetibeat_musicapi_host-linux-${arch}"
-          done
+          cargo build --release -p laetibeat_qq_host -p laetibeat_netease_host
+          file target/release/laetibeat_qq_host target/release/laetibeat_netease_host
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
@@ -111,18 +107,20 @@ jobs:
           yes | sdkmanager --licenses > /dev/null
           sdkmanager "ndk;28.2.13676358"
 
-      - name: Build Android host matrix
-        working-directory: laetibeat_musicapi_host
+      - name: Build Android Rust online host matrix
         run: |
           set -euo pipefail
           NDK="${ANDROID_HOME}/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          CGO_ENABLED=1 GOOS=android GOARCH=arm64 CC="${NDK}/aarch64-linux-android24-clang" \
-            go build -buildmode=pie -trimpath -ldflags "-s -w" \
-            -o /tmp/laetibeat_musicapi_host-android-arm64 .
-          CGO_ENABLED=1 GOOS=android GOARCH=arm GOARM=7 CC="${NDK}/armv7a-linux-androideabi24-clang" \
-            go build -buildmode=pie -trimpath -ldflags "-s -w" \
-            -o /tmp/laetibeat_musicapi_host-android-armv7 .
-          CGO_ENABLED=1 GOOS=android GOARCH=amd64 CC="${NDK}/x86_64-linux-android24-clang" \
-            go build -buildmode=pie -trimpath -ldflags "-s -w" \
-            -o /tmp/laetibeat_musicapi_host-android-x86_64 .
-          file /tmp/laetibeat_musicapi_host-android-*
+          for spec in \
+            "aarch64-linux-android:aarch64_linux_android:aarch64-linux-android24-clang:16384" \
+            "armv7-linux-androideabi:armv7_linux_androideabi:armv7a-linux-androideabi24-clang:4096" \
+            "x86_64-linux-android:x86_64_linux_android:x86_64-linux-android24-clang:16384"; do
+            IFS=: read -r target env_suffix clang page_size <<< "${spec}"
+            export "CC_${env_suffix}=${NDK}/${clang}"
+            export "AR_${env_suffix}=${NDK}/llvm-ar"
+            export "RANLIB_${env_suffix}=${NDK}/llvm-ranlib"
+            export "CARGO_TARGET_$(echo "${target}" | tr '[:lower:]-' '[:upper:]_')_LINKER=${NDK}/${clang}"
+            RUSTFLAGS="-C strip=symbols -C link-arg=-Wl,-z,max-page-size=${page_size}" \
+              cargo build --release -p laetibeat_qq_host -p laetibeat_netease_host --target "${target}"
+          done
+          file target/*/release/laetibeat_qq_host target/*/release/laetibeat_netease_host

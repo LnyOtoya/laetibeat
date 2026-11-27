@@ -2,7 +2,7 @@
 name = "laetibeat_online"
 version = "0.1.0"
 edition = "2021"
-description = "go-music-api online provider client for Laetibeat"
+description = "unified online host client for Laetibeat"
 license = "MIT"
 
 [dependencies]

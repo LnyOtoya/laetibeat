@@ -308,6 +308,81 @@ mod tests {
         assert_eq!(client.instance_id(), "musicapi:http://127.0.0.1:8080");
     }
 
+    /// 本地联调 native sidecar：
+    /// `LAETIBEAT_MUSICAPI_BASE_URL=http://127.0.0.1:PORT \
+    ///  LAETIBEAT_MUSICAPI_TOKEN=secret LAETIBEAT_MUSICAPI_SOURCE=qq \
+    ///  cargo test -p laetibeat_online native_mode_probe -- --ignored`
+    #[test]
+    #[ignore]
+    fn native_mode_probe() {
+        let base_url =
+            std::env::var("LAETIBEAT_MUSICAPI_BASE_URL").expect("set LAETIBEAT_MUSICAPI_BASE_URL");
+        let token = std::env::var("LAETIBEAT_MUSICAPI_TOKEN").ok();
+        let source =
+            std::env::var("LAETIBEAT_MUSICAPI_SOURCE").expect("set LAETIBEAT_MUSICAPI_SOURCE");
+        let client = OnlineClient::new(&base_url, token.as_deref()).unwrap();
+        client.health().unwrap();
+
+        let songs = client.search_songs(&source, "稻香", 10, 0).unwrap();
+        assert!(!songs.is_empty(), "{source} search returned no songs");
+        assert!(songs[0].ui_id().starts_with(&format!("{source}:")));
+        println!(
+            "songs: {} first={} / {}",
+            songs.len(),
+            songs[0].title,
+            songs[0].artist
+        );
+
+        let lyric = client.lyric(&source, &songs[0].platform_id).unwrap();
+        assert!(!lyric.lyric.is_empty(), "{source} lyric empty");
+        println!("lyric: {} bytes", lyric.lyric.len());
+
+        let playlists = client.recommend_playlists(&source).unwrap();
+        assert!(!playlists.is_empty(), "{source} recommend playlists empty");
+        println!("recommend: {} first={}", playlists.len(), playlists[0].name);
+        let playlist_songs = client.playlist_tracks(&source, &playlists[0].id).unwrap();
+        assert!(!playlist_songs.is_empty(), "{source} playlist tracks empty");
+        println!("playlist tracks: {}", playlist_songs.len());
+
+        let top_lists = client.top_lists(&source).unwrap();
+        assert!(!top_lists.is_empty(), "{source} top lists empty");
+        println!("toplists: {} first={}", top_lists.len(), top_lists[0].name);
+        let top_songs = client.top_list_songs(&source, &top_lists[0].id).unwrap();
+        assert!(!top_songs.is_empty(), "{source} top list songs empty");
+        println!("top songs: {}", top_songs.len());
+
+        let hot = client.hot_songs(&source, 5).unwrap();
+        assert!(!hot.is_empty(), "{source} hot songs empty");
+        println!("hot: {} first={}", hot.len(), hot[0].title);
+
+        let albums = client.search_albums(&source, "稻香", 3, 0).unwrap();
+        if let Some(album) = albums.first() {
+            let album_songs = client.album_tracks(&source, &album.id).unwrap();
+            assert!(!album_songs.is_empty(), "{source} album tracks empty");
+            println!("album tracks: {}", album_songs.len());
+        }
+
+        if let Ok(song_id) = std::env::var("LAETIBEAT_MUSICAPI_PROBE_SONG_ID") {
+            let audio = client.resolve_audio(&source, &song_id, "standard").unwrap();
+            assert!(!audio.url.is_empty());
+            println!("audio: {} {}", audio.quality, audio.ext);
+        }
+
+        let statuses = client.platform_statuses().unwrap();
+        assert!(statuses.iter().any(|status| status.source == source));
+        let qr = client.qr_login_create(&source).unwrap();
+        assert!(!qr.key.is_empty(), "{source} QR key empty");
+        println!(
+            "qr: key={} url={} image={}",
+            qr.key.len(),
+            qr.url.len(),
+            qr.image_url.len()
+        );
+        let qr_status = client.qr_login_check(&source, &qr.key).unwrap();
+        assert!(!qr_status.status.is_empty());
+        println!("qr status: {}", qr_status.status);
+    }
+
     /// 本地联调：
     /// `LAETIBEAT_MUSICAPI_BASE_URL=http://127.0.0.1:PORT \
     ///  LAETIBEAT_MUSICAPI_TOKEN=secret \
@@ -328,7 +403,7 @@ mod tests {
         let netease_songs = client.search_songs("netease", "稻香", 10, 0).unwrap();
         assert!(
             !netease_songs.is_empty(),
-            "NetEase search returned no songs (music-lib patch missing?)"
+            "NetEase search returned no songs"
         );
         assert!(netease_songs[0].ui_id().starts_with("netease:"));
         if let Some(cover) = &netease_songs[0].cover_url {

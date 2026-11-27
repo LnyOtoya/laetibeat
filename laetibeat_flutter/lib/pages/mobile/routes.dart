@@ -24,6 +24,7 @@ abstract final class MobileRoutes {
   static const String audioSettings = '/settings/audio';
   static const String contentSettings = '/settings/content';
   static const String onlineMusicSettings = '/settings/online-music';
+  static const String modeSettings = '/settings/mode';
   static const String musicSources = '/settings/music-sources';
   static const String opensubsonicConfig =
       '/settings/music-sources/opensubsonic';

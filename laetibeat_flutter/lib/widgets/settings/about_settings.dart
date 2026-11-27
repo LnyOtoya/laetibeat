@@ -43,7 +43,7 @@ class AboutSettings extends ConsumerWidget {
         //AGPL 源码入口
         M3EListItem(
           headline: '在线音源源码',
-          supportingText: 'go-music-api / music-lib · AGPL-3.0',
+          supportingText: 'QQMusicApi-rs · GPL-3.0 / ncm-api-rs · WTFPL',
           onTap: () => _showSourceDialog(context),
         ),
         //检查更新
@@ -73,11 +73,12 @@ class AboutSettings extends ConsumerWidget {
           title: const Text('在线音源源码'),
           content: const SingleChildScrollView(
             child: SelectableText(
-              'Laetibeat（含 host 包装与 music-lib 本地补丁）\n'
+              'Laetibeat\n'
               '$laetibeatSourceUrl\n\n'
-              'go-music-api\n$goMusicApiSourceUrl\n\n'
-              'music-lib\n$musicLibSourceUrl\n\n'
-              '内置 host 以 AGPL-3.0 分发；完整许可文本见「开源许可」。',
+              'QQMusicApi-rs\n$qqMusicApiSourceUrl\n\n'
+              'ncm-api-rs\n$ncmApiSourceUrl\n\n'
+              'laetibeat_qq_host 为 GPL-3.0-only；laetibeat_netease_host 为 MIT，'
+              '依赖 ncm-api-rs（WTFPL）。完整许可文本见「开源许可」。',
             ),
           ),
           actions: <Widget>[

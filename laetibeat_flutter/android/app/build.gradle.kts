@@ -59,7 +59,7 @@ android {
 
     packaging {
         jniLibs {
-            // 内置 go-music-api host 以 .so 形式打包，必须解压后执行。
+            // 内置 Rust sidecar 以 .so 形式打包，必须解压后执行。
             useLegacyPackaging = true
         }
     }
@@ -101,22 +101,7 @@ dependencies {
     implementation("org.rustls:rustls-platform-verifier:0.2.0")
 }
 
-// 把 Go host 编译进 jniLibs/arm64-v8a。Android 上 Go 的纯 Go DNS
-// 不可用，必须用 NDK clang + CGO 构建 PIE。
 val repoRoot = rootProject.projectDir.parentFile.parentFile
-val musicApiHostDir = File(repoRoot, "laetibeat_musicapi_host")
-data class MusicApiAbi(
-    val abi: String,
-    val goArch: String,
-    val goArm: String?,
-    val clang: String,
-)
-
-val musicApiAbis = listOf(
-    MusicApiAbi("arm64-v8a", "arm64", null, "aarch64-linux-android24-clang"),
-    MusicApiAbi("armeabi-v7a", "arm", "7", "armv7a-linux-androideabi24-clang"),
-    MusicApiAbi("x86_64", "amd64", null, "x86_64-linux-android24-clang"),
-)
 
 fun androidNdkHostTag(): String {
     val os = System.getProperty("os.name").lowercase()
@@ -127,57 +112,123 @@ fun androidNdkHostTag(): String {
     }
 }
 
-val musicApiHostTasks = musicApiAbis.map { target ->
+// 把 QQ / 网易云 Rust sidecar 编译进 jniLibs。cargo 产物是 PIE 可执行文件，
+// 以 lib*.so 命名并解压安装。
+data class RustHostAbi(
+    val abi: String,
+    val target: String,
+    val envSuffix: String,
+    val clang: String,
+    val maxPageSize: String,
+)
+
+val rustHostAbis = listOf(
+    RustHostAbi(
+        "arm64-v8a",
+        "aarch64-linux-android",
+        "aarch64_linux_android",
+        "aarch64-linux-android24-clang",
+        "16384",
+    ),
+    RustHostAbi(
+        "armeabi-v7a",
+        "armv7-linux-androideabi",
+        "armv7_linux_androideabi",
+        "armv7a-linux-androideabi24-clang",
+        "4096",
+    ),
+    RustHostAbi(
+        "x86_64",
+        "x86_64-linux-android",
+        "x86_64_linux_android",
+        "x86_64-linux-android24-clang",
+        "16384",
+    ),
+)
+
+val rustOnlineHosts = listOf("qq", "netease")
+
+val rustHostTasks = rustHostAbis.map { target ->
     val jniDir = file("src/main/jniLibs/${target.abi}")
-    val output = File(jniDir, "liblaetibeat_musicapi_host.so")
     val taskName =
-        "buildMusicApiHost" +
+        "buildRustOnlineHosts" +
             target.abi.split('-', '_').joinToString("") { part ->
                 part.replaceFirstChar { it.uppercase() }
             }
     tasks.register<Exec>(taskName) {
         group = "flutter"
-        description = "Build embedded go-music-api host for Android ${target.abi}"
-        workingDir = musicApiHostDir
+        description = "Build QQ / NetEase Rust sidecars for Android ${target.abi}"
+        workingDir = repoRoot
         val clangFile = File(
             android.sdkDirectory,
             "ndk/${flutter.ndkVersion}/toolchains/llvm/prebuilt/" +
                 "${androidNdkHostTag()}/bin/${target.clang}",
         )
+        val arFile = File(clangFile.parentFile, "llvm-ar")
+        val ranlibFile = File(clangFile.parentFile, "llvm-ranlib")
+        val linkerEnv =
+            "CARGO_TARGET_${target.target.uppercase().replace('-', '_')}_LINKER"
         doFirst {
             if (!clangFile.exists()) {
                 throw GradleException("找不到 Android NDK clang：${clangFile.absolutePath}")
             }
             jniDir.mkdirs()
         }
-        environment("CGO_ENABLED", "1")
-        environment("GOOS", "android")
-        environment("GOARCH", target.goArch)
-        target.goArm?.let { environment("GOARM", it) }
-        environment("CC", clangFile.absolutePath)
-        commandLine(
-            "go",
-            "build",
-            "-buildmode=pie",
-            "-trimpath",
-            "-ldflags",
-            "-s -w",
-            "-o",
-            output.absolutePath,
-            ".",
+        environment("CC_${target.envSuffix}", clangFile.absolutePath)
+        environment("AR_${target.envSuffix}", arFile.absolutePath)
+        environment("RANLIB_${target.envSuffix}", ranlibFile.absolutePath)
+        environment(linkerEnv, clangFile.absolutePath)
+        environment(
+            "RUSTFLAGS",
+            "-C strip=symbols -C link-arg=-Wl,-z,max-page-size=${target.maxPageSize}",
         )
+        commandLine(
+            "cargo",
+            "build",
+            "--release",
+            "-p",
+            "laetibeat_qq_host",
+            "-p",
+            "laetibeat_netease_host",
+            "--target",
+            target.target,
+        )
+        doLast {
+            rustOnlineHosts.forEach { host ->
+                val source = File(
+                    repoRoot,
+                    "target/${target.target}/release/laetibeat_${host}_host",
+                )
+                if (!source.exists()) {
+                    throw GradleException("Rust sidecar 构建产物不存在：${source.absolutePath}")
+                }
+                val output = File(jniDir, "liblaetibeat_${host}_host.so")
+                source.copyTo(output, overwrite = true)
+                output.setExecutable(true, false)
+            }
+        }
         inputs.files(
-            fileTree(musicApiHostDir) {
-                include("**/*.go", "go.mod", "go.sum")
-                exclude("build/**", "bin/**")
+            File(repoRoot, "Cargo.toml"),
+            File(repoRoot, "Cargo.lock"),
+            fileTree(File(repoRoot, "laetibeat_qq_host")) {
+                include("**/*.rs", "Cargo.toml")
+                exclude("target/**")
+            },
+            fileTree(File(repoRoot, "laetibeat_netease_host")) {
+                include("**/*.rs", "Cargo.toml")
+                exclude("target/**")
             },
         )
-        outputs.file(output)
+        outputs.files(
+            *rustOnlineHosts.map { host ->
+                File(jniDir, "liblaetibeat_${host}_host.so")
+            }.toTypedArray(),
+        )
     }
 }
 
 tasks.named("preBuild").configure {
-    dependsOn(musicApiHostTasks)
+    dependsOn(rustHostTasks)
 }
 
 val requestedReleaseBuild = gradle.startParameter.taskNames.any {

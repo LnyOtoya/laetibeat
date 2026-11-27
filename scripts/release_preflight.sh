@@ -15,9 +15,9 @@ Usage: scripts/release_preflight.sh [vX.Y.Z] [--build] [--allow-dirty]
 Checks:
   - pubspec version and versionCode match the tag
   - CHANGELOG has a non-empty section for the tag
-  - Go host AGPL license files exist
+  - QQ / NetEase host license files exist
   - working tree is clean (unless --allow-dirty)
-  - Flutter analyze/test, cargo test, go test
+  - Flutter analyze/test, cargo test
   - with --build: release split APKs contain all three embedded hosts,
     extractNativeLibs=true, expected versionName/versionCode, and valid signature
 
@@ -94,9 +94,9 @@ PY
 for file in \
   LICENSE \
   THIRD_PARTY_NOTICES.md \
-  laetibeat_musicapi_host/LICENSE \
-  laetibeat_musicapi_host/third_party/music-lib/LICENSE \
-  laetibeat_musicapi_host/third_party/music-lib/PATCH.md; do
+  laetibeat_qq_host/LICENSE \
+  laetibeat_netease_host/LICENSE \
+  laetibeat_netease_host/LICENSE-WTFPL; do
   if [[ ! -s "$file" ]]; then
     echo "missing required release file: $file" >&2
     exit 1
@@ -116,7 +116,7 @@ if [[ -n "$(git status --porcelain)" ]]; then
   echo "warning: working tree is dirty (--allow-dirty)" >&2
 fi
 
-for command in flutter cargo go python3 unzip; do
+for command in flutter cargo python3 unzip; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "missing command: $command" >&2
     exit 1
@@ -129,8 +129,6 @@ echo "== Flutter test =="
 (cd laetibeat_flutter && flutter test --no-pub)
 echo "== Rust test =="
 cargo test --workspace
-echo "== Go test =="
-(cd laetibeat_musicapi_host && go test ./...)
 
 if [[ "$BUILD" -eq 1 ]]; then
   echo "== Release split APK build =="
@@ -155,10 +153,14 @@ if [[ "$BUILD" -eq 1 ]]; then
       echo "missing APK: $APK" >&2
       exit 1
     fi
-    if ! unzip -l "$APK" | grep "lib/${ABI}/liblaetibeat_musicapi_host.so" >/dev/null; then
-      echo "APK missing embedded host: $APK" >&2
-      exit 1
-    fi
+    for host_so in \
+      liblaetibeat_qq_host.so \
+      liblaetibeat_netease_host.so; do
+      if ! unzip -l "$APK" | grep "lib/${ABI}/${host_so}" >/dev/null; then
+        echo "APK missing embedded host ${host_so}: $APK" >&2
+        exit 1
+      fi
+    done
     expected_abi_code=$((EXPECTED_CODE + ABI_VERSION_OFFSET[$ABI]))
     if [[ -n "$AAPT2" ]]; then
       MANIFEST="$("$AAPT2" dump xmltree "$APK" --file AndroidManifest.xml)"

@@ -23,7 +23,7 @@ import '../widgets/player/cover_provider.dart';
 import '../widgets/player/playback_backend.dart';
 import '../widgets/settings/cache_usage_service.dart';
 import '../widgets/settings/display_settings.dart';
-import '../widgets/settings/online_host.dart';
+import '../widgets/settings/mode_host.dart';
 import '../widgets/settings/persistence.dart';
 import '../widgets/settings/subsonic_provider.dart';
 import 'app.dart';
@@ -152,8 +152,8 @@ Future<void> bootstrap() async {
     ),
   );
 
-  // 内置在线音源在首帧后启动，避免 Go 进程启动阻塞 UI。
-  unawaited(container.read(onlineHostProvider.notifier).startIfNeeded());
+  // native 模式 sidecar：local/subsonic 会直接返回；QQ/网易云按上次模式启动。
+  unawaited(container.read(modeHostProvider.notifier).startIfNeeded());
 
   // 启动后套用用户保存的缓存上限；磁盘 LRU 扫描放在首帧之后，避免阻塞启动。
   unawaited(_applyStartupCacheLimits(container));
@@ -171,9 +171,9 @@ Future<void> bootstrap() async {
 void _registerEmbeddedLicenses() {
   LicenseRegistry.addLicense(() async* {
     yield const LicenseEntryWithLineBreaks(<String>[
-      'go-music-api',
-      'music-lib',
-    ], embeddedMusicApiLicenseNotice);
+      'laetibeat_qq_host',
+      'laetibeat_netease_host',
+    ], embeddedOnlineHostsLicenseNotice);
   });
 }
 

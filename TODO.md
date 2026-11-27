@@ -10,14 +10,20 @@
 - [x] 确认 `QQMusicApi-rs` 可作为 Rust sidecar
 - [x] 确认 `ncm-api-rs` 可作为 Rust sidecar；Android arm64 编译验证通过
 - [x] 新增 `docs/native-modes-migration.md`
-- [ ] 创建并推送 `gomusic` 分支
-- [ ] 创建并推送 `native` 分支
-- [ ] `laetibeat_qq_host` spike
-- [ ] `laetibeat_netease_host` spike
-- [ ] `AppMode` 模式控制器
-- [ ] 模式切换停止服务 / 保留 Cookie
-- [ ] UI 按模式显示不同内容
-- [ ] 删除 go-music-api 与 Go 打包链
+- [x] 创建并推送 `gomusic` 分支
+- [x] 创建并推送 `native` 分支
+- [x] `laetibeat_qq_host` spike（搜索/URL/歌词/QR；真实扫码待验证）
+- [x] `laetibeat_netease_host` spike（搜索/URL/歌词/QR；真实扫码待验证）
+- [x] `AppMode` 模式控制器
+- [x] 模式切换停止服务 / 保留 Cookie
+- [x] 搜索 / 发现 / 播放 / 登录按模式切换
+- [ ] 首页 / 本地 / Subsonic 页面按模式区分
+- [x] Android / Linux 打包两个 Rust host
+- [x] CI 增加 Rust host 矩阵
+- [x] 删除 go-music-api 与 Go 打包链
+- [x] 保留 `laetibeat_online` 作为 native host 统一客户端
+- [ ] native 通过 PR 合并回 main
+- [ ] 在 main 上发布 v2.0.0（或确认后的版本）
 
 ## 2026-11-27 在线音源迁移（gomusic 分支，已完成）
 

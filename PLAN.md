@@ -1,6 +1,6 @@
 # Laetibeat 多音源计划
 
-> 状态（2026-11-27）：在线音源进入 **native 分支** 重构。`gomusic` 分支保留当前 go-music-api 实现；`native` 分支改用 QQMusicApi-rs + ncm-api-rs 的 Rust 原生 sidecar，并做本地 / Subsonic / QQ / 网易云独立模式。
+> 状态（2026-11-27）：native 分支已完成 N0–N6，在线音源改为 QQMusicApi-rs + ncm-api-rs 的 Rust 原生 sidecar；`gomusic` 分支保留 go-music-api 实现作为回退。
 > 最后更新：2026-11-27
 > 关联文档：`docs/native-modes-migration.md`（native 分支设计）、`docs/musicapi-migration.md`（gomusic 分支设计与验收）、`docs/release-checklist.md`（发版）、`TODO.md`（工程债）、`THIRD_PARTY_NOTICES.md`（许可）
 
@@ -8,7 +8,7 @@
 
 旧方案（go-music-api）完整保留在 `gomusic` 分支，不再作为新功能主线。
 
-新方案：
+当前方案（已实现）：
 
 | 模式 | 后端 | 形态 |
 |---|---|---|
@@ -24,9 +24,11 @@
 
 详细设计、阶段与验收见 `docs/native-modes-migration.md`。
 
+合并策略：`native` 验证完成后走 PR 合入 `main`；`gomusic` 冻结保留，旧 tag 不移动。推荐新版本从 `v2.0.0` 开始。
+
 > 下文为 `gomusic` 分支的历史计划，保留作为回退参考。
 
-## 目标
+## gomusic 历史目标
 
 1. 用 **go-music-api + music-lib** 替代旧网易云 Node API，作为网易云 / QQ 的统一在线音源后端。
 2. host 内置在 App 中（Android / Linux），不要求 NAS、Docker 或额外服务。
@@ -35,7 +37,7 @@
 5. 洛雪只作为无版权/试听失败时的后备解析，不改变曲目身份。
 6. 本地音乐、OpenSubsonic、LX 音源保持独立，不受在线音源影响。
 
-## 当前架构
+## gomusic 历史架构
 
 ```text
 Flutter (mobile/desktop)

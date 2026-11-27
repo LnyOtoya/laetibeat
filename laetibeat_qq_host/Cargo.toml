@@ -1,0 +1,22 @@
+[package]
+name = "laetibeat_qq_host"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-only"
+description = "Laetibeat embedded QQ Music host"
+publish = false
+
+[[bin]]
+name = "laetibeat_qq_host"
+path = "src/main.rs"
+
+[dependencies]
+qqmusic-api = { git = "https://github.com/jinzhongjia/QQMusicApi-rs", rev = "9423b686aaf462b69fc8667531798f4d3e1435e3", package = "qqmusic-api" }
+axum = "0.8"
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+subtle = "2"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

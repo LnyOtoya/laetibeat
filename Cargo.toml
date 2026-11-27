@@ -4,6 +4,8 @@ members = [
     "laetibeat_remote",
     "laetibeat_online",
     "laetibeat_flutter/rust",
-    "laetibeat_lx"
+    "laetibeat_lx",
+    "laetibeat_qq_host",
+    "laetibeat_netease_host"
 ]
 resolver = "2"
