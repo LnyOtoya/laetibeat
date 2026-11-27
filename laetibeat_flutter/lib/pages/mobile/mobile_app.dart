@@ -3,6 +3,7 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/app_destination.dart';
+import '../../app/app_mode.dart';
 import '../../design/design.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../shared/feedback/app_haptics.dart';
@@ -36,41 +37,50 @@ class MobileShell extends ConsumerStatefulWidget {
 }
 
 class _MobileShellState extends ConsumerState<MobileShell> {
-  static const List<AppDestination> _tabs = <AppDestination>[
-    AppDestination.home,
-    AppDestination.discover,
-    AppDestination.library,
-    AppDestination.stats,
-  ];
-
-  List<AppFloatingNavTab> _destinations(AppLocalizations l10n) {
-    return <AppFloatingNavTab>[
-      AppFloatingNavTab(
-        icon: M3EIcons.home,
-        selectedIcon: M3EIcons.home,
-        label: l10n.navHome,
-      ),
-      AppFloatingNavTab(
-        icon: M3EIcons.explore,
-        selectedIcon: M3EIcons.explore,
-        label: l10n.navDiscover,
-      ),
-      AppFloatingNavTab(
-        icon: M3EIcons.music_note,
-        selectedIcon: M3EIcons.music_note,
-        label: l10n.navLibrary,
-      ),
-      AppFloatingNavTab(
-        icon: M3EIcons.bar_chart,
-        selectedIcon: M3EIcons.bar_chart,
-        label: l10n.statisticsTitle,
-      ),
-    ];
+  List<AppFloatingNavTab> _destinations(
+    AppLocalizations l10n,
+    List<AppDestination> tabs,
+  ) {
+    return tabs
+        .map((tab) {
+          final icon = switch (tab) {
+            AppDestination.home => M3EIcons.home,
+            AppDestination.discover => M3EIcons.explore,
+            AppDestination.library => M3EIcons.music_note,
+            AppDestination.stats => M3EIcons.bar_chart,
+            _ => M3EIcons.more_horiz,
+          };
+          final label = switch (tab) {
+            AppDestination.home => l10n.navHome,
+            AppDestination.discover => l10n.navDiscover,
+            AppDestination.library => l10n.navLibrary,
+            AppDestination.stats => l10n.statisticsTitle,
+            _ => tab.name,
+          };
+          return AppFloatingNavTab(
+            icon: icon,
+            selectedIcon: icon,
+            label: label,
+          );
+        })
+        .toList(growable: false);
   }
 
-  AppDestination? _tabForRoute(String? route) {
+  String _routeForDestination(AppDestination destination) {
+    return switch (destination) {
+      AppDestination.home => MobileRoutes.home,
+      AppDestination.discover => MobileRoutes.discover,
+      AppDestination.library => MobileRoutes.library,
+      AppDestination.stats => MobileRoutes.stats,
+      _ => MobileRoutes.home,
+    };
+  }
+
+  AppDestination? _tabForRoute(String? route, List<AppDestination> tabs) {
     if (route == null || route == MobileRoutes.home) {
-      return AppDestination.home;
+      return tabs.contains(AppDestination.home)
+          ? AppDestination.home
+          : tabs.first;
     }
     if (route == MobileRoutes.library || route.startsWith('/library/')) {
       return AppDestination.library;
@@ -84,18 +94,15 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     return null;
   }
 
-  bool _showNavigationBar(String? route) {
-    const visible = <String>{
-      MobileRoutes.home,
-      MobileRoutes.discover,
-      MobileRoutes.library,
-      MobileRoutes.librarySongs,
-      MobileRoutes.libraryPlaylists,
-      MobileRoutes.libraryArtists,
-      MobileRoutes.libraryAlbums,
-      MobileRoutes.stats,
-    };
-    return visible.contains(route);
+  bool _showNavigationBar(String? route, List<AppDestination> tabs) {
+    final tab = _tabForRoute(route, tabs);
+    if (tab == null || !tabs.contains(tab)) return false;
+    if (route == null) return true;
+    return route == MobileRoutes.home ||
+        route == MobileRoutes.discover ||
+        route == MobileRoutes.library ||
+        route.startsWith('/library/') ||
+        route == MobileRoutes.stats;
   }
 
   void _selectTab(AppDestination destination) {
@@ -146,26 +153,48 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
+    final mode = ref.watch(appModeProvider);
+    final tabs = mode.mobileDestinations;
     final bool hasTrack = ref.watch(
       playerProvider.select((state) => state.current != null),
     );
 
+    ref.listen<AppMode>(appModeProvider, (AppMode? previous, AppMode next) {
+      if (previous == next) return;
+      final currentRoute = mobileCurrentRouteName.value;
+      final nextTabs = next.mobileDestinations;
+      final currentTab = _tabForRoute(currentRoute, nextTabs);
+      final homeIsHidden = !nextTabs.contains(AppDestination.home);
+      final currentRouteAvailable =
+          currentTab != null &&
+          nextTabs.contains(currentTab) &&
+          !(currentRoute == MobileRoutes.home && homeIsHidden);
+      if (currentRouteAvailable) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final navigator = mobileNavigatorKey.currentState;
+        if (navigator == null) return;
+        navigator.pushNamedAndRemoveUntil(
+          _routeForDestination(next.mobileInitialDestination),
+          (route) => false,
+        );
+      });
+    });
+
     return ValueListenableBuilder<String?>(
       valueListenable: mobileCurrentRouteName,
       builder: (BuildContext context, String? routeName, Widget? _) {
-        final AppDestination tab =
-            _tabForRoute(routeName) ?? AppDestination.home;
-        final int selectedIndex = _tabs.indexOf(tab);
-        final bool showNavigationBar = _showNavigationBar(routeName);
+        final AppDestination tab = _tabForRoute(routeName, tabs) ?? tabs.first;
+        final int selectedIndex = tabs.indexOf(tab);
+        final bool showNavigationBar = _showNavigationBar(routeName, tabs);
         final bool showMiniPlayer = hasTrack && showNavigationBar;
         final AppFloatingNavBar? navBar = showNavigationBar
             ? AppFloatingNavBar(
                 key: const ValueKey<String>('mobile_floating_nav_bar'),
-                tabs: _destinations(l10n),
+                tabs: _destinations(l10n, tabs),
                 selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
                 onTabSelected: (int index) {
-                  if (index < 0 || index >= _tabs.length) return;
-                  _selectTab(_tabs[index]);
+                  if (index < 0 || index >= tabs.length) return;
+                  _selectTab(tabs[index]);
                 },
                 onSearchPressed: _openSearch,
                 searchLabel: l10n.searchHint,
@@ -216,20 +245,32 @@ class _MobileShellState extends ConsumerState<MobileShell> {
 ///
 /// Shell 自身和 Tab Navigator 都在这条 Root Route 里。Full Player 等页面
 /// 可以 push 到 Root Navigator，从而真正覆盖 Shell 和 BottomOverlay。
-class MobileShellPage extends StatelessWidget {
+class MobileShellPage extends ConsumerWidget {
   const MobileShellPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(appModeProvider);
+    final initialRoute = _routeForDestination(mode.mobileInitialDestination);
     return MobileShell(
       child: Navigator(
         key: mobileNavigatorKey,
         observers: <NavigatorObserver>[mobileNavigatorObserver],
-        initialRoute: MobileRoutes.home,
+        initialRoute: initialRoute,
         onGenerateRoute: mobileOnGenerateRoute,
       ),
     );
   }
+}
+
+String _routeForDestination(AppDestination destination) {
+  return switch (destination) {
+    AppDestination.home => MobileRoutes.home,
+    AppDestination.discover => MobileRoutes.discover,
+    AppDestination.library => MobileRoutes.library,
+    AppDestination.stats => MobileRoutes.stats,
+    _ => MobileRoutes.home,
+  };
 }
 
 /// 移动端根 Navigator 的路由表。

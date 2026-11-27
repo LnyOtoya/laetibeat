@@ -5,6 +5,8 @@
 ### Added
 
 - UI Skin 骨架：`ui.skin` 持久化、`AppSkin` 契约与注册表；默认皮肤仍为 Material 3 Expressive。
+- 移动端一级导航按音源模式动态变化：本地 2 个、Subsonic 3 个、QQ / 网易云 4 个，并自动落到模式默认页。
+- 新增 `docs/mode-pages.md` 记录导航与页面内容矩阵。
 
 ### Fixed
 

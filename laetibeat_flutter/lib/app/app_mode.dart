@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../widgets/settings/persistence.dart';
+import 'app_destination.dart';
 
 const String kAppModeKey = 'app.mode';
 
@@ -26,6 +27,29 @@ enum AppMode {
     AppMode.netease => 'netease',
     _ => null,
   };
+
+  /// 当前模式在移动端显示的一级导航目的地。
+  List<AppDestination> get mobileDestinations => switch (this) {
+    AppMode.local => const <AppDestination>[
+      AppDestination.library,
+      AppDestination.stats,
+    ],
+    AppMode.subsonic => const <AppDestination>[
+      AppDestination.home,
+      AppDestination.library,
+      AppDestination.stats,
+    ],
+    AppMode.qq || AppMode.netease => const <AppDestination>[
+      AppDestination.home,
+      AppDestination.discover,
+      AppDestination.library,
+      AppDestination.stats,
+    ],
+  };
+
+  /// 进入该模式时默认落地的一级目的地。
+  AppDestination get mobileInitialDestination =>
+      this == AppMode.local ? AppDestination.library : AppDestination.home;
 
   static AppMode fromId(String? id) {
     for (final mode in values) {

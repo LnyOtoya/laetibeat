@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:laetibeat/app/app_mode.dart';
 import 'package:laetibeat/design/design.dart';
 import 'package:laetibeat/l10n/generated/app_localizations.dart';
 import 'package:laetibeat/pages/mobile/mobile_app.dart';
@@ -14,6 +15,11 @@ class _FakePlayerNotifier extends PlayerNotifier {
   PlayerState build() => const PlayerState();
 }
 
+class _FakeAppModeNotifier extends AppModeNotifier {
+  @override
+  AppMode build() => AppMode.qq;
+}
+
 void main() {
   testWidgets('mobile shell search FAB opens the search route', (
     WidgetTester tester,
@@ -24,7 +30,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [playerProvider.overrideWith(_FakePlayerNotifier.new)],
+        overrides: [
+          playerProvider.overrideWith(_FakePlayerNotifier.new),
+          appModeProvider.overrideWith(_FakeAppModeNotifier.new),
+        ],
         child: M3EMaterialApp(
           data: AppTheme.light(),
           locale: const Locale('zh'),

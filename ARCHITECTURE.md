@@ -198,6 +198,7 @@ laetibeat_qq_host (GPL-3.0-only)     laetibeat_netease_host (MIT)
 
 - `docs/native-modes-migration.md`：native 设计、N0–N6、验收
 - `docs/ui-skins.md`：皮肤架构与 Spotify / Apple Music 后续计划
+- `docs/mode-pages.md`：各音源模式的导航与页面内容矩阵
 - `docs/musicapi-migration.md`：gomusic 分支历史
 - `PLAN.md`：当前计划
 - `TODO.md`：工程债
