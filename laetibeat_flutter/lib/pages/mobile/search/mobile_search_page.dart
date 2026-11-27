@@ -680,18 +680,18 @@ class _SearchResults extends ConsumerWidget {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
     final appMode = ref.watch(appModeProvider);
-    final onlineSource = switch (appMode) {
-      AppMode.qq => 'qq',
-      AppMode.netease => 'netease',
+    final filterSource = switch (filter) {
+      MobileSearchSourceFilter.qq => 'qq',
+      MobileSearchSourceFilter.netease => 'netease',
       _ => null,
     };
-    if (filter == MobileSearchSourceFilter.netease ||
-        filter == MobileSearchSourceFilter.qq) {
+    final onlineSource = filterSource == appMode.hostId ? filterSource : null;
+    if (filterSource != null && onlineSource == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            '当前模式不提供在线搜索，请先切换到 QQ / 网易云模式。',
+            '当前模式不提供 ${onlineSourceLabel(filterSource)} 搜索，请先切换音源模式。',
             textAlign: TextAlign.center,
           ),
         ),
