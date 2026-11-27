@@ -48,6 +48,95 @@ impl OnlineClient {
         }
     }
 
+    pub fn daily_songs(&self, source: &str, refresh: bool) -> Result<Vec<OnlineTrack>> {
+        let data: ApiSearchData = self.http.get_data(
+            "/api/v1/recommend/daily/songs",
+            &[
+                ("source", source.to_string()),
+                (
+                    "refresh",
+                    if refresh { "true" } else { "false" }.to_string(),
+                ),
+            ],
+        )?;
+        Ok(data
+            .songs
+            .unwrap_or_default()
+            .into_iter()
+            .map(|song| map_song(source, song))
+            .collect())
+    }
+
+    pub fn personal_fm(
+        &self,
+        source: &str,
+        mode: Option<&str>,
+        submode: Option<&str>,
+        limit: u32,
+    ) -> Result<Vec<OnlineTrack>> {
+        let data: ApiSearchData = self.http.get_data(
+            "/api/v1/personal/fm",
+            &[
+                ("source", source.to_string()),
+                ("mode", mode.unwrap_or("").to_string()),
+                ("submode", submode.unwrap_or("").to_string()),
+                ("limit", limit.to_string()),
+            ],
+        )?;
+        Ok(data
+            .songs
+            .unwrap_or_default()
+            .into_iter()
+            .map(|song| map_song(source, song))
+            .collect())
+    }
+
+    pub fn similar_songs(
+        &self,
+        source: &str,
+        track_id: &str,
+        limit: u32,
+    ) -> Result<Vec<OnlineTrack>> {
+        let data: ApiSearchData = self.http.get_data(
+            "/api/v1/music/similar",
+            &[
+                ("source", source.to_string()),
+                ("id", track_id.to_string()),
+                ("limit", limit.to_string()),
+            ],
+        )?;
+        Ok(data
+            .songs
+            .unwrap_or_default()
+            .into_iter()
+            .map(|song| map_song(source, song))
+            .collect())
+    }
+
+    pub fn intelligence(
+        &self,
+        source: &str,
+        track_id: &str,
+        playlist_id: Option<&str>,
+        count: u32,
+    ) -> Result<Vec<OnlineTrack>> {
+        let data: ApiSearchData = self.http.get_data(
+            "/api/v1/recommend/intelligence",
+            &[
+                ("source", source.to_string()),
+                ("id", track_id.to_string()),
+                ("pid", playlist_id.unwrap_or("").to_string()),
+                ("count", count.to_string()),
+            ],
+        )?;
+        Ok(data
+            .songs
+            .unwrap_or_default()
+            .into_iter()
+            .map(|song| map_song(source, song))
+            .collect())
+    }
+
     pub fn home_feed(
         &self,
         source: &str,

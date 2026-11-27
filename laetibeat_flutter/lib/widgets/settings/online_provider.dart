@@ -170,6 +170,22 @@ final onlineUserPlaylistsProvider = FutureProvider.autoDispose
       );
     });
 
+final onlineDailySongsProvider = FutureProvider.autoDispose<List<rust.UiTrack>>(
+  (ref) async {
+    final baseUrl = ref.watch(onlineBaseUrlProvider);
+    if (baseUrl.isEmpty) {
+      throw StateError('当前模式 sidecar 未启动');
+    }
+    final token = await ref.watch(onlineTokenProvider.future);
+    return rust_online.onlineDailySongs(
+      baseUrl: baseUrl,
+      token: token,
+      source: 'netease',
+      refresh: false,
+    );
+  },
+);
+
 final onlineRecommendPlaylistsProvider = FutureProvider.autoDispose
     .family<List<rust_online.UiOnlinePlaylist>, String>((ref, source) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);

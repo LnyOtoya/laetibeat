@@ -136,6 +136,73 @@ pub fn online_health(base_url: String, token: Option<String>) -> Result<UiOnline
     })
 }
 
+pub fn online_daily_songs(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+    refresh: Option<bool>,
+) -> Result<Vec<UiTrack>, String> {
+    let client = client(&base_url, token)?;
+    let tracks = client
+        .daily_songs(&source, refresh.unwrap_or(false))
+        .map_err(|error| error.to_string())?;
+    Ok(map_tracks(&client, tracks))
+}
+
+pub fn online_personal_fm(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+    mode: Option<String>,
+    submode: Option<String>,
+    limit: Option<u32>,
+) -> Result<Vec<UiTrack>, String> {
+    let client = client(&base_url, token)?;
+    let tracks = client
+        .personal_fm(
+            &source,
+            mode.as_deref().filter(|value| !value.is_empty()),
+            submode.as_deref().filter(|value| !value.is_empty()),
+            limit.unwrap_or(10),
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(map_tracks(&client, tracks))
+}
+
+pub fn online_similar_songs(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+    track_id: String,
+    limit: Option<u32>,
+) -> Result<Vec<UiTrack>, String> {
+    let client = client(&base_url, token)?;
+    let tracks = client
+        .similar_songs(&source, &track_id, limit.unwrap_or(30))
+        .map_err(|error| error.to_string())?;
+    Ok(map_tracks(&client, tracks))
+}
+
+pub fn online_intelligence(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+    track_id: String,
+    playlist_id: Option<String>,
+    count: Option<u32>,
+) -> Result<Vec<UiTrack>, String> {
+    let client = client(&base_url, token)?;
+    let tracks = client
+        .intelligence(
+            &source,
+            &track_id,
+            playlist_id.as_deref().filter(|value| !value.is_empty()),
+            count.unwrap_or(10),
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(map_tracks(&client, tracks))
+}
+
 pub fn online_home_feed(
     base_url: String,
     token: Option<String>,
@@ -386,6 +453,13 @@ pub fn online_qr_check(
         .qr_login_check(&source, &key)
         .map_err(|error| error.to_string())?;
     Ok(map_qr_result(result))
+}
+
+fn map_tracks(client: &OnlineClient, tracks: Vec<OnlineTrack>) -> Vec<UiTrack> {
+    tracks
+        .into_iter()
+        .map(|track| map_track(client, track))
+        .collect()
 }
 
 fn map_track(client: &OnlineClient, track: OnlineTrack) -> UiTrack {

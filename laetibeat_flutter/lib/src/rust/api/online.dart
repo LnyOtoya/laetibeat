@@ -7,13 +7,71 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'simple.dart';
 
-// These functions are ignored because they are not marked as `pub`: `client`, `map_album`, `map_home_block`, `map_home_feed`, `map_home_item`, `map_platform_status`, `map_playlist`, `map_qr_result`, `map_qr_session`, `map_quality`, `map_top_list`, `map_track`
+// These functions are ignored because they are not marked as `pub`: `client`, `map_album`, `map_home_block`, `map_home_feed`, `map_home_item`, `map_platform_status`, `map_playlist`, `map_qr_result`, `map_qr_session`, `map_quality`, `map_top_list`, `map_track`, `map_tracks`
 
 Future<UiOnlineStatus> onlineHealth({required String baseUrl, String? token}) =>
     RustLib.instance.api.crateApiOnlineOnlineHealth(
       baseUrl: baseUrl,
       token: token,
     );
+
+Future<List<UiTrack>> onlineDailySongs({
+  required String baseUrl,
+  String? token,
+  required String source,
+  bool? refresh,
+}) => RustLib.instance.api.crateApiOnlineOnlineDailySongs(
+  baseUrl: baseUrl,
+  token: token,
+  source: source,
+  refresh: refresh,
+);
+
+Future<List<UiTrack>> onlinePersonalFm({
+  required String baseUrl,
+  String? token,
+  required String source,
+  String? mode,
+  String? submode,
+  int? limit,
+}) => RustLib.instance.api.crateApiOnlineOnlinePersonalFm(
+  baseUrl: baseUrl,
+  token: token,
+  source: source,
+  mode: mode,
+  submode: submode,
+  limit: limit,
+);
+
+Future<List<UiTrack>> onlineSimilarSongs({
+  required String baseUrl,
+  String? token,
+  required String source,
+  required String trackId,
+  int? limit,
+}) => RustLib.instance.api.crateApiOnlineOnlineSimilarSongs(
+  baseUrl: baseUrl,
+  token: token,
+  source: source,
+  trackId: trackId,
+  limit: limit,
+);
+
+Future<List<UiTrack>> onlineIntelligence({
+  required String baseUrl,
+  String? token,
+  required String source,
+  required String trackId,
+  String? playlistId,
+  int? count,
+}) => RustLib.instance.api.crateApiOnlineOnlineIntelligence(
+  baseUrl: baseUrl,
+  token: token,
+  source: source,
+  trackId: trackId,
+  playlistId: playlistId,
+  count: count,
+);
 
 Future<UiOnlineHomeFeed> onlineHomeFeed({
   required String baseUrl,

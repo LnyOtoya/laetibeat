@@ -18,7 +18,7 @@ use base64::Engine;
 use md5::{Digest, Md5};
 use ncm_api_rs::util::device::generate_device_id;
 use ncm_api_rs::{
-    create_client, ApiClient, ApiResponse, NcmError, Query as NcmQuery, RequestOption,
+    create_client, ApiClient, ApiResponse, CryptoType, NcmError, Query as NcmQuery, RequestOption,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -109,6 +109,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .route("/laetibeat/system/platforms", get(platforms))
         .route("/laetibeat/system/platforms/{source}", delete(logout))
         .route("/api/v1/home/feed", get(home_feed))
+        .route("/api/v1/recommend/daily/songs", get(daily_songs))
+        .route("/api/v1/recommend/daily/playlists", get(daily_playlists))
+        .route("/api/v1/personal/fm", get(personal_fm))
+        .route("/api/v1/recommend/intelligence", get(intelligence))
+        .route("/api/v1/music/similar", get(similar_songs))
         .route("/api/v1/playlist/detail", get(playlist_detail))
         .route("/api/v1/album/detail", get(album_detail))
         .route("/api/v1/playlist/user", get(user_playlists))
@@ -450,6 +455,185 @@ async fn qualities() -> ApiResult {
             ]
         }
     })))
+}
+
+#[derive(Debug, Deserialize)]
+struct DailyParams {
+    refresh: Option<String>,
+}
+
+async fn daily_songs(
+    State(state): State<SharedState>,
+    Query(params): Query<DailyParams>,
+) -> ApiResult {
+    let refresh = matches!(
+        params.refresh.as_deref(),
+        Some("1" | "true" | "True" | "yes")
+    );
+    let data = if refresh {
+        json!({"afresh": true})
+    } else {
+        json!({})
+    };
+    let client = state.client.lock().await;
+    let response = client
+        .request(
+            "/api/v3/discovery/recommend/songs",
+            data,
+            RequestOption {
+                crypto: CryptoType::Weapi,
+                ..Default::default()
+            },
+        )
+        .await
+        .map_err(ncm_error)?;
+    let songs = songs_at(&response.body, &["/data/dailySongs", "/dailySongs"]);
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "refreshed": refresh,
+            "songs": songs.into_iter().map(|item| map_ne_song(&item)).collect::<Vec<_>>(),
+        }
+    })))
+}
+
+async fn daily_playlists(State(state): State<SharedState>) -> ApiResult {
+    let client = state.client.lock().await;
+    let response = client
+        .recommend_resource(&NcmQuery::new())
+        .await
+        .map_err(ncm_error)?;
+    let playlists = array_at(&response.body, "/recommend");
+    let playlists = if playlists.is_empty() {
+        array_at(&response.body, "/data/recommend")
+    } else {
+        playlists
+    };
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "playlists": playlists.into_iter().map(|item| map_ne_playlist(&item)).collect::<Vec<_>>(),
+        }
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct FmParams {
+    mode: Option<String>,
+    submode: Option<String>,
+    limit: Option<i64>,
+}
+
+async fn personal_fm(
+    State(state): State<SharedState>,
+    Query(params): Query<FmParams>,
+) -> ApiResult {
+    let limit = params.limit.unwrap_or(10).clamp(1, 30);
+    let limit_text = limit.to_string();
+    let client = state.client.lock().await;
+    let response = if let Some(mode) = params.mode.as_deref() {
+        client
+            .personal_fm_mode(
+                &NcmQuery::new()
+                    .param("mode", mode)
+                    .param("submode", params.submode.as_deref().unwrap_or(""))
+                    .param("limit", &limit_text),
+            )
+            .await
+            .map_err(ncm_error)?
+    } else {
+        client
+            .personal_fm(&NcmQuery::new().param("limit", &limit_text))
+            .await
+            .map_err(ncm_error)?
+    };
+    let songs = songs_at(&response.body, &["/data", "/songs", "/data/songs"]);
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": { "songs": songs.into_iter().take(limit as usize).map(|item| map_ne_song(&item)).collect::<Vec<_>>() }
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct IntelligenceParams {
+    id: Option<String>,
+    pid: Option<String>,
+    sid: Option<String>,
+    count: Option<i64>,
+}
+
+async fn intelligence(
+    State(state): State<SharedState>,
+    Query(params): Query<IntelligenceParams>,
+) -> ApiResult {
+    let id = params.id.as_deref().unwrap_or("0");
+    let count = params.count.unwrap_or(10).clamp(1, 50).to_string();
+    let client = state.client.lock().await;
+    let response = client
+        .playmode_intelligence_list(
+            &NcmQuery::new()
+                .param("id", id)
+                .param("pid", params.pid.as_deref().unwrap_or("0"))
+                .param("sid", params.sid.as_deref().unwrap_or(id))
+                .param("count", &count),
+        )
+        .await
+        .map_err(ncm_error)?;
+    let songs = songs_at(
+        &response.body,
+        &["/data", "/data/songs", "/data/songList", "/songs"],
+    );
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": { "songs": songs.into_iter().map(|item| map_ne_song(&item)).collect::<Vec<_>>() }
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct SimilarParams {
+    id: String,
+    limit: Option<i64>,
+    offset: Option<i64>,
+}
+
+async fn similar_songs(
+    State(state): State<SharedState>,
+    Query(params): Query<SimilarParams>,
+) -> ApiResult {
+    let limit = params.limit.unwrap_or(30).clamp(1, 100);
+    let offset = params.offset.unwrap_or(0).max(0);
+    let limit_text = limit.to_string();
+    let offset_text = offset.to_string();
+    let client = state.client.lock().await;
+    let response = client
+        .simi_song(
+            &NcmQuery::new()
+                .param("id", &params.id)
+                .param("limit", &limit_text)
+                .param("offset", &offset_text),
+        )
+        .await
+        .map_err(ncm_error)?;
+    let songs = songs_at(&response.body, &["/songs", "/data/songs", "/data"]);
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": { "songs": songs.into_iter().map(|item| map_ne_song(&item)).collect::<Vec<_>>() }
+    })))
+}
+
+fn songs_at(body: &Value, paths: &[&str]) -> Vec<Value> {
+    for path in paths {
+        let songs = array_at(body, path);
+        if !songs.is_empty() {
+            return songs;
+        }
+    }
+    Vec::new()
 }
 
 #[derive(Debug, Deserialize)]

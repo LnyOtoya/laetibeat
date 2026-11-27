@@ -7,6 +7,7 @@
 - UI Skin 骨架：`ui.skin` 持久化、`AppSkin` 契约与注册表；默认皮肤仍为 Material 3 Expressive。
 - 移动端一级导航按音源模式动态变化：本地 2 个、Subsonic 3 个、QQ / 网易云 4 个，并自动落到模式默认页。
 - 网易云首页接入 `/homepage/block/page` 动态 feed：支持 `refresh`、`cursor`，渲染推荐歌单、猜你喜欢、雷达歌单、新歌新碟等 block。
+- 网易云首页顶部新增可横向滑动的六卡快捷入口：今日推荐、心动模式、歌单推荐、漫游、雷达歌单、相似歌曲；今日推荐进入每日推荐页，歌单/雷达进入列表页，其余直接播放。
 - 新增 `docs/mode-pages.md` 记录导航与页面内容矩阵。
 
 ### Fixed
