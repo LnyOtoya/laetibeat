@@ -57,6 +57,26 @@ class OnlineAlbumDetailPage extends ConsumerWidget {
   }
 }
 
+class OnlineTopListDetailPage extends ConsumerWidget {
+  const OnlineTopListDetailPage({super.key, required this.topList});
+
+  final rust_online.UiOnlineTopList topList;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tracks = ref.watch(
+      onlineTopListSongsProvider((source: topList.source, id: topList.id)),
+    );
+    return _OnlineTracksScaffold(
+      title: topList.name,
+      subtitle: topList.updateFrequency ?? '',
+      coverUrl: topList.coverUrl,
+      source: topList.source,
+      tracks: tracks,
+    );
+  }
+}
+
 class _OnlineTracksScaffold extends ConsumerWidget {
   const _OnlineTracksScaffold({
     required this.title,

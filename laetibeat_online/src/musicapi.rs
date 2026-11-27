@@ -318,6 +318,21 @@ mod tests {
             .unwrap();
         assert!(!netease_resolved.url.is_empty());
 
+        let recommend = client.recommend_playlists("netease").unwrap();
+        assert!(!recommend.is_empty(), "NetEase recommend playlists empty");
+        let recommended_tracks = client
+            .playlist_tracks("netease", &recommend[0].id)
+            .unwrap();
+        assert!(!recommended_tracks.is_empty(), "NetEase playlist tracks empty");
+
+        let top_lists = client.top_lists("qq").unwrap();
+        assert!(!top_lists.is_empty(), "QQ top lists empty");
+        let top_songs = client.top_list_songs("qq", &top_lists[0].id).unwrap();
+        assert!(!top_songs.is_empty(), "QQ top list songs empty");
+
+        let hot = client.hot_songs("netease", 5).unwrap();
+        assert!(!hot.is_empty(), "NetEase hot songs empty");
+
         let lyric = client.lyric("netease", "1973665667").unwrap();
         assert!(!lyric.lyric.is_empty());
     }
