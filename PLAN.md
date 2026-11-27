@@ -24,6 +24,8 @@
 
 详细设计、阶段与验收见 `docs/native-modes-migration.md`。
 
+合并策略：`native` 验证完成后走 PR 合入 `main`；`gomusic` 冻结保留，旧 tag 不移动。推荐新版本从 `v2.0.0` 开始。
+
 > 下文为 `gomusic` 分支的历史计划，保留作为回退参考。
 
 ## 目标

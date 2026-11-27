@@ -34,6 +34,50 @@ native     新分支：删除 go-music-api，使用 Rust 原生后端
 
 长期目标是把 `native` 验证稳定后合入 `main`；在验证前不删除 `gomusic`。
 
+### 2.1 合并与版本策略
+
+`native` 是集成分支，不会自动变成 `main`；需要显式走 PR / merge。
+
+合并前必须满足：
+
+- [ ] `laetibeat_qq_host` 可用
+- [ ] `laetibeat_netease_host` 可用
+- [ ] 本地 / Subsonic / QQ / 网易云模式切换正常
+- [ ] 切换模式停止 sidecar，Cookie / Credential 可恢复
+- [ ] Android / Linux 构建通过
+- [ ] go-music-api 已从 `native` 删除
+- [ ] CI `test` / `host` 通过
+- [ ] 真机验证：搜索、播放、登录、后台、模式切换
+
+合并方式：
+
+```text
+native → main
+```
+
+- 优先使用 GitHub PR，确保 CI 跑在合并前
+- 不使用 `git push --force` 覆盖 `main`
+- 建议 merge commit，保留 native 的阶段历史
+- 合并后 `main` 指向 native 最新提交
+- `gomusic` 保持原提交，不随合并移动
+- `v1.0.2` 等旧 tag 保持在原提交
+- `native` 合并后可保留一个版本周期，确认无回退需求再删除
+
+版本建议：
+
+| 方案 | 适用 |
+|---|---|
+| `v2.0.0`（推荐） | 后端形态、模式行为、数据目录均变化 |
+| `v1.1.0` | 仅当希望保持 1.x 兼容叙事 |
+
+发布前需要重新走 `docs/release-checklist.md`，不能沿用 1.0.2 的检查结果。
+
+`gomusic` 的维护策略：
+
+- 只接受必要的 1.0.x 修复
+- 修复后按需 cherry-pick 到 `native`
+- 不把 native 的新功能反向合入 gomusic
+
 ## 3. 模式定义
 
 ```dart
