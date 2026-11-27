@@ -10,8 +10,8 @@
 - [x] 确认 `QQMusicApi-rs` 可作为 Rust sidecar
 - [x] 确认 `ncm-api-rs` 可作为 Rust sidecar；Android arm64 编译验证通过
 - [x] 新增 `docs/native-modes-migration.md`
-- [ ] 创建并推送 `gomusic` 分支
-- [ ] 创建并推送 `native` 分支
+- [x] 创建并推送 `gomusic` 分支
+- [x] 创建并推送 `native` 分支
 - [ ] `laetibeat_qq_host` spike
 - [ ] `laetibeat_netease_host` spike
 - [ ] `AppMode` 模式控制器

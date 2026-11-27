@@ -295,9 +295,9 @@ jniLibs/<abi>/liblaetibeat_netease_host.so
 ### N0：分支与文档
 
 - [x] 新增本文件
-- [ ] 创建 `gomusic`
-- [ ] 创建 `native`
-- [ ] 更新 PLAN/TODO/ARCHITECTURE
+- [x] 创建并推送 `gomusic`
+- [x] 创建并推送 `native`
+- [x] 更新 PLAN/TODO/ARCHITECTURE
 
 ### N1：QQ host spike
 
