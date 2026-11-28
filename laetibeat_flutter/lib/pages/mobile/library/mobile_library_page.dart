@@ -282,7 +282,7 @@ class _OnlineUserProfileContent extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           M3EButtonGroup(
-            type: M3EButtonGroupType.standard,
+            type: M3EButtonGroupType.connected,
             shape: M3EButtonShape.round,
             size: M3EButtonSize.sm,
             style: M3EButtonStyle.tonal,
