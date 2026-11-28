@@ -208,22 +208,10 @@ class _OnlineUserProfileContent extends StatelessWidget {
     final scheme = theme.colorScheme;
     final activeMemberships = profile.activeMemberships;
     final chips = activeMemberships.isEmpty
-        ? <Widget>[
-            M3EChip(
-              label: '普通用户',
-              type: M3EChipType.assist,
-              leading: const Icon(M3EIcons.person),
-            ),
-          ]
+        ? <Widget>[const M3EChip(label: '普通用户', type: M3EChipType.assist)]
         : <Widget>[
             for (final membership in activeMemberships)
-              M3EChip(
-                label: membership.level > 1
-                    ? '${membership.label} Lv.${membership.level}'
-                    : membership.label,
-                type: M3EChipType.assist,
-                leading: Icon(_membershipIcon(membership.key)),
-              ),
+              M3EChip(label: membership.label, type: M3EChipType.assist),
           ];
     final bodySmall = theme.typeScale.bodySmall;
     final textScaler = MediaQuery.textScalerOf(context);
@@ -235,19 +223,27 @@ class _OnlineUserProfileContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: chips,
-          ),
-          const SizedBox(height: AppSpacing.sm),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              M3EShapeContainer.cookie12Sided(
-                width: 80,
-                height: 80,
-                child: OnlineCover(url: profile.avatarUrl, size: 80),
+              SizedBox(
+                width: 96,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xs,
+                      children: chips,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    M3EShapeContainer.cookie12Sided(
+                      width: 80,
+                      height: 80,
+                      child: OnlineCover(url: profile.avatarUrl, size: 80),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(width: AppSpacing.lg),
               Expanded(
@@ -354,14 +350,6 @@ class _OnlineUserProfileContent extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static IconData _membershipIcon(String key) {
-    return switch (key) {
-      'musicPackage' => M3EIcons.music_note,
-      'familyVip' => M3EIcons.person,
-      _ => M3EIcons.star,
-    };
   }
 
   static String _compactCount(int value) {
