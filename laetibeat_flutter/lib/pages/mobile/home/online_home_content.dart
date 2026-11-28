@@ -674,7 +674,8 @@ class _PrivateFmSongRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final preview = tracks.take(3).toList(growable: false);
+    // 大卡固定使用第 1 首；下面从第 2 首开始展示，避免重复。
+    final preview = tracks.skip(1).take(3).toList(growable: false);
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -694,7 +695,7 @@ class _PrivateFmSongRow extends ConsumerWidget {
                     track: preview[index],
                     onTap: () => ref
                         .read(playerProvider.notifier)
-                        .load(tracks, index, source: '私人 FM'),
+                        .load(tracks, index + 1, source: '私人 FM'),
                   ),
                 ),
               ],

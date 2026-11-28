@@ -214,7 +214,7 @@ final onlinePersonalFmPreviewProvider =
         source: 'netease',
         mode: null,
         submode: null,
-        limit: 3,
+        limit: 4,
       );
     });
 

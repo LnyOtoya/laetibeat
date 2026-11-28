@@ -520,23 +520,51 @@ async fn personal_fm(
     let limit = params.limit.unwrap_or(10).clamp(1, 30);
     let limit_text = limit.to_string();
     let client = state.client.lock().await;
-    let response = if let Some(mode) = params.mode.as_deref() {
-        client
-            .personal_fm_mode(
-                &NcmQuery::new()
-                    .param("mode", mode)
-                    .param("submode", params.submode.as_deref().unwrap_or(""))
-                    .param("limit", &limit_text),
-            )
-            .await
-            .map_err(ncm_error)?
-    } else {
-        client
-            .personal_fm(&NcmQuery::new().param("limit", &limit_text))
-            .await
-            .map_err(ncm_error)?
-    };
-    let songs = songs_at(&response.body, &["/data", "/songs", "/data/songs"]);
+
+    // 私人 FM 单批通常只返回 3 首，且 limit 参数不保证生效。
+    // 这里连续拉取多批并按歌曲 id 去重，直到满足目标数量或没有新歌。
+    let mut songs = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for _ in 0..10 {
+        if songs.len() >= limit as usize {
+            break;
+        }
+        let response = if let Some(mode) = params.mode.as_deref() {
+            client
+                .personal_fm_mode(
+                    &NcmQuery::new()
+                        .param("mode", mode)
+                        .param("submode", params.submode.as_deref().unwrap_or(""))
+                        .param("limit", &limit_text),
+                )
+                .await
+                .map_err(ncm_error)?
+        } else {
+            client
+                .personal_fm(&NcmQuery::new().param("limit", &limit_text))
+                .await
+                .map_err(ncm_error)?
+        };
+        let batch = songs_at(&response.body, &["/data", "/songs", "/data/songs"]);
+        if batch.is_empty() {
+            break;
+        }
+        let before = songs.len();
+        for item in batch {
+            let id = first_string(&item, &["id"]);
+            if !id.is_empty() && !seen.insert(id) {
+                continue;
+            }
+            songs.push(item);
+            if songs.len() >= limit as usize {
+                break;
+            }
+        }
+        if songs.len() == before {
+            break;
+        }
+    }
+
     Ok(Json(json!({
         "code": 200,
         "msg": "ok",
