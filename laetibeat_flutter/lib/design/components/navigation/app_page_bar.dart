@@ -13,6 +13,7 @@ import '../text/app_text_role.dart';
 /// 只提供三种语义变体：
 /// - [tab]：一级 tab 页。与首页一致的大标题，可随滚动折叠，无返回键。
 /// - [subpage]：二级列表页。返回键 + 页面名 + 排序/搜索/布局三个动作。
+/// - [settings]：设置页。返回键 + 页面名，不显示右侧动作。
 /// - [detail]：详情页。返回键 + 页面名 + 三点菜单，两个按钮都用 tonal 圆形背景。
 ///
 /// 页面不再直接构造 `M3EAppBar`，避免返回键尺寸、标题位置、动作间距各写一套。
@@ -61,6 +62,20 @@ abstract final class AppPageBar {
       onToggleLayout: onToggleLayout,
       backgroundColor: backgroundColor,
       actions: actions,
+    );
+  }
+
+  /// 设置页顶部栏，沿用二级页的尺寸、返回键和标题间距，但不显示动作。
+  static PreferredSizeWidget settings({
+    required String title,
+    Color? backgroundColor,
+  }) {
+    return _AppSubpageBar(
+      title: title,
+      onSearch: null,
+      showLayout: false,
+      backgroundColor: backgroundColor,
+      actions: const <Widget>[],
     );
   }
 
@@ -185,7 +200,7 @@ class _AppSubpageBar extends StatelessWidget implements PreferredSizeWidget {
   });
 
   final String title;
-  final VoidCallback onSearch;
+  final VoidCallback? onSearch;
   final VoidCallback? onSort;
   final bool showLayout;
   final bool isGrid;

@@ -90,16 +90,20 @@ laetibeat_qq_host (GPL-3.0-only)     laetibeat_netease_host (MIT)
 
 ### 移动端导航
 
-- `MaterialApp` 的 root Navigator 是唯一移动端页面栈；`MobileShell` 在 Navigator 外层持久显示底部导航和 MiniPlayer。
+- `MaterialApp` 的 root Navigator 是唯一移动端页面栈；`MobileShell` 在 Navigator 外层管理底部导航和 MiniPlayer。
 - 首页 / 媒体库是 Shell 内的目的地状态，不通过 push 在彼此之间切换；目的地集合与默认页由 `AppMode.mobileDestinations` / `mobileInitialDestination` 提供。
 - 搜索、详情、设置、播放器等页面都 push 到同一 root Navigator。Tab 切换时先回到 Shell 根页面，再更新选中目的地。
 - `MobileNavigatorObserver` 观察 root 页面栈并驱动 Shell chrome 显示；未知命名路由不再回退成首页。
+- 底部导航只在首页和媒体库路由显示；有正在播放的曲目时，MiniPlayer 在普通内容页面显示，不依赖底部导航栏是否显示。
+- `/settings` 及其子路由隐藏 MiniPlayer；全屏播放器也不显示 MiniPlayer，避免遮挡全屏播放控件。
+- 页面通过 `AppBottomInsetScope` 获取当前可见底部 chrome 的高度；没有底部导航时，MiniPlayer 仍保留系统底部安全区。
 - 后续 UI 皮肤可以改变导航栏和页面外观，但必须复用相同的目的地状态、root 路由栈和返回语义，不创建第二套移动端 Navigator。
 
 ### UI
 
-- 设置 → 音源模式：本地 / Subsonic / QQ / 网易云切换与 sidecar 状态
-- 设置 → 在线音源：当前模式 sidecar 状态、账号登录/退出、音质、LX 后备
+- 移动端设置分为外观、播放与音效、音乐库与歌词、音源与账号、存储与缓存、关于六类。
+- 音源与账号设置合并模式切换、在线服务状态、账号登录/退出、音质和 LX 后备；Subsonic 与 LX 的详细配置保留在来源管理。
+- 设置页面使用 `AppPageBar.settings`：紧凑二级页标题栏，仅显示返回键和标题。
 - 搜索：在线源跟随当前 `AppMode`
 - 在线歌单 / 专辑 / 榜单详情：`lib/pages/mobile/library/online/`
 

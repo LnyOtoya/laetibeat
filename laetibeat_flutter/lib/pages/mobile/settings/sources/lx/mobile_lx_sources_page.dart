@@ -7,10 +7,10 @@ import 'package:laetibeat/src/rust/api/lx.dart' as rust_lx;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../../design/components/navigation/app_page_bar.dart';
 import '../../../../../l10n/generated/app_localizations.dart';
 import '../../../../../widgets/player/lx_search_provider.dart';
 import '../../../../../widgets/settings/lx_settings.dart';
-import '../../../widgets/mobile_large_subpage_app_bar.dart';
 
 /// Mobile UI for importing and managing user-provided LX source scripts.
 class MobileLxSourcesPage extends ConsumerStatefulWidget {
@@ -334,18 +334,9 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(
-        context,
+      appBar: AppPageBar.settings(
         title: l10n.lxSourcesTitle,
-        centerTitle: false,
-        actions: <Widget>[
-          M3EIconButton(
-            icon: const Icon(M3EIcons.add),
-            tooltip: l10n.lxImportSource,
-            semanticLabel: l10n.lxImportSource,
-            onPressed: _importing ? null : _importSource,
-          ),
-        ],
+        backgroundColor: theme.colorScheme.surface,
       ),
       body: SafeArea(top: false, child: _buildBody(context, theme, l10n)),
     );
@@ -377,6 +368,12 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
               ),
               const SizedBox(height: 16),
               M3EButton(label: Text(l10n.lxSourceRetry), onPressed: _reload),
+              const SizedBox(height: 8),
+              M3EButton(
+                style: M3EButtonStyle.tonal,
+                label: Text(l10n.lxImportSource),
+                onPressed: _importing ? null : _importSource,
+              ),
             ],
           ),
         ),
@@ -423,6 +420,15 @@ class _MobileLxSourcesPageState extends ConsumerState<MobileLxSourcesPage> {
           l10n.lxSourcesWarning,
           style: theme.typeScale.bodySmall.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: M3EButton(
+            style: M3EButtonStyle.tonal,
+            label: Text(l10n.lxImportSource),
+            onPressed: _importing ? null : _importSource,
           ),
         ),
         const SizedBox(height: 12),

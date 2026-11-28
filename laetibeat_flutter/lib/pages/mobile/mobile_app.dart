@@ -123,6 +123,15 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     return route == MobileRoutes.library || route.startsWith('/library/');
   }
 
+  bool _showMiniPlayer(String? route) {
+    if (route == MobileRoutes.playback ||
+        route == MobileRoutes.settings ||
+        (route?.startsWith('/settings/') ?? false)) {
+      return false;
+    }
+    return true;
+  }
+
   void _selectTab(AppDestination destination) {
     final mode = ref.read(appModeProvider);
     if (!mode.mobileDestinations.contains(destination)) return;
@@ -189,7 +198,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             : tabs.first;
         final int selectedIndex = tabs.indexOf(destination);
         final bool showNavigationBar = _showNavigationBar(routeName);
-        final bool showMiniPlayer = hasTrack && showNavigationBar;
+        final bool showMiniPlayer = hasTrack && _showMiniPlayer(routeName);
         final AppFloatingNavBar? navBar = showNavigationBar
             ? AppFloatingNavBar(
                 key: const ValueKey<String>('mobile_floating_nav_bar'),
@@ -205,24 +214,27 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               )
             : null;
 
-        final double navigationBarHeight = navBar?.resolvedHeight(context) ?? 0;
-        final Widget? bottomBar = navBar == null
+        final double navigationBarHeight =
+            navBar?.resolvedHeight(context) ??
+            (showMiniPlayer ? MediaQuery.paddingOf(context).bottom : 0);
+        final Widget? bottomBar = navBar == null && !showMiniPlayer
             ? null
             : AppBottomOverlay(
-                navigationBar: navBar,
+                navigationBar: navBar ?? const SizedBox.shrink(),
                 navigationBarHeight: navigationBarHeight,
                 miniPlayer: const MiniPlayer(),
                 miniVisible: showMiniPlayer,
                 miniPlayerHeight: AppComponentSize.miniPlayerAccessory,
-                navBarScrollState: _navBarScrollBehavior.state,
+                navBarScrollState: showNavigationBar
+                    ? _navBarScrollBehavior.state
+                    : null,
               );
 
         // This is a metric for page-owned scroll/content padding. The Shell
         // never wraps the page in this padding, so page layout stays full-bleed.
-        final double floatingChromeInset = showNavigationBar
-            ? navigationBarHeight +
-                  (showMiniPlayer ? AppComponentSize.miniPlayerAccessory : 0)
-            : 0;
+        final double floatingChromeInset =
+            (showNavigationBar ? navigationBarHeight : 0) +
+            (showMiniPlayer ? AppComponentSize.miniPlayerAccessory : 0);
 
         final body = Stack(
           children: <Widget>[

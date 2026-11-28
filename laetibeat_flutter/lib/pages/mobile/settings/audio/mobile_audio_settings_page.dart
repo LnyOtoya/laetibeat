@@ -2,10 +2,11 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 
+import '../../../../design/components/navigation/app_page_bar.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../widgets/settings/equalizer_settings.dart';
 import '../../../../widgets/settings/fade_settings.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
+import '../mobile_settings_section.dart';
 
 /// 移动端“播放器与音频”设置页。
 ///
@@ -22,36 +23,33 @@ class MobileAudioSettingsPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(
-        context,
+      appBar: AppPageBar.settings(
         title: l10n.settingsPlaybackAudio,
+        backgroundColor: theme.colorScheme.surface,
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
-          _AudioGroupTitle(l10n.equalizer),
-          const SizedBox(height: 8),
-          M3EList(
-            color: theme.colorScheme.surface,
-            variant: M3ECardVariant.filled,
-            itemCount: 1,
-            itemBuilder: (BuildContext context, int index) {
-              return M3EListItem(
-                headline: l10n.equalizerEnabled,
+          MobileSettingsSection(
+            title: l10n.equalizer,
+            children: [
+              MobileSettingsRow(
+                title: l10n.equalizerEnabled,
                 supportingText: l10n.equalizerSupporting,
+                leading: const Icon(M3EIcons.graphic_eq),
                 trailing: M3ESwitch(
                   value: settings.enabled,
                   onChanged: (value) => ref
                       .read(equalizerSettingsProvider.notifier)
                       .setEnabled(value),
                 ),
-              );
-            },
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           DecoratedBox(
             decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
+              color: theme.colorScheme.surfaceContainer,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Padding(
@@ -94,28 +92,25 @@ class MobileAudioSettingsPage extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
-          _AudioGroupTitle(l10n.fadeInOut),
-          const SizedBox(height: 8),
-          M3EList(
-            color: theme.colorScheme.surface,
-            variant: M3ECardVariant.filled,
-            itemCount: 1,
-            itemBuilder: (BuildContext context, int index) {
-              return M3EListItem(
-                headline: l10n.fadeInOut,
+          MobileSettingsSection(
+            title: l10n.fadeInOut,
+            children: [
+              MobileSettingsRow(
+                title: l10n.fadeInOut,
                 supportingText: l10n.fadeInOutSupporting,
+                leading: const Icon(M3EIcons.graphic_eq),
                 trailing: M3ESwitch(
                   value: fade.enabled,
                   onChanged: (value) =>
                       ref.read(fadeSettingsProvider.notifier).setEnabled(value),
                 ),
-              );
-            },
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           DecoratedBox(
             decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
+              color: theme.colorScheme.surfaceContainer,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Padding(
@@ -268,26 +263,6 @@ class _FadeSlider extends StatelessWidget {
                 '${value.toStringAsFixed(1)} s',
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AudioGroupTitle extends StatelessWidget {
-  const _AudioGroupTitle(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = M3ETheme.of(context);
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(start: 16),
-      child: Text(
-        text,
-        style: theme.typeScale.titleSmall.copyWith(
-          color: theme.colorScheme.onPrimaryContainer,
-        ),
       ),
     );
   }

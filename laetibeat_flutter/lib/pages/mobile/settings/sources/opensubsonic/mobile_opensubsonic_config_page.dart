@@ -6,8 +6,8 @@ import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../../design/components/navigation/app_page_bar.dart';
 import '../../../../../l10n/generated/app_localizations.dart';
-import '../../../widgets/mobile_large_subpage_app_bar.dart';
 
 enum _ServerScheme { http, https }
 
@@ -324,10 +324,9 @@ class _MobileOpensubsonicConfigPageState
 
     return Scaffold(
       backgroundColor: scheme.surface,
-      appBar: mobileLargeSubpageAppBar(
-        context,
+      appBar: AppPageBar.settings(
         title: 'Opensubsonic',
-        centerTitle: true,
+        backgroundColor: scheme.surface,
       ),
       body: SafeArea(
         top: false,

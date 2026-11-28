@@ -21,6 +21,8 @@
 - `MobileShellPage` 使用共享的目的地状态显示一级页面；切换 Tab 不 push 页面
 - `MobileShell` 的 AppBar actions 提供最近、统计、一起听、设置
 - 所有业务页面和播放器共用 MaterialApp root Navigator；Tab 选择与详情路由栈分离
+- 有正在播放的曲目时，MiniPlayer 在全屏播放器以外的非设置页面显示，不依赖底部导航栏是否显示
+- 设置路由和全屏播放器隐藏 MiniPlayer；无底部导航栏时仍为 MiniPlayer 保留系统底部安全区
 - 切换模式后如果当前目的地在新目标集合中则保留，否则回到 Shell 并选择该模式默认页
 - 发现页已移除，原发现页的推荐歌单与排行榜迁入首页
 

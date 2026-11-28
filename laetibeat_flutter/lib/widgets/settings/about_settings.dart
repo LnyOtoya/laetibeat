@@ -29,7 +29,7 @@ class AboutSettings extends ConsumerWidget {
       showTitle: showTitle,
       children: [
         //版本信息
-        M3EListItem(headline: '版本', supportingText: versionText, onTap: () {}),
+        M3EListItem(headline: '版本', supportingText: versionText),
         //开源许可
         M3EListItem(
           headline: '开源许可',
@@ -45,12 +45,6 @@ class AboutSettings extends ConsumerWidget {
           headline: '在线音源源码',
           supportingText: 'QQMusicApi-rs · GPL-3.0 / ncm-api-rs · WTFPL',
           onTap: () => _showSourceDialog(context),
-        ),
-        //检查更新
-        M3EListItem(
-          headline: '检查更新',
-          supportingText: '检测是否有新版本可用',
-          onTap: () {},
         ),
         SizedBox(height: theme.spacing.lg),
         Center(

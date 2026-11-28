@@ -4,11 +4,11 @@ import 'package:material_ui/material_ui.dart';
 import '../../tokens/app_motion_tokens.dart';
 import '../../tokens/app_size_tokens.dart';
 
-/// Floating shell chrome: mini player above the navigation bar.
+/// Floating shell chrome: mini player above the navigation bar or safe area.
 ///
 /// The overlay paints above the page and never participates in the page
-/// layout. The navigation bar stays on top; the mini player slides down behind
-/// the navigation bar and is clipped at the overlay's bottom edge.
+/// layout. When present, the navigation bar stays on top; the mini player
+/// slides down behind it and is clipped at the overlay's bottom edge.
 class AppBottomOverlay extends StatefulWidget {
   const AppBottomOverlay({
     super.key,
