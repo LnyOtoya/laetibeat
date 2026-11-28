@@ -18,6 +18,7 @@
 - 网易云在线页面 AppBar 与 Subsonic 对齐：一级页使用 `AppPageBar.subpage`（搜索/排序/布局切换），歌单、专辑、喜欢歌曲详情页使用 `AppPageBar.detail` + 大封面。
 - 网易云详情页歌曲列表改用 `M3ESegmentedList`，并根据封面主色生成 Material You 配色。
 - 我喜欢的音乐详情页新增创建者行、歌曲数/播放次数统计，以及 cookie4sided 随机 + 图标播放/暂停按钮组；歌曲封面增大、标题单行省略。
+- 媒体库分段列表下方新增统一「设置」入口，所有音乐模式可用，避免首页内容为空时无法进入设置。
 - 新增 `docs/mode-pages.md` 记录导航与页面内容矩阵。
 
 ### Fixed

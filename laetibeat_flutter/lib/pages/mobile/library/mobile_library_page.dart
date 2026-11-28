@@ -181,8 +181,53 @@ class MobileLibraryPage extends ConsumerWidget {
             const SizedBox(height: AppSpacing.lg),
           ],
           buildSection(sectionTitle, sectionKey, segments),
+          const SizedBox(height: AppSpacing.lg),
+          const _LibrarySettingsEntry(),
         ],
       ),
+    );
+  }
+}
+
+class _LibrarySettingsEntry extends StatelessWidget {
+  const _LibrarySettingsEntry();
+
+  @override
+  Widget build(BuildContext context) {
+    return m3e_core.M3ESegmentedList.builder(
+      itemCount: 1,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      listPadding: EdgeInsets.zero,
+      onTap: (_) => Navigator.of(context).pushNamed(MobileRoutes.settings),
+      decoration: const m3e_core.M3ESegmentedListDecoration(
+        outerRadius: 24.0,
+        innerRadius: 12.0,
+        pressedRadius: 8.0,
+        pressedScale: 0.98,
+        hoveredRadius: 16.0,
+        gap: 2.0,
+        padding: EdgeInsets.all(4.0),
+        margin: EdgeInsets.symmetric(
+          horizontal: AppSpacing.none,
+          vertical: 5.0,
+        ),
+      ),
+      itemBuilder: (BuildContext context, int index) {
+        return m3e_core.M3EListItem(
+          minHeight: 48,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 4,
+          ),
+          leading: const Icon(M3EIcons.settings, size: 20),
+          headline: const Text(
+            '设置',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          trailing: const Icon(M3EIcons.chevron_right, size: 20),
+        );
+      },
     );
   }
 }
