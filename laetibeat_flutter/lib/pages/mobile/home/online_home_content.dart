@@ -107,8 +107,6 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
                   const SizedBox(height: AppSpacing.xl),
                   const _PrivateFmSection(),
                   const SizedBox(height: AppSpacing.xl),
-                  _LikedSongRecommendationsSection(blocks: value.blocks),
-                  const SizedBox(height: AppSpacing.xl),
                   for (final block in sections) ...<Widget>[
                     _HomeBlockSection(block: block),
                     const SizedBox(height: AppSpacing.xl),
@@ -780,58 +778,6 @@ class _PrivateFmCover extends StatelessWidget {
                     );
                   },
             ),
-    );
-  }
-}
-
-class _LikedSongRecommendationsSection extends StatelessWidget {
-  const _LikedSongRecommendationsSection({required this.blocks});
-
-  final List<rust_online.UiOnlineHomeBlock> blocks;
-
-  @override
-  Widget build(BuildContext context) {
-    // 只展示账号真实的 TAILORED_SONG block。账号没有该推荐或网易云
-    // 未返回时显示空状态，不回退到匿名「猜你喜欢」内容。
-    final block = blocks
-        .where(
-          (value) =>
-              (value.code == 'HOMEPAGE_BLOCK_TAILORED_SONG' ||
-                  value.title.contains('根据你喜爱的歌曲推荐')) &&
-              value.items.isNotEmpty,
-        )
-        .firstOrNull;
-    final tracks =
-        block?.items
-            .where((item) => item.kind == 'song')
-            .map(_trackFromHomeItem)
-            .toList(growable: false) ??
-        const <rust.UiTrack>[];
-    final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: gutter),
-          child: AppSectionHeader(
-            title: '根据你喜爱的歌曲推荐',
-            titleRole: AppTextRole.titleMedium,
-            padding: AppInsets.sectionHeader,
-          ),
-        ),
-        if (tracks.isEmpty)
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: gutter),
-            child: const AppEmptyState(
-              title: '当前账号暂无推荐',
-              message: '网易云暂时没有返回当前账号的「根据你喜爱的歌曲推荐」。',
-              icon: M3EIcons.favorite_border,
-            ),
-          )
-        else
-          _HomeSongColumns(tracks: tracks, source: '根据你喜爱的歌曲推荐'),
-      ],
     );
   }
 }
