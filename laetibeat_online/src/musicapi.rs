@@ -48,6 +48,19 @@ impl OnlineClient {
         }
     }
 
+    pub fn radar_playlists(&self, source: &str, limit: u32) -> Result<Vec<OnlinePlaylist>> {
+        let data: ApiSearchData = self.http.get_data(
+            "/api/v1/playlist/radar",
+            &[("source", source.to_string()), ("limit", limit.to_string())],
+        )?;
+        Ok(data
+            .playlists
+            .unwrap_or_default()
+            .into_iter()
+            .map(|playlist| map_playlist(source, playlist))
+            .collect())
+    }
+
     pub fn daily_songs(&self, source: &str, refresh: bool) -> Result<Vec<OnlineTrack>> {
         let data: ApiSearchData = self.http.get_data(
             "/api/v1/recommend/daily/songs",

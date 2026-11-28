@@ -136,6 +136,19 @@ pub fn online_health(base_url: String, token: Option<String>) -> Result<UiOnline
     })
 }
 
+pub fn online_radar_playlists(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+    limit: Option<u32>,
+) -> Result<Vec<UiOnlinePlaylist>, String> {
+    let client = client(&base_url, token)?;
+    let playlists = client
+        .radar_playlists(&source, limit.unwrap_or(50))
+        .map_err(|error| error.to_string())?;
+    Ok(playlists.into_iter().map(map_playlist).collect())
+}
+
 pub fn online_daily_songs(
     base_url: String,
     token: Option<String>,

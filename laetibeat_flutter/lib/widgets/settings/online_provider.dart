@@ -186,6 +186,21 @@ final onlineDailySongsProvider = FutureProvider.autoDispose<List<rust.UiTrack>>(
   },
 );
 
+final onlineRadarPlaylistsProvider =
+    FutureProvider.autoDispose<List<rust_online.UiOnlinePlaylist>>((ref) async {
+      final baseUrl = ref.watch(onlineBaseUrlProvider);
+      if (baseUrl.isEmpty) {
+        throw StateError('当前模式 sidecar 未启动');
+      }
+      final token = await ref.watch(onlineTokenProvider.future);
+      return rust_online.onlineRadarPlaylists(
+        baseUrl: baseUrl,
+        token: token,
+        source: 'netease',
+        limit: 50,
+      );
+    });
+
 final onlinePersonalFmPreviewProvider =
     FutureProvider.autoDispose<List<rust.UiTrack>>((ref) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);

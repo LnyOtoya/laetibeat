@@ -117,6 +117,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/v1/playlist/detail", get(playlist_detail))
         .route("/api/v1/album/detail", get(album_detail))
         .route("/api/v1/playlist/user", get(user_playlists))
+        .route("/api/v1/playlist/radar", get(radar_playlists))
         .route("/api/v1/playlist/recommend", get(recommend_playlists))
         .route("/api/v1/ranking/toplists", get(top_lists))
         .route("/api/v1/ranking/toplist", get(top_list_songs))
@@ -898,6 +899,61 @@ async fn album_detail(
             .into_iter()
             .map(|item| map_ne_song(&item))
             .collect::<Vec<_>>(),
+    })))
+}
+
+async fn radar_playlists(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let limit = params.limit.unwrap_or(30).clamp(1, 50);
+    let limit_text = limit.to_string();
+    let client = state.client.lock().await;
+    let response = client
+        .search(
+            &NcmQuery::new()
+                .param("keywords", "雷达")
+                .param("type", "1000")
+                .param("limit", &limit_text)
+                .param("offset", "0"),
+        )
+        .await
+        .map_err(ncm_error)?;
+    let mut playlists = array_at(&response.body, "/result/playlists");
+    // 部分官方雷达在通用“雷达”搜索中会排在 50 条之后，逐个补搜。
+    for keyword in ["会员雷达", "怀旧雷达", "时光雷达", "云村高分雷达"] {
+        if let Ok(extra) = client
+            .search(
+                &NcmQuery::new()
+                    .param("keywords", keyword)
+                    .param("type", "1000")
+                    .param("limit", "8")
+                    .param("offset", "0"),
+            )
+            .await
+        {
+            let mut seen = playlists
+                .iter()
+                .filter_map(|item| item.get("id").map(value_string))
+                .collect::<std::collections::HashSet<_>>();
+            for item in array_at(&extra.body, "/result/playlists") {
+                if let Some(id) = item.get("id") {
+                    if seen.insert(value_string(id)) {
+                        playlists.push(item);
+                    }
+                }
+            }
+        }
+    }
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "playlists": playlists
+                .into_iter()
+                .map(|item| map_ne_playlist(&item))
+                .collect::<Vec<_>>(),
+        }
     })))
 }
 

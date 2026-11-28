@@ -15,6 +15,18 @@ Future<UiOnlineStatus> onlineHealth({required String baseUrl, String? token}) =>
       token: token,
     );
 
+Future<List<UiOnlinePlaylist>> onlineRadarPlaylists({
+  required String baseUrl,
+  String? token,
+  required String source,
+  int? limit,
+}) => RustLib.instance.api.crateApiOnlineOnlineRadarPlaylists(
+  baseUrl: baseUrl,
+  token: token,
+  source: source,
+  limit: limit,
+);
+
 Future<List<UiTrack>> onlineDailySongs({
   required String baseUrl,
   String? token,

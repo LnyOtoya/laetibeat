@@ -50,6 +50,13 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
     }
 
     final source = mode.hostId ?? 'netease';
+    final nickname = ref
+        .watch(
+          onlineUserPlaylistsProvider((source: source, page: 1, limit: 10)),
+        )
+        .value
+        ?.firstOrNull
+        ?.creator;
     final key = (
       source: source,
       refresh: _generation > 0,
@@ -80,7 +87,10 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
               _LikedSongRecommendationsSection(blocks: value.blocks),
               const SizedBox(height: AppSpacing.xl),
               for (final block in sections) ...<Widget>[
-                _HomeBlockSection(block: block),
+                if (block.code == 'HOMEPAGE_BLOCK_MGC_PLAYLIST')
+                  _RadarHomeSection(block: block, nickname: nickname)
+                else
+                  _HomeBlockSection(block: block),
                 const SizedBox(height: AppSpacing.xl),
               ],
             ],
@@ -139,9 +149,6 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
         .value
         ?.firstOrNull
         ?.coverId;
-    debugPrint(
-      'home covers daily=$dailyCover heart=$likedCover roam=$roamCover',
-    );
     final playlistBlock = _findBlock(feed, const <String>{
       'HOMEPAGE_BLOCK_PLAYLIST_RCMD',
       'HOMEPAGE_BLOCK_OFFICIAL_PLAYLIST',
@@ -449,6 +456,122 @@ class _LikedSongRecommendationsSection extends StatelessWidget {
           _HomeSongColumns(tracks: tracks, source: '根据你喜爱的歌曲推荐'),
       ],
     );
+  }
+}
+
+class _RadarHomeSection extends ConsumerWidget {
+  const _RadarHomeSection({required this.block, required this.nickname});
+
+  final rust_online.UiOnlineHomeBlock block;
+  final String? nickname;
+
+  static const List<String> _markers = <String>[
+    '私人雷达',
+    '会员雷达',
+    '怀旧雷达',
+    '时光雷达',
+    '云村高分雷达',
+    '高分雷达',
+    '华语私人雷达',
+    '日系私人雷达',
+    '欧美私人雷达',
+    '韩系私人雷达',
+    '新歌雷达',
+    '宝藏雷达',
+    '乐迷雷达',
+    '神秘雷达',
+    '热点雷达',
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final search = ref.watch(onlineRadarPlaylistsProvider);
+    final cards = <rust_online.UiOnlineHomeItem>[
+      ...block.items.where((item) => item.kind == 'list'),
+    ];
+    final seen = <String>{for (final item in cards) item.id};
+    for (final playlist
+        in search.value ?? const <rust_online.UiOnlinePlaylist>[]) {
+      if (!seen.add(playlist.id)) continue;
+      if (!_isOfficialRadar(playlist.name)) continue;
+      cards.add(
+        rust_online.UiOnlineHomeItem(
+          kind: 'list',
+          id: playlist.id,
+          title: playlist.name,
+          subtitle: playlist.creator ?? '',
+          coverUrl: playlist.coverUrl,
+          section: '',
+          artists: playlist.creator ?? '',
+          album: '',
+          albumId: '',
+          durationSeconds: BigInt.zero,
+          playCount: playlist.playCount,
+          trackCount: playlist.trackCount,
+          action: '',
+          source: playlist.source,
+        ),
+      );
+      if (cards.length >= 24) break;
+    }
+    final uniqueTitles = <String>{};
+    cards.removeWhere((item) => !uniqueTitles.add(item.title.trim()));
+    cards.sort((a, b) => _rank(a.title).compareTo(_rank(b.title)));
+    final title = nickname != null && block.title.contains('的雷达歌单')
+        ? '${nickname}的雷达歌单'
+        : block.title;
+    final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: gutter),
+          child: AppSectionHeader(
+            title: title,
+            titleRole: AppTextRole.titleMedium,
+            padding: AppInsets.sectionHeader,
+          ),
+        ),
+        if (cards.isNotEmpty) _HomeCardCarousel(cards: cards),
+      ],
+    );
+  }
+
+  bool _isOfficialRadar(String name) {
+    if (name.contains('今天从')) return false;
+    final value = name.trim();
+    for (final marker in _markers) {
+      if (value == marker) return true;
+      if (value.startsWith('$marker |')) return true;
+      if (value.contains('|$marker')) return true;
+    }
+    return false;
+  }
+
+  int _rank(String name) {
+    const order = <String>[
+      '私人雷达',
+      '会员雷达',
+      '怀旧雷达',
+      '时光雷达',
+      '云村高分雷达',
+      '华语私人雷达',
+      '日系私人雷达',
+      '欧美私人雷达',
+      '韩系私人雷达',
+      '新歌雷达',
+      '宝藏雷达',
+      '乐迷雷达',
+      '神秘雷达',
+      '热点雷达',
+    ];
+    for (var index = 0; index < order.length; index++) {
+      if (name.trim() == order[index]) return index;
+    }
+    for (var index = 0; index < order.length; index++) {
+      if (name.contains(order[index])) return 20 + index;
+    }
+    return 100;
   }
 }
 
