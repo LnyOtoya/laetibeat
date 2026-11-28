@@ -141,8 +141,15 @@ class _MaterialYouThemeHostState extends State<MaterialYouThemeHost>
     // `Theme.of(context)`, while `material_3_expressive` widgets read
     // `M3ETheme.of(context)`. Project the same dynamic scheme onto both so the
     // shell and the page components do not fall back to the brand seed.
-    final materialTheme = Theme.of(context).copyWith(
+    final baseMaterialTheme = Theme.of(context);
+    final materialTheme = baseMaterialTheme.copyWith(
       colorScheme: data.colorScheme.toColorScheme(),
+      textTheme: AppTheme.applyMaterialTextTypography(
+        baseMaterialTheme.textTheme,
+      ),
+      primaryTextTheme: AppTheme.applyMaterialTextTypography(
+        baseMaterialTheme.primaryTextTheme,
+      ),
       scaffoldBackgroundColor: data.colorScheme.surface,
       canvasColor: data.colorScheme.surface,
     );

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-28
+
 ### Added
 
 - UI Skin 骨架：`ui.skin` 持久化、`AppSkin` 契约与注册表；默认皮肤仍为 Material 3 Expressive。
@@ -25,6 +27,7 @@
 - 原发现页推荐歌单迁入首页并更名为「个性化推荐」，与首页推荐歌单共用横向卡片样式。
 - 原发现页排行榜迁入首页，参考 Metrolist 曲风流派区域，使用两行横向 tonal 网格。
 - 新增 `docs/mode-pages.md` 记录导航与页面内容矩阵。
+- 新增 design_system_smoke_test.dart，覆盖 Google Sans Flex 与 Noto CJK 字体回退配置。
 
 ### Removed
 
@@ -43,6 +46,16 @@
 - 网易云封面经本机 host 图片代理加载，修复部分封面因 CDN 403 显示占位的问题。
 - 修复「我喜欢的音乐」一次性拉取全部歌曲的问题：歌单详情改为 trackIds + 分页歌曲详情，避免超大响应和重复全量请求。
 - 修复账号歌单按 created / collected 过滤后分页偏移错误导致翻页漏数据的问题。
+
+### Changed
+
+- 全局 Flutter `textTheme` 和 `primaryTextTheme` 统一使用 Google Sans Flex，并配置 Noto CJK 字体回退，确保普通 Flutter Text 与 Material 控件使用一致的字体体系。
+- 字体名称统一引用主题 Token，避免字体配置分散。
+- 主页分区标题改用主题 `primary` 色，其他页面的 `AppSectionHeader` 默认外观保持不变。
+- 详情页列表主标题改用当前详情主题色，辅助文字统一使用 `onSurface`，提高可读性。
+- 封面歌曲列表保留与容器配对的主题颜色，并增强辅助文字对比度。
+- 艺术家详情分区标题、洛雪歌单信息标题和本地专辑信息标题统一使用主题强调色。
+- 媒体库昵称改用主题 `primary` 色，个人签名改用 `onSurface` 色。
 
 ## [1.1.0] - 2026-11-27
 

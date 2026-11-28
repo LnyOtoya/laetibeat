@@ -501,6 +501,7 @@ class _PrivateFmSection extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: AppSectionHeader(
                 title: '私人 FM',
+                titleColorRole: AppColorRole.primary,
                 leading: const _PrivateFmGlyph(),
                 padding: AppInsets.sectionHeader,
                 trailing: m3e_core.M3EButton.icon(
@@ -817,6 +818,7 @@ class _PersonalizedRecommendSection extends ConsumerWidget {
               padding: EdgeInsets.symmetric(horizontal: gutter),
               child: AppSectionHeader(
                 title: '个性化推荐',
+                titleColorRole: AppColorRole.primary,
                 titleRole: AppTextRole.titleLarge,
                 trailing: _SectionAction(
                   label: '全部',
@@ -858,6 +860,7 @@ class _TopListsSection extends ConsumerWidget {
               padding: EdgeInsets.symmetric(horizontal: gutter),
               child: const AppSectionHeader(
                 title: '排行榜',
+                titleColorRole: AppColorRole.primary,
                 titleRole: AppTextRole.titleLarge,
                 padding: AppInsets.sectionHeader,
               ),
@@ -988,6 +991,7 @@ class _RadarHomeSection extends ConsumerWidget {
               child: AppSectionHeader(
                 title: '雷达歌单',
                 subtitle: subtitle,
+                titleColorRole: AppColorRole.primary,
                 titleRole: AppTextRole.titleLarge,
                 leading: CircleAvatar(
                   radius: 18,
@@ -1041,6 +1045,7 @@ class _HomeBlockSection extends StatelessWidget {
           child: AppSectionHeader(
             title: block.title,
             subtitle: isRecommended ? '根据你的最近聆听精选' : null,
+            titleColorRole: AppColorRole.primary,
             titleRole: AppTextRole.titleLarge,
             trailing: _SectionAction(label: '全部', onPressed: onOpen),
             padding: AppInsets.sectionHeader,

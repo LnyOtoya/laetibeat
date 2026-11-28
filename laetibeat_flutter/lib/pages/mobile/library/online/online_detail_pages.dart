@@ -841,7 +841,9 @@ class _OnlineTracksScaffoldState extends ConsumerState<_OnlineTracksScaffold> {
     final contentColor = detailContentColor(scheme);
 
     return M3ETheme(
-      data: baseTheme.withColorScheme(scheme),
+      data: AppTheme.withDetailTextEmphasis(
+        baseTheme.withColorScheme(scheme),
+      ),
       child: Scaffold(
         backgroundColor: contentColor,
         extendBodyBehindAppBar: true,
@@ -1056,7 +1058,7 @@ class _OnlineTracksScaffoldState extends ConsumerState<_OnlineTracksScaffold> {
                     color: scheme.onSecondaryContainer,
                   ),
                   supportingTextStyle: baseTheme.typeScale.bodySmall.copyWith(
-                    color: scheme.onSecondaryContainer.withValues(alpha: 0.75),
+                    color: scheme.onSecondaryContainer.withValues(alpha: 0.9),
                   ),
                 );
               },

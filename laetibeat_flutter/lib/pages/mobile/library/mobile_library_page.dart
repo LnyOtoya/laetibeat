@@ -350,7 +350,7 @@ class _OnlineUserProfileContent extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.typeScale.titleLarge.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
+                        color: scheme.primary,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
@@ -365,7 +365,7 @@ class _OnlineUserProfileContent extends StatelessWidget {
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                         style: bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
+                          color: scheme.onSurface,
                         ),
                       ),
                     ),

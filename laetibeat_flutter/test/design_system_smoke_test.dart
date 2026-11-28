@@ -23,6 +23,42 @@ void main() {
     expect(dark.surface, isNot(scheme.surface));
   });
 
+  test('detail list text uses emphasized theme roles', () {
+    final theme = AppTheme.withDetailTextEmphasis(AppTheme.light());
+    final scheme = theme.colorScheme;
+
+    expect(theme.listTheme.item.labelColor, scheme.primary);
+    expect(theme.listTheme.item.supportingColor, scheme.onSurface);
+  });
+
+  testWidgets('Material text themes use the app CJK font fallback', (
+    WidgetTester tester,
+  ) async {
+    late ThemeData materialTheme;
+
+    await tester.pumpWidget(
+      M3EMaterialApp(
+        data: AppTheme.light(),
+        home: MaterialYouThemeHost(
+          child: Builder(
+            builder: (context) {
+              materialTheme = Theme.of(context);
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      ),
+    );
+
+    final bodyStyle = materialTheme.textTheme.bodyMedium!;
+    final primaryStyle = materialTheme.primaryTextTheme.titleLarge!;
+
+    expect(bodyStyle.fontFamily, AppTypography.fontFamily);
+    expect(bodyStyle.fontFamilyFallback, AppTypography.fontFamilyFallback);
+    expect(primaryStyle.fontFamily, AppTypography.fontFamily);
+    expect(primaryStyle.fontFamilyFallback, AppTypography.fontFamilyFallback);
+  });
+
   testWidgets('section and media row share the page gutter', (
     WidgetTester tester,
   ) async {

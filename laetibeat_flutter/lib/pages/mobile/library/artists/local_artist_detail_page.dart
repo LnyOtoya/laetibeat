@@ -157,7 +157,9 @@ class _LocalArtistDetailPageState extends ConsumerState<LocalArtistDetailPage> {
     }
 
     return M3ETheme(
-      data: baseTheme.withColorScheme(scheme),
+      data: AppTheme.withDetailTextEmphasis(
+        baseTheme.withColorScheme(scheme),
+      ),
       child: Scaffold(
         backgroundColor: contentColor,
         extendBodyBehindAppBar: true,
@@ -508,7 +510,14 @@ class _SectionHeader extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          Expanded(child: Text(title, style: theme.typeScale.titleLarge)),
+          Expanded(
+            child: Text(
+              title,
+              style: theme.typeScale.titleLarge.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ),
           if (trailing != null)
             Text(
               trailing!,

@@ -86,6 +86,7 @@ class MobileHomeContent extends ConsumerWidget {
           padding: EdgeInsets.symmetric(horizontal: pageGutter),
           child: AppSectionHeader(
             title: _recentTitle,
+            titleColorRole: AppColorRole.primary,
             padding: AppInsets.sectionHeader,
             trailing: recentSongs.isEmpty ? null : const _SeeMoreButton(),
           ),
@@ -114,6 +115,7 @@ class MobileHomeContent extends ConsumerWidget {
           padding: EdgeInsets.symmetric(horizontal: pageGutter),
           child: const AppSectionHeader(
             title: '重拾旧爱',
+            titleColorRole: AppColorRole.primary,
             padding: AppInsets.sectionHeader,
           ),
         ),
@@ -288,6 +290,7 @@ class _DiscoverySection extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: AppSectionHeader(
                 title: '为你发现',
+                titleColorRole: AppColorRole.primary,
                 leading: const _DiscoveryGlyph(),
                 padding: AppInsets.sectionHeader,
                 trailing: m3e_core.M3EButton.icon(

@@ -312,7 +312,9 @@ class _LocalPlaylistDetailPageState
     }
 
     return M3ETheme(
-      data: baseTheme.withColorScheme(scheme),
+      data: AppTheme.withDetailTextEmphasis(
+        baseTheme.withColorScheme(scheme),
+      ),
       child: Scaffold(
         backgroundColor: contentColor,
         extendBodyBehindAppBar: true,
@@ -425,7 +427,7 @@ class _LocalPlaylistDetailPageState
                             supportingTextStyle: baseTheme.typeScale.bodyMedium
                                 .copyWith(
                                   color: scheme.onSecondaryContainer.withValues(
-                                    alpha: 0.75,
+                                    alpha: 0.9,
                                   ),
                                 ),
                             trailing: _PlaylistTrackMenu(

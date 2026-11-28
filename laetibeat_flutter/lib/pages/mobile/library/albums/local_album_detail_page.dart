@@ -125,7 +125,9 @@ class LocalAlbumDetailPage extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: theme.typeScale.titleLarge,
+                  style: theme.typeScale.titleLarge.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -137,7 +139,7 @@ class LocalAlbumDetailPage extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: theme.typeScale.bodyMedium.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -146,21 +148,24 @@ class LocalAlbumDetailPage extends ConsumerWidget {
           const SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: M3EList(
-              itemCount: tracks.length,
-              color: theme.colorScheme.surface,
-              variant: M3ECardVariant.filled,
-              emptyBuilder: Center(child: Text(l10n.noSongs)),
-              onTap: play,
-              itemBuilder: (BuildContext context, int index) {
-                final track = tracks[index];
-                return M3EListItem(
-                  leading: _LocalTrackCover(track: track),
-                  headline: track.title,
-                  supportingText: track.artist,
-                  trailingText: track.duration,
-                );
-              },
+            child: M3ETheme(
+              data: AppTheme.withDetailTextEmphasis(theme),
+              child: M3EList(
+                itemCount: tracks.length,
+                color: theme.colorScheme.surface,
+                variant: M3ECardVariant.filled,
+                emptyBuilder: Center(child: Text(l10n.noSongs)),
+                onTap: play,
+                itemBuilder: (BuildContext context, int index) {
+                  final track = tracks[index];
+                  return M3EListItem(
+                    leading: _LocalTrackCover(track: track),
+                    headline: track.title,
+                    supportingText: track.artist,
+                    trailingText: track.duration,
+                  );
+                },
+              ),
             ),
           ),
           SizedBox(height: 24 + bottomInset),

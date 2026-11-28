@@ -73,6 +73,25 @@ abstract final class AppTheme {
     );
   }
 
+  static TextTheme applyMaterialTextTypography(TextTheme textTheme) {
+    return textTheme.apply(
+      fontFamily: AppTypography.fontFamily,
+      fontFamilyFallback: AppTypography.fontFamilyFallback,
+    );
+  }
+
+  static M3EThemeData withDetailTextEmphasis(M3EThemeData theme) {
+    final scheme = theme.colorScheme;
+    return theme.copyWith(
+      listTheme: theme.listTheme.copyWith(
+        item: theme.listTheme.item.copyWith(
+          labelColor: scheme.primary,
+          supportingColor: scheme.onSurface,
+        ),
+      ),
+    );
+  }
+
   static M3ETypography _typography() {
     return M3ETypography.material3(mode: M3ETypeScaleMode.variable).apply(
       fontFamily: AppTypography.fontFamily,

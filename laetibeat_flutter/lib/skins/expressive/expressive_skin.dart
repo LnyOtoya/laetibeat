@@ -46,13 +46,13 @@ class ExpressiveSkin implements AppSkin {
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: AppColorTokens.brandSeed,
-        fontFamily: 'Google Sans Flex',
+        fontFamily: AppTypography.fontFamily,
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: AppColorTokens.brandSeed,
         brightness: Brightness.dark,
-        fontFamily: 'Google Sans Flex',
+        fontFamily: AppTypography.fontFamily,
       ),
       themeMode: switch (themeMode) {
         AppThemeMode.light => ThemeMode.light,
