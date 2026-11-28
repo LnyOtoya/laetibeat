@@ -1,17 +1,56 @@
+import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/online.dart' as rust_online;
 import 'package:laetibeat/src/rust/api/simple.dart' as rust;
+import 'package:m3e_core/m3e_core.dart' as m3e_core;
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../design/design.dart';
+import '../../../../widgets/player/cover_color.dart';
 import '../../../../widgets/player/player_provider.dart';
 import '../../../../widgets/settings/online_provider.dart';
+import '../../../../widgets/settings/online_settings.dart';
 import '../../mobile_navigation.dart';
 import '../../routes.dart';
 import 'online_widgets.dart';
+
+/// 在线封面主色缓存，详情页用它生成 Material You 配色。
+final _onlineCoverColorProvider = FutureProvider.family<Color?, String>((
+  ref,
+  url,
+) async {
+  final trimmed = url.trim();
+  if (trimmed.isEmpty) return null;
+  final baseUrl = ref.watch(onlineBaseUrlProvider);
+  if (baseUrl.isEmpty) return null;
+  final token = await ref.watch(onlineTokenProvider.future);
+  if (token == null || token.isEmpty) return null;
+  final client = HttpClient();
+  try {
+    final request = await client.getUrl(
+      Uri.parse(
+        '$baseUrl/api/v1/image',
+      ).replace(queryParameters: <String, String>{'url': trimmed}),
+    );
+    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    final response = await request.close();
+    if (response.statusCode != HttpStatus.ok) return null;
+    final bytes = <int>[];
+    await for (final chunk in response) {
+      bytes.addAll(chunk);
+    }
+    if (bytes.isEmpty) return null;
+    return dominantCoverColor(Uint8List.fromList(bytes));
+  } catch (_) {
+    return null;
+  } finally {
+    client.close(force: true);
+  }
+});
 
 class OnlinePlaylistDetailPage extends ConsumerWidget {
   const OnlinePlaylistDetailPage({super.key, required this.playlist});
@@ -467,93 +506,141 @@ class _OnlineTracksScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = M3ETheme.of(context);
-    final scheme = theme.colorScheme;
+    final baseTheme = M3ETheme.of(context);
+    final coverColor = coverUrl == null
+        ? null
+        : ref.watch(_onlineCoverColorProvider(coverUrl!)).value;
+    final scheme = coverColor == null
+        ? baseTheme.colorScheme
+        : MaterialYouColorScheme.fromSeed(
+            coverColor,
+            brightness: baseTheme.colorScheme.brightness,
+          );
+    final contentColor = detailContentColor(scheme);
 
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      extendBodyBehindAppBar: true,
-      appBar: AppPageBar.detail(backgroundColor: Colors.transparent),
-      body: tracks.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (Object error, StackTrace? stack) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              '加载失败：$error',
-              textAlign: TextAlign.center,
-              style: theme.typeScale.bodyMedium,
+    return M3ETheme(
+      data: baseTheme.withColorScheme(scheme),
+      child: Scaffold(
+        backgroundColor: contentColor,
+        extendBodyBehindAppBar: true,
+        appBar: AppPageBar.detail(backgroundColor: Colors.transparent),
+        body: tracks.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (Object error, StackTrace? stack) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                '加载失败：$error',
+                textAlign: TextAlign.center,
+                style: baseTheme.typeScale.bodyMedium,
+              ),
             ),
           ),
-        ),
-        data: (List<rust.UiTrack> items) {
-          if (items.isEmpty) {
-            return const Center(child: Text('暂无歌曲'));
-          }
-          final trackSource = onlineSourceLabel(source);
-          return CustomScrollView(
-            slivers: <Widget>[
-              SliverToBoxAdapter(child: _OnlineDetailHero(coverUrl: coverUrl)),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: Column(
-                    children: <Widget>[
-                      Text(
-                        title,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.typeScale.headlineMedium,
-                      ),
-                      if (subtitle.isNotEmpty) ...<Widget>[
-                        const SizedBox(height: AppSpacing.xs),
+          data: (List<rust.UiTrack> items) {
+            if (items.isEmpty) {
+              return const Center(child: Text('暂无歌曲'));
+            }
+            final trackSource = onlineSourceLabel(source);
+            return CustomScrollView(
+              slivers: <Widget>[
+                SliverToBoxAdapter(
+                  child: _OnlineDetailHero(coverUrl: coverUrl),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Column(
+                      children: <Widget>[
                         Text(
-                          subtitle,
+                          title,
                           textAlign: TextAlign.center,
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.typeScale.bodyLarge.copyWith(
-                            color: scheme.onSurfaceVariant,
+                          style: baseTheme.typeScale.headlineMedium,
+                        ),
+                        if (subtitle.isNotEmpty) ...<Widget>[
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            subtitle,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: baseTheme.typeScale.bodyLarge.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
                           ),
+                        ],
+                        const SizedBox(height: AppSpacing.lg),
+                        M3EButton(
+                          style: M3EButtonStyle.filled,
+                          label: const Text('播放全部'),
+                          onPressed: () => ref
+                              .read(playerProvider.notifier)
+                              .load(items, 0, source: trackSource),
                         ),
                       ],
-                      const SizedBox(height: AppSpacing.lg),
-                      M3EButton(
-                        style: M3EButtonStyle.filled,
-                        label: const Text('播放全部'),
-                        onPressed: () => ref
-                            .read(playerProvider.notifier)
-                            .load(items, 0, source: trackSource),
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: m3e_core.M3ESegmentedList.builder(
+                      listPadding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: items.length,
+                      onTap: (int index) => ref
+                          .read(playerProvider.notifier)
+                          .load(items, index, source: trackSource),
+                      decoration: m3e_core.M3ESegmentedListDecoration(
+                        color: scheme.secondaryContainer,
+                        splashColor: scheme.onSecondaryContainer.withValues(
+                          alpha: 0.12,
+                        ),
+                        highlightColor: scheme.onSecondaryContainer.withValues(
+                          alpha: 0.08,
+                        ),
+                        hoverColor: scheme.onSecondaryContainer.withValues(
+                          alpha: 0.08,
+                        ),
+                        outerRadius: 24,
+                        innerRadius: 12,
+                        pressedRadius: 8,
+                        pressedScale: 0.98,
+                        hoveredRadius: 16,
+                        gap: 4,
+                        padding: const EdgeInsets.all(4),
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.xs,
+                        ),
                       ),
-                    ],
+                      itemBuilder: (BuildContext context, int index) {
+                        final track = items[index];
+                        return m3e_core.M3EListItem(
+                          minHeight: 64,
+                          leading: OnlineCover(url: track.coverId),
+                          headline: Text(track.title),
+                          supportingText: Text(track.artist),
+                          headlineStyle: baseTheme.typeScale.bodyLarge.copyWith(
+                            color: scheme.onSecondaryContainer,
+                          ),
+                          supportingTextStyle: baseTheme.typeScale.bodyMedium
+                              .copyWith(
+                                color: scheme.onSecondaryContainer.withValues(
+                                  alpha: 0.75,
+                                ),
+                              ),
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  child: M3EList(
-                    color: scheme.surface,
-                    variant: M3ECardVariant.filled,
-                    itemCount: items.length,
-                    onTap: (int index) => ref
-                        .read(playerProvider.notifier)
-                        .load(items, index, source: trackSource),
-                    itemBuilder: (BuildContext context, int index) {
-                      final track = items[index];
-                      return M3EListItem(
-                        headline: track.title,
-                        supportingText: track.artist,
-                        leading: OnlineCover(url: track.coverId),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

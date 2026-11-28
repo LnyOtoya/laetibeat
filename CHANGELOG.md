@@ -16,6 +16,7 @@
 - 网易云媒体库顶部新增账号信息卡：头像、会员 chips、昵称、三行签名，以及关注/粉丝/等级/听歌时长入口。
 - 网易云媒体库改为「我的音乐」：我喜欢的音乐、创建/收藏的歌单、收藏的专辑、已下载；内容按接口默认分页加载。
 - 网易云在线页面 AppBar 与 Subsonic 对齐：一级页使用 `AppPageBar.subpage`（搜索/排序/布局切换），歌单、专辑、喜欢歌曲详情页使用 `AppPageBar.detail` + 大封面。
+- 网易云详情页歌曲列表改用 `M3ESegmentedList`，并根据封面主色生成 Material You 配色。
 - 新增 `docs/mode-pages.md` 记录导航与页面内容矩阵。
 
 ### Fixed
