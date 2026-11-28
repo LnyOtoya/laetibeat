@@ -124,6 +124,38 @@ class OnlineUserProfile {
   }
 }
 
+class OnlineAlbumMeta {
+  const OnlineAlbumMeta({
+    required this.id,
+    required this.name,
+    required this.coverUrl,
+    required this.artist,
+    required this.publishTime,
+    required this.description,
+    required this.company,
+  });
+
+  final String id;
+  final String name;
+  final String? coverUrl;
+  final String artist;
+  final int publishTime;
+  final String description;
+  final String company;
+
+  factory OnlineAlbumMeta.fromJson(Map<String, dynamic> json) {
+    return OnlineAlbumMeta(
+      id: json['id']?.toString() ?? '',
+      name: json['name'] as String? ?? '',
+      coverUrl: json['cover'] as String?,
+      artist: json['artist'] as String? ?? '',
+      publishTime: _asInt(json['publish_time']),
+      description: json['description'] as String? ?? '',
+      company: json['company'] as String? ?? '',
+    );
+  }
+}
+
 final onlineUserProfileProvider = FutureProvider<OnlineUserProfile>((
   ref,
 ) async {
@@ -273,6 +305,14 @@ final onlineCollectedAlbumsProvider =
           .map((value) => _albumFromJson(Map<String, dynamic>.from(value)))
           .toList(growable: false);
     });
+
+final onlineAlbumMetaProvider = FutureProvider.family<OnlineAlbumMeta, String>((
+  ref,
+  id,
+) async {
+  final data = await _onlineGetData(ref, '/api/v1/album/meta', {'id': id});
+  return OnlineAlbumMeta.fromJson(data);
+});
 
 typedef OnlineSearchKey = ({
   String source,

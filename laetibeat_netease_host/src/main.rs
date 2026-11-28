@@ -123,6 +123,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/v1/music/similar", get(similar_songs))
         .route("/api/v1/playlist/detail", get(playlist_detail))
         .route("/api/v1/album/detail", get(album_detail))
+        .route("/api/v1/album/meta", get(album_meta))
         .route("/api/v1/album/sublist", get(album_sublist))
         .route("/api/v1/user/profile", get(user_profile))
         .route("/api/v1/playlist/user", get(user_playlists))
@@ -1090,6 +1091,43 @@ async fn album_detail(
             .into_iter()
             .map(|item| map_ne_song(&item))
             .collect::<Vec<_>>(),
+    })))
+}
+
+/// 专辑元信息：发行时间、简介等。歌曲列表仍由 `/album/detail` 提供。
+async fn album_meta(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let id = params
+        .id
+        .as_deref()
+        .ok_or_else(|| api_error(StatusCode::BAD_REQUEST, "missing album id"))?;
+    let client = state.client.lock().await;
+    let response = client
+        .album(&NcmQuery::new().param("id", id))
+        .await
+        .map_err(ncm_error)?;
+    let album = response.body.get("album").unwrap_or(&Value::Null);
+    let artist = album
+        .pointer("/artist/name")
+        .or_else(|| album.pointer("/artists/0/name"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "id": first_string(album, &["id"]),
+            "name": first_string(album, &["name"]),
+            "cover": normalize_https(
+                &first_string(album, &["picUrl", "blurPicUrl", "coverImgUrl"])
+            ),
+            "artist": artist,
+            "publish_time": first_i64(album, &["publishTime"]).unwrap_or(0),
+            "description": first_string(album, &["description", "briefDesc"]),
+            "company": first_string(album, &["company"]),
+        }
     })))
 }
 

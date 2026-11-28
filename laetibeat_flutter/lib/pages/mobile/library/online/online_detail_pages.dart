@@ -12,6 +12,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../design/design.dart';
 import '../../../../widgets/player/cover_color.dart';
 import '../../../../widgets/player/player_provider.dart';
+import '../../../../widgets/settings/favorites_provider.dart';
 import '../../../../widgets/settings/online_provider.dart';
 import '../../../../widgets/settings/online_settings.dart';
 import '../../mobile_navigation.dart';
@@ -62,6 +63,11 @@ class OnlinePlaylistDetailPage extends ConsumerWidget {
     final tracks = ref.watch(
       onlinePlaylistTracksProvider((source: playlist.source, id: playlist.id)),
     );
+    final favoriteKey = 'netease:${playlist.id}';
+    final isFavorite = ref.watch(
+      favoritePlaylistsProvider.select((ids) => ids.contains(favoriteKey)),
+    );
+    final description = (playlist.description ?? '').trim();
     return _OnlineTracksScaffold(
       title: playlist.name,
       subtitle: [
@@ -72,6 +78,15 @@ class OnlinePlaylistDetailPage extends ConsumerWidget {
       coverUrl: playlist.coverUrl,
       source: playlist.source,
       tracks: tracks,
+      isFavorite: isFavorite,
+      onFavorite: () =>
+          ref.read(favoritePlaylistsProvider.notifier).toggle(favoriteKey),
+      infoText: description.isEmpty ? '来说说创建歌单的理由吧~' : description,
+      onInfoTap: () => pushMobileRootPage(
+        context,
+        const _OnlineInfoPlaceholderPage(title: '歌单简介'),
+        name: MobileRoutes.libraryPlaylists,
+      ),
     );
   }
 }
@@ -86,15 +101,36 @@ class OnlineAlbumDetailPage extends ConsumerWidget {
     final tracks = ref.watch(
       onlineAlbumTracksProvider((source: album.source, id: album.id)),
     );
+    final meta = ref.watch(onlineAlbumMetaProvider(album.id)).value;
+    final artist = meta?.artist.trim().isNotEmpty == true
+        ? meta!.artist
+        : (album.artist ?? '');
+    final releaseDate = meta != null && meta.publishTime > 0
+        ? _formatReleaseDate(meta.publishTime)
+        : null;
+    final description = meta?.description.trim() ?? '';
+    final favoriteKey = 'netease:${album.id}';
+    final isFavorite = ref.watch(
+      favoriteAlbumsProvider.select((ids) => ids.contains(favoriteKey)),
+    );
     return _OnlineTracksScaffold(
       title: album.name,
-      subtitle: [
-        if (album.artist != null && album.artist!.isNotEmpty) album.artist!,
-        if (album.trackCount > 0) '${album.trackCount} 首',
-      ].join(' · '),
+      subtitle: '',
       coverUrl: album.coverUrl,
       source: album.source,
       tracks: tracks,
+      artistName: artist,
+      releaseDate: releaseDate,
+      isFavorite: isFavorite,
+      onFavorite: () =>
+          ref.read(favoriteAlbumsProvider.notifier).toggle(favoriteKey),
+      infoTitle: '专辑详情',
+      infoText: description.isEmpty ? '查看专辑详情' : description,
+      onInfoTap: () => pushMobileRootPage(
+        context,
+        const _OnlineInfoPlaceholderPage(title: '专辑详情'),
+        name: MobileRoutes.libraryAlbums,
+      ),
     );
   }
 }
@@ -518,6 +554,13 @@ class _OnlineTracksScaffold extends ConsumerWidget {
     this.onCreatorTap,
     this.trackCount,
     this.playCount,
+    this.artistName,
+    this.releaseDate,
+    this.isFavorite = false,
+    this.onFavorite,
+    this.infoTitle,
+    this.infoText,
+    this.onInfoTap,
   });
 
   final String title;
@@ -531,6 +574,13 @@ class _OnlineTracksScaffold extends ConsumerWidget {
   final VoidCallback? onCreatorTap;
   final int? trackCount;
   final int? playCount;
+  final String? artistName;
+  final String? releaseDate;
+  final bool isFavorite;
+  final VoidCallback? onFavorite;
+  final String? infoTitle;
+  final String? infoText;
+  final VoidCallback? onInfoTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -579,6 +629,21 @@ class _OnlineTracksScaffold extends ConsumerWidget {
             final isPlaying = ref.watch(
               playerProvider.select((PlayerState player) => player.isPlaying),
             );
+            void onPlayPause() {
+              final notifier = ref.read(playerProvider.notifier);
+              if (isCurrent) {
+                notifier.toggle();
+              } else {
+                notifier.load(items, 0, source: trackSource);
+              }
+            }
+
+            void onShuffle() {
+              ref
+                  .read(playerProvider.notifier)
+                  .playShuffled(items, source: trackSource);
+            }
+
             return CustomScrollView(
               slivers: <Widget>[
                 SliverToBoxAdapter(
@@ -610,43 +675,59 @@ class _OnlineTracksScaffold extends ConsumerWidget {
                             trackCount: trackCount ?? items.length,
                             playCount: playCount ?? 0,
                           ),
-                          const SizedBox(height: AppSpacing.md),
-                          _OnlinePlaybackControls(
-                            isPlaying: isCurrent && isPlaying,
-                            onShuffle: () => ref
-                                .read(playerProvider.notifier)
-                                .playShuffled(items, source: trackSource),
-                            onPlayPause: () {
-                              final notifier = ref.read(
-                                playerProvider.notifier,
-                              );
-                              if (isCurrent) {
-                                notifier.toggle();
-                              } else {
-                                notifier.load(items, 0, source: trackSource);
-                              }
-                            },
+                        ] else if ((artistName ?? '')
+                            .trim()
+                            .isNotEmpty) ...<Widget>[
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            artistName!.trim(),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: baseTheme.typeScale.bodyLarge.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
                           ),
-                        ] else ...<Widget>[
-                          if (subtitle.isNotEmpty) ...<Widget>[
-                            const SizedBox(height: AppSpacing.xs),
+                          if ((releaseDate ?? '')
+                              .trim()
+                              .isNotEmpty) ...<Widget>[
+                            const SizedBox(height: AppSpacing.xxs),
                             Text(
-                              subtitle,
+                              '发行时间 ${releaseDate!.trim()}',
                               textAlign: TextAlign.center,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: baseTheme.typeScale.bodyLarge.copyWith(
+                              style: baseTheme.typeScale.bodySmall.copyWith(
                                 color: scheme.onSurfaceVariant,
                               ),
                             ),
                           ],
-                          const SizedBox(height: AppSpacing.lg),
-                          M3EButton(
-                            style: M3EButtonStyle.filled,
-                            label: const Text('播放全部'),
-                            onPressed: () => ref
-                                .read(playerProvider.notifier)
-                                .load(items, 0, source: trackSource),
+                        ] else if (subtitle.isNotEmpty) ...<Widget>[
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            subtitle,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: baseTheme.typeScale.bodyLarge.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.md),
+                        _OnlinePlaybackControls(
+                          isPlaying: isCurrent && isPlaying,
+                          isFavorite: isFavorite,
+                          onFavorite: onFavorite,
+                          onShuffle: onShuffle,
+                          onPlayPause: onPlayPause,
+                        ),
+                        if (infoTitle != null || infoText != null) ...<Widget>[
+                          const SizedBox(height: AppSpacing.md),
+                          _OnlineInfoBox(
+                            title: infoTitle,
+                            text: infoText ?? '',
+                            onTap: onInfoTap,
                           ),
                         ],
                       ],
@@ -812,11 +893,15 @@ class _OnlinePlaybackControls extends StatelessWidget {
     required this.isPlaying,
     required this.onShuffle,
     required this.onPlayPause,
+    this.isFavorite = false,
+    this.onFavorite,
   });
 
   final bool isPlaying;
   final VoidCallback onShuffle;
   final VoidCallback onPlayPause;
+  final bool isFavorite;
+  final VoidCallback? onFavorite;
 
   @override
   Widget build(BuildContext context) {
@@ -860,6 +945,15 @@ class _OnlinePlaybackControls extends StatelessWidget {
                 top: (64 - cookieSize) / 2,
                 child: _CookieShuffleButton(onPressed: onShuffle),
               ),
+              if (onFavorite != null)
+                Positioned(
+                  left: capsuleLeft + capsuleWidth + gap,
+                  top: (64 - cookieSize) / 2,
+                  child: _VerySunnyFavoriteButton(
+                    isFavorite: isFavorite,
+                    onPressed: onFavorite!,
+                  ),
+                ),
             ],
           );
         },
@@ -896,6 +990,131 @@ class _CookieShuffleButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _VerySunnyFavoriteButton extends StatelessWidget {
+  const _VerySunnyFavoriteButton({
+    required this.isFavorite,
+    required this.onPressed,
+  });
+
+  final bool isFavorite;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: isFavorite ? '取消收藏' : '收藏',
+      child: M3EShapeContainer.verySunny(
+        width: 56,
+        height: 56,
+        color: scheme.secondaryContainer,
+        child: InkWell(
+          onTap: onPressed,
+          child: Center(
+            child: Icon(
+              isFavorite ? M3EIcons.favorite : M3EIcons.favorite_border,
+              size: 24,
+              color: scheme.onSecondaryContainer,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OnlineInfoBox extends StatelessWidget {
+  const _OnlineInfoBox({
+    required this.title,
+    required this.text,
+    required this.onTap,
+  });
+
+  final String? title;
+  final String text;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    final heading = title?.trim() ?? '';
+    final body = text.trim().isEmpty ? '来说说创建歌单的理由吧~' : text.trim();
+    return Material(
+      color: scheme.secondaryContainer.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    if (heading.isNotEmpty) ...<Widget>[
+                      Text(
+                        heading,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.typeScale.titleSmall.copyWith(
+                          color: scheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                    ],
+                    Text(
+                      body,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.typeScale.bodySmall.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Icon(
+                M3EIcons.chevron_right,
+                size: 20,
+                color: scheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OnlineInfoPlaceholderPage extends StatelessWidget {
+  const _OnlineInfoPlaceholderPage({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: scheme.surface,
+      appBar: AppPageBar.detail(),
+      body: Center(child: Text('$title 将在后续接入')),
+    );
+  }
+}
+
+String _formatReleaseDate(int milliseconds) {
+  final date = DateTime.fromMillisecondsSinceEpoch(milliseconds);
+  String two(int value) => value.toString().padLeft(2, '0');
+  return '${date.year}-${two(date.month)}-${two(date.day)}';
 }
 
 class _OnlineCreatorPlaceholderPage extends StatelessWidget {
