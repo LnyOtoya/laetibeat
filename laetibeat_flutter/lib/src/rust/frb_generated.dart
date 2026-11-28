@@ -189,6 +189,8 @@ abstract class RustLibApi extends BaseApi {
     String? token,
     required String source,
     required String albumId,
+    int? limit,
+    int? offset,
   });
 
   Future<List<UiTrack>> crateApiOnlineOnlineDailySongs({
@@ -259,6 +261,8 @@ abstract class RustLibApi extends BaseApi {
     String? token,
     required String source,
     required String playlistId,
+    int? limit,
+    int? offset,
   });
 
   Future<UiOnlineQrResult> crateApiOnlineOnlineQrCheck({
@@ -1506,6 +1510,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     String? token,
     required String source,
     required String albumId,
+    int? limit,
+    int? offset,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -1515,6 +1521,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_opt_String(token, serializer);
           sse_encode_String(source, serializer);
           sse_encode_String(albumId, serializer);
+          sse_encode_opt_box_autoadd_u_32(limit, serializer);
+          sse_encode_opt_box_autoadd_u_32(offset, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1527,7 +1535,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiOnlineOnlineAlbumTracksConstMeta,
-        argValues: [baseUrl, token, source, albumId],
+        argValues: [baseUrl, token, source, albumId, limit, offset],
         apiImpl: this,
       ),
     );
@@ -1536,7 +1544,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiOnlineOnlineAlbumTracksConstMeta =>
       const TaskConstMeta(
         debugName: "online_album_tracks",
-        argNames: ["baseUrl", "token", "source", "albumId"],
+        argNames: ["baseUrl", "token", "source", "albumId", "limit", "offset"],
       );
 
   @override
@@ -1900,6 +1908,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     String? token,
     required String source,
     required String playlistId,
+    int? limit,
+    int? offset,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -1909,6 +1919,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_opt_String(token, serializer);
           sse_encode_String(source, serializer);
           sse_encode_String(playlistId, serializer);
+          sse_encode_opt_box_autoadd_u_32(limit, serializer);
+          sse_encode_opt_box_autoadd_u_32(offset, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1921,7 +1933,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiOnlineOnlinePlaylistTracksConstMeta,
-        argValues: [baseUrl, token, source, playlistId],
+        argValues: [baseUrl, token, source, playlistId, limit, offset],
         apiImpl: this,
       ),
     );
@@ -1930,7 +1942,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiOnlineOnlinePlaylistTracksConstMeta =>
       const TaskConstMeta(
         debugName: "online_playlist_tracks",
-        argNames: ["baseUrl", "token", "source", "playlistId"],
+        argNames: [
+          "baseUrl",
+          "token",
+          "source",
+          "playlistId",
+          "limit",
+          "offset",
+        ],
       );
 
   @override

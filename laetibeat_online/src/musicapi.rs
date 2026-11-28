@@ -257,12 +257,62 @@ impl OnlineClient {
             .collect())
     }
 
+    pub fn playlist_tracks_page(
+        &self,
+        source: &str,
+        id: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<OnlineTrack>> {
+        let songs = self
+            .http
+            .get_data_opt::<Vec<ApiSong>>(
+                "/api/v1/playlist/detail",
+                &[
+                    ("source", source.to_string()),
+                    ("id", id.to_string()),
+                    ("limit", limit.to_string()),
+                    ("offset", offset.to_string()),
+                ],
+            )?
+            .unwrap_or_default();
+        Ok(songs
+            .into_iter()
+            .map(|song| map_song(source, song))
+            .collect())
+    }
+
     pub fn album_tracks(&self, source: &str, id: &str) -> Result<Vec<OnlineTrack>> {
         let songs = self
             .http
             .get_data_opt::<Vec<ApiSong>>(
                 "/api/v1/album/detail",
                 &[("source", source.to_string()), ("id", id.to_string())],
+            )?
+            .unwrap_or_default();
+        Ok(songs
+            .into_iter()
+            .map(|song| map_song(source, song))
+            .collect())
+    }
+
+    pub fn album_tracks_page(
+        &self,
+        source: &str,
+        id: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<OnlineTrack>> {
+        let songs = self
+            .http
+            .get_data_opt::<Vec<ApiSong>>(
+                "/api/v1/album/detail",
+                &[
+                    ("source", source.to_string()),
+                    ("id", id.to_string()),
+                    ("limit", limit.to_string()),
+                    ("offset", offset.to_string()),
+                ],
             )?
             .unwrap_or_default();
         Ok(songs

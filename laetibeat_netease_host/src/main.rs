@@ -1044,6 +1044,7 @@ struct ListParams {
     id: Option<String>,
     page: Option<u32>,
     limit: Option<i64>,
+    offset: Option<i64>,
     toplist_id: Option<String>,
     kind: Option<String>,
 }
@@ -1057,6 +1058,34 @@ async fn playlist_detail(
         .as_deref()
         .ok_or_else(|| api_error(StatusCode::BAD_REQUEST, "missing playlist id"))?;
     let client = state.client.lock().await;
+    if let Some(limit) = params.limit {
+        let limit = limit.clamp(1, 200);
+        let offset = params.offset.unwrap_or(0).max(0);
+        let limit_text = limit.to_string();
+        let offset_text = offset.to_string();
+        let response = client
+            .playlist_track_all(
+                &NcmQuery::new()
+                    .param("id", id)
+                    .param("limit", &limit_text)
+                    .param("offset", &offset_text),
+            )
+            .await
+            .map_err(ncm_error)?;
+        let songs = if response.body.get("songs").is_some() {
+            array_at(&response.body, "/songs")
+        } else {
+            array_at(&response.body, "/playlist/tracks")
+        };
+        return Ok(Json(json!({
+            "code": 200,
+            "msg": "ok",
+            "data": songs
+                .into_iter()
+                .map(|item| map_ne_song(&item))
+                .collect::<Vec<_>>(),
+        })));
+    }
     let response = client
         .playlist_detail(&NcmQuery::new().param("id", id))
         .await
@@ -1084,12 +1113,23 @@ async fn album_detail(
         .album(&NcmQuery::new().param("id", id))
         .await
         .map_err(ncm_error)?;
+    let songs = array_at(&response.body, "/songs");
+    let start = params.offset.unwrap_or(0).max(0) as usize;
+    let end = match params.limit {
+        Some(limit) => (start + limit.clamp(1, 200) as usize).min(songs.len()),
+        None => songs.len(),
+    };
+    let selected = if start < songs.len() {
+        &songs[start..end]
+    } else {
+        &[]
+    };
     Ok(Json(json!({
         "code": 200,
         "msg": "ok",
-        "data": array_at(&response.body, "/songs")
-            .into_iter()
-            .map(|item| map_ne_song(&item))
+        "data": selected
+            .iter()
+            .map(|item| map_ne_song(item))
             .collect::<Vec<_>>(),
     })))
 }
@@ -1132,10 +1172,22 @@ async fn album_meta(
 }
 
 /// 已收藏专辑。使用上游默认分页，避免主动拉取大页数据。
-async fn album_sublist(State(state): State<SharedState>) -> ApiResult {
+async fn album_sublist(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
     let client = state.client.lock().await;
+    let limit = params.limit.unwrap_or(25).clamp(1, 100);
+    let page = params.page.unwrap_or(1).max(1);
+    let offset = (page as i64 - 1) * limit;
+    let limit_text = limit.to_string();
+    let offset_text = offset.to_string();
     let response = client
-        .album_sublist(&NcmQuery::new())
+        .album_sublist(
+            &NcmQuery::new()
+                .param("limit", &limit_text)
+                .param("offset", &offset_text),
+        )
         .await
         .map_err(ncm_error)?;
     Ok(Json(json!({
@@ -1507,8 +1559,11 @@ async fn user_playlists(
     let page = params.page.unwrap_or(1).max(1);
     let offset = (page as i64 - 1) * limit;
     let uid_text = uid.to_string();
-    let limit_text = limit.to_string();
-    let offset_text = offset.to_string();
+    let kind = params.kind.as_deref().unwrap_or("all");
+    let upstream_limit = if kind == "all" { limit } else { 500 };
+    let upstream_offset = if kind == "all" { offset } else { 0 };
+    let limit_text = upstream_limit.to_string();
+    let offset_text = upstream_offset.to_string();
     let response = client
         .user_playlist(
             &NcmQuery::new()
@@ -1518,7 +1573,6 @@ async fn user_playlists(
         )
         .await
         .map_err(ncm_error)?;
-    let kind = params.kind.as_deref().unwrap_or("all");
     let mut items = array_at(&response.body, "/playlist");
     if kind != "all" {
         items.retain(|item| {
@@ -1535,7 +1589,7 @@ async fn user_playlists(
             }
         });
     }
-    let start = offset as usize;
+    let start = if kind == "all" { 0 } else { offset as usize };
     let end = (start + limit as usize).min(items.len());
     let selected: &[Value] = if start < items.len() {
         &items[start..end]

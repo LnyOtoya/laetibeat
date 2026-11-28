@@ -152,11 +152,15 @@ Future<List<UiTrack>> onlinePlaylistTracks({
   String? token,
   required String source,
   required String playlistId,
+  int? limit,
+  int? offset,
 }) => RustLib.instance.api.crateApiOnlineOnlinePlaylistTracks(
   baseUrl: baseUrl,
   token: token,
   source: source,
   playlistId: playlistId,
+  limit: limit,
+  offset: offset,
 );
 
 Future<List<UiTrack>> onlineAlbumTracks({
@@ -164,11 +168,15 @@ Future<List<UiTrack>> onlineAlbumTracks({
   String? token,
   required String source,
   required String albumId,
+  int? limit,
+  int? offset,
 }) => RustLib.instance.api.crateApiOnlineOnlineAlbumTracks(
   baseUrl: baseUrl,
   token: token,
   source: source,
   albumId: albumId,
+  limit: limit,
+  offset: offset,
 );
 
 Future<List<UiOnlinePlaylist>> onlineUserPlaylists({

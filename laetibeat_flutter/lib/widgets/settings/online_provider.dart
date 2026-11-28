@@ -262,23 +262,30 @@ List<rust_online.UiOnlinePlaylist> _playlistsFromData(
       .toList(growable: false);
 }
 
-/// 通过接口默认分页加载账号歌单，避免一次拉取全部内容。
-final onlineCreatedPlaylistsProvider =
-    FutureProvider<List<rust_online.UiOnlinePlaylist>>((ref) async {
-      final data = await _onlineGetData(ref, '/api/v1/playlist/user', const {
+typedef OnlinePageKey = ({int page, int limit});
+
+final onlineCreatedPlaylistsPageProvider =
+    FutureProvider.family<List<rust_online.UiOnlinePlaylist>, OnlinePageKey>((
+      ref,
+      key,
+    ) async {
+      final data = await _onlineGetData(ref, '/api/v1/playlist/user', {
         'kind': 'created',
-        'page': '1',
-        'limit': '30',
+        'page': '${key.page}',
+        'limit': '${key.limit}',
       });
       return _playlistsFromData(data);
     });
 
-final onlineCollectedPlaylistsProvider =
-    FutureProvider<List<rust_online.UiOnlinePlaylist>>((ref) async {
-      final data = await _onlineGetData(ref, '/api/v1/playlist/user', const {
+final onlineCollectedPlaylistsPageProvider =
+    FutureProvider.family<List<rust_online.UiOnlinePlaylist>, OnlinePageKey>((
+      ref,
+      key,
+    ) async {
+      final data = await _onlineGetData(ref, '/api/v1/playlist/user', {
         'kind': 'collected',
-        'page': '1',
-        'limit': '30',
+        'page': '${key.page}',
+        'limit': '${key.limit}',
       });
       return _playlistsFromData(data);
     });
@@ -294,10 +301,15 @@ final onlineLikedPlaylistProvider =
       return playlists.isEmpty ? null : playlists.first;
     });
 
-/// 已收藏专辑使用上游默认分页（25 条），不主动扩大 limit。
-final onlineCollectedAlbumsProvider =
-    FutureProvider<List<rust_online.UiOnlineAlbum>>((ref) async {
-      final data = await _onlineGetData(ref, '/api/v1/album/sublist');
+final onlineCollectedAlbumsPageProvider =
+    FutureProvider.family<List<rust_online.UiOnlineAlbum>, OnlinePageKey>((
+      ref,
+      key,
+    ) async {
+      final data = await _onlineGetData(ref, '/api/v1/album/sublist', {
+        'page': '${key.page}',
+        'limit': '${key.limit}',
+      });
       final albums = data['albums'];
       if (albums is! List) return const <rust_online.UiOnlineAlbum>[];
       return albums
@@ -429,8 +441,18 @@ final onlineAlbumSearchProvider = FutureProvider.autoDispose
       );
     });
 
-final onlinePlaylistTracksProvider =
-    FutureProvider.family<List<rust.UiTrack>, OnlineListKey>((ref, key) async {
+typedef OnlineTrackPageKey = ({
+  String source,
+  String id,
+  int limit,
+  int offset,
+});
+
+final onlinePlaylistTracksPageProvider =
+    FutureProvider.family<List<rust.UiTrack>, OnlineTrackPageKey>((
+      ref,
+      key,
+    ) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);
       if (baseUrl.isEmpty) {
         throw StateError('请先在设置中配置在线音源服务');
@@ -441,11 +463,16 @@ final onlinePlaylistTracksProvider =
         token: token,
         source: key.source,
         playlistId: key.id,
+        limit: key.limit,
+        offset: key.offset,
       );
     });
 
-final onlineAlbumTracksProvider =
-    FutureProvider.family<List<rust.UiTrack>, OnlineListKey>((ref, key) async {
+final onlineAlbumTracksPageProvider =
+    FutureProvider.family<List<rust.UiTrack>, OnlineTrackPageKey>((
+      ref,
+      key,
+    ) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);
       if (baseUrl.isEmpty) {
         throw StateError('请先在设置中配置在线音源服务');
@@ -456,6 +483,8 @@ final onlineAlbumTracksProvider =
         token: token,
         source: key.source,
         albumId: key.id,
+        limit: key.limit,
+        offset: key.offset,
       );
     });
 

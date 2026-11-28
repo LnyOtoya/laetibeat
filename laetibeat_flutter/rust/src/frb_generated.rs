@@ -978,6 +978,8 @@ fn wire__crate__api__online__online_album_tracks_impl(
             let api_token = <Option<String>>::sse_decode(&mut deserializer);
             let api_source = <String>::sse_decode(&mut deserializer);
             let api_album_id = <String>::sse_decode(&mut deserializer);
+            let api_limit = <Option<u32>>::sse_decode(&mut deserializer);
+            let api_offset = <Option<u32>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -986,6 +988,8 @@ fn wire__crate__api__online__online_album_tracks_impl(
                         api_token,
                         api_source,
                         api_album_id,
+                        api_limit,
+                        api_offset,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -1380,6 +1384,8 @@ fn wire__crate__api__online__online_playlist_tracks_impl(
             let api_token = <Option<String>>::sse_decode(&mut deserializer);
             let api_source = <String>::sse_decode(&mut deserializer);
             let api_playlist_id = <String>::sse_decode(&mut deserializer);
+            let api_limit = <Option<u32>>::sse_decode(&mut deserializer);
+            let api_offset = <Option<u32>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -1388,6 +1394,8 @@ fn wire__crate__api__online__online_playlist_tracks_impl(
                         api_token,
                         api_source,
                         api_playlist_id,
+                        api_limit,
+                        api_offset,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())

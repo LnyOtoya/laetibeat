@@ -283,10 +283,17 @@ pub fn online_playlist_tracks(
     token: Option<String>,
     source: String,
     playlist_id: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
 ) -> Result<Vec<UiTrack>, String> {
     let client = client(&base_url, token)?;
     let tracks = client
-        .playlist_tracks(&source, &playlist_id)
+        .playlist_tracks_page(
+            &source,
+            &playlist_id,
+            limit.unwrap_or(50),
+            offset.unwrap_or(0),
+        )
         .map_err(|error| error.to_string())?;
     Ok(tracks
         .into_iter()
@@ -299,10 +306,17 @@ pub fn online_album_tracks(
     token: Option<String>,
     source: String,
     album_id: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
 ) -> Result<Vec<UiTrack>, String> {
     let client = client(&base_url, token)?;
     let tracks = client
-        .album_tracks(&source, &album_id)
+        .album_tracks_page(
+            &source,
+            &album_id,
+            limit.unwrap_or(50),
+            offset.unwrap_or(0),
+        )
         .map_err(|error| error.to_string())?;
     Ok(tracks
         .into_iter()
