@@ -87,11 +87,12 @@ class _AppBottomOverlayState extends State<AppBottomOverlay>
       height: totalHeight,
       child: Stack(
         children: <Widget>[
+          // Keep the hit-test bounds across the full travel into the nav bar.
           Positioned(
             left: 0,
             right: 0,
-            bottom: widget.navigationBarHeight,
-            height: widget.miniPlayerHeight,
+            bottom: 0,
+            height: totalHeight,
             child: IgnorePointer(
               ignoring: !widget.miniVisible,
               child: ExcludeSemantics(
@@ -107,17 +108,24 @@ class _AppBottomOverlayState extends State<AppBottomOverlay>
                         : (-state.offset)
                               .clamp(0.0, widget.navigationBarHeight)
                               .toDouble();
-                    return Transform.translate(
-                      offset: Offset(0, shift),
-                      child: child,
+                    return Align(
+                      alignment: Alignment.topCenter,
+                      child: Transform.translate(
+                        offset: Offset(0, shift),
+                        child: child,
+                      ),
                     );
                   },
-                  child: ClipRect(
-                    child: FadeTransition(
-                      opacity: _fade,
-                      child: SlideTransition(
-                        position: _slide,
-                        child: widget.miniPlayer,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: widget.miniPlayerHeight,
+                    child: ClipRect(
+                      child: FadeTransition(
+                        opacity: _fade,
+                        child: SlideTransition(
+                          position: _slide,
+                          child: widget.miniPlayer,
+                        ),
                       ),
                     ),
                   ),

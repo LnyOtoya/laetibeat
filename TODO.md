@@ -63,7 +63,7 @@
 - 主要功能缺口：收藏/歌单编辑/队列编辑/下载、移动端 SAF、MPRIS 迁移、高级 DSP/响度归一、真实电台内容
 - 音频后端：桌面 media_kit；Android 使用 just_audio + audio_service；音频效果第一版已接入
 - 设计系统：新增 `lib/design/`（颜色/字体/间距/圆角/尺寸/动效/断点 token、Material You 官方取色、`AppArtwork` / `AppText` / `AppMediaRow` 等基础组件）；页面级左右 gutter 统一为 `AppLayout.pageGutter` + `AppPageBody`；具体页面尚未全部迁移
-- 新 UI 方向：继续 Flutter；`m3e_core` / `material_3_expressive` 只作组件库；Shell、路由、主题与取色自管；MiniPlayer + NavBar 为悬浮 BottomOverlay；Full Player 为 Root Navigator Route（2026-11-23 定稿；2026-11-24 导航内容有调整，见下方校正）
+- 新 UI 方向：继续 Flutter；`m3e_core` / `material_3_expressive` 只作组件库；Shell、路由、主题与取色自管；MiniPlayer + NavBar 为悬浮 BottomOverlay；移动端所有页面（含 Full Player）共用 root Navigator，Tab 是 Shell 状态（2026-11-28）
 - 发布工程：正式签名、CI/Release workflow 已配置；首个 tag/Release 与 App 内更新检查仍待完成，见下方「2026-11-26 发布基础与更新链路」。
 - 在线音源：内置 go-music-api host（网易云/QQ）+ 洛雪后备；旧 Node API Provider 已移除，见 `docs/musicapi-migration.md`
 
@@ -422,7 +422,7 @@
 - [x] `cargo clippy --workspace --offline --all-targets`：仅风格 warning，无 error
 - [x] `flutter analyze --no-pub`：27 issues，0 error；2 warning + 25 info
 - [x] `flutter test --no-pub`：14 tests all passed
-- [ ] 上述通过不代表 P0 不存在：现有测试未覆盖播放暂停竞态、嵌套 Navigator 返回、OpenSubsonic 配置解析、LX 候选源选择、SAF 部分失败等路径
+- [ ] 上述通过不代表 P0 不存在：仍需覆盖播放暂停竞态、OpenSubsonic 配置解析、LX 候选源选择、SAF 部分失败等路径；移动端系统返回顺序已由 2026-11-28 回归测试覆盖
 
 ### P0：正确性与用户可见问题
 
@@ -433,12 +433,10 @@
   - 修复/验收：完整解析 URL，尊重 scheme/port/path；仅 http 且未指定端口时补默认 4533；暴露 API Key/Token 选择；补 URL 解析单元测试
   - 对照：桌面 `laetibeat_flutter/lib/widgets/settings/subsonic_connection_sheet.dart` 已支持两种认证与完整 URL，可复用其逻辑
 
-- [ ] P0-2 Root Navigator + 嵌套 Navigator 的系统返回行为不一致
-  - 位置：`laetibeat_flutter/lib/pages/mobile/mobile_app.dart:230-236`（嵌套 Navigator）、`:85-97`（chrome 显隐）；`laetibeat_flutter/lib/pages/mobile/mobile_navigation.dart`
-  - 现状：业务页面全在 Shell 内部的嵌套 Navigator；代码中没有 `PopScope` / `NavigatorPopHandler` / `WillPopScope`；Flutter 的 `WidgetsApp.didPopRoute()` 只会对 root navigator 调 `maybePop()`
-  - 影响：三键返回可能直接从嵌套页面退出 App；预测性返回可能命中嵌套路由，出现 TODO 已记录的 FullPlayer/底层路由交错
-  - 修复/验收：在扁平化 Navigator 或 Shell 层 `PopScope` 代理两种方案中定稿；补“Library 详情/搜索/设置子页按系统返回回到上一层”的回归测试
-  - 关联：下方「已知问题：Predictive Back + 多 Navigator 交错」
+- [x] P0-2 Root Navigator + 嵌套 Navigator 的系统返回行为不一致（2026-11-28 已修复）
+  - 修复：移除嵌套页面 Navigator；Shell 目的地改为状态；详情、设置、搜索和 Full Player 共用 root 路由栈。
+  - 验收：移动端导航、模式切换、搜索测试通过；新增系统返回顺序回归，验证 Full Player → 详情 → Shell。
+  - Android 真机预测性返回动画仍需设备验收；本次修复确认的是页面栈 pop 顺序。
 
 - [ ] P0-3 LX 源候选选择在进程重启后退化
   - 位置：`laetibeat_lx/src/manager.rs:382-407`，关键 `.unwrap_or(true)` 在 `:396`
@@ -548,7 +546,7 @@
 
 - [ ] P2-5 死代码、死测试与文档漂移
   - 现状（已确认无业务引用）：`AppMorphingTabBar` + 6 个 morphing 测试、`MobileSearchInlineView` / `MobileSearchBrowseView`、`MobileWelcomeSection` / `MobileDailySection` / `mobile_home_constants.dart`、`AppThemeFactory`、`linux_mpris.dart`、`playback_settings.dart` / `library_settings.dart` / `notifications_settings.dart` / `audio_output_settings.dart`、`selectable_card_list.dart` / `squish_button_pair.dart`、`lib/pages/tmp.dart.bak`
-  - 文档：`ARCHITECTURE.md` 仍描述旧的嵌套 Navigator + `NavigatorPopHandler`、移动端目录选择返回 null、移动端 MediaKit 等，与当前代码不符
+  - 文档：2026-11-24 审查发现 `ARCHITECTURE.md` 描述旧的嵌套 Navigator + `NavigatorPopHandler`、移动端目录选择返回 null、移动端 MediaKit 等；导航描述已于 2026-11-28 更新，其余漂移仍需核查
   - 修复/验收：删除已确认不再使用的组件/测试；同步更新 `ARCHITECTURE.md` 与 TODO 历史勾选项；补一条“无引用文件”检查
 
 - [ ] P2-6 本地歌单快照丢失远端曲目元数据
@@ -666,10 +664,10 @@
 - [ ] 建立 color debug 对比：AOSP 角色值 vs Flutter `ColorScheme` vs M3E 扩展角色
 - [ ] 明确 `harmonized()` 只影响 error / success / warning，不修改标准角色
 
-### Shell 与 BottomOverlay
+### Shell 与 BottomOverlay（2026-11-23 实现记录；导航栈于 2026-11-28 调整）
 
-- [x] Root Navigator 结构：`AppShellRoute` 与 `FullPlayerRoute` 同级；Shell 必须作为持久 Route 留在栈中
-- [x] `AppShellRoute` 内部：页面层 full-bleed；MiniPlayer / NavBar 是悬浮覆盖层，不参与页面布局、不改变页面约束
+- [x] 移动端 Shell 持久包裹 root Navigator；页面层 full-bleed，MiniPlayer / NavBar 是悬浮覆盖层，不参与页面布局、不改变页面约束
+- [x] Shell 使用 `Stack`：root Navigator 页面层铺满，BottomOverlay 固定在底部
 - [x] Shell 使用 `Stack(fit: expand)`：`Positioned.fill(NavigationHost)` + `Positioned(bottom: 0, left/right: 0, child: BottomOverlay)`
 - [x] `BottomOverlay` 内部再使用 `Stack`：MiniPlayer 在下、BottomNavBar 在上；Navigation Bar 最后绘制
 - [x] BottomOverlay 使用固定高度 `navBarHeight + miniPlayerHeight`；不再用 Column / 高度增长挤压页面
@@ -677,9 +675,9 @@
 - [x] MiniPlayer 可见时页面不重排；页面内容可以滚动到悬浮层下面
 - [x] 页面级底部留白改为页面自己的 scroll padding / content padding，不由 Shell 强制改 layout
 - [x] 移除 `AppMorphingTabBar` 的 `bottomAccessory` 职责；MiniPlayer 改由 `AppBottomOverlay` 管理
-- [x] 将 `MobileShell` 从 `MaterialApp.appBuilder` 包裹 Root Navigator 的结构，迁移为 Root Navigator 中的 `MobileShellPage`
-- [x] 新增 `mobileRootNavigatorKey` + `mobileNavigatorKey`：Root Navigator / Tab Navigator 分离
-- [x] Full Player 改由 `pushMobileRootRoute` 推到 Root Navigator，可覆盖 Shell
+- [x] ~~将 `MobileShell` 从 `MaterialApp.appBuilder` 包裹 Root Navigator 的结构，迁移为 Root Navigator 中的 `MobileShellPage`~~（2026-11-28 恢复 Shell 外覆单一 root Navigator）
+- [x] ~~新增 `mobileRootNavigatorKey` + `mobileNavigatorKey`：Root Navigator / Tab Navigator 分离~~（2026-11-28 移除 Tab Navigator，只保留 root Navigator）
+- [x] Full Player 与详情、设置等页面统一推入 root Navigator，不再跨 Navigator 交错
 - [x] 新增 `AppBottomOverlay`：固定高度、页面 full-bleed、NavBar 在 MiniPlayer 上层
 - [x] 使用 `AppBottomInsetScope` 提供悬浮 chrome 高度；页面自行用于 scroll/content padding，Shell 不包裹页面
 - [x] 拆分 `MiniPlayer` 与 `AppMorphingTabBar`：Shell 使用 `AppBottomOverlay` + `AppFloatingNavBar`
@@ -687,16 +685,18 @@
 - [x] MiniPlayer overlay 高度使用 `miniPlayerAccessory = 96`：`M3EToolbar.floating` 的 64 高 pill + 上下各 16 外部 padding
 - [x] 当前歌曲出现时 MiniPlayer 从 NavBar 后滑出；无当前歌曲时滑回并清空 hit test
 - [x] BottomOverlay 在 MiniPlayer 隐藏时，上方透明区域不拦截页面点击（IgnorePointer + Stack 无空白子节点）
+- [x] 底部导航仅响应垂直滚动，累计超过 M3E 默认 40dp 阈值后才开始隐藏
 - [x] Shell 不再包裹/压缩页面；`AppBottomInsetScope` 仅提供悬浮 chrome 高度，供页面自己的 scroll/content padding 使用
-- [ ] 更新 `mobile_shell_navigation_test` / `app_morphing_tab_bar_accessory_test` 以匹配新分层
+- [x] 更新移动端 Shell / 模式 / 搜索导航测试以匹配单 root Navigator
 - [x] 页面级底部 scroll padding：Shell 传 `floatingChromeInset`，Home/Library/Stats 等已有 padding 重新生效
-- [ ] 新增 Shell overlay / MiniPlayer slide / FullPlayer Route 回归测试
+- [x] 新增 Full Player → 详情 → Shell 的系统返回顺序回归测试
 
-### Full Player
+### Full Player（2026-11-28 导航栈调整）
 
-- [x] Full Player 是 Root Navigator 上的真实 Route，覆盖整个 Shell（含 BottomOverlay）
+- [x] Full Player 与业务页面共用 root Navigator；Shell overlay 根据当前路由显示 / 隐藏
 - [x] Full Player 关闭通过 Route Pop；普通返回路径正确
-- [ ] Predictive Back 下 Full Player 返回层级错误（Flutter 已知问题，见下）
+- [x] 修复 root / nested Navigator 交错导致的返回层级错误
+- [ ] Android 真机确认预测性返回动画、边缘手势进度与播放器转场
 - [x] Shell 在 Full Player 打开期间保持存活；滚动位置、Tab、搜索、列表状态不得重建
 - [x] 第一版不做 Full Player 内部 Nested Navigator
 - [x] Queue 采用 Modal / Sheet；Lyrics 采用播放器内展示模式或按交互决定独立 Route；Artist / Album / Settings 走正常业务 Route
@@ -713,7 +713,7 @@
 - [x] 备份旧 `MobileHomeContent` 到 `backup/home/2026-11-23/`
 - [x] 首页 gutter token 化：普通 section 使用 `AppLayout.gutterFor(width)`（手机 16）；继续听 carousel 使用 `AppLayout.carouselGutter = 8`；Home 页禁用 `AppPageBody` 全局 gutter，各 section 自行应用
 - [x] 最新添加 / 重拾旧爱 / 为你推荐 header 使用 `AppInsets.sectionHeader`：上 8、下 16
-- [x] 所有移动端页面背景映射为 `surface`（`AppSurfaceLevel.base` / `colorScheme.surface`）；所有页面 AppBar 背景统一为 `surface`（Home 展开/折叠、Library、Search、Stats、设置/详情共用 helper；取色映射页按需求保持纯白）
+- [x] 所有移动端页面背景映射为 `surface`（`AppSurfaceLevel.base` / `colorScheme.surface`）；一级页面 AppBar 使用系统映射的 `surfaceContainer`，其余页面 AppBar 使用系统映射的 `surface`（Search、Stats、设置/详情；一级 AppBar 不跟随 MiniPlayer 或专辑封面主色；取色映射页按需求保持纯白）
 - [x] Home 文本颜色全部走主题 role：主文本 `onSurface`，副标题/来源/时间 `onSurfaceVariant`；封面标题和 carousel 歌名不再硬编码白色；专辑封面底部 scrim 改用 `surface` 动态色
 - [x] 顶部改为 `M3ECarousel`（hero-left、横向）：首张更宽，item gap 不变
 - [x] Home 顶部改用 `M3EAppBar.top`：largeFlexible、regular、square、safeArea、默认展开、滚动不隐藏；展开标题“继续听”，折叠标题“首页”并在下方显示 subtitle“浏览音乐库近况”，使用 260ms fade + slide 过渡；折叠标题显式使用 `titleLarge`，避免过渡瞬间仍继承 `displaySmall` 导致标题块溢出
@@ -730,7 +730,7 @@
 - [ ] 为你推荐：接入歌曲级推荐与真实歌单封面来源
 - [ ] 将“继续听”数据源替换为真实播放历史
 
-### 已知问题：Predictive Back + 多 Navigator 交错
+### 历史问题：Predictive Back + 多 Navigator 交错（2026-11-28 已通过单栈修复）
 
 - 现象：Home → Library → MiniPlayer → FullPlayer 后，第一次侧滑返回仍停留在 FullPlayer，但底层已从 Library 变为 Home；第二次侧滑才退出 FullPlayer。
 - 当前路由栈：
@@ -747,7 +747,7 @@
   - B. 扁平化 Navigator：单一 Root Navigator + Tab 状态容器
   - C. Full Player 改到 Tab Navigator，Shell 隐藏 chrome（Hero 可能需重做）
   - D. 自定义 Route 覆盖 `isCurrent`，处理祖先 Route current 状态
-- 当前状态：问题已记录，尚未修改代码；方案待定。
+- 解决状态：原 Root / Tab Navigator 交错结构已移除；移动端详情和 Full Player 现在共用 root Navigator。保留以上现象作为历史背景，真机预测动画仍待验证。
 
 ### 状态模型
 

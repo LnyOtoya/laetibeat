@@ -66,7 +66,7 @@ laetibeat_qq_host (GPL-3.0-only)     laetibeat_netease_host (MIT)
 - `lib/app/skin/app_skin_provider.dart`：持久化 `ui.skin`
 - `lib/app/skin/app_skin_registry.dart`：皮肤实现注册表
 - `lib/skins/expressive/`：当前默认 Material 3 Expressive 根 App、Shell 与页面
-- 皮肤拥有自己的导航壳和页面；数据 provider / sidecar 生命周期共享
+- 皮肤可拥有自己的导航外观和页面实现；移动端目的地、路由栈与返回规则由共享导航层管理
 - 播放媒体集成位于皮肤外层，切换皮肤不会断开系统媒体会话
 - 详细规划见 `docs/ui-skins.md`
 
@@ -87,6 +87,14 @@ laetibeat_qq_host (GPL-3.0-only)     laetibeat_netease_host (MIT)
 - `lib/widgets/settings/online_settings.dart`
   - 默认音质、LX 后备
   - `onlineBaseUrlProvider` / `onlineTokenProvider` 从 `modeRuntimeProvider` 取值；local / subsonic 为空
+
+### 移动端导航
+
+- `MaterialApp` 的 root Navigator 是唯一移动端页面栈；`MobileShell` 在 Navigator 外层持久显示底部导航和 MiniPlayer。
+- 首页 / 媒体库是 Shell 内的目的地状态，不通过 push 在彼此之间切换；目的地集合与默认页由 `AppMode.mobileDestinations` / `mobileInitialDestination` 提供。
+- 搜索、详情、设置、播放器等页面都 push 到同一 root Navigator。Tab 切换时先回到 Shell 根页面，再更新选中目的地。
+- `MobileNavigatorObserver` 观察 root 页面栈并驱动 Shell chrome 显示；未知命名路由不再回退成首页。
+- 后续 UI 皮肤可以改变导航栏和页面外观，但必须复用相同的目的地状态、root 路由栈和返回语义，不创建第二套移动端 Navigator。
 
 ### UI
 

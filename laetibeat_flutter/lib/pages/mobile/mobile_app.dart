@@ -25,8 +25,8 @@ import 'stats/mobile_stats_page.dart';
 
 /// 移动端 Shell。
 ///
-/// [child] 是 MaterialApp 的根 Navigator。所有页面都在这条 Navigator 上，
-/// Shell 负责底部导航、MiniPlayer 和底部 inset。
+/// [child] 是唯一的 MaterialApp root Navigator。Shell 持久覆盖其上方，
+/// 负责底部导航、MiniPlayer 和页面底部 inset。
 class MobileShell extends ConsumerStatefulWidget {
   const MobileShell({super.key, required this.child});
 
@@ -34,6 +34,49 @@ class MobileShell extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<MobileShell> createState() => _MobileShellState();
+}
+
+class _NavigationBarScrollThreshold extends StatefulWidget {
+  const _NavigationBarScrollThreshold({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_NavigationBarScrollThreshold> createState() =>
+      _NavigationBarScrollThresholdState();
+}
+
+class _NavigationBarScrollThresholdState
+    extends State<_NavigationBarScrollThreshold> {
+  double _accumulatedScroll = 0;
+  bool _thresholdReached = false;
+
+  bool _filterScrollNotification(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) return true;
+
+    if (notification is ScrollUpdateNotification && !_thresholdReached) {
+      _accumulatedScroll += notification.scrollDelta ?? 0;
+      if (_accumulatedScroll.abs() <
+          M3EFloatingToolbarDefaults.scrollDistanceThreshold) {
+        return true;
+      }
+      _thresholdReached = true;
+      _accumulatedScroll = 0;
+    } else if (notification is ScrollEndNotification) {
+      _accumulatedScroll = 0;
+      _thresholdReached = false;
+    }
+
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: _filterScrollNotification,
+      child: widget.child,
+    );
+  }
 }
 
 class _MobileShellState extends ConsumerState<MobileShell> {
@@ -75,78 +118,31 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         .toList(growable: false);
   }
 
-  String _routeForDestination(AppDestination destination) {
-    return switch (destination) {
-      AppDestination.home => MobileRoutes.home,
-      AppDestination.library => MobileRoutes.library,
-      AppDestination.stats => MobileRoutes.stats,
-      _ => MobileRoutes.home,
-    };
-  }
-
-  AppDestination? _tabForRoute(String? route, List<AppDestination> tabs) {
-    if (route == null || route == MobileRoutes.home) {
-      return tabs.contains(AppDestination.home)
-          ? AppDestination.home
-          : tabs.first;
-    }
-    if (route == MobileRoutes.library || route.startsWith('/library/')) {
-      return AppDestination.library;
-    }
-    if (route == MobileRoutes.stats) {
-      return AppDestination.stats;
-    }
-    return null;
-  }
-
-  bool _showNavigationBar(String? route, List<AppDestination> tabs) {
-    final tab = _tabForRoute(route, tabs);
-    if (tab == null || !tabs.contains(tab)) return false;
-    if (route == null) return true;
-    return route == MobileRoutes.home ||
-        route == MobileRoutes.library ||
-        route.startsWith('/library/') ||
-        route == MobileRoutes.stats;
+  bool _showNavigationBar(String? route) {
+    if (route == null || route == MobileRoutes.home) return true;
+    return route == MobileRoutes.library || route.startsWith('/library/');
   }
 
   void _selectTab(AppDestination destination) {
-    final NavigatorState? navigator = mobileNavigatorKey.currentState;
-    if (navigator == null) return;
-    final String? current = mobileCurrentRouteName.value;
+    final mode = ref.read(appModeProvider);
+    if (!mode.mobileDestinations.contains(destination)) return;
 
-    switch (destination) {
-      case AppDestination.home:
-        if (current == MobileRoutes.home) return;
-        navigator.popUntil((Route<dynamic> route) => route.isFirst);
-        return;
-      case AppDestination.library:
-        if (current == MobileRoutes.library ||
-            (current?.startsWith('/library/') ?? false)) {
-          navigator.popUntil(
-            (Route<dynamic> route) =>
-                route.isFirst || route.settings.name == MobileRoutes.library,
-          );
-          return;
-        }
-        navigator.pushNamed(MobileRoutes.library);
-        return;
-      case AppDestination.stats:
-        if (current == MobileRoutes.stats) return;
-        navigator.pushNamed(MobileRoutes.stats);
-        return;
-      case AppDestination.search:
-        _openSearch();
-        return;
-      default:
-        return;
+    final navigator = mobileRootNavigatorKey.currentState;
+    if (navigator == null) return;
+
+    if (mobileCurrentRouteName.value != MobileRoutes.home) {
+      navigator.popUntil((Route<dynamic> route) => route.isFirst);
     }
+    ref.read(mobileSelectedDestinationProvider.notifier).select(destination);
   }
 
   void _openSearch() {
-    final NavigatorState? navigator = mobileNavigatorKey.currentState;
-    if (navigator == null) return;
-    if (mobileCurrentRouteName.value == MobileRoutes.search) return;
-    navigator.pushNamed(MobileRoutes.search);
+    if (mobileCurrentRouteName.value?.startsWith('/search') ?? false) return;
+    pushMobileRootPage(
+      context,
+      const MobileSearchPage(),
+      name: MobileRoutes.search,
+    );
   }
 
   @override
@@ -163,29 +159,36 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       if (previous == next) return;
       final currentRoute = mobileCurrentRouteName.value;
       final nextTabs = next.mobileDestinations;
-      final currentTab = _tabForRoute(currentRoute, nextTabs);
-      final homeIsHidden = !nextTabs.contains(AppDestination.home);
+      final selectedDestination = ref.read(mobileSelectedDestinationProvider);
+      final isShellRoute =
+          currentRoute == null || currentRoute == MobileRoutes.home;
+      final isLibraryRoute =
+          currentRoute == MobileRoutes.library ||
+          (currentRoute?.startsWith('/library/') ?? false);
       final currentRouteAvailable =
-          currentTab != null &&
-          nextTabs.contains(currentTab) &&
-          !(currentRoute == MobileRoutes.home && homeIsHidden);
+          nextTabs.contains(selectedDestination) &&
+          (isShellRoute ||
+              (isLibraryRoute && nextTabs.contains(AppDestination.library)));
       if (currentRouteAvailable) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final navigator = mobileNavigatorKey.currentState;
+        final navigator = mobileRootNavigatorKey.currentState;
         if (navigator == null) return;
-        navigator.pushNamedAndRemoveUntil(
-          _routeForDestination(next.mobileInitialDestination),
-          (route) => false,
-        );
+        navigator.popUntil((Route<dynamic> route) => route.isFirst);
+        ref
+            .read(mobileSelectedDestinationProvider.notifier)
+            .select(next.mobileInitialDestination);
       });
     });
 
+    final selectedDestination = ref.watch(mobileSelectedDestinationProvider);
     return ValueListenableBuilder<String?>(
       valueListenable: mobileCurrentRouteName,
       builder: (BuildContext context, String? routeName, Widget? _) {
-        final AppDestination tab = _tabForRoute(routeName, tabs) ?? tabs.first;
-        final int selectedIndex = tabs.indexOf(tab);
-        final bool showNavigationBar = _showNavigationBar(routeName, tabs);
+        final destination = tabs.contains(selectedDestination)
+            ? selectedDestination
+            : tabs.first;
+        final int selectedIndex = tabs.indexOf(destination);
+        final bool showNavigationBar = _showNavigationBar(routeName);
         final bool showMiniPlayer = hasTrack && showNavigationBar;
         final AppFloatingNavBar? navBar = showNavigationBar
             ? AppFloatingNavBar(
@@ -226,7 +229,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             Positioned.fill(
               child: M3EFloatingToolbarScrollWrapper(
                 behavior: _navBarScrollBehavior,
-                child: widget.child,
+                child: _NavigationBarScrollThreshold(child: widget.child),
               ),
             ),
             if (bottomBar != null)
@@ -248,43 +251,65 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   }
 }
 
-/// Root Navigator 中的 App Shell Route。
-///
-/// Shell 自身和 Tab Navigator 都在这条 Root Route 里。Full Player 等页面
-/// 可以 push 到 Root Navigator，从而真正覆盖 Shell 和 BottomOverlay。
-class MobileShellPage extends ConsumerWidget {
+/// 一级目的地容器。Tab 切换只改变选中状态，不进入页面返回栈。
+class MobileShellPage extends ConsumerStatefulWidget {
   const MobileShellPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MobileShellPage> createState() => _MobileShellPageState();
+}
+
+class _MobileShellPageState extends ConsumerState<MobileShellPage> {
+  final Set<AppDestination> _visitedDestinations = <AppDestination>{};
+  final Map<AppDestination, Widget> _pages = <AppDestination, Widget>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _visitedDestinations.add(ref.read(mobileSelectedDestinationProvider));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final mode = ref.watch(appModeProvider);
-    final initialRoute = _routeForDestination(mode.mobileInitialDestination);
-    return MobileShell(
-      child: Navigator(
-        key: mobileNavigatorKey,
-        observers: <NavigatorObserver>[mobileNavigatorObserver],
-        initialRoute: initialRoute,
-        onGenerateRoute: mobileOnGenerateRoute,
-      ),
+    final destinations = mode.mobileDestinations;
+    final selectedDestination = ref.watch(mobileSelectedDestinationProvider);
+    final destination = destinations.contains(selectedDestination)
+        ? selectedDestination
+        : mode.mobileInitialDestination;
+    _visitedDestinations.add(destination);
+
+    return IndexedStack(
+      index: destinations.indexOf(destination),
+      children: destinations
+          .map((AppDestination tab) {
+            if (!_visitedDestinations.contains(tab)) {
+              return SizedBox.shrink(
+                key: ValueKey<String>('unvisited-${tab.name}'),
+              );
+            }
+            return KeyedSubtree(
+              key: ValueKey<AppDestination>(tab),
+              child: _pages.putIfAbsent(tab, () => _pageFor(tab)),
+            );
+          })
+          .toList(growable: false),
     );
+  }
+
+  Widget _pageFor(AppDestination destination) {
+    return switch (destination) {
+      AppDestination.home => const MobileHomePage(),
+      AppDestination.library => const MobileLibraryPage(),
+      AppDestination.stats => const MobileStatsPage(),
+      _ => const MobileHomePage(),
+    };
   }
 }
 
-String _routeForDestination(AppDestination destination) {
-  return switch (destination) {
-    AppDestination.home => MobileRoutes.home,
-    AppDestination.library => MobileRoutes.library,
-    AppDestination.stats => MobileRoutes.stats,
-    _ => MobileRoutes.home,
-  };
-}
-
-/// 移动端根 Navigator 的路由表。
-///
-/// 所有页面都在同一条 Navigator 上，预测性返回由 Flutter 原生处理，
-/// 不再使用根 Navigator / 嵌套 Navigator 交错的导航方式。
+/// 移动端 root Navigator 的路由表。
 Route<dynamic>? mobileOnGenerateRoute(RouteSettings settings) {
-  final Widget page = switch (settings.name) {
+  final Widget? page = switch (settings.name) {
     MobileRoutes.home => const MobileHomePage(),
     MobileRoutes.library => const MobileLibraryPage(),
     MobileRoutes.librarySongs => const MobileLibrarySongsPage(),
@@ -300,11 +325,9 @@ Route<dynamic>? mobileOnGenerateRoute(RouteSettings settings) {
     MobileRoutes.aboutSettings => const MobileAboutSettingsPage(),
     MobileRoutes.colorMapping => const MobileColorMappingPage(),
     MobileRoutes.contentSettings => const MobileContentSettingsPage(),
-    _ => const MobileHomePage(),
+    _ => null,
   };
 
-  return MaterialPageRoute<void>(
-    settings: settings,
-    builder: (_) => MobileNestedRoutePopGate(child: page),
-  );
+  if (page == null) return null;
+  return MaterialPageRoute<void>(settings: settings, builder: (_) => page);
 }

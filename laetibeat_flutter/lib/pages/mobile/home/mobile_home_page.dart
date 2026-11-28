@@ -29,7 +29,7 @@ class MobileHomePage extends ConsumerWidget {
         title: '首页',
         subtitle: online ? '来自 ${mode.label}' : '浏览音乐库近况',
         expandedTitle: online ? '为你推荐' : '最新发行',
-        backgroundColor: mobileTabBarBackground(ref, scheme),
+        backgroundColor: scheme.surfaceContainer,
         actionsBuilder: (bool _) => mobileTabBarActions(context),
       ),
       body: SafeArea(

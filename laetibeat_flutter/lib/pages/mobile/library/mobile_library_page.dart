@@ -168,7 +168,7 @@ class MobileLibraryPage extends ConsumerWidget {
       safeArea: false,
       appBar: AppPageBar.tab(
         title: l10n.libraryTitle,
-        backgroundColor: mobileTabBarBackground(ref, scheme),
+        backgroundColor: scheme.surfaceContainer,
         actionsBuilder: (bool _) => mobileTabBarActions(context),
       ),
       body: ListView(

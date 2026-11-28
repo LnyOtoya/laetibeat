@@ -17,10 +17,19 @@
 
 - `AppMode.mobileDestinations`
 - `AppMode.mobileInitialDestination`
-- `MobileShell` 动态生成 `AppFloatingNavBar`
+- `MobileShell` 按模式配置动态生成 `AppFloatingNavBar`
+- `MobileShellPage` 使用共享的目的地状态显示一级页面；切换 Tab 不 push 页面
 - `MobileShell` 的 AppBar actions 提供最近、统计、一起听、设置
-- 切换模式后如果当前路由不在新目标集合中，自动重置到该模式默认落地页
+- 所有业务页面和播放器共用 MaterialApp root Navigator；Tab 选择与详情路由栈分离
+- 切换模式后如果当前目的地在新目标集合中则保留，否则回到 Shell 并选择该模式默认页
 - 发现页已移除，原发现页的推荐歌单与排行榜迁入首页
+
+返回规则：
+
+- 详情、设置、搜索、播放器等页面依进入顺序 push / pop 同一条 root 页面栈。
+- Full Player 不使用独立 Navigator；从播放器返回时恢复打开它的详情页和 Shell 状态。
+- 页面栈回到 Shell 根页面后，系统返回才交还给 Android。
+- 皮肤可以改变导航的视觉呈现，但不能改变共享路由栈或页面返回语义。
 
 ## 2. 页面内容矩阵
 

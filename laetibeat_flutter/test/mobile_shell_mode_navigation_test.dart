@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:laetibeat/app/app_destination.dart';
 import 'package:laetibeat/app/app_mode.dart';
 import 'package:laetibeat/design/design.dart';
 import 'package:laetibeat/l10n/generated/app_localizations.dart';
@@ -15,6 +16,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 class _FakePlayerNotifier extends PlayerNotifier {
   @override
   PlayerState build() => const PlayerState();
+}
+
+class _ShellDestinationPage extends ConsumerWidget {
+  const _ShellDestinationPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      body: Center(
+        child: Text(ref.watch(mobileSelectedDestinationProvider).name),
+      ),
+    );
+  }
 }
 
 void main() {
@@ -43,21 +57,11 @@ void main() {
             ...GlobalMaterialLocalizations.delegates,
           ],
           supportedLocales: AppLocalizations.supportedLocales,
-          home: MobileShell(
-            child: Navigator(
-              key: mobileNavigatorKey,
-              observers: <NavigatorObserver>[mobileNavigatorObserver],
-              initialRoute: MobileRoutes.home,
-              onGenerateRoute: (RouteSettings settings) {
-                return MaterialPageRoute<void>(
-                  settings: settings,
-                  builder: (_) => Scaffold(
-                    body: Center(child: Text(settings.name ?? 'unknown')),
-                  ),
-                );
-              },
-            ),
-          ),
+          navigatorKey: mobileRootNavigatorKey,
+          navigatorObservers: <NavigatorObserver>[mobileNavigatorObserver],
+          home: const _ShellDestinationPage(),
+          appBuilder: (BuildContext context, Widget? child) =>
+              MobileShell(child: child ?? const SizedBox.shrink()),
         ),
       ),
     );
@@ -68,6 +72,7 @@ void main() {
     expect(find.byIcon(M3EIcons.explore), findsNothing);
     expect(find.byIcon(M3EIcons.music_note), findsOneWidget);
     expect(find.byIcon(M3EIcons.bar_chart), findsNothing);
+    expect(find.text(AppDestination.home.name), findsOneWidget);
 
     await container.read(appModeProvider.notifier).setMode(AppMode.local);
     await tester.pumpAndSettle();
@@ -77,6 +82,6 @@ void main() {
     expect(find.byIcon(M3EIcons.explore), findsNothing);
     expect(find.byIcon(M3EIcons.music_note), findsOneWidget);
     expect(find.byIcon(M3EIcons.bar_chart), findsNothing);
-    expect(find.text(MobileRoutes.library), findsOneWidget);
+    expect(find.text(AppDestination.library.name), findsOneWidget);
   });
 }
