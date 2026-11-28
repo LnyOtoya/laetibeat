@@ -80,6 +80,7 @@ class _MobileOnlineMusicSettingsPageState
     ref.invalidate(onlinePlatformStatusesProvider);
     if (ok == true) {
       ref.invalidate(onlineUserPlaylistsProvider);
+      ref.invalidate(onlineUserProfileProvider);
       M3ESnackbar.show(context, message: '登录成功');
     }
   }
@@ -107,6 +108,7 @@ class _MobileOnlineMusicSettingsPageState
       );
       ref.invalidate(onlinePlatformStatusesProvider);
       ref.invalidate(onlineUserPlaylistsProvider);
+      ref.invalidate(onlineUserProfileProvider);
       if (mounted) {
         M3ESnackbar.show(context, message: '已退出登录');
       }

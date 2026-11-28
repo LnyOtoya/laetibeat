@@ -30,6 +30,134 @@ Future<void> onlineClearCache(WidgetRef ref) async {
   }
 }
 
+int _asInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? 0;
+  return 0;
+}
+
+class OnlineMembership {
+  const OnlineMembership({
+    required this.key,
+    required this.label,
+    required this.level,
+    required this.active,
+    required this.expiresAt,
+  });
+
+  final String key;
+  final String label;
+  final int level;
+  final bool active;
+  final int expiresAt;
+
+  factory OnlineMembership.fromJson(Map<String, dynamic> json) {
+    return OnlineMembership(
+      key: json['key'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      level: _asInt(json['level']),
+      active: json['active'] as bool? ?? false,
+      expiresAt: _asInt(json['expires_at']),
+    );
+  }
+}
+
+class OnlineUserProfile {
+  const OnlineUserProfile({
+    required this.uid,
+    required this.nickname,
+    required this.avatarUrl,
+    required this.signature,
+    required this.level,
+    required this.follows,
+    required this.followeds,
+    required this.listenSeconds,
+    required this.listenSongs,
+    required this.createDays,
+    required this.vipType,
+    required this.memberships,
+  });
+
+  final int uid;
+  final String nickname;
+  final String avatarUrl;
+  final String signature;
+  final int level;
+  final int follows;
+  final int followeds;
+  final int listenSeconds;
+  final int listenSongs;
+  final int createDays;
+  final int vipType;
+  final List<OnlineMembership> memberships;
+
+  int get listenHours => listenSeconds ~/ 3600;
+  List<OnlineMembership> get activeMemberships =>
+      memberships.where((value) => value.active).toList(growable: false);
+
+  factory OnlineUserProfile.fromJson(Map<String, dynamic> json) {
+    final memberships = json['memberships'];
+    return OnlineUserProfile(
+      uid: _asInt(json['uid']),
+      nickname: json['nickname'] as String? ?? '',
+      avatarUrl: json['avatar_url'] as String? ?? '',
+      signature: json['signature'] as String? ?? '',
+      level: _asInt(json['level']),
+      follows: _asInt(json['follows']),
+      followeds: _asInt(json['followeds']),
+      listenSeconds: _asInt(json['listen_seconds']),
+      listenSongs: _asInt(json['listen_songs']),
+      createDays: _asInt(json['create_days']),
+      vipType: _asInt(json['vip_type']),
+      memberships: memberships is List
+          ? memberships
+                .whereType<Map>()
+                .map(
+                  (value) => OnlineMembership.fromJson(
+                    Map<String, dynamic>.from(value),
+                  ),
+                )
+                .toList(growable: false)
+          : const <OnlineMembership>[],
+    );
+  }
+}
+
+final onlineUserProfileProvider = FutureProvider<OnlineUserProfile>((
+  ref,
+) async {
+  final baseUrl = ref.watch(onlineBaseUrlProvider);
+  if (baseUrl.isEmpty) {
+    throw StateError('当前模式 sidecar 未启动');
+  }
+  final token = await ref.watch(onlineTokenProvider.future);
+  if (token == null || token.isEmpty) {
+    throw StateError('请先登录网易云账号');
+  }
+  final client = HttpClient();
+  try {
+    final request = await client.getUrl(
+      Uri.parse('$baseUrl/api/v1/user/profile'),
+    );
+    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    final response = await request.close();
+    final body = await response.transform(utf8.decoder).join();
+    if (response.statusCode != HttpStatus.ok) {
+      throw StateError('HTTP ${response.statusCode}');
+    }
+    final decoded = jsonDecode(body);
+    if (decoded is! Map || decoded['data'] is! Map) {
+      throw StateError('用户信息返回格式异常');
+    }
+    return OnlineUserProfile.fromJson(
+      Map<String, dynamic>.from(decoded['data'] as Map),
+    );
+  } finally {
+    client.close(force: true);
+  }
+});
+
 typedef OnlineSearchKey = ({
   String source,
   String query,

@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use axum::body::Body;
 use axum::extract::{DefaultBodyLimit, Path as AxumPath, Query, State};
@@ -123,6 +123,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/v1/music/similar", get(similar_songs))
         .route("/api/v1/playlist/detail", get(playlist_detail))
         .route("/api/v1/album/detail", get(album_detail))
+        .route("/api/v1/user/profile", get(user_profile))
         .route("/api/v1/playlist/user", get(user_playlists))
         .route("/api/v1/playlist/radar", get(radar_playlists))
         .route("/api/v1/playlist/recommend", get(recommend_playlists))
@@ -1329,6 +1330,102 @@ fn fixed_radar_playlist(radar: &FixedRadar) -> Value {
         "source": "netease",
         "link": format!("https://music.163.com/playlist?id={}", radar.id),
     })
+}
+
+fn now_millis() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
+}
+
+fn membership_item(key: &str, label: &str, item: &Value, now: i64) -> Value {
+    let level = first_i64(item, &["vipLevel", "level"]).unwrap_or(0);
+    let expires_at = first_i64(item, &["expireTime", "expiresAt"]).unwrap_or(0);
+    json!({
+        "key": key,
+        "label": label,
+        "level": level,
+        "active": level > 0 && expires_at > now,
+        "expires_at": expires_at,
+    })
+}
+
+async fn user_profile(State(state): State<SharedState>) -> ApiResult {
+    let client = state.client.lock().await;
+    let uid = require_login(&client).await?;
+    let uid_text = uid.to_string();
+
+    let detail = client
+        .user_detail(&NcmQuery::new().param("uid", &uid_text))
+        .await
+        .map_err(ncm_error)?;
+    let profile = detail.body.get("profile").cloned().unwrap_or(Value::Null);
+
+    let level_response = client.user_level(&NcmQuery::new()).await.ok();
+    let vip_response = client
+        .vip_info(&NcmQuery::new().param("uid", &uid_text))
+        .await
+        .ok();
+    let listen_response = client.listen_data_total(&NcmQuery::new()).await.ok();
+    let now = now_millis();
+
+    let mut memberships = Vec::new();
+    if let Some(data) = vip_response
+        .as_ref()
+        .and_then(|value| value.body.get("data"))
+    {
+        for (key, label) in [
+            ("associator", "黑胶VIP"),
+            ("musicPackage", "音乐包"),
+            ("familyVip", "家庭VIP"),
+        ] {
+            if let Some(item) = data.get(key) {
+                let membership = membership_item(key, label, item, now);
+                if membership.get("level").and_then(Value::as_i64).unwrap_or(0) > 0
+                    || membership
+                        .get("expires_at")
+                        .and_then(Value::as_i64)
+                        .unwrap_or(0)
+                        > 0
+                {
+                    memberships.push(membership);
+                }
+            }
+        }
+    }
+
+    let level = level_response
+        .as_ref()
+        .and_then(|value| value.body.pointer("/data/level"))
+        .and_then(Value::as_i64)
+        .or_else(|| detail.body.get("level").and_then(Value::as_i64))
+        .unwrap_or(0);
+    let listen_seconds = listen_response
+        .as_ref()
+        .and_then(|value| value.body.pointer("/data/totalDuration"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "uid": uid,
+            "nickname": first_string(&profile, &["nickname"]),
+            "avatar_url": normalize_https(&first_string(&profile, &["avatarUrl"])),
+            "signature": first_string(&profile, &["signature"]),
+            "vip_type": first_i64(&profile, &["vipType"]).unwrap_or(0),
+            "user_type": first_i64(&profile, &["userType"]).unwrap_or(0),
+            "level": level,
+            "follows": first_i64(&profile, &["follows"]).unwrap_or(0),
+            "followeds": first_i64(&profile, &["followeds"]).unwrap_or(0),
+            "listen_songs": detail.body.get("listenSongs").and_then(Value::as_i64).unwrap_or(0),
+            "listen_seconds": listen_seconds,
+            "create_days": detail.body.get("createDays").and_then(Value::as_i64).unwrap_or(0),
+            "memberships": memberships,
+        }
+    })))
 }
 
 async fn user_playlists(

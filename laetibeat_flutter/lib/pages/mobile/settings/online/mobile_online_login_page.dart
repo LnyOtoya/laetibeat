@@ -118,6 +118,7 @@ class _MobileOnlineLoginPageState extends ConsumerState<MobileOnlineLoginPage> {
           });
           ref.invalidate(onlinePlatformStatusesProvider);
           ref.invalidate(onlineUserPlaylistsProvider);
+          ref.invalidate(onlineUserProfileProvider);
           if (mounted) {
             M3ESnackbar.show(context, message: '登录成功');
           }

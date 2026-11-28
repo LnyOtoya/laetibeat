@@ -4,12 +4,15 @@ import 'package:laetibeat/shared/layout/app_bottom_inset.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../app/app_mode.dart';
 import '../../../design/design.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../../widgets/settings/online_provider.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
 import 'library_source_filter.dart';
 import 'mobile_library_subpages.dart';
+import 'online/online_widgets.dart';
 
 /// 媒体库首页。
 ///
@@ -24,6 +27,7 @@ class MobileLibraryPage extends ConsumerWidget {
     final scheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
     final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
+    final appMode = ref.watch(appModeProvider);
     final localSegments = <_LibrarySegment>[
       _LibrarySegment(
         icon: M3EIcons.cloud,
@@ -80,7 +84,6 @@ class MobileLibraryPage extends ConsumerWidget {
       ),
     ];
 
-
     void openSegment(_LibrarySegment segment) {
       final page = segment.page;
       if (page == null) return;
@@ -121,6 +124,10 @@ class MobileLibraryPage extends ConsumerWidget {
           bottom: AppSpacing.lg + bottomInset,
         ),
         children: <Widget>[
+          if (appMode == AppMode.netease) ...<Widget>[
+            const _OnlineUserProfileCard(),
+            const SizedBox(height: AppSpacing.lg),
+          ],
           buildSection(
             '本地音乐',
             const ValueKey<String>('library_group_local'),
@@ -130,8 +137,240 @@ class MobileLibraryPage extends ConsumerWidget {
       ),
     );
   }
+}
 
+class _OnlineUserProfileCard extends ConsumerWidget {
+  const _OnlineUserProfileCard();
 
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(onlineUserProfileProvider);
+    return profile.when(
+      loading: () => const _ProfileSurface(
+        child: SizedBox(
+          height: 160,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ),
+      error: (Object error, StackTrace? stack) => _ProfileSurface(
+        child: Row(
+          children: <Widget>[
+            Icon(
+              M3EIcons.lock,
+              color: M3ETheme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                '无法获取网易云账号信息',
+                style: M3ETheme.of(context).typeScale.bodyMedium,
+              ),
+            ),
+            M3EButton(
+              style: M3EButtonStyle.tonal,
+              size: M3EButtonSize.sm,
+              label: const Text('重试'),
+              onPressed: () => ref.invalidate(onlineUserProfileProvider),
+            ),
+          ],
+        ),
+      ),
+      data: (OnlineUserProfile value) =>
+          _OnlineUserProfileContent(profile: value),
+    );
+  }
+}
+
+class _ProfileSurface extends StatelessWidget {
+  const _ProfileSurface({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppSurface(
+      level: AppSurfaceLevel.container,
+      borderRadius: AppRadii.xlAll,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: child,
+    );
+  }
+}
+
+class _OnlineUserProfileContent extends StatelessWidget {
+  const _OnlineUserProfileContent({required this.profile});
+
+  final OnlineUserProfile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    final activeMemberships = profile.activeMemberships;
+    final chips = activeMemberships.isEmpty
+        ? <Widget>[
+            M3EChip(
+              label: '普通用户',
+              type: M3EChipType.assist,
+              leading: const Icon(M3EIcons.person),
+            ),
+          ]
+        : <Widget>[
+            for (final membership in activeMemberships)
+              M3EChip(
+                label: membership.level > 1
+                    ? '${membership.label} Lv.${membership.level}'
+                    : membership.label,
+                type: M3EChipType.assist,
+                leading: Icon(_membershipIcon(membership.key)),
+              ),
+          ];
+    final bodySmall = theme.typeScale.bodySmall;
+    final textScaler = MediaQuery.textScalerOf(context);
+    final signatureLineHeight =
+        textScaler.scale(bodySmall?.fontSize ?? 12) *
+        (bodySmall?.height ?? 1.4);
+
+    return _ProfileSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              OnlineCover(url: profile.avatarUrl, size: 80),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xs,
+                      children: chips,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      profile.nickname.isEmpty ? '网易云用户' : profile.nickname,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.typeScale.titleLarge.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: signatureLineHeight * 3,
+                      ),
+                      child: Text(
+                        profile.signature.trim().isEmpty
+                            ? ' '
+                            : profile.signature,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          M3EButtonGroup(
+            type: M3EButtonGroupType.standard,
+            shape: M3EButtonShape.round,
+            size: M3EButtonSize.sm,
+            style: M3EButtonStyle.tonal,
+            overflow: M3EButtonGroupOverflow.scroll,
+            actions: <M3EButtonGroupAction>[
+              M3EButtonGroupAction(
+                label: Text('${_compactCount(profile.follows)} 关注'),
+              ),
+              M3EButtonGroupAction(
+                label: Text('${_compactCount(profile.followeds)} 粉丝'),
+              ),
+              M3EButtonGroupAction(label: Text('Lv.${profile.level}')),
+              M3EButtonGroupAction(label: Text('${profile.listenHours} 小时')),
+            ],
+            onSelectedIndexChanged: (int? index) {
+              if (index == null) return;
+              switch (index) {
+                case 0:
+                  _openPlaceholder(
+                    context,
+                    title: '关注',
+                    message: '关注列表将在后续接入',
+                    icon: M3EIcons.person,
+                  );
+                case 1:
+                  _openPlaceholder(
+                    context,
+                    title: '粉丝',
+                    message: '粉丝列表将在后续接入',
+                    icon: M3EIcons.favorite,
+                  );
+                case 2:
+                  _openPlaceholder(
+                    context,
+                    title: '等级',
+                    message: '等级详情将在后续接入',
+                    icon: M3EIcons.star,
+                  );
+                case 3:
+                  _openPlaceholder(
+                    context,
+                    title: '听歌时长',
+                    message: '听歌时长详情将在后续接入',
+                    icon: M3EIcons.bar_chart,
+                  );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  static IconData _membershipIcon(String key) {
+    return switch (key) {
+      'musicPackage' => M3EIcons.music_note,
+      'familyVip' => M3EIcons.person,
+      _ => M3EIcons.star,
+    };
+  }
+
+  static String _compactCount(int value) {
+    if (value >= 100000000) {
+      return '${(value / 100000000).toStringAsFixed(1)}亿';
+    }
+    if (value >= 10000) {
+      return '${(value / 10000).toStringAsFixed(1)}万';
+    }
+    return '$value';
+  }
+
+  static void _openPlaceholder(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required IconData icon,
+  }) {
+    pushMobileRootPage(
+      context,
+      _LibraryPlaceholderPage(
+        title: title,
+        message: message,
+        icon: icon,
+        showLayout: false,
+      ),
+      name: MobileRoutes.library,
+    );
+  }
 }
 
 class _LibrarySegment {
