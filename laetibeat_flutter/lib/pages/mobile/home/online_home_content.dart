@@ -737,45 +737,40 @@ class _PrivateFmSongTile extends StatelessWidget {
   }
 }
 
-class _PrivateFmCover extends StatelessWidget {
+class _PrivateFmCover extends ConsumerWidget {
   const _PrivateFmCover({required this.url, this.radius = AppRadii.mdAll});
 
   final String? url;
   final BorderRadiusGeometry radius;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = M3ETheme.of(context).colorScheme;
     final value = url?.trim() ?? '';
+    final proxyUrl = value.isEmpty ? null : onlineImageProxyUrl(ref, value);
+    final placeholder = ColoredBox(
+      color: scheme.secondaryContainer,
+      child: Center(
+        child: Icon(
+          M3EIcons.music_note,
+          size: AppIconSize.lg,
+          color: scheme.onSecondaryContainer,
+        ),
+      ),
+    );
 
     return ClipRRect(
       borderRadius: radius,
-      child: value.isEmpty
-          ? ColoredBox(
-              color: scheme.secondaryContainer,
-              child: Center(
-                child: Icon(
-                  M3EIcons.music_note,
-                  size: AppIconSize.lg,
-                  color: scheme.onSecondaryContainer,
-                ),
-              ),
-            )
+      child: proxyUrl == null
+          ? placeholder
           : Image.network(
-              value,
+              proxyUrl,
+              headers: onlineImageRequestHeaders(ref),
+              cacheWidth: 512,
               fit: BoxFit.cover,
               errorBuilder:
                   (BuildContext context, Object error, StackTrace? stack) {
-                    return ColoredBox(
-                      color: scheme.secondaryContainer,
-                      child: Center(
-                        child: Icon(
-                          M3EIcons.music_note,
-                          size: AppIconSize.lg,
-                          color: scheme.onSecondaryContainer,
-                        ),
-                      ),
-                    );
+                    return placeholder;
                   },
             ),
     );
@@ -1215,15 +1210,16 @@ class _ShortcutCard extends StatelessWidget {
   }
 }
 
-class _ShortcutCover extends StatelessWidget {
+class _ShortcutCover extends ConsumerWidget {
   const _ShortcutCover({required this.entry});
 
   final _ShortcutEntry entry;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = M3ETheme.of(context).colorScheme;
     final cover = entry.coverUrl?.trim() ?? '';
+    final proxyUrl = cover.isEmpty ? null : onlineImageProxyUrl(ref, cover);
     final placeholder = DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -1236,9 +1232,11 @@ class _ShortcutCover extends StatelessWidget {
         child: Icon(entry.icon, size: 42, color: scheme.onPrimaryContainer),
       ),
     );
-    if (cover.isEmpty) return placeholder;
+    if (proxyUrl == null) return placeholder;
     return Image.network(
-      cover,
+      proxyUrl,
+      headers: onlineImageRequestHeaders(ref),
+      cacheWidth: 512,
       fit: BoxFit.cover,
       errorBuilder: (BuildContext context, Object error, StackTrace? stack) {
         return placeholder;

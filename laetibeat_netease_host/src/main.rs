@@ -28,6 +28,7 @@ const DEFAULT_DATA_DIR: &str = ".laetibeat-netease";
 
 struct HostState {
     client: Mutex<ApiClient>,
+    image_client: reqwest::Client,
     token: String,
     cookie_path: PathBuf,
     logged_in: AtomicBool,
@@ -76,8 +77,17 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         return Err("refusing to listen on a non-loopback address without a token".into());
     }
 
+    let image_client = reqwest::Client::builder()
+        .user_agent(
+            "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 \
+             (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+        )
+        .timeout(Duration::from_secs(20))
+        .build()?;
+
     let state = Arc::new(HostState {
         client: Mutex::new(client),
+        image_client,
         token,
         cookie_path,
         logged_in: AtomicBool::new(logged_in),
@@ -85,6 +95,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Router::new()
         .route("/laetibeat/health", get(health))
+        .route("/api/v1/image", get(image_proxy))
         .route("/api/v1/music/search", get(search))
         .route("/api/v1/music/url", get(song_url))
         .route("/api/v1/music/lyric", get(lyric))
@@ -136,6 +147,76 @@ async fn health(State(state): State<SharedState>) -> ApiResult {
         "source": "netease",
         "logged_in": state.logged_in.load(Ordering::Relaxed),
     })))
+}
+
+#[derive(Debug, Deserialize)]
+struct ImageParams {
+    url: String,
+}
+
+fn is_allowed_image_url(raw: &str) -> bool {
+    let Ok(url) = reqwest::Url::parse(raw) else {
+        return false;
+    };
+    if url.scheme() != "https" {
+        return false;
+    }
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+    host == "music.126.net" || host.ends_with(".music.126.net")
+}
+
+/// NetEase image CDN rejects Dart's default HTTP client for some objects.
+/// Proxy covers through reqwest with a browser UA and the music.163.com referer.
+async fn image_proxy(
+    State(state): State<SharedState>,
+    Query(params): Query<ImageParams>,
+) -> Result<Response, (StatusCode, Json<Value>)> {
+    if !is_allowed_image_url(&params.url) {
+        return Err(api_error(StatusCode::BAD_REQUEST, "unsupported image url"));
+    }
+    let upstream = state
+        .image_client
+        .get(&params.url)
+        .header(axum::http::header::REFERER, "https://music.163.com/")
+        .send()
+        .await
+        .map_err(|error| {
+            api_error(
+                StatusCode::BAD_GATEWAY,
+                format!("image fetch failed: {error}"),
+            )
+        })?;
+    let status = upstream.status();
+    if !status.is_success() {
+        return Err(api_error(
+            StatusCode::BAD_GATEWAY,
+            format!("image upstream returned {status}"),
+        ));
+    }
+    let content_type = upstream
+        .headers()
+        .get(axum::http::header::CONTENT_TYPE)
+        .cloned();
+    let bytes = upstream.bytes().await.map_err(|error| {
+        api_error(
+            StatusCode::BAD_GATEWAY,
+            format!("image read failed: {error}"),
+        )
+    })?;
+    let mut response = Response::new(axum::body::Body::from(bytes));
+    *response.status_mut() = StatusCode::OK;
+    if let Some(content_type) = content_type {
+        response
+            .headers_mut()
+            .insert(axum::http::header::CONTENT_TYPE, content_type);
+    }
+    response.headers_mut().insert(
+        axum::http::header::CACHE_CONTROL,
+        axum::http::HeaderValue::from_static("public, max-age=86400"),
+    );
+    Ok(response)
 }
 
 #[derive(Debug, Deserialize)]
