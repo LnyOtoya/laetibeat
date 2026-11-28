@@ -1,25 +1,29 @@
-/// Search UI categories shared by the library suggestions and the full search
-/// page.
+import '../../../app/app_mode.dart';
+
+/// Search result categories available for each app mode.
 enum MobileSearchCategory { songs, playlists, albums, artists }
 
-/// Source filter used by the search page's split filter button.
+/// Search source selected from the active app mode.
 enum MobileSearchSourceFilter { all, local, subsonic, lx, netease, qq }
 
-/// One clickable suggestion shown below the library search bar.
-class MobileSearchSuggestion {
-  const MobileSearchSuggestion({
-    required this.text,
-    required this.query,
-    required this.sourceLabel,
-    required this.kindLabel,
-    this.sourceKey = 'local',
-  });
+const String legacySearchHistoryKey = 'search.recent_queries';
 
-  final String text;
-  final String query;
-  final String sourceLabel;
-  final String kindLabel;
+MobileSearchSourceFilter searchSourceForMode(AppMode mode) => switch (mode) {
+  AppMode.local => MobileSearchSourceFilter.local,
+  AppMode.subsonic => MobileSearchSourceFilter.subsonic,
+  AppMode.qq => MobileSearchSourceFilter.qq,
+  AppMode.netease => MobileSearchSourceFilter.netease,
+};
 
-  /// Color key: local / subsonic / navidrome / tx / wy / kg / kw / mg.
-  final String sourceKey;
-}
+List<MobileSearchCategory> searchCategoriesForMode(AppMode mode) =>
+    switch (mode) {
+      AppMode.local || AppMode.subsonic => MobileSearchCategory.values,
+      AppMode.qq || AppMode.netease => const <MobileSearchCategory>[
+        MobileSearchCategory.songs,
+        MobileSearchCategory.playlists,
+        MobileSearchCategory.albums,
+      ],
+    };
+
+String searchHistoryKeyForMode(AppMode mode) =>
+    'search.recent_queries.${mode.id}';

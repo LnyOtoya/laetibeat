@@ -11,7 +11,7 @@
   "discoverEmptyTitle": "Discovery is coming soon",
   "discoverEmptyMessage": "Recommendations, charts, and fresh finds will appear here",
   "navSearch": "Search",
-  "searchHint": "Search songs, artists, albums",
+  "searchHint": "Search music",
   "switchSearchSource": "Switch search source",
   "actionMusicSources": "Music sources",
   "actionStatistics": "Statistics",
@@ -115,8 +115,6 @@
 
   "searchCoverShape": "Search cover shape",
 
-  "defaultSearchSource": "Default search source",
-  "defaultSearchSourceSupporting": "Source selected by default when opening search results",
   "searchCoverShapeSupporting": "M3E shape used by song covers in search results",
   "coverShapeSupporting": "Choose the shape used for the now playing cover",
   "coverShapeDialogTitle": "Cover shape",

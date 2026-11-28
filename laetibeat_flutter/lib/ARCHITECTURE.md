@@ -104,6 +104,7 @@ lib/pages/mobile/mobile_app.dart
 - `MobileShellPage` 以 `IndexedStack` 保留已访问的一级页面状态
 - 整个移动端只有一个 root `Navigator`；详情、设置、搜索和全屏播放器都进入同一个路由栈
 - `MobileShell` 在 root `Navigator` 外持续管理 MiniPlayer、底部导航和页面底部 inset
+- 移动端搜索由 `AppMode` 限定数据源与可用分类；在线结果分页加载，搜索历史按模式保存
 - 系统返回按统一路由栈逐层 pop；Android 预测性返回动画仍需真机验收
 - AndroidManifest 已开启 `android:enableOnBackInvokedCallback="true"`
 
@@ -253,7 +254,7 @@ core           -> pages
 ## 9. 当前遗留项
 
 - `lib/pages/tmp.dart.bak` 是旧备份文件，不参与编译；确认不再需要后可删除。
-- 移动端 UI 目前是占位壳，播放器、音乐库、搜索等页面待重写。
+- 移动端 Shell、播放器、音乐库、搜索和设置页面已接入；模式页面的具体能力与待办以 `docs/mode-pages.md` 和 `TODO.md` 为准。
 - `MobileDirectoryPicker` 仍返回 null，移动端本地音乐目录选择尚未接入。
 - `MediaSessionService` 仍为 Noop，Android 后台播放与媒体通知尚未接入。
 

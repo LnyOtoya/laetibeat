@@ -4,13 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../app/app_mode.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/layout/app_bottom_inset.dart';
 import '../../../widgets/settings/persistence.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
-import 'library_search_suggestions.dart';
 import 'mobile_search_page.dart';
+import 'search_models.dart';
 
 /// Inline search surface shown behind [AppMorphingTabBar]'s expanded search
 /// field.
@@ -38,16 +39,19 @@ class MobileSearchInlineView extends ConsumerStatefulWidget {
 
 class MobileSearchInlineViewState
     extends ConsumerState<MobileSearchInlineView> {
-  static const String _recentSearchKey = 'search.recent_queries';
   static const int _recentSearchLimit = 30;
 
+  late final String _recentSearchKey;
   List<String> _recentSearches = const <String>[];
 
   @override
   void initState() {
     super.initState();
+    _recentSearchKey = searchHistoryKeyForMode(ref.read(appModeProvider));
+    final preferences = ref.read(sharedPreferencesProvider);
     _recentSearches =
-        ref.read(sharedPreferencesProvider).getStringList(_recentSearchKey) ??
+        preferences.getStringList(_recentSearchKey) ??
+        preferences.getStringList(legacySearchHistoryKey) ??
         const <String>[];
     widget.controller.addListener(_onQueryChanged);
   }
@@ -89,7 +93,9 @@ class MobileSearchInlineViewState
 
   Future<void> _clearRecentSearches() async {
     setState(() => _recentSearches = const <String>[]);
-    await ref.read(sharedPreferencesProvider).remove(_recentSearchKey);
+    await ref
+        .read(sharedPreferencesProvider)
+        .setStringList(_recentSearchKey, const <String>[]);
   }
 
   /// Persists [value], closes inline search, and opens results.
@@ -162,6 +168,25 @@ class MobileSearchInlineViewState
     );
   }
 
+  Widget _buildQuerySuggestion(
+    M3EThemeData theme,
+    AppLocalizations l10n,
+    String query,
+  ) {
+    return M3EList(
+      color: theme.colorScheme.surfaceContainerLow,
+      variant: M3ECardVariant.filled,
+      itemCount: 1,
+      onTap: (_) => unawaited(submit(query)),
+      itemBuilder: (BuildContext context, int index) => M3EListItem(
+        leading: const Icon(M3EIcons.search),
+        headline: query,
+        supportingText: l10n.searchHint,
+        trailing: const Icon(M3EIcons.arrow_forward),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
@@ -177,10 +202,7 @@ class MobileSearchInlineViewState
           padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + bottomInset),
           child: query.trim().isEmpty
               ? _buildHistory(theme, l10n)
-              : LibrarySearchSuggestions(
-                  query: query,
-                  onSelected: (selection) => unawaited(submit(selection.query)),
-                ),
+              : _buildQuerySuggestion(theme, l10n, query.trim()),
         ),
       ),
     );

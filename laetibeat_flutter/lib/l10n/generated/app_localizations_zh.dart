@@ -42,7 +42,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navSearch => '搜索';
 
   @override
-  String get searchHint => '搜索歌曲、艺人、专辑';
+  String get searchHint => '搜索音乐';
 
   @override
   String get switchSearchSource => '切换搜索源';
@@ -232,12 +232,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get searchCoverShape => '搜索封面形状';
-
-  @override
-  String get defaultSearchSource => '默认搜索来源';
-
-  @override
-  String get defaultSearchSourceSupporting => '打开搜索结果页时默认显示的来源';
 
   @override
   String get searchCoverShapeSupporting => '搜索结果歌曲封面使用的 M3E 形状';

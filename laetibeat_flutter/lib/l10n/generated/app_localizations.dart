@@ -167,7 +167,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchHint.
   ///
   /// In en, this message translates to:
-  /// **'Search songs, artists, albums'**
+  /// **'Search music'**
   String get searchHint;
 
   /// No description provided for @switchSearchSource.
@@ -523,18 +523,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search cover shape'**
   String get searchCoverShape;
-
-  /// No description provided for @defaultSearchSource.
-  ///
-  /// In en, this message translates to:
-  /// **'Default search source'**
-  String get defaultSearchSource;
-
-  /// No description provided for @defaultSearchSourceSupporting.
-  ///
-  /// In en, this message translates to:
-  /// **'Source selected by default when opening search results'**
-  String get defaultSearchSourceSupporting;
 
   /// No description provided for @searchCoverShapeSupporting.
   ///

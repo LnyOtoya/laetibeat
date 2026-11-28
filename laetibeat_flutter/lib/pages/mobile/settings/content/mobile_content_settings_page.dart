@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:laetibeat/widgets/settings/search_settings.dart';
 import 'package:laetibeat/widgets/settings/song_sort_settings.dart';
 import 'package:laetibeat/widgets/settings/song_source_settings.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
@@ -10,7 +9,6 @@ import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../widgets/settings/download_settings.dart';
 import '../../../../widgets/settings/lyrics_settings.dart';
 import '../../../../widgets/settings/music_library_provider.dart';
-import '../../search/search_models.dart';
 import '../mobile_settings_section.dart';
 
 /// 内容设置子页面。
@@ -25,7 +23,6 @@ class MobileContentSettingsPage extends ConsumerWidget {
     final download = ref.watch(downloadLocationProvider);
     final songSource = ref.watch(defaultSongSourceProvider);
     final songSort = ref.watch(defaultSongSortProvider);
-    final searchSource = ref.watch(defaultSearchSourceProvider);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -72,8 +69,6 @@ class MobileContentSettingsPage extends ConsumerWidget {
                     _pickSongSource(context, ref);
                   case 1:
                     _pickSongSort(context, ref);
-                  case 2:
-                    _pickDefaultSearchSource(context, ref);
                 }
               },
               children: [
@@ -87,12 +82,6 @@ class MobileContentSettingsPage extends ConsumerWidget {
                   title: l10n.songSort,
                   supportingText: songSort,
                   leading: const Icon(M3EIcons.sort),
-                  trailing: const Icon(M3EIcons.chevron_right),
-                ),
-                MobileSettingsRow(
-                  title: l10n.defaultSearchSource,
-                  supportingText: _searchSourceLabel(l10n, searchSource),
-                  leading: const Icon(M3EIcons.search),
                   trailing: const Icon(M3EIcons.chevron_right),
                 ),
               ],
@@ -212,35 +201,6 @@ class MobileContentSettingsPage extends ConsumerWidget {
     ref.read(defaultSongSortProvider.notifier).setMode(picked.first);
   }
 
-  Future<void> _pickDefaultSearchSource(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final l10n = AppLocalizations.of(context);
-    final labels = <String>[
-      l10n.searchFilterAll,
-      l10n.searchSourceLocal,
-      l10n.searchFilterSubsonic,
-      l10n.searchFilterLx,
-      '网易云',
-      'QQ 音乐',
-    ];
-    final current = ref.read(defaultSearchSourceProvider);
-    final picked = await M3EDialog.showSelectionScreen(
-      context,
-      title: l10n.defaultSearchSource,
-      options: labels,
-      initialSelection: <String>[_searchSourceLabel(l10n, current)],
-      icon: const Icon(M3EIcons.search),
-    );
-    if (!context.mounted || picked == null || picked.isEmpty) return;
-    final index = labels.indexOf(picked.first);
-    if (index < 0) return;
-    await ref
-        .read(defaultSearchSourceProvider.notifier)
-        .setSource(MobileSearchSourceFilter.values[index]);
-  }
-
   Future<void> _showLyricsSources(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
     final settings = ref.read(lyricsSettingsProvider);
@@ -306,20 +266,6 @@ String _sourceLabel(
           : l10n.lyricsSourceTags,
     LyricsSourceId.lrclib => l10n.lyricsSourceLrclib,
     LyricsSourceId.liriqo => l10n.lyricsSourceLiriqo,
-  };
-}
-
-String _searchSourceLabel(
-  AppLocalizations l10n,
-  MobileSearchSourceFilter source,
-) {
-  return switch (source) {
-    MobileSearchSourceFilter.all => l10n.searchFilterAll,
-    MobileSearchSourceFilter.local => l10n.searchSourceLocal,
-    MobileSearchSourceFilter.subsonic => l10n.searchFilterSubsonic,
-    MobileSearchSourceFilter.lx => l10n.searchFilterLx,
-    MobileSearchSourceFilter.netease => '网易云',
-    MobileSearchSourceFilter.qq => 'QQ 音乐',
   };
 }
 

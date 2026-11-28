@@ -43,7 +43,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navSearch => 'Search';
 
   @override
-  String get searchHint => 'Search songs, artists, albums';
+  String get searchHint => 'Search music';
 
   @override
   String get switchSearchSource => 'Switch search source';
@@ -238,13 +238,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchCoverShape => 'Search cover shape';
-
-  @override
-  String get defaultSearchSource => 'Default search source';
-
-  @override
-  String get defaultSearchSourceSupporting =>
-      'Source selected by default when opening search results';
 
   @override
   String get searchCoverShapeSupporting =>
