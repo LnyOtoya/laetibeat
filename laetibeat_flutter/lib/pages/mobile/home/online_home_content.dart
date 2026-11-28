@@ -102,10 +102,18 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
                   const _PrivateFmSection(),
                   const SizedBox(height: AppSpacing.xl),
                   for (final block in sections) ...<Widget>[
-                    _HomeBlockSection(block: block),
+                    _HomeBlockSection(
+                      block: block,
+                      onOpen: () =>
+                          _openBlock(context, title: block.title, block: block),
+                    ),
                     const SizedBox(height: AppSpacing.xl),
                   ],
-                  _RadarHomeSection(nickname: nickname),
+                  _PersonalizedRecommendSection(source: source),
+                  const SizedBox(height: AppSpacing.xl),
+                  _TopListsSection(source: source),
+                  const SizedBox(height: AppSpacing.xl),
+                  _RadarHomeSection(nickname: nickname, onOpen: _openRadar),
                 ],
               ),
             );
@@ -785,10 +793,160 @@ class _PrivateFmCover extends ConsumerWidget {
   }
 }
 
+class _PersonalizedRecommendSection extends ConsumerWidget {
+  const _PersonalizedRecommendSection({required this.source});
+
+  final String source;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(onlineRecommendPlaylistsProvider(source));
+    final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+    return async.when(
+      loading: () => const SizedBox.shrink(),
+      error: (Object error, StackTrace? stack) => const SizedBox.shrink(),
+      data: (List<rust_online.UiOnlinePlaylist> playlists) {
+        if (playlists.isEmpty) return const SizedBox.shrink();
+        final cards = playlists
+            .map(_radarItemFromPlaylist)
+            .toList(growable: false);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: gutter),
+              child: AppSectionHeader(
+                title: '个性化推荐',
+                titleRole: AppTextRole.titleLarge,
+                trailing: _SectionAction(
+                  label: '全部',
+                  onPressed: () => pushMobileRootPage(
+                    context,
+                    OnlineHomeBlockPage(title: '个性化推荐', items: cards),
+                    name: MobileRoutes.libraryPlaylists,
+                  ),
+                ),
+                padding: AppInsets.sectionHeader,
+              ),
+            ),
+            _HomeBlockCardRow(cards: cards),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _TopListsSection extends ConsumerWidget {
+  const _TopListsSection({required this.source});
+
+  final String source;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(onlineTopListsProvider(source));
+    final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+    return async.when(
+      loading: () => const SizedBox.shrink(),
+      error: (Object error, StackTrace? stack) => const SizedBox.shrink(),
+      data: (List<rust_online.UiOnlineTopList> topLists) {
+        if (topLists.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: gutter),
+              child: const AppSectionHeader(
+                title: '排行榜',
+                titleRole: AppTextRole.titleLarge,
+                padding: AppInsets.sectionHeader,
+              ),
+            ),
+            SizedBox(
+              height: 184,
+              child: GridView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.only(left: gutter),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: AppSpacing.sm,
+                  crossAxisSpacing: AppSpacing.sm,
+                  mainAxisExtent: 180,
+                ),
+                itemCount: topLists.length,
+                itemBuilder: (BuildContext context, int index) {
+                  return _TopListTile(topList: topLists[index]);
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _TopListTile extends StatelessWidget {
+  const _TopListTile({required this.topList});
+
+  final rust_online.UiOnlineTopList topList;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    final meta = topList.updateFrequency?.trim().isNotEmpty == true
+        ? topList.updateFrequency!.trim()
+        : (topList.trackCount > 0 ? '${topList.trackCount} 首' : '');
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      borderRadius: AppRadii.lgAll,
+      child: InkWell(
+        borderRadius: AppRadii.lgAll,
+        onTap: () => pushMobileRootPage(
+          context,
+          OnlineTopListDetailPage(topList: topList),
+          name: 'online-toplist',
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Text(
+                topList.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.typeScale.titleSmall.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (meta.isNotEmpty) ...<Widget>[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  meta,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.typeScale.bodySmall.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _RadarHomeSection extends ConsumerWidget {
-  const _RadarHomeSection({required this.nickname});
+  const _RadarHomeSection({required this.nickname, required this.onOpen});
 
   final String? nickname;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -800,29 +958,68 @@ class _RadarHomeSection extends ConsumerWidget {
     ];
     if (cards.isEmpty) return const SizedBox.shrink();
 
-    final sectionTitle = nickname == null ? '雷达歌单' : '$nickname的雷达歌单';
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
     final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: gutter),
-          child: AppSectionHeader(
-            title: sectionTitle,
-            titleRole: AppTextRole.titleMedium,
-            padding: AppInsets.sectionHeader,
-          ),
+    final subtitle = nickname == null
+        ? '根据你的最近聆听实时更新'
+        : '$nickname · 根据最近聆听实时更新';
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: gutter),
+      child: Container(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh,
+          borderRadius: AppRadii.xxlAll,
         ),
-        _HomeCardCarousel(cards: cards),
-      ],
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.sm,
+          AppSpacing.xs,
+          0,
+          AppSpacing.lg,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.only(
+                left: AppSpacing.sm,
+                right: AppSpacing.lg,
+              ),
+              child: AppSectionHeader(
+                title: '雷达歌单',
+                subtitle: subtitle,
+                titleRole: AppTextRole.titleLarge,
+                leading: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: scheme.primaryContainer,
+                  child: Icon(
+                    M3EIcons.radar,
+                    size: 19,
+                    color: scheme.onPrimaryContainer,
+                  ),
+                ),
+                trailing: _SectionAction(label: '全部', onPressed: onOpen),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              ),
+            ),
+            _ExpressiveCardCarousel(
+              cards: cards,
+              height: 212,
+              edgeInset: 0,
+              radar: true,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _HomeBlockSection extends StatelessWidget {
-  const _HomeBlockSection({required this.block});
+  const _HomeBlockSection({required this.block, required this.onOpen});
 
   final rust_online.UiOnlineHomeBlock block;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -834,6 +1031,7 @@ class _HomeBlockSection extends StatelessWidget {
         .map(_trackFromHomeItem)
         .toList(growable: false);
     final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+    final isRecommended = block.title.contains('推荐歌单');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -842,11 +1040,13 @@ class _HomeBlockSection extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: gutter),
           child: AppSectionHeader(
             title: block.title,
-            titleRole: AppTextRole.titleMedium,
+            subtitle: isRecommended ? '根据你的最近聆听精选' : null,
+            titleRole: AppTextRole.titleLarge,
+            trailing: _SectionAction(label: '全部', onPressed: onOpen),
             padding: AppInsets.sectionHeader,
           ),
         ),
-        if (cards.isNotEmpty) _HomeCardCarousel(cards: cards),
+        if (cards.isNotEmpty) _HomeBlockCardRow(cards: cards),
         if (cards.isNotEmpty && tracks.isNotEmpty)
           const SizedBox(height: AppSpacing.md),
         if (tracks.isNotEmpty)
@@ -856,23 +1056,40 @@ class _HomeBlockSection extends StatelessWidget {
   }
 }
 
-class _HomeCardCarousel extends StatelessWidget {
-  const _HomeCardCarousel({required this.cards});
+class _SectionAction extends StatelessWidget {
+  const _SectionAction({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return m3e_core.M3EButton(
+      style: m3e_core.M3EButtonStyle.text,
+      size: m3e_core.M3EButtonSize.xs,
+      onPressed: onPressed,
+      child: Text(label),
+    );
+  }
+}
+
+class _HomeBlockCardRow extends StatelessWidget {
+  const _HomeBlockCardRow({required this.cards});
 
   final List<rust_online.UiOnlineHomeItem> cards;
 
   @override
   Widget build(BuildContext context) {
-    final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
-    final available = MediaQuery.sizeOf(context).width - gutter * 2;
-    final cardWidth = ((available - AppSpacing.lg * 2) / 2.35).clamp(
-      120.0,
-      180.0,
+    final width = MediaQuery.sizeOf(context).width;
+    final gutter = AppLayout.gutterFor(width);
+    final cardWidth = ((width - gutter - AppSpacing.md * 2) / 2.9).clamp(
+      104.0,
+      136.0,
     );
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: EdgeInsets.symmetric(horizontal: gutter),
+      padding: EdgeInsets.only(left: gutter),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -880,7 +1097,7 @@ class _HomeCardCarousel extends StatelessWidget {
             if (index > 0) const SizedBox(width: AppSpacing.md),
             SizedBox(
               width: cardWidth,
-              child: _HomeCard(item: cards[index], width: cardWidth),
+              child: _HomeBlockCard(item: cards[index], width: cardWidth),
             ),
           ],
         ],
@@ -889,8 +1106,8 @@ class _HomeCardCarousel extends StatelessWidget {
   }
 }
 
-class _HomeCard extends StatelessWidget {
-  const _HomeCard({required this.item, required this.width});
+class _HomeBlockCard extends StatelessWidget {
+  const _HomeBlockCard({required this.item, required this.width});
 
   final rust_online.UiOnlineHomeItem item;
   final double width;
@@ -899,46 +1116,239 @@ class _HomeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final scheme = theme.colorScheme;
-    final canOpen =
-        item.kind == 'list' ||
-        item.kind == 'album' ||
-        item.kind == 'digitalAlbum';
+    final meta = _cardMeta(item).isEmpty ? item.subtitle : _cardMeta(item);
     return Semantics(
-      button: canOpen,
+      button: true,
       label: item.title,
-      child: SizedBox(
-        width: width,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            borderRadius: AppRadii.lgAll,
-            onTap: canOpen ? () => _openHomeCard(context, item) : null,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                ClipRRect(
-                  borderRadius: AppRadii.lgAll,
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: OnlineCover(url: item.coverUrl, size: width),
-                  ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: AppRadii.smAll,
+          onTap: () => _openHomeCard(context, item),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              ClipRRect(
+                borderRadius: AppRadii.smAll,
+                child: SizedBox.square(
+                  dimension: width,
+                  child: OnlineCover(url: item.coverUrl, size: width),
                 ),
-                const SizedBox(height: AppSpacing.sm),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                item.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.typeScale.bodyMedium.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (meta.isNotEmpty) ...<Widget>[
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  item.title,
-                  maxLines: 2,
+                  meta,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.typeScale.bodyMedium.copyWith(
-                    color: scheme.onSurface,
+                  style: theme.typeScale.bodySmall.copyWith(
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
               ],
-            ),
+            ],
           ),
         ),
       ),
     );
   }
+}
+
+class _ExpressiveCardCarousel extends ConsumerWidget {
+  const _ExpressiveCardCarousel({
+    required this.cards,
+    required this.height,
+    this.edgeInset = AppSpacing.sm,
+    this.radar = false,
+  });
+
+  final List<rust_online.UiOnlineHomeItem> cards;
+  final double height;
+  final double edgeInset;
+  final bool radar;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final baseTheme = M3ETheme.of(context);
+    final carouselTheme = baseTheme.carouselTheme.copyWith(
+      itemGap: AppSpacing.lg,
+    );
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: edgeInset),
+      child: M3ETheme(
+        data: baseTheme.copyWith(carouselTheme: carouselTheme),
+        child: M3ECarousel(
+          type: M3ECarouselType.contained,
+          isExtended: false,
+          showAll: false,
+          axis: Axis.horizontal,
+          height: height,
+          childElementBorderRadius: AppRadii.xl,
+          haptic: M3EHapticFeedback.light,
+          children: <M3ECarouselItem>[
+            ...cards.map((rust_online.UiOnlineHomeItem item) {
+              final coverColor = item.coverUrl == null
+                  ? null
+                  : ref.watch(onlineCoverColorProvider(item.coverUrl!)).value;
+              final bannerScheme = MaterialYouColorScheme.fromSeed(
+                coverColor ?? baseTheme.colorScheme.primary,
+                brightness: Brightness.dark,
+              );
+              final scrimColor = bannerScheme.surface.withValues(alpha: 0.84);
+              final meta = _cardMeta(item);
+              return M3ECarouselItem(
+                image: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    _ExpressiveCardCover(item: item),
+                    if (radar)
+                      Positioned(
+                        top: AppSpacing.sm,
+                        left: AppSpacing.sm,
+                        child: _RadarCardBadge(scheme: bannerScheme),
+                      ),
+                  ],
+                ),
+                title: Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: baseTheme.typeScale.titleMedium.copyWith(
+                    color: bannerScheme.onSurface,
+                  ),
+                ),
+                subtitle: meta.isEmpty
+                    ? null
+                    : Text(
+                        meta,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: baseTheme.typeScale.bodySmall.copyWith(
+                          color: bannerScheme.onSurfaceVariant.withValues(
+                            alpha: 0.9,
+                          ),
+                        ),
+                      ),
+                applyDynamicTextContentTransform: false,
+                showScrim: M3ECarouselScrim.gradient(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: <Color>[Colors.transparent, scrimColor],
+                  ),
+                ),
+                semanticLabel: item.title,
+                onTap: () => _openHomeCard(context, item),
+              );
+            }),
+            for (var index = 0; index < 2; index++)
+              const M3ECarouselItem(
+                image: SizedBox.expand(),
+                applyDynamicTextContentTransform: false,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExpressiveCardCover extends ConsumerWidget {
+  const _ExpressiveCardCover({required this.item});
+
+  final rust_online.UiOnlineHomeItem item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    final cover = item.coverUrl?.trim() ?? '';
+    final proxyUrl = cover.isEmpty ? null : onlineImageProxyUrl(ref, cover);
+    final placeholder = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[scheme.primaryContainer, scheme.tertiaryContainer],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          M3EIcons.queue_music,
+          size: 44,
+          color: scheme.onPrimaryContainer,
+        ),
+      ),
+    );
+    if (proxyUrl == null) return placeholder;
+    return Image.network(
+      proxyUrl,
+      headers: onlineImageRequestHeaders(ref),
+      cacheWidth: 640,
+      fit: BoxFit.cover,
+      errorBuilder: (BuildContext context, Object error, StackTrace? stack) {
+        return placeholder;
+      },
+    );
+  }
+}
+
+class _RadarCardBadge extends StatelessWidget {
+  const _RadarCardBadge({required this.scheme});
+
+  final M3EColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final type = M3ETheme.of(context).typeScale;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: scheme.surface.withValues(alpha: 0.88),
+        borderRadius: AppRadii.fullAll,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(M3EIcons.radar, size: 14, color: scheme.primary),
+          const SizedBox(width: AppSpacing.xs),
+          Text('雷达', style: type.labelSmall.copyWith(color: scheme.onSurface)),
+        ],
+      ),
+    );
+  }
+}
+
+String _cardMeta(rust_online.UiOnlineHomeItem item) {
+  final parts = <String>[];
+  if (item.trackCount > 0) parts.add('${item.trackCount} 首');
+  if (item.playCount > BigInt.zero) {
+    parts.add(_compactCount(item.playCount.toInt()));
+  }
+  if (parts.isEmpty && item.artists.trim().isNotEmpty) {
+    return item.artists.trim();
+  }
+  return parts.join(' · ');
+}
+
+String _compactCount(int value) {
+  if (value >= 100000000) {
+    return '${(value / 100000000).toStringAsFixed(1)} 亿';
+  }
+  if (value >= 10000) {
+    return '${(value / 10000).toStringAsFixed(1)} 万';
+  }
+  return '$value';
 }
 
 class _HomeSongColumns extends ConsumerWidget {

@@ -63,9 +63,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // QQ mode: 首页 / 发现 / 媒体库
+    // QQ mode: 首页 / 媒体库
     expect(find.byIcon(M3EIcons.home), findsOneWidget);
-    expect(find.byIcon(M3EIcons.explore), findsOneWidget);
+    expect(find.byIcon(M3EIcons.explore), findsNothing);
     expect(find.byIcon(M3EIcons.music_note), findsOneWidget);
     expect(find.byIcon(M3EIcons.bar_chart), findsNothing);
 

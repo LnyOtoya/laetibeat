@@ -33,7 +33,6 @@ void main() {
     ]);
     expect(AppMode.qq.mobileDestinations, <AppDestination>[
       AppDestination.home,
-      AppDestination.discover,
       AppDestination.library,
     ]);
     expect(AppMode.netease.mobileDestinations, AppMode.qq.mobileDestinations);

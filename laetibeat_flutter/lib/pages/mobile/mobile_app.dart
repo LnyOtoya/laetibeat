@@ -10,7 +10,6 @@ import '../../l10n/generated/app_localizations.dart';
 import '../../shared/feedback/app_haptics.dart';
 import '../../shared/layout/app_bottom_inset.dart';
 import '../../widgets/player/player_provider.dart';
-import 'discover/mobile_discover_page.dart';
 import 'home/mobile_home_page.dart';
 import 'library/mobile_library_page.dart';
 import 'library/mobile_library_subpages.dart';
@@ -57,14 +56,12 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         .map((tab) {
           final icon = switch (tab) {
             AppDestination.home => M3EIcons.home,
-            AppDestination.discover => M3EIcons.explore,
             AppDestination.library => M3EIcons.music_note,
             AppDestination.stats => M3EIcons.bar_chart,
             _ => M3EIcons.more_horiz,
           };
           final label = switch (tab) {
             AppDestination.home => l10n.navHome,
-            AppDestination.discover => l10n.navDiscover,
             AppDestination.library => l10n.navLibrary,
             AppDestination.stats => l10n.statisticsTitle,
             _ => tab.name,
@@ -81,7 +78,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   String _routeForDestination(AppDestination destination) {
     return switch (destination) {
       AppDestination.home => MobileRoutes.home,
-      AppDestination.discover => MobileRoutes.discover,
       AppDestination.library => MobileRoutes.library,
       AppDestination.stats => MobileRoutes.stats,
       _ => MobileRoutes.home,
@@ -100,9 +96,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     if (route == MobileRoutes.stats) {
       return AppDestination.stats;
     }
-    if (route == MobileRoutes.discover) {
-      return AppDestination.discover;
-    }
     return null;
   }
 
@@ -111,7 +104,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     if (tab == null || !tabs.contains(tab)) return false;
     if (route == null) return true;
     return route == MobileRoutes.home ||
-        route == MobileRoutes.discover ||
         route == MobileRoutes.library ||
         route.startsWith('/library/') ||
         route == MobileRoutes.stats;
@@ -141,10 +133,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       case AppDestination.stats:
         if (current == MobileRoutes.stats) return;
         navigator.pushNamed(MobileRoutes.stats);
-        return;
-      case AppDestination.discover:
-        if (current == MobileRoutes.discover) return;
-        navigator.pushNamed(MobileRoutes.discover);
         return;
       case AppDestination.search:
         _openSearch();
@@ -285,7 +273,6 @@ class MobileShellPage extends ConsumerWidget {
 String _routeForDestination(AppDestination destination) {
   return switch (destination) {
     AppDestination.home => MobileRoutes.home,
-    AppDestination.discover => MobileRoutes.discover,
     AppDestination.library => MobileRoutes.library,
     AppDestination.stats => MobileRoutes.stats,
     _ => MobileRoutes.home,
@@ -299,7 +286,6 @@ String _routeForDestination(AppDestination destination) {
 Route<dynamic>? mobileOnGenerateRoute(RouteSettings settings) {
   final Widget page = switch (settings.name) {
     MobileRoutes.home => const MobileHomePage(),
-    MobileRoutes.discover => const MobileDiscoverPage(),
     MobileRoutes.library => const MobileLibraryPage(),
     MobileRoutes.librarySongs => const MobileLibrarySongsPage(),
     MobileRoutes.libraryPlaylists => const MobileLibraryPlaylistsPage(),

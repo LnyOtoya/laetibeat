@@ -37,7 +37,6 @@ enum AppMode {
     ],
     AppMode.qq || AppMode.netease => const <AppDestination>[
       AppDestination.home,
-      AppDestination.discover,
       AppDestination.library,
     ],
   };

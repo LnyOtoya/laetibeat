@@ -92,7 +92,7 @@ laetibeat_qq_host (GPL-3.0-only)     laetibeat_netease_host (MIT)
 
 - 设置 → 音源模式：本地 / Subsonic / QQ / 网易云切换与 sidecar 状态
 - 设置 → 在线音源：当前模式 sidecar 状态、账号登录/退出、音质、LX 后备
-- 搜索 / 发现：在线源跟随当前 `AppMode`
+- 搜索：在线源跟随当前 `AppMode`
 - 在线歌单 / 专辑 / 榜单详情：`lib/pages/mobile/library/online/`
 
 ## 3. Rust 层

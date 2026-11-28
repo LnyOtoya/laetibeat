@@ -35,7 +35,7 @@ final onlineCoverColorProvider = FutureProvider.family<Color?, String>((
       bytes.addAll(chunk);
     }
     if (bytes.isEmpty) return null;
-    return dominantCoverColor(Uint8List.fromList(bytes));
+    return await dominantCoverColor(Uint8List.fromList(bytes));
   } catch (_) {
     return null;
   } finally {

@@ -11,7 +11,6 @@ import '../../../../design/design.dart';
 import '../../../../widgets/player/player_provider.dart';
 import '../../../../widgets/settings/favorites_provider.dart';
 import '../../../../widgets/settings/online_provider.dart';
-import '../../../../widgets/settings/online_settings.dart';
 import '../../mobile_navigation.dart';
 import '../../routes.dart';
 import 'online_widgets.dart';
