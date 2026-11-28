@@ -690,8 +690,12 @@ class _OnlineTracksScaffold extends ConsumerWidget {
                       itemBuilder: (BuildContext context, int index) {
                         final track = items[index];
                         return m3e_core.M3EListItem(
-                          minHeight: 72,
-                          leading: OnlineCover(url: track.coverId, size: 56),
+                          minHeight: 56,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                          leading: OnlineCover(url: track.coverId, size: 48),
                           headline: Text(
                             track.title,
                             maxLines: 1,
@@ -702,10 +706,9 @@ class _OnlineTracksScaffold extends ConsumerWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          headlineStyle: baseTheme.typeScale.bodyLarge.copyWith(
-                            color: scheme.onSecondaryContainer,
-                          ),
-                          supportingTextStyle: baseTheme.typeScale.bodyMedium
+                          headlineStyle: baseTheme.typeScale.bodyMedium
+                              .copyWith(color: scheme.onSecondaryContainer),
+                          supportingTextStyle: baseTheme.typeScale.bodySmall
                               .copyWith(
                                 color: scheme.onSecondaryContainer.withValues(
                                   alpha: 0.75,
@@ -817,33 +820,49 @@ class _OnlinePlaybackControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const double capsuleWidth = 88;
+    const double capsuleHeight = 56;
+    const double cookieSize = 56;
+    const double gap = 16;
     return SizedBox(
-      height: 72,
-      child: Stack(
-        alignment: Alignment.center,
-        children: <Widget>[
-          Align(
-            alignment: Alignment.centerLeft,
-            child: _CookieShuffleButton(onPressed: onShuffle),
-          ),
-          M3EButton(
-            onPressed: onPlayPause,
-            style: M3EButtonStyle.filled,
-            shape: M3EButtonShape.round,
-            tooltip: isPlaying ? '暂停' : '播放',
-            semanticLabel: isPlaying ? '暂停' : '播放',
-            decoration: const M3EButtonDecoration(
-              minimumSize: Size(64, 64),
-              fixedSize: Size(64, 64),
-              padding: EdgeInsets.zero,
-              tapTargetSize: MaterialTapTargetSize.padded,
-            ),
-            child: Icon(
-              isPlaying ? M3EIcons.pause : M3EIcons.play_arrow,
-              size: 28,
-            ),
-          ),
-        ],
+      width: double.infinity,
+      height: 64,
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final double capsuleLeft =
+              constraints.maxWidth / 2 - capsuleWidth / 2;
+          final double cookieLeft = capsuleLeft - gap - cookieSize;
+          return Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              Align(
+                alignment: Alignment.center,
+                child: M3EButton(
+                  onPressed: onPlayPause,
+                  style: M3EButtonStyle.filled,
+                  shape: M3EButtonShape.round,
+                  tooltip: isPlaying ? '暂停' : '播放',
+                  semanticLabel: isPlaying ? '暂停' : '播放',
+                  decoration: const M3EButtonDecoration(
+                    minimumSize: Size(capsuleWidth, capsuleHeight),
+                    fixedSize: Size(capsuleWidth, capsuleHeight),
+                    padding: EdgeInsets.zero,
+                    tapTargetSize: MaterialTapTargetSize.padded,
+                  ),
+                  child: Icon(
+                    isPlaying ? M3EIcons.pause : M3EIcons.play_arrow,
+                    size: 28,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: math.max(0, cookieLeft),
+                top: (64 - cookieSize) / 2,
+                child: _CookieShuffleButton(onPressed: onShuffle),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
