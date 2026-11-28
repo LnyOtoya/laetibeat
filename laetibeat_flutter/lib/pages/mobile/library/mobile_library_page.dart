@@ -235,21 +235,25 @@ class _OnlineUserProfileContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: chips,
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              OnlineCover(url: profile.avatarUrl, size: 80),
+              M3EShapeContainer.cookie12Sided(
+                width: 80,
+                height: 80,
+                child: OnlineCover(url: profile.avatarUrl, size: 80),
+              ),
               const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Wrap(
-                      spacing: AppSpacing.xs,
-                      runSpacing: AppSpacing.xs,
-                      children: chips,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
                     Text(
                       profile.nickname.isEmpty ? '网易云用户' : profile.nickname,
                       maxLines: 1,
