@@ -335,9 +335,11 @@ final lxCoverSourceProvider = Provider<LxCoverProvider>((ref) {
 });
 
 Future<Uint8List?> _onlineCoverBytes(Ref ref, String url) async {
-  final baseUrl = ref.read(onlineBaseUrlProvider);
-  final token = await ref.read(onlineTokenProvider.future);
-  if (baseUrl.isEmpty || token == null || token.isEmpty) return null;
+  final baseUrl = ref.watch(onlineBaseUrlProvider);
+  final tokenFuture = ref.watch(onlineTokenProvider.future);
+  if (baseUrl.isEmpty) return null;
+  final token = await tokenFuture;
+  if (token == null || token.isEmpty) return null;
   final client = HttpClient();
   try {
     final request = await client.getUrl(
@@ -365,10 +367,7 @@ final playbackCoverProvider = FutureProvider<PlaybackCover?>((ref) async {
 
   final Uint8List? bytes;
   final coverId = track.coverId;
-  if (coverId != null &&
-      (coverId.startsWith('http://') || coverId.startsWith('https://'))) {
-    bytes = await _onlineCoverBytes(ref, coverId);
-  } else if (track.source == 'lx') {
+  if (track.source == 'lx') {
     bytes = await ref.read(lxCoverSourceProvider).cover(track);
   } else if (track.source == 'opensubsonic' &&
       coverId != null &&
@@ -376,6 +375,9 @@ final playbackCoverProvider = FutureProvider<PlaybackCover?>((ref) async {
     bytes = await ref
         .read(remoteCoverSourceProvider)
         .cover(track.sourceId, coverId);
+  } else if (coverId != null &&
+      (coverId.startsWith('http://') || coverId.startsWith('https://'))) {
+    bytes = await _onlineCoverBytes(ref, coverId);
   } else {
     bytes = await ref.read(coverProvider).cover(track);
   }
