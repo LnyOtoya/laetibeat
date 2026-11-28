@@ -457,12 +457,28 @@ class OnlineLikedSongsPage extends ConsumerWidget {
             id: playlist.id,
           )),
         );
+        final profile = ref.watch(onlineUserProfileProvider).value;
+        final creatorName = profile?.nickname.trim().isNotEmpty == true
+            ? profile!.nickname
+            : (playlist.creator?.trim().isNotEmpty == true
+                  ? playlist.creator!
+                  : '网易云用户');
         return _OnlineTracksScaffold(
           title: '我喜欢的音乐',
-          subtitle: playlist.trackCount > 0 ? '${playlist.trackCount} 首' : '',
+          subtitle: '',
           coverUrl: playlist.coverUrl,
           source: playlist.source,
           tracks: tracks,
+          showCreatorHeader: true,
+          creatorName: creatorName,
+          creatorAvatarUrl: profile?.avatarUrl,
+          trackCount: playlist.trackCount,
+          playCount: playlist.playCount.toInt(),
+          onCreatorTap: () => pushMobileRootPage(
+            context,
+            _OnlineCreatorPlaceholderPage(name: creatorName),
+            name: MobileRoutes.libraryArtists,
+          ),
         );
       },
     );
@@ -496,6 +512,12 @@ class _OnlineTracksScaffold extends ConsumerWidget {
     required this.coverUrl,
     required this.source,
     required this.tracks,
+    this.showCreatorHeader = false,
+    this.creatorName,
+    this.creatorAvatarUrl,
+    this.onCreatorTap,
+    this.trackCount,
+    this.playCount,
   });
 
   final String title;
@@ -503,6 +525,12 @@ class _OnlineTracksScaffold extends ConsumerWidget {
   final String? coverUrl;
   final String source;
   final AsyncValue<List<rust.UiTrack>> tracks;
+  final bool showCreatorHeader;
+  final String? creatorName;
+  final String? creatorAvatarUrl;
+  final VoidCallback? onCreatorTap;
+  final int? trackCount;
+  final int? playCount;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -541,6 +569,16 @@ class _OnlineTracksScaffold extends ConsumerWidget {
               return const Center(child: Text('暂无歌曲'));
             }
             final trackSource = onlineSourceLabel(source);
+            final isCurrent = ref.watch(
+              playerProvider.select((PlayerState player) {
+                final current = player.current;
+                return current != null &&
+                    items.any((rust.UiTrack track) => track.id == current.id);
+              }),
+            );
+            final isPlaying = ref.watch(
+              playerProvider.select((PlayerState player) => player.isPlaying),
+            );
             return CustomScrollView(
               slivers: <Widget>[
                 SliverToBoxAdapter(
@@ -556,28 +594,61 @@ class _OnlineTracksScaffold extends ConsumerWidget {
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: baseTheme.typeScale.headlineMedium,
+                          style: baseTheme.typeScale.headlineMedium.copyWith(
+                            color: scheme.onSurface,
+                          ),
                         ),
-                        if (subtitle.isNotEmpty) ...<Widget>[
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            subtitle,
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: baseTheme.typeScale.bodyLarge.copyWith(
-                              color: scheme.onSurfaceVariant,
+                        if (showCreatorHeader) ...<Widget>[
+                          const SizedBox(height: AppSpacing.sm),
+                          _OnlineCreatorRow(
+                            name: creatorName ?? '网易云用户',
+                            avatarUrl: creatorAvatarUrl,
+                            onTap: onCreatorTap,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          _OnlineStatsRow(
+                            trackCount: trackCount ?? items.length,
+                            playCount: playCount ?? 0,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          _OnlinePlaybackControls(
+                            isPlaying: isCurrent && isPlaying,
+                            onShuffle: () => ref
+                                .read(playerProvider.notifier)
+                                .playShuffled(items, source: trackSource),
+                            onPlayPause: () {
+                              final notifier = ref.read(
+                                playerProvider.notifier,
+                              );
+                              if (isCurrent) {
+                                notifier.toggle();
+                              } else {
+                                notifier.load(items, 0, source: trackSource);
+                              }
+                            },
+                          ),
+                        ] else ...<Widget>[
+                          if (subtitle.isNotEmpty) ...<Widget>[
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              subtitle,
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: baseTheme.typeScale.bodyLarge.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
                             ),
+                          ],
+                          const SizedBox(height: AppSpacing.lg),
+                          M3EButton(
+                            style: M3EButtonStyle.filled,
+                            label: const Text('播放全部'),
+                            onPressed: () => ref
+                                .read(playerProvider.notifier)
+                                .load(items, 0, source: trackSource),
                           ),
                         ],
-                        const SizedBox(height: AppSpacing.lg),
-                        M3EButton(
-                          style: M3EButtonStyle.filled,
-                          label: const Text('播放全部'),
-                          onPressed: () => ref
-                              .read(playerProvider.notifier)
-                              .load(items, 0, source: trackSource),
-                        ),
                       ],
                     ),
                   ),
@@ -619,10 +690,18 @@ class _OnlineTracksScaffold extends ConsumerWidget {
                       itemBuilder: (BuildContext context, int index) {
                         final track = items[index];
                         return m3e_core.M3EListItem(
-                          minHeight: 64,
-                          leading: OnlineCover(url: track.coverId),
-                          headline: Text(track.title),
-                          supportingText: Text(track.artist),
+                          minHeight: 72,
+                          leading: OnlineCover(url: track.coverId, size: 56),
+                          headline: Text(
+                            track.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          supportingText: Text(
+                            track.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           headlineStyle: baseTheme.typeScale.bodyLarge.copyWith(
                             color: scheme.onSecondaryContainer,
                           ),
@@ -642,6 +721,176 @@ class _OnlineTracksScaffold extends ConsumerWidget {
           },
         ),
       ),
+    );
+  }
+}
+
+class _OnlineCreatorRow extends StatelessWidget {
+  const _OnlineCreatorRow({required this.name, this.avatarUrl, this.onTap});
+
+  final String name;
+  final String? avatarUrl;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    return Center(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xxs,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              M3EShapeContainer.circle(
+                width: 32,
+                height: 32,
+                child: OnlineCover(url: avatarUrl, size: 32),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.typeScale.titleSmall.copyWith(
+                  color: scheme.onSurface,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xxs),
+              Icon(
+                M3EIcons.chevron_right,
+                size: 18,
+                color: scheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OnlineStatsRow extends StatelessWidget {
+  const _OnlineStatsRow({required this.trackCount, required this.playCount});
+
+  final int trackCount;
+  final int playCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    final style = theme.typeScale.bodyMedium.copyWith(
+      color: scheme.onSurfaceVariant,
+    );
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text('$trackCount 首', style: style),
+          const SizedBox(width: AppSpacing.md),
+          Icon(M3EIcons.play_arrow, size: 16, color: scheme.onSurfaceVariant),
+          const SizedBox(width: AppSpacing.xxs),
+          Text('$playCount', style: style),
+        ],
+      ),
+    );
+  }
+}
+
+class _OnlinePlaybackControls extends StatelessWidget {
+  const _OnlinePlaybackControls({
+    required this.isPlaying,
+    required this.onShuffle,
+    required this.onPlayPause,
+  });
+
+  final bool isPlaying;
+  final VoidCallback onShuffle;
+  final VoidCallback onPlayPause;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 72,
+      child: Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _CookieShuffleButton(onPressed: onShuffle),
+          ),
+          M3EButton(
+            onPressed: onPlayPause,
+            style: M3EButtonStyle.filled,
+            shape: M3EButtonShape.round,
+            tooltip: isPlaying ? '暂停' : '播放',
+            semanticLabel: isPlaying ? '暂停' : '播放',
+            decoration: const M3EButtonDecoration(
+              minimumSize: Size(64, 64),
+              fixedSize: Size(64, 64),
+              padding: EdgeInsets.zero,
+              tapTargetSize: MaterialTapTargetSize.padded,
+            ),
+            child: Icon(
+              isPlaying ? M3EIcons.pause : M3EIcons.play_arrow,
+              size: 28,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CookieShuffleButton extends StatelessWidget {
+  const _CookieShuffleButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: '随机播放',
+      child: M3EShapeContainer.cookie4Sided(
+        width: 56,
+        height: 56,
+        color: scheme.secondaryContainer,
+        child: InkWell(
+          onTap: onPressed,
+          child: Center(
+            child: Icon(
+              M3EIcons.shuffle,
+              size: 24,
+              color: scheme.onSecondaryContainer,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OnlineCreatorPlaceholderPage extends StatelessWidget {
+  const _OnlineCreatorPlaceholderPage({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: scheme.surface,
+      appBar: AppPageBar.detail(),
+      body: Center(child: Text('$name 的主页将在后续接入')),
     );
   }
 }
