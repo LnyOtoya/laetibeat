@@ -127,11 +127,23 @@ class MobileDiscoverPage extends ConsumerWidget {
   }
 
   Future<void> _refresh(WidgetRef ref, DiscoverPlatform platform) async {
+    await onlineClearCache(ref);
     final source = platform.source;
     ref.invalidate(onlineRecommendPlaylistsProvider(source));
     ref.invalidate(onlineTopListsProvider(source));
     ref.invalidate(onlineHotSongsProvider((source: source, limit: 20)));
-    await Future<void>.delayed(const Duration(milliseconds: 350));
+    final refreshes = <Future<Object?>>[
+      ref.read(onlineRecommendPlaylistsProvider(source).future),
+      ref.read(onlineTopListsProvider(source).future),
+      ref.read(onlineHotSongsProvider((source: source, limit: 20)).future),
+    ];
+    for (final future in refreshes) {
+      try {
+        await future;
+      } catch (_) {
+        // 错误由对应 provider 状态展示。
+      }
+    }
   }
 }
 

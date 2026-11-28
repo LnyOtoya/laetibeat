@@ -7,12 +7,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use axum::body::Body;
 use axum::extract::{DefaultBodyLimit, Path as AxumPath, Query, State};
-use axum::http::{header::AUTHORIZATION, StatusCode};
+use axum::http::{header::AUTHORIZATION, Method, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::{Json, Router};
+use base64::engine::general_purpose::URL_SAFE_NO_PAD as B64;
+use base64::Engine;
+use md5::{Digest, Md5};
 use ncm_api_rs::{
     create_client, ApiClient, ApiResponse, CryptoType, NcmError, Query as NcmQuery, RequestOption,
 };
@@ -29,6 +33,7 @@ const DEFAULT_DATA_DIR: &str = ".laetibeat-netease";
 struct HostState {
     client: Mutex<ApiClient>,
     image_client: reqwest::Client,
+    cache_dir: PathBuf,
     token: String,
     cookie_path: PathBuf,
     logged_in: AtomicBool,
@@ -59,6 +64,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap_or_else(|| DEFAULT_DATA_DIR.to_string()),
     );
     fs::create_dir_all(&data_dir)?;
+    let cache_dir = data_dir.join("cache");
+    fs::create_dir_all(&cache_dir)?;
     let cookie_path = data_dir.join("cookies.json");
 
     let cookie = fs::read_to_string(&cookie_path)
@@ -88,6 +95,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let state = Arc::new(HostState {
         client: Mutex::new(client),
         image_client,
+        cache_dir,
         token,
         cookie_path,
         logged_in: AtomicBool::new(logged_in),
@@ -106,6 +114,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/v1/system/qr_login/{source}", get(qr_status_compat))
         .route("/laetibeat/system/platforms", get(platforms))
         .route("/laetibeat/system/platforms/{source}", delete(logout))
+        .route("/laetibeat/cache/clear", post(clear_cache))
         .route("/api/v1/home/feed", get(home_feed))
         .route("/api/v1/recommend/daily/songs", get(daily_songs))
         .route("/api/v1/recommend/daily/playlists", get(daily_playlists))
@@ -122,6 +131,10 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/v1/ranking/hot", get(hot_songs))
         .layer(DefaultBodyLimit::max(4 * 1024 * 1024))
         .layer(middleware::from_fn(log_request))
+        .layer(middleware::from_fn_with_state(
+            Arc::clone(&state),
+            cache_response,
+        ))
         .layer(middleware::from_fn_with_state(
             Arc::clone(&state),
             authorize,
@@ -217,6 +230,82 @@ async fn image_proxy(
         axum::http::HeaderValue::from_static("public, max-age=86400"),
     );
     Ok(response)
+}
+
+fn clear_cache_dir(path: &Path) {
+    if path.exists() {
+        let _ = fs::remove_dir_all(path);
+    }
+    let _ = fs::create_dir_all(path);
+}
+
+async fn clear_cache(State(state): State<SharedState>) -> ApiResult {
+    clear_cache_dir(&state.cache_dir);
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": null,
+    })))
+}
+
+fn should_cache_request(method: &Method, path: &str) -> bool {
+    method == Method::GET
+        && path.starts_with("/api/v1/")
+        && path != "/api/v1/image"
+        && path != "/api/v1/music/url"
+        && !path.starts_with("/api/v1/login/")
+        && !path.starts_with("/api/v1/system/")
+}
+
+/// Cache GET API responses on disk so page switches and app restarts
+/// can render the last payload without touching upstream.
+/// Manual refresh clears the cache before invalidating Flutter providers.
+async fn cache_response(
+    State(state): State<SharedState>,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    if !should_cache_request(request.method(), request.uri().path()) {
+        return next.run(request).await;
+    }
+    let key = format!(
+        "{}?{}",
+        request.uri().path(),
+        request.uri().query().unwrap_or("")
+    );
+    let cache_path = state
+        .cache_dir
+        .join(format!("{}.json", B64.encode(Md5::digest(key.as_bytes()))));
+    if let Ok(bytes) = fs::read(&cache_path) {
+        match serde_json::from_slice::<Value>(&bytes) {
+            Ok(value) => return (StatusCode::OK, Json(value)).into_response(),
+            Err(_) => {
+                let _ = fs::remove_file(&cache_path);
+            }
+        }
+    }
+
+    let response = next.run(request).await;
+    if !response.status().is_success() {
+        return response;
+    }
+    let (parts, body) = response.into_parts();
+    match axum::body::to_bytes(body, 16 * 1024 * 1024).await {
+        Ok(bytes) => {
+            if serde_json::from_slice::<Value>(&bytes).is_ok() {
+                let _ = fs::write(&cache_path, &bytes);
+            }
+            Response::from_parts(parts, Body::from(bytes))
+        }
+        Err(error) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "code": 500,
+                "msg": format!("response body read failed: {error}"),
+            })),
+        )
+            .into_response(),
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -473,6 +562,7 @@ async fn check_qr_data(
                 save_cookie(&state.cookie_path, &cookie)?;
                 client.set_cookie(cookie);
                 state.logged_in.store(true, Ordering::Relaxed);
+                clear_cache_dir(&state.cache_dir);
                 ("success", "登录成功".to_string(), true)
             } else {
                 ("success", "登录成功，但未收到 Cookie".to_string(), false)
@@ -507,6 +597,7 @@ async fn logout(State(state): State<SharedState>, AxumPath(source): AxumPath<Str
     let mut client = state.client.lock().await;
     *client = create_client(None);
     state.logged_in.store(false, Ordering::Relaxed);
+    clear_cache_dir(&state.cache_dir);
     Ok(Json(json!({ "code": 200, "msg": "ok", "data": null })))
 }
 

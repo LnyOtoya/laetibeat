@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/online.dart' as rust_online;
@@ -7,6 +8,27 @@ import 'package:laetibeat/src/rust/api/simple.dart' as rust;
 import 'online_settings.dart';
 
 const int onlineSearchPageSize = 10;
+
+/// Manual refresh only: clear the host's persisted response cache so the
+/// following provider invalidations hit upstream instead of returning cache.
+Future<void> onlineClearCache(WidgetRef ref) async {
+  final baseUrl = ref.read(onlineBaseUrlProvider);
+  if (baseUrl.isEmpty) return;
+  final token = await ref.read(onlineTokenProvider.future);
+  if (token == null || token.isEmpty) return;
+  final client = HttpClient();
+  try {
+    final request = await client.postUrl(
+      Uri.parse('$baseUrl/laetibeat/cache/clear'),
+    );
+    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    await request.close();
+  } catch (_) {
+    // 清理失败不阻塞手动刷新流程；最坏情况是继续展示旧快照。
+  } finally {
+    client.close(force: true);
+  }
+}
 
 typedef OnlineSearchKey = ({
   String source,
@@ -21,10 +43,13 @@ typedef OnlineUserPlaylistKey = ({String source, int page, int limit});
 
 typedef OnlineHotSongsKey = ({String source, int limit});
 
-typedef OnlineHomeFeedKey = ({String source, bool refresh, int generation});
+typedef OnlineHomeFeedKey = ({String source});
 
-final onlineHomeFeedProvider = FutureProvider.autoDispose
-    .family<rust_online.UiOnlineHomeFeed, OnlineHomeFeedKey>((ref, key) async {
+final onlineHomeFeedProvider =
+    FutureProvider.family<rust_online.UiOnlineHomeFeed, OnlineHomeFeedKey>((
+      ref,
+      key,
+    ) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);
       if (baseUrl.isEmpty) {
         throw StateError('当前模式 sidecar 未启动');
@@ -34,14 +59,12 @@ final onlineHomeFeedProvider = FutureProvider.autoDispose
         baseUrl: baseUrl,
         token: token,
         source: key.source,
-        refresh: key.refresh,
+        refresh: false,
       );
     });
 
 final onlinePlatformStatusesProvider =
-    FutureProvider.autoDispose<List<rust_online.UiOnlinePlatformStatus>>((
-      ref,
-    ) async {
+    FutureProvider<List<rust_online.UiOnlinePlatformStatus>>((ref) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);
       if (baseUrl.isEmpty) {
         throw StateError('请先在设置中配置在线音源服务');
@@ -57,15 +80,16 @@ bool onlineHasCookie(
   return statuses.any((status) => status.source == source && status.hasCookie);
 }
 
-final onlineStatusProvider =
-    FutureProvider.autoDispose<rust_online.UiOnlineStatus>((ref) async {
-      final baseUrl = ref.watch(onlineBaseUrlProvider);
-      if (baseUrl.isEmpty) {
-        throw StateError('请先在设置中配置在线音源服务');
-      }
-      final token = await ref.watch(onlineTokenProvider.future);
-      return rust_online.onlineHealth(baseUrl: baseUrl, token: token);
-    });
+final onlineStatusProvider = FutureProvider<rust_online.UiOnlineStatus>((
+  ref,
+) async {
+  final baseUrl = ref.watch(onlineBaseUrlProvider);
+  if (baseUrl.isEmpty) {
+    throw StateError('请先在设置中配置在线音源服务');
+  }
+  final token = await ref.watch(onlineTokenProvider.future);
+  return rust_online.onlineHealth(baseUrl: baseUrl, token: token);
+});
 
 final onlineSongSearchProvider = FutureProvider.autoDispose
     .family<List<rust.UiTrack>, OnlineSearchKey>((ref, key) async {
@@ -121,8 +145,8 @@ final onlineAlbumSearchProvider = FutureProvider.autoDispose
       );
     });
 
-final onlinePlaylistTracksProvider = FutureProvider.autoDispose
-    .family<List<rust.UiTrack>, OnlineListKey>((ref, key) async {
+final onlinePlaylistTracksProvider =
+    FutureProvider.family<List<rust.UiTrack>, OnlineListKey>((ref, key) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);
       if (baseUrl.isEmpty) {
         throw StateError('请先在设置中配置在线音源服务');
@@ -136,8 +160,8 @@ final onlinePlaylistTracksProvider = FutureProvider.autoDispose
       );
     });
 
-final onlineAlbumTracksProvider = FutureProvider.autoDispose
-    .family<List<rust.UiTrack>, OnlineListKey>((ref, key) async {
+final onlineAlbumTracksProvider =
+    FutureProvider.family<List<rust.UiTrack>, OnlineListKey>((ref, key) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);
       if (baseUrl.isEmpty) {
         throw StateError('请先在设置中配置在线音源服务');
@@ -151,11 +175,11 @@ final onlineAlbumTracksProvider = FutureProvider.autoDispose
       );
     });
 
-final onlineUserPlaylistsProvider = FutureProvider.autoDispose
-    .family<List<rust_online.UiOnlinePlaylist>, OnlineUserPlaylistKey>((
-      ref,
-      key,
-    ) async {
+final onlineUserPlaylistsProvider =
+    FutureProvider.family<
+      List<rust_online.UiOnlinePlaylist>,
+      OnlineUserPlaylistKey
+    >((ref, key) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);
       if (baseUrl.isEmpty) {
         throw StateError('请先在设置中配置在线音源服务');
@@ -170,24 +194,24 @@ final onlineUserPlaylistsProvider = FutureProvider.autoDispose
       );
     });
 
-final onlineDailySongsProvider = FutureProvider.autoDispose<List<rust.UiTrack>>(
-  (ref) async {
-    final baseUrl = ref.watch(onlineBaseUrlProvider);
-    if (baseUrl.isEmpty) {
-      throw StateError('当前模式 sidecar 未启动');
-    }
-    final token = await ref.watch(onlineTokenProvider.future);
-    return rust_online.onlineDailySongs(
-      baseUrl: baseUrl,
-      token: token,
-      source: 'netease',
-      refresh: false,
-    );
-  },
-);
+final onlineDailySongsProvider = FutureProvider<List<rust.UiTrack>>((
+  ref,
+) async {
+  final baseUrl = ref.watch(onlineBaseUrlProvider);
+  if (baseUrl.isEmpty) {
+    throw StateError('当前模式 sidecar 未启动');
+  }
+  final token = await ref.watch(onlineTokenProvider.future);
+  return rust_online.onlineDailySongs(
+    baseUrl: baseUrl,
+    token: token,
+    source: 'netease',
+    refresh: false,
+  );
+});
 
 final onlineRadarPlaylistsProvider =
-    FutureProvider.autoDispose<List<rust_online.UiOnlinePlaylist>>((ref) async {
+    FutureProvider<List<rust_online.UiOnlinePlaylist>>((ref) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);
       if (baseUrl.isEmpty) {
         throw StateError('当前模式 sidecar 未启动');
@@ -201,25 +225,29 @@ final onlineRadarPlaylistsProvider =
       );
     });
 
-final onlinePersonalFmPreviewProvider =
-    FutureProvider.autoDispose<List<rust.UiTrack>>((ref) async {
-      final baseUrl = ref.watch(onlineBaseUrlProvider);
-      if (baseUrl.isEmpty) {
-        throw StateError('当前模式 sidecar 未启动');
-      }
-      final token = await ref.watch(onlineTokenProvider.future);
-      return rust_online.onlinePersonalFm(
-        baseUrl: baseUrl,
-        token: token,
-        source: 'netease',
-        mode: null,
-        submode: null,
-        limit: 4,
-      );
-    });
+final onlinePersonalFmPreviewProvider = FutureProvider<List<rust.UiTrack>>((
+  ref,
+) async {
+  final baseUrl = ref.watch(onlineBaseUrlProvider);
+  if (baseUrl.isEmpty) {
+    throw StateError('当前模式 sidecar 未启动');
+  }
+  final token = await ref.watch(onlineTokenProvider.future);
+  return rust_online.onlinePersonalFm(
+    baseUrl: baseUrl,
+    token: token,
+    source: 'netease',
+    mode: null,
+    submode: null,
+    limit: 4,
+  );
+});
 
-final onlineRecommendPlaylistsProvider = FutureProvider.autoDispose
-    .family<List<rust_online.UiOnlinePlaylist>, String>((ref, source) async {
+final onlineRecommendPlaylistsProvider =
+    FutureProvider.family<List<rust_online.UiOnlinePlaylist>, String>((
+      ref,
+      source,
+    ) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);
       if (baseUrl.isEmpty) {
         throw StateError('请先在设置中配置在线音源服务');
@@ -232,8 +260,11 @@ final onlineRecommendPlaylistsProvider = FutureProvider.autoDispose
       );
     });
 
-final onlineTopListsProvider = FutureProvider.autoDispose
-    .family<List<rust_online.UiOnlineTopList>, String>((ref, source) async {
+final onlineTopListsProvider =
+    FutureProvider.family<List<rust_online.UiOnlineTopList>, String>((
+      ref,
+      source,
+    ) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);
       if (baseUrl.isEmpty) {
         throw StateError('请先在设置中配置在线音源服务');
@@ -246,8 +277,8 @@ final onlineTopListsProvider = FutureProvider.autoDispose
       );
     });
 
-final onlineTopListSongsProvider = FutureProvider.autoDispose
-    .family<List<rust.UiTrack>, OnlineListKey>((ref, key) async {
+final onlineTopListSongsProvider =
+    FutureProvider.family<List<rust.UiTrack>, OnlineListKey>((ref, key) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);
       if (baseUrl.isEmpty) {
         throw StateError('请先在设置中配置在线音源服务');
@@ -261,8 +292,11 @@ final onlineTopListSongsProvider = FutureProvider.autoDispose
       );
     });
 
-final onlineHotSongsProvider = FutureProvider.autoDispose
-    .family<List<rust.UiTrack>, OnlineHotSongsKey>((ref, key) async {
+final onlineHotSongsProvider =
+    FutureProvider.family<List<rust.UiTrack>, OnlineHotSongsKey>((
+      ref,
+      key,
+    ) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);
       if (baseUrl.isEmpty) {
         throw StateError('请先在设置中配置在线音源服务');
@@ -276,8 +310,11 @@ final onlineHotSongsProvider = FutureProvider.autoDispose
       );
     });
 
-final onlineLyricProvider = FutureProvider.autoDispose
-    .family<rust_online.UiOnlineLyric, OnlineListKey>((ref, key) async {
+final onlineLyricProvider =
+    FutureProvider.family<rust_online.UiOnlineLyric, OnlineListKey>((
+      ref,
+      key,
+    ) async {
       final baseUrl = ref.watch(onlineBaseUrlProvider);
       if (baseUrl.isEmpty) {
         throw StateError('请先在设置中配置在线音源服务');

@@ -36,7 +36,10 @@ class OnlineDailyPage extends ConsumerWidget {
               action: M3EButton(
                 style: M3EButtonStyle.tonal,
                 label: const Text('重试'),
-                onPressed: () => ref.invalidate(onlineDailySongsProvider),
+                onPressed: () async {
+                  await onlineClearCache(ref);
+                  ref.invalidate(onlineDailySongsProvider);
+                },
               ),
             ),
           ),
@@ -50,7 +53,10 @@ class OnlineDailyPage extends ConsumerWidget {
             );
           }
           return RefreshIndicator(
-            onRefresh: () => ref.refresh(onlineDailySongsProvider.future),
+            onRefresh: () async {
+              await onlineClearCache(ref);
+              await ref.refresh(onlineDailySongsProvider.future);
+            },
             child: ListView(
               padding: EdgeInsets.only(
                 top: AppSpacing.sm,

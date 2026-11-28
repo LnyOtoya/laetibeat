@@ -33,7 +33,6 @@ class OnlineHomeContent extends ConsumerStatefulWidget {
 }
 
 class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
-  int _generation = 0;
   bool _busy = false;
 
   @override
@@ -72,12 +71,7 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
             .value
             ?.firstOrNull
             ?.creator;
-        final key = (
-          source: source,
-          refresh: _generation > 0,
-          generation: _generation,
-        );
-        final feed = ref.watch(onlineHomeFeedProvider(key));
+        final feed = ref.watch(onlineHomeFeedProvider((source: source)));
 
         return feed.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -89,7 +83,7 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
             return _Unavailable(
               bottomInset: bottomInset,
               message: '首页加载失败：$error',
-              onRetry: _refresh,
+              onRetry: () => _refresh(),
             );
           },
           data: (rust_online.UiOnlineHomeFeed value) {
@@ -203,28 +197,42 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
     return null;
   }
 
-  void _refresh() {
+  Future<void> _refresh() async {
+    await onlineClearCache(ref);
+    ref.invalidate(onlineHomeFeedProvider);
     ref.invalidate(onlineRadarPlaylistsProvider);
     ref.invalidate(onlinePersonalFmPreviewProvider);
-    setState(() => _generation++);
+    ref.invalidate(onlineUserPlaylistsProvider);
+    ref.invalidate(onlineDailySongsProvider);
   }
 
   Future<void> _refreshFeed() async {
+    await onlineClearCache(ref);
+    ref.invalidate(onlineHomeFeedProvider);
     ref.invalidate(onlineRadarPlaylistsProvider);
     ref.invalidate(onlinePersonalFmPreviewProvider);
-    final next = _generation + 1;
-    setState(() => _generation = next);
+    ref.invalidate(onlineUserPlaylistsProvider);
+    ref.invalidate(onlineDailySongsProvider);
     final source = ref.read(appModeProvider).hostId ?? 'netease';
-    try {
-      await ref.read(
-        onlineHomeFeedProvider((
+    final refreshes = <Future<Object?>>[
+      ref.read(onlineHomeFeedProvider((source: source)).future),
+      ref.read(onlineRadarPlaylistsProvider.future),
+      ref.read(onlinePersonalFmPreviewProvider.future),
+      ref.read(
+        onlineUserPlaylistsProvider((
           source: source,
-          refresh: true,
-          generation: next,
+          page: 1,
+          limit: 10,
         )).future,
-      );
-    } catch (_) {
-      // 错误由 provider 状态展示。
+      ),
+      ref.read(onlineDailySongsProvider.future),
+    ];
+    for (final future in refreshes) {
+      try {
+        await future;
+      } catch (_) {
+        // 错误由对应 provider 状态展示。
+      }
     }
   }
 
