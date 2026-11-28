@@ -46,6 +46,7 @@ class AppFloatingNavBar extends StatelessWidget {
     this.bottomPadding = AppSpacing.sm,
     this.safeArea = true,
     this.expanded = true,
+    this.scrollBehavior,
   }) : assert(tabs.length > 0);
 
   /// Total height of the floating toolbar variant, excluding safe-area padding.
@@ -73,6 +74,7 @@ class AppFloatingNavBar extends StatelessWidget {
   final double bottomPadding;
   final bool safeArea;
   final bool expanded;
+  final M3EFloatingToolbarScrollBehavior? scrollBehavior;
 
   @override
   Widget build(BuildContext context) {
@@ -97,6 +99,7 @@ class AppFloatingNavBar extends StatelessWidget {
       expanded: expanded,
       alignment: Alignment.bottomCenter,
       fabPosition: M3EFloatingToolbarHorizontalFabPosition.end,
+      scrollBehavior: scrollBehavior,
       decoration: M3EFloatingToolbarDecoration(
         colors: M3EFloatingToolbarDefaults.standardColors(context),
         motion: M3EMotion.expressiveSpatialFast,

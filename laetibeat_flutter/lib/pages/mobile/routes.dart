@@ -1,7 +1,6 @@
 /// 移动端根 Navigator 的路由名。
 abstract final class MobileRoutes {
   static const String home = '/';
-  static const String discover = '/discover';
   static const String discovery = '/home/discovery';
   static const String library = '/library';
   static const String librarySongs = '/library/songs';
@@ -17,14 +16,16 @@ abstract final class MobileRoutes {
   static const String artistDetail = '/library/artists/detail';
   static const String artistHotSongs = '/library/artists/hot-songs';
   static const String stats = '/stats';
+  static const String recent = '/recent';
+  static const String listenTogether = '/listen-together';
   static const String settings = '/settings';
   static const String aboutSettings = '/settings/about';
+  static const String onlineLogin = '/settings/online-login';
   static const String appearanceSettings = '/settings/appearance';
   static const String colorMapping = '/settings/appearance/color-mapping';
   static const String audioSettings = '/settings/audio';
   static const String contentSettings = '/settings/content';
-  static const String onlineMusicSettings = '/settings/online-music';
-  static const String modeSettings = '/settings/mode';
+  static const String sourceSettings = '/settings/sources';
   static const String musicSources = '/settings/music-sources';
   static const String opensubsonicConfig =
       '/settings/music-sources/opensubsonic';

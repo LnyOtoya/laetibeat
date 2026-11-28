@@ -42,7 +42,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navSearch => '搜索';
 
   @override
-  String get searchHint => '搜索歌曲、艺人、专辑';
+  String get searchHint => '搜索音乐';
 
   @override
   String get switchSearchSource => '切换搜索源';
@@ -234,12 +234,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get searchCoverShape => '搜索封面形状';
 
   @override
-  String get defaultSearchSource => '默认搜索来源';
-
-  @override
-  String get defaultSearchSourceSupporting => '打开搜索结果页时默认显示的来源';
-
-  @override
   String get searchCoverShapeSupporting => '搜索结果歌曲封面使用的 M3E 形状';
 
   @override
@@ -267,28 +261,34 @@ class AppLocalizationsZh extends AppLocalizations {
   String get languageEnglish => 'English';
 
   @override
-  String get settingsSearchHint => '搜索设置';
+  String get settingsTitle => '设置';
 
   @override
   String get settingsAppearance => '外观';
 
   @override
-  String get settingsAppearanceSupporting => '主题与明暗切换';
+  String get settingsAppearanceSupporting => '主题、语言与封面外观';
 
   @override
-  String get settingsPlaybackAudio => '播放器与音频';
+  String get settingsPlaybackAudio => '播放与音效';
 
   @override
-  String get settingsPlaybackAudioSupporting => '淡入淡出与电池优化';
+  String get settingsPlaybackAudioSupporting => '均衡器与淡入淡出';
 
   @override
-  String get settingsContent => '内容';
+  String get settingsContent => '音乐库与歌词';
 
   @override
-  String get settingsContentSupporting => '音乐库、歌词与语言';
+  String get settingsContentSupporting => '本地曲库、歌词与列表和搜索偏好';
 
   @override
-  String get settingsStorage => '储存';
+  String get settingsSourcesAccounts => '音源与账号';
+
+  @override
+  String get settingsSourcesAccountsSupporting => '切换音源、登录账号与管理服务';
+
+  @override
+  String get settingsStorage => '存储与缓存';
 
   @override
   String get cacheManagement => '缓存管理';
@@ -346,12 +346,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsStorageSupporting => '缓存管理';
-
-  @override
-  String get settingsBackupRestore => '备份与还原';
-
-  @override
-  String get settingsBackupRestoreSupporting => '备份设置或从另一份配置中导入设置';
 
   @override
   String get settingsAbout => '关于';
@@ -460,12 +454,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lyricsPrioritySupporting => '按照偏好重新排序歌词源优先级';
-
-  @override
-  String get lyricsReset => '重置已导入的歌词';
-
-  @override
-  String get lyricsResetSupporting => '从数据库中移除所有已经导入的歌词';
 
   @override
   String get syncScanGroup => '同步与扫描';

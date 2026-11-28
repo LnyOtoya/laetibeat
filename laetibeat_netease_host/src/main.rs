@@ -5,20 +5,20 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use axum::body::Body;
 use axum::extract::{DefaultBodyLimit, Path as AxumPath, Query, State};
-use axum::http::{header::AUTHORIZATION, StatusCode};
+use axum::http::{header::AUTHORIZATION, Method, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::{Json, Router};
-use base64::engine::general_purpose::STANDARD as BASE64;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD as B64;
 use base64::Engine;
 use md5::{Digest, Md5};
-use ncm_api_rs::util::device::generate_device_id;
 use ncm_api_rs::{
-    create_client, ApiClient, ApiResponse, NcmError, Query as NcmQuery, RequestOption,
+    create_client, ApiClient, ApiResponse, CryptoType, NcmError, Query as NcmQuery, RequestOption,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -32,6 +32,8 @@ const DEFAULT_DATA_DIR: &str = ".laetibeat-netease";
 
 struct HostState {
     client: Mutex<ApiClient>,
+    image_client: reqwest::Client,
+    cache_dir: PathBuf,
     token: String,
     cookie_path: PathBuf,
     logged_in: AtomicBool,
@@ -62,6 +64,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap_or_else(|| DEFAULT_DATA_DIR.to_string()),
     );
     fs::create_dir_all(&data_dir)?;
+    let cache_dir = data_dir.join("cache");
+    fs::create_dir_all(&cache_dir)?;
     let cookie_path = data_dir.join("cookies.json");
 
     let cookie = fs::read_to_string(&cookie_path)
@@ -69,16 +73,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty());
     let logged_in = cookie.is_some();
-    let mut client = create_client(cookie);
-    if !logged_in {
-        // NetEase 的部分匿名接口需要游客 MUSIC_A token。ncm-api-rs 自带的
-        // register_anonimous 使用 weapi，当前服务端需要 eapi；这里用公开
-        // request 接口做一次等价的 guest 注册。
-        match register_guest(&mut client).await {
-            Some(_) => tracing::info!("registered NetEase guest token"),
-            None => tracing::warn!("guest login returned no cookie"),
-        }
-    }
+    let client = create_client(cookie);
 
     let token =
         env_first(&["LAETIBEAT_NETEASE_TOKEN", "LAETIBEAT_MUSICAPI_TOKEN"]).unwrap_or_default();
@@ -89,8 +84,18 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         return Err("refusing to listen on a non-loopback address without a token".into());
     }
 
+    let image_client = reqwest::Client::builder()
+        .user_agent(
+            "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 \
+             (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+        )
+        .timeout(Duration::from_secs(20))
+        .build()?;
+
     let state = Arc::new(HostState {
         client: Mutex::new(client),
+        image_client,
+        cache_dir,
         token,
         cookie_path,
         logged_in: AtomicBool::new(logged_in),
@@ -98,6 +103,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Router::new()
         .route("/laetibeat/health", get(health))
+        .route("/api/v1/image", get(image_proxy))
         .route("/api/v1/music/search", get(search))
         .route("/api/v1/music/url", get(song_url))
         .route("/api/v1/music/lyric", get(lyric))
@@ -108,15 +114,30 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/v1/system/qr_login/{source}", get(qr_status_compat))
         .route("/laetibeat/system/platforms", get(platforms))
         .route("/laetibeat/system/platforms/{source}", delete(logout))
+        .route("/laetibeat/cache/clear", post(clear_cache))
+        .route("/api/v1/home/feed", get(home_feed))
+        .route("/api/v1/recommend/daily/songs", get(daily_songs))
+        .route("/api/v1/recommend/daily/playlists", get(daily_playlists))
+        .route("/api/v1/personal/fm", get(personal_fm))
+        .route("/api/v1/recommend/intelligence", get(intelligence))
+        .route("/api/v1/music/similar", get(similar_songs))
         .route("/api/v1/playlist/detail", get(playlist_detail))
         .route("/api/v1/album/detail", get(album_detail))
+        .route("/api/v1/album/meta", get(album_meta))
+        .route("/api/v1/album/sublist", get(album_sublist))
+        .route("/api/v1/user/profile", get(user_profile))
         .route("/api/v1/playlist/user", get(user_playlists))
+        .route("/api/v1/playlist/radar", get(radar_playlists))
         .route("/api/v1/playlist/recommend", get(recommend_playlists))
         .route("/api/v1/ranking/toplists", get(top_lists))
         .route("/api/v1/ranking/toplist", get(top_list_songs))
         .route("/api/v1/ranking/hot", get(hot_songs))
         .layer(DefaultBodyLimit::max(4 * 1024 * 1024))
         .layer(middleware::from_fn(log_request))
+        .layer(middleware::from_fn_with_state(
+            Arc::clone(&state),
+            cache_response,
+        ))
         .layer(middleware::from_fn_with_state(
             Arc::clone(&state),
             authorize,
@@ -142,6 +163,152 @@ async fn health(State(state): State<SharedState>) -> ApiResult {
         "source": "netease",
         "logged_in": state.logged_in.load(Ordering::Relaxed),
     })))
+}
+
+#[derive(Debug, Deserialize)]
+struct ImageParams {
+    url: String,
+}
+
+fn is_allowed_image_url(raw: &str) -> bool {
+    let Ok(url) = reqwest::Url::parse(raw) else {
+        return false;
+    };
+    if url.scheme() != "https" {
+        return false;
+    }
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+    host == "music.126.net" || host.ends_with(".music.126.net")
+}
+
+/// NetEase image CDN rejects Dart's default HTTP client for some objects.
+/// Proxy covers through reqwest with a browser UA and the music.163.com referer.
+async fn image_proxy(
+    State(state): State<SharedState>,
+    Query(params): Query<ImageParams>,
+) -> Result<Response, (StatusCode, Json<Value>)> {
+    if !is_allowed_image_url(&params.url) {
+        return Err(api_error(StatusCode::BAD_REQUEST, "unsupported image url"));
+    }
+    let upstream = state
+        .image_client
+        .get(&params.url)
+        .header(axum::http::header::REFERER, "https://music.163.com/")
+        .send()
+        .await
+        .map_err(|error| {
+            api_error(
+                StatusCode::BAD_GATEWAY,
+                format!("image fetch failed: {error}"),
+            )
+        })?;
+    let status = upstream.status();
+    if !status.is_success() {
+        return Err(api_error(
+            StatusCode::BAD_GATEWAY,
+            format!("image upstream returned {status}"),
+        ));
+    }
+    let content_type = upstream
+        .headers()
+        .get(axum::http::header::CONTENT_TYPE)
+        .cloned();
+    let bytes = upstream.bytes().await.map_err(|error| {
+        api_error(
+            StatusCode::BAD_GATEWAY,
+            format!("image read failed: {error}"),
+        )
+    })?;
+    let mut response = Response::new(axum::body::Body::from(bytes));
+    *response.status_mut() = StatusCode::OK;
+    if let Some(content_type) = content_type {
+        response
+            .headers_mut()
+            .insert(axum::http::header::CONTENT_TYPE, content_type);
+    }
+    response.headers_mut().insert(
+        axum::http::header::CACHE_CONTROL,
+        axum::http::HeaderValue::from_static("public, max-age=86400"),
+    );
+    Ok(response)
+}
+
+fn clear_cache_dir(path: &Path) {
+    if path.exists() {
+        let _ = fs::remove_dir_all(path);
+    }
+    let _ = fs::create_dir_all(path);
+}
+
+async fn clear_cache(State(state): State<SharedState>) -> ApiResult {
+    clear_cache_dir(&state.cache_dir);
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": null,
+    })))
+}
+
+fn should_cache_request(method: &Method, path: &str) -> bool {
+    method == Method::GET
+        && path.starts_with("/api/v1/")
+        && path != "/api/v1/image"
+        && path != "/api/v1/music/url"
+        && !path.starts_with("/api/v1/login/")
+        && !path.starts_with("/api/v1/system/")
+}
+
+/// Cache GET API responses on disk so page switches and app restarts
+/// can render the last payload without touching upstream.
+/// Manual refresh clears the cache before invalidating Flutter providers.
+async fn cache_response(
+    State(state): State<SharedState>,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    if !should_cache_request(request.method(), request.uri().path()) {
+        return next.run(request).await;
+    }
+    let key = format!(
+        "{}?{}",
+        request.uri().path(),
+        request.uri().query().unwrap_or("")
+    );
+    let cache_path = state
+        .cache_dir
+        .join(format!("{}.json", B64.encode(Md5::digest(key.as_bytes()))));
+    if let Ok(bytes) = fs::read(&cache_path) {
+        match serde_json::from_slice::<Value>(&bytes) {
+            Ok(value) => return (StatusCode::OK, Json(value)).into_response(),
+            Err(_) => {
+                let _ = fs::remove_file(&cache_path);
+            }
+        }
+    }
+
+    let response = next.run(request).await;
+    if !response.status().is_success() {
+        return response;
+    }
+    let (parts, body) = response.into_parts();
+    match axum::body::to_bytes(body, 16 * 1024 * 1024).await {
+        Ok(bytes) => {
+            if serde_json::from_slice::<Value>(&bytes).is_ok() {
+                let _ = fs::write(&cache_path, &bytes);
+            }
+            Response::from_parts(parts, Body::from(bytes))
+        }
+        Err(error) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "code": 500,
+                "msg": format!("response body read failed: {error}"),
+            })),
+        )
+            .into_response(),
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -398,6 +565,7 @@ async fn check_qr_data(
                 save_cookie(&state.cookie_path, &cookie)?;
                 client.set_cookie(cookie);
                 state.logged_in.store(true, Ordering::Relaxed);
+                clear_cache_dir(&state.cache_dir);
                 ("success", "登录成功".to_string(), true)
             } else {
                 ("success", "登录成功，但未收到 Cookie".to_string(), false)
@@ -431,8 +599,8 @@ async fn logout(State(state): State<SharedState>, AxumPath(source): AxumPath<Str
     }
     let mut client = state.client.lock().await;
     *client = create_client(None);
-    let _ = register_guest(&mut client).await;
     state.logged_in.store(false, Ordering::Relaxed);
+    clear_cache_dir(&state.cache_dir);
     Ok(Json(json!({ "code": 200, "msg": "ok", "data": null })))
 }
 
@@ -452,11 +620,433 @@ async fn qualities() -> ApiResult {
 }
 
 #[derive(Debug, Deserialize)]
+struct DailyParams {
+    refresh: Option<String>,
+}
+
+async fn daily_songs(
+    State(state): State<SharedState>,
+    Query(params): Query<DailyParams>,
+) -> ApiResult {
+    let refresh = matches!(
+        params.refresh.as_deref(),
+        Some("1" | "true" | "True" | "yes")
+    );
+    let data = if refresh {
+        json!({"afresh": true})
+    } else {
+        json!({})
+    };
+    let client = state.client.lock().await;
+    let response = client
+        .request(
+            "/api/v3/discovery/recommend/songs",
+            data,
+            RequestOption {
+                crypto: CryptoType::Weapi,
+                ..Default::default()
+            },
+        )
+        .await
+        .map_err(ncm_error)?;
+    let songs = songs_at(&response.body, &["/data/dailySongs", "/dailySongs"]);
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "refreshed": refresh,
+            "songs": songs.into_iter().map(|item| map_ne_song(&item)).collect::<Vec<_>>(),
+        }
+    })))
+}
+
+async fn daily_playlists(State(state): State<SharedState>) -> ApiResult {
+    let client = state.client.lock().await;
+    let response = client
+        .recommend_resource(&NcmQuery::new())
+        .await
+        .map_err(ncm_error)?;
+    let playlists = array_at(&response.body, "/recommend");
+    let playlists = if playlists.is_empty() {
+        array_at(&response.body, "/data/recommend")
+    } else {
+        playlists
+    };
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "playlists": playlists.into_iter().map(|item| map_ne_playlist(&item)).collect::<Vec<_>>(),
+        }
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct FmParams {
+    mode: Option<String>,
+    submode: Option<String>,
+    limit: Option<i64>,
+}
+
+async fn personal_fm(
+    State(state): State<SharedState>,
+    Query(params): Query<FmParams>,
+) -> ApiResult {
+    let limit = params.limit.unwrap_or(10).clamp(1, 30);
+    let limit_text = limit.to_string();
+    let client = state.client.lock().await;
+
+    // 私人 FM 单批通常只返回 3 首，且 limit 参数不保证生效。
+    // 这里连续拉取多批并按歌曲 id 去重，直到满足目标数量或没有新歌。
+    let mut songs = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for _ in 0..10 {
+        if songs.len() >= limit as usize {
+            break;
+        }
+        let response = if let Some(mode) = params.mode.as_deref() {
+            client
+                .personal_fm_mode(
+                    &NcmQuery::new()
+                        .param("mode", mode)
+                        .param("submode", params.submode.as_deref().unwrap_or(""))
+                        .param("limit", &limit_text),
+                )
+                .await
+                .map_err(ncm_error)?
+        } else {
+            client
+                .personal_fm(&NcmQuery::new().param("limit", &limit_text))
+                .await
+                .map_err(ncm_error)?
+        };
+        let batch = songs_at(&response.body, &["/data", "/songs", "/data/songs"]);
+        if batch.is_empty() {
+            break;
+        }
+        let before = songs.len();
+        for item in batch {
+            let id = first_string(&item, &["id"]);
+            if !id.is_empty() && !seen.insert(id) {
+                continue;
+            }
+            songs.push(item);
+            if songs.len() >= limit as usize {
+                break;
+            }
+        }
+        if songs.len() == before {
+            break;
+        }
+    }
+
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": { "songs": songs.into_iter().take(limit as usize).map(|item| map_ne_song(&item)).collect::<Vec<_>>() }
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct IntelligenceParams {
+    id: Option<String>,
+    pid: Option<String>,
+    sid: Option<String>,
+    count: Option<i64>,
+}
+
+async fn intelligence(
+    State(state): State<SharedState>,
+    Query(params): Query<IntelligenceParams>,
+) -> ApiResult {
+    let id = params.id.as_deref().unwrap_or("0");
+    let count = params.count.unwrap_or(10).clamp(1, 50).to_string();
+    let client = state.client.lock().await;
+    let response = client
+        .playmode_intelligence_list(
+            &NcmQuery::new()
+                .param("id", id)
+                .param("pid", params.pid.as_deref().unwrap_or("0"))
+                .param("sid", params.sid.as_deref().unwrap_or(id))
+                .param("count", &count),
+        )
+        .await
+        .map_err(ncm_error)?;
+    let songs = songs_at(
+        &response.body,
+        &["/data", "/data/songs", "/data/songList", "/songs"],
+    );
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": { "songs": songs.into_iter().map(|item| map_ne_song(&item)).collect::<Vec<_>>() }
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct SimilarParams {
+    id: String,
+    limit: Option<i64>,
+    offset: Option<i64>,
+}
+
+async fn similar_songs(
+    State(state): State<SharedState>,
+    Query(params): Query<SimilarParams>,
+) -> ApiResult {
+    let limit = params.limit.unwrap_or(30).clamp(1, 100);
+    let offset = params.offset.unwrap_or(0).max(0);
+    let limit_text = limit.to_string();
+    let offset_text = offset.to_string();
+    let client = state.client.lock().await;
+    let response = client
+        .simi_song(
+            &NcmQuery::new()
+                .param("id", &params.id)
+                .param("limit", &limit_text)
+                .param("offset", &offset_text),
+        )
+        .await
+        .map_err(ncm_error)?;
+    let songs = songs_at(&response.body, &["/songs", "/data/songs", "/data"]);
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": { "songs": songs.into_iter().map(|item| map_ne_song(&item)).collect::<Vec<_>>() }
+    })))
+}
+
+fn songs_at(body: &Value, paths: &[&str]) -> Vec<Value> {
+    for path in paths {
+        let songs = array_at(body, path);
+        if !songs.is_empty() {
+            return songs;
+        }
+    }
+    Vec::new()
+}
+
+#[derive(Debug, Deserialize)]
+struct HomeFeedParams {
+    refresh: Option<String>,
+    cursor: Option<String>,
+}
+
+async fn home_feed(
+    State(state): State<SharedState>,
+    Query(params): Query<HomeFeedParams>,
+) -> ApiResult {
+    let refresh = matches!(
+        params.refresh.as_deref(),
+        Some("1" | "true" | "True" | "yes")
+    );
+    let cursor = params.cursor.unwrap_or_default();
+    let query = NcmQuery::new()
+        .param("refresh", if refresh { "true" } else { "false" })
+        .param("cursor", &cursor);
+    let client = state.client.lock().await;
+    // 首页 feed 只返回真实登录账号的个性化内容，不使用游客/匿名 feed。
+    require_login(&client).await?;
+    let response = client
+        .homepage_block_page(&query)
+        .await
+        .map_err(ncm_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": map_home_feed(&response.body),
+    })))
+}
+
+fn map_home_feed(body: &Value) -> Value {
+    let data = body.get("data").unwrap_or(body);
+    let cursor = data.get("cursor").and_then(|value| {
+        if value.is_null() {
+            None
+        } else {
+            let text = value_string(value);
+            if text.is_empty() {
+                None
+            } else {
+                Some(text)
+            }
+        }
+    });
+    let blocks = data
+        .get("blocks")
+        .and_then(Value::as_array)
+        .map(|items| items.iter().map(map_home_block).collect::<Vec<_>>())
+        .unwrap_or_default();
+    json!({ "cursor": cursor, "blocks": blocks })
+}
+
+fn map_home_block(block: &Value) -> Value {
+    let code = first_string(block, &["blockCode"]);
+    let show_type = first_string(block, &["showType"]);
+    let ui = block.get("uiElement");
+    let title = ui
+        .and_then(|value| value.pointer("/subTitle/title"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let action = block
+        .get("action")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let mut items = Vec::new();
+    if let Some(creatives) = block.get("creatives").and_then(Value::as_array) {
+        for creative in creatives {
+            let section = creative
+                .pointer("/uiElement/mainTitle/title")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            if let Some(resources) = creative.get("resources").and_then(Value::as_array) {
+                for resource in resources {
+                    items.push(map_home_resource(resource, section));
+                }
+            }
+        }
+    }
+    if items.is_empty() {
+        if let Some(banners) = block.pointer("/extInfo/banners").and_then(Value::as_array) {
+            items.extend(banners.iter().map(map_home_banner));
+        }
+    }
+    json!({
+        "code": code,
+        "showType": show_type,
+        "title": title,
+        "action": action,
+        "items": items,
+    })
+}
+
+fn map_home_resource(resource: &Value, section: &str) -> Value {
+    let kind = first_string(resource, &["resourceType"]);
+    let id = resource
+        .get("resourceId")
+        .map(value_string)
+        .unwrap_or_default();
+    let ui = resource.get("uiElement");
+    let title = ui
+        .and_then(|value| value.pointer("/mainTitle/title"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let subtitle = ui
+        .and_then(|value| value.pointer("/subTitle/title"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let cover = ui
+        .and_then(|value| value.pointer("/image/imageUrl"))
+        .and_then(Value::as_str)
+        .map(normalize_https)
+        .unwrap_or_default();
+    let action = resource
+        .get("action")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let ext = resource.get("resourceExtInfo");
+    let artists = ext
+        .and_then(|value| value.get("artists"))
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.get("name").and_then(Value::as_str))
+                .collect::<Vec<_>>()
+                .join("/")
+        })
+        .unwrap_or_default();
+    let song = ext.and_then(|value| value.get("song"));
+    let album = song.and_then(|value| value.get("al"));
+    let album_name = album
+        .and_then(|value| value.get("name"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let album_id = album
+        .and_then(|value| value.get("id"))
+        .map(value_string)
+        .unwrap_or_default();
+    let duration = song
+        .and_then(|value| value.get("dt").or_else(|| value.get("duration")))
+        .and_then(Value::as_i64)
+        .map(|value| if value > 1000 { value / 1000 } else { value })
+        .unwrap_or(0);
+    let play_count = ext
+        .and_then(|value| value.get("playCount"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let track_count = ext
+        .and_then(|value| {
+            value
+                .get("songCount")
+                .or_else(|| value.get("trackCount"))
+                .or_else(|| value.get("songnum"))
+        })
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    json!({
+        "kind": kind,
+        "id": id,
+        "title": title,
+        "subtitle": subtitle,
+        "cover": cover,
+        "section": section,
+        "artists": artists,
+        "album": album_name,
+        "album_id": album_id,
+        "duration": duration,
+        "play_count": play_count,
+        "track_count": track_count,
+        "action": action,
+        "source": "netease",
+    })
+}
+
+fn map_home_banner(banner: &Value) -> Value {
+    let id = banner.get("targetId").map(value_string).unwrap_or_default();
+    let cover = banner
+        .get("pic")
+        .and_then(Value::as_str)
+        .map(normalize_https)
+        .unwrap_or_default();
+    let title = banner
+        .get("typeTitle")
+        .and_then(Value::as_str)
+        .or_else(|| banner.get("mainTitle").and_then(Value::as_str))
+        .unwrap_or("")
+        .to_string();
+    json!({
+        "kind": "banner",
+        "id": id,
+        "title": title,
+        "subtitle": "",
+        "cover": cover,
+        "section": "",
+        "artists": "",
+        "album": "",
+        "album_id": "",
+        "duration": 0,
+        "play_count": 0,
+        "track_count": 0,
+        "action": banner.get("url").and_then(Value::as_str).unwrap_or(""),
+        "source": "netease",
+    })
+}
+
+#[derive(Debug, Deserialize)]
 struct ListParams {
     id: Option<String>,
     page: Option<u32>,
     limit: Option<i64>,
+    offset: Option<i64>,
     toplist_id: Option<String>,
+    kind: Option<String>,
 }
 
 async fn playlist_detail(
@@ -468,6 +1058,34 @@ async fn playlist_detail(
         .as_deref()
         .ok_or_else(|| api_error(StatusCode::BAD_REQUEST, "missing playlist id"))?;
     let client = state.client.lock().await;
+    if let Some(limit) = params.limit {
+        let limit = limit.clamp(1, 200);
+        let offset = params.offset.unwrap_or(0).max(0);
+        let limit_text = limit.to_string();
+        let offset_text = offset.to_string();
+        let response = client
+            .playlist_track_all(
+                &NcmQuery::new()
+                    .param("id", id)
+                    .param("limit", &limit_text)
+                    .param("offset", &offset_text),
+            )
+            .await
+            .map_err(ncm_error)?;
+        let songs = if response.body.get("songs").is_some() {
+            array_at(&response.body, "/songs")
+        } else {
+            array_at(&response.body, "/playlist/tracks")
+        };
+        return Ok(Json(json!({
+            "code": 200,
+            "msg": "ok",
+            "data": songs
+                .into_iter()
+                .map(|item| map_ne_song(&item))
+                .collect::<Vec<_>>(),
+        })));
+    }
     let response = client
         .playlist_detail(&NcmQuery::new().param("id", id))
         .await
@@ -495,13 +1113,429 @@ async fn album_detail(
         .album(&NcmQuery::new().param("id", id))
         .await
         .map_err(ncm_error)?;
+    let songs = array_at(&response.body, "/songs");
+    let start = params.offset.unwrap_or(0).max(0) as usize;
+    let end = match params.limit {
+        Some(limit) => (start + limit.clamp(1, 200) as usize).min(songs.len()),
+        None => songs.len(),
+    };
+    let selected = if start < songs.len() {
+        &songs[start..end]
+    } else {
+        &[]
+    };
     Ok(Json(json!({
         "code": 200,
         "msg": "ok",
-        "data": array_at(&response.body, "/songs")
-            .into_iter()
-            .map(|item| map_ne_song(&item))
+        "data": selected
+            .iter()
+            .map(|item| map_ne_song(item))
             .collect::<Vec<_>>(),
+    })))
+}
+
+/// 专辑元信息：发行时间、简介等。歌曲列表仍由 `/album/detail` 提供。
+async fn album_meta(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let id = params
+        .id
+        .as_deref()
+        .ok_or_else(|| api_error(StatusCode::BAD_REQUEST, "missing album id"))?;
+    let client = state.client.lock().await;
+    let response = client
+        .album(&NcmQuery::new().param("id", id))
+        .await
+        .map_err(ncm_error)?;
+    let album = response.body.get("album").unwrap_or(&Value::Null);
+    let artist = album
+        .pointer("/artist/name")
+        .or_else(|| album.pointer("/artists/0/name"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "id": first_string(album, &["id"]),
+            "name": first_string(album, &["name"]),
+            "cover": normalize_https(
+                &first_string(album, &["picUrl", "blurPicUrl", "coverImgUrl"])
+            ),
+            "artist": artist,
+            "publish_time": first_i64(album, &["publishTime"]).unwrap_or(0),
+            "description": first_string(album, &["description", "briefDesc"]),
+            "company": first_string(album, &["company"]),
+        }
+    })))
+}
+
+/// 已收藏专辑。使用上游默认分页，避免主动拉取大页数据。
+async fn album_sublist(
+    State(state): State<SharedState>,
+    Query(params): Query<ListParams>,
+) -> ApiResult {
+    let client = state.client.lock().await;
+    let limit = params.limit.unwrap_or(25).clamp(1, 100);
+    let page = params.page.unwrap_or(1).max(1);
+    let offset = (page as i64 - 1) * limit;
+    let limit_text = limit.to_string();
+    let offset_text = offset.to_string();
+    let response = client
+        .album_sublist(
+            &NcmQuery::new()
+                .param("limit", &limit_text)
+                .param("offset", &offset_text),
+        )
+        .await
+        .map_err(ncm_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "albums": array_at(&response.body, "/data")
+                .into_iter()
+                .map(|item| map_ne_album(&item))
+                .collect::<Vec<_>>(),
+        }
+    })))
+}
+
+struct FixedRadar {
+    id: &'static str,
+    base_name: &'static str,
+    /// 该雷达是否通常存在于账号歌单中，用于决定是否需要扫描用户歌单。
+    account_expected: bool,
+}
+
+/// 首页固定展示的四个雷达，顺序固定。
+/// 名称中的每日文案由上游接口按账号/日期生成，这里不写死。
+const FIXED_RADARS: &[FixedRadar] = &[
+    FixedRadar {
+        id: "3136952023",
+        base_name: "私人雷达",
+        account_expected: true,
+    },
+    FixedRadar {
+        id: "5320167908",
+        base_name: "时光雷达",
+        account_expected: true,
+    },
+    FixedRadar {
+        id: "5362359247",
+        base_name: "宝藏雷达",
+        account_expected: true,
+    },
+    FixedRadar {
+        id: "5300458264",
+        base_name: "新歌雷达",
+        account_expected: false,
+    },
+];
+
+async fn radar_playlists(
+    State(state): State<SharedState>,
+    Query(_params): Query<ListParams>,
+) -> ApiResult {
+    let client = state.client.lock().await;
+    // 雷达是账号听歌数据生成的，未登录直接返回 401，不做匿名兜底。
+    let uid = require_login(&client).await?;
+
+    // 首页 block 提供当日展示标题和封面；新歌雷达只在这里出现。
+    let mut block_items = std::collections::HashMap::new();
+    if let Ok(response) = client
+        .homepage_block_page(
+            &NcmQuery::new()
+                .param("refresh", "false")
+                .param("cursor", ""),
+        )
+        .await
+    {
+        let feed = map_home_feed(&response.body);
+        if let Some(blocks) = feed.get("blocks").and_then(Value::as_array) {
+            for block in blocks {
+                if block.get("code").and_then(Value::as_str) != Some("HOMEPAGE_BLOCK_MGC_PLAYLIST")
+                {
+                    continue;
+                }
+                if let Some(items) = block.get("items").and_then(Value::as_array) {
+                    for item in items {
+                        let id = first_string(item, &["id"]);
+                        if !id.is_empty() {
+                            block_items.insert(id, item.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 账号歌单提供私人雷达的当日名称；它通常不在当前账号的 MGC block 中。
+    let needed_account_ids: std::collections::HashSet<&str> = FIXED_RADARS
+        .iter()
+        .filter(|radar| radar.account_expected && !block_items.contains_key(radar.id))
+        .map(|radar| radar.id)
+        .collect();
+    let mut account_items = std::collections::HashMap::new();
+    if !needed_account_ids.is_empty() {
+        let uid_text = uid.to_string();
+        let mut offset = 0i64;
+        loop {
+            let offset_text = offset.to_string();
+            let response = client
+                .user_playlist(
+                    &NcmQuery::new()
+                        .param("uid", &uid_text)
+                        .param("limit", "1000")
+                        .param("offset", &offset_text),
+                )
+                .await
+                .map_err(ncm_error)?;
+            let page = array_at(&response.body, "/playlist");
+            if page.is_empty() {
+                break;
+            }
+            let count = page.len();
+            for item in page {
+                let id = first_string(&item, &["id"]);
+                if !id.is_empty() {
+                    account_items.insert(id, map_ne_playlist(&item));
+                }
+            }
+            offset += count as i64;
+            if needed_account_ids
+                .iter()
+                .all(|id| account_items.contains_key(*id))
+                || count < 1000
+                || offset >= 2000
+            {
+                break;
+            }
+        }
+    }
+
+    let mut playlists = Vec::with_capacity(FIXED_RADARS.len());
+    for radar in FIXED_RADARS {
+        let block_item = block_items.get(radar.id);
+        let account_item = account_items.get(radar.id);
+
+        let mut playlist = if let Some(item) = account_item {
+            item.clone()
+        } else if let Some(item) = block_item {
+            home_item_as_playlist(item)
+        } else {
+            fixed_radar_playlist(radar)
+        };
+
+        if let Some(item) = block_item {
+            let title = first_string(item, &["title", "name"]);
+            if !title.is_empty() {
+                playlist["name"] = json!(title);
+            }
+            let cover = first_string(item, &["cover", "coverUrl"]);
+            if !cover.is_empty() {
+                playlist["cover"] = json!(cover);
+            }
+            let play_count = first_i64(item, &["play_count", "playCount"]).unwrap_or(0);
+            if play_count > 0 {
+                playlist["play_count"] = json!(play_count);
+            }
+            let track_count = first_i64(item, &["track_count", "trackCount"]).unwrap_or(0);
+            if track_count > 0 {
+                playlist["track_count"] = json!(track_count);
+            }
+        }
+
+        // 列表接口缺少的封面、曲目数用详情补齐；详情的基础名不覆盖当日标题。
+        let needs_detail = playlist
+            .get("cover")
+            .and_then(Value::as_str)
+            .map_or(true, str::is_empty)
+            || playlist
+                .get("track_count")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                == 0
+            || playlist
+                .get("creator")
+                .and_then(Value::as_str)
+                .map_or(true, str::is_empty);
+        if needs_detail {
+            if let Ok(response) = client
+                .playlist_detail(&NcmQuery::new().param("id", radar.id))
+                .await
+            {
+                if let Some(detail) = response.body.get("playlist") {
+                    let detail_playlist = map_ne_playlist(detail);
+                    for key in [
+                        "cover",
+                        "track_count",
+                        "play_count",
+                        "creator",
+                        "description",
+                    ] {
+                        let current_empty = playlist
+                            .get(key)
+                            .map(|value| match value {
+                                Value::String(text) => text.is_empty(),
+                                Value::Number(number) => number.as_i64().unwrap_or(0) == 0,
+                                _ => true,
+                            })
+                            .unwrap_or(true);
+                        if current_empty {
+                            if let Some(value) = detail_playlist.get(key) {
+                                playlist[key] = value.clone();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if playlist
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .is_empty()
+        {
+            playlist["name"] = json!(radar.base_name);
+        }
+        playlist["id"] = json!(radar.id);
+        playlist["source"] = json!("netease");
+        playlist["link"] = json!(format!("https://music.163.com/playlist?id={}", radar.id));
+        playlists.push(playlist);
+    }
+
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": { "playlists": playlists }
+    })))
+}
+
+fn home_item_as_playlist(item: &Value) -> Value {
+    let id = first_string(item, &["id"]);
+    json!({
+        "id": id,
+        "name": first_string(item, &["title", "name"]),
+        "cover": first_string(item, &["cover", "coverUrl"]),
+        "track_count": first_i64(item, &["track_count", "trackCount"]).unwrap_or(0),
+        "play_count": first_i64(item, &["play_count", "playCount"]).unwrap_or(0),
+        "creator": "",
+        "description": first_string(item, &["subtitle", "description"]),
+        "source": "netease",
+        "link": format!("https://music.163.com/playlist?id={id}"),
+    })
+}
+
+fn fixed_radar_playlist(radar: &FixedRadar) -> Value {
+    json!({
+        "id": radar.id,
+        "name": radar.base_name,
+        "cover": "",
+        "track_count": 0,
+        "play_count": 0,
+        "creator": "云音乐私人雷达",
+        "description": "",
+        "source": "netease",
+        "link": format!("https://music.163.com/playlist?id={}", radar.id),
+    })
+}
+
+fn now_millis() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
+}
+
+fn membership_item(key: &str, label: &str, item: &Value, now: i64) -> Value {
+    let level = first_i64(item, &["vipLevel", "level"]).unwrap_or(0);
+    let expires_at = first_i64(item, &["expireTime", "expiresAt"]).unwrap_or(0);
+    json!({
+        "key": key,
+        "label": label,
+        "level": level,
+        "active": level > 0 && expires_at > now,
+        "expires_at": expires_at,
+    })
+}
+
+async fn user_profile(State(state): State<SharedState>) -> ApiResult {
+    let client = state.client.lock().await;
+    let uid = require_login(&client).await?;
+    let uid_text = uid.to_string();
+
+    let detail = client
+        .user_detail(&NcmQuery::new().param("uid", &uid_text))
+        .await
+        .map_err(ncm_error)?;
+    let profile = detail.body.get("profile").cloned().unwrap_or(Value::Null);
+
+    let level_response = client.user_level(&NcmQuery::new()).await.ok();
+    let vip_response = client
+        .vip_info(&NcmQuery::new().param("uid", &uid_text))
+        .await
+        .ok();
+    let listen_response = client.listen_data_total(&NcmQuery::new()).await.ok();
+    let now = now_millis();
+
+    let mut memberships = Vec::new();
+    if let Some(data) = vip_response
+        .as_ref()
+        .and_then(|value| value.body.get("data"))
+    {
+        for (key, label) in [
+            ("associator", "黑胶VIP"),
+            ("musicPackage", "音乐包"),
+            ("familyVip", "家庭VIP"),
+        ] {
+            if let Some(item) = data.get(key) {
+                let membership = membership_item(key, label, item, now);
+                if membership.get("level").and_then(Value::as_i64).unwrap_or(0) > 0
+                    || membership
+                        .get("expires_at")
+                        .and_then(Value::as_i64)
+                        .unwrap_or(0)
+                        > 0
+                {
+                    memberships.push(membership);
+                }
+            }
+        }
+    }
+
+    let level = level_response
+        .as_ref()
+        .and_then(|value| value.body.pointer("/data/level"))
+        .and_then(Value::as_i64)
+        .or_else(|| detail.body.get("level").and_then(Value::as_i64))
+        .unwrap_or(0);
+    let listen_seconds = listen_response
+        .as_ref()
+        .and_then(|value| value.body.pointer("/data/totalDuration"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "uid": uid,
+            "nickname": first_string(&profile, &["nickname"]),
+            "avatar_url": normalize_https(&first_string(&profile, &["avatarUrl"])),
+            "signature": first_string(&profile, &["signature"]),
+            "vip_type": first_i64(&profile, &["vipType"]).unwrap_or(0),
+            "user_type": first_i64(&profile, &["userType"]).unwrap_or(0),
+            "level": level,
+            "follows": first_i64(&profile, &["follows"]).unwrap_or(0),
+            "followeds": first_i64(&profile, &["followeds"]).unwrap_or(0),
+            "listen_songs": detail.body.get("listenSongs").and_then(Value::as_i64).unwrap_or(0),
+            "listen_seconds": listen_seconds,
+            "create_days": detail.body.get("createDays").and_then(Value::as_i64).unwrap_or(0),
+            "memberships": memberships,
+        }
     })))
 }
 
@@ -525,8 +1559,11 @@ async fn user_playlists(
     let page = params.page.unwrap_or(1).max(1);
     let offset = (page as i64 - 1) * limit;
     let uid_text = uid.to_string();
-    let limit_text = limit.to_string();
-    let offset_text = offset.to_string();
+    let kind = params.kind.as_deref().unwrap_or("all");
+    let upstream_limit = if kind == "all" { limit } else { 500 };
+    let upstream_offset = if kind == "all" { offset } else { 0 };
+    let limit_text = upstream_limit.to_string();
+    let offset_text = upstream_offset.to_string();
     let response = client
         .user_playlist(
             &NcmQuery::new()
@@ -536,13 +1573,36 @@ async fn user_playlists(
         )
         .await
         .map_err(ncm_error)?;
+    let mut items = array_at(&response.body, "/playlist");
+    if kind != "all" {
+        items.retain(|item| {
+            let subscribed = item
+                .get("subscribed")
+                .and_then(Value::as_bool)
+                .unwrap_or_else(|| first_i64(item, &["subscribed"]).unwrap_or(0) != 0);
+            let special_type = first_i64(item, &["specialType"]).unwrap_or(0);
+            match kind {
+                "created" => !subscribed && special_type != 5,
+                "collected" => subscribed,
+                "liked" => special_type == 5 && !subscribed,
+                _ => true,
+            }
+        });
+    }
+    let start = if kind == "all" { 0 } else { offset as usize };
+    let end = (start + limit as usize).min(items.len());
+    let selected: &[Value] = if start < items.len() {
+        &items[start..end]
+    } else {
+        &[]
+    };
     Ok(Json(json!({
         "code": 200,
         "msg": "ok",
         "data": {
-            "playlists": array_at(&response.body, "/playlist")
-                .into_iter()
-                .map(|item| map_ne_playlist(&item))
+            "playlists": selected
+                .iter()
+                .map(|item| map_ne_playlist(item))
                 .collect::<Vec<_>>()
         }
     })))
@@ -770,7 +1830,9 @@ fn map_ne_album(item: &Value) -> Value {
         ),
         "track_count": first_i64(item, &["trackCount", "size", "songCount"]).unwrap_or(0),
         "play_count": 0,
-        "creator": item.pointer("/artist/name")
+        "creator": item
+            .pointer("/artist/name")
+            .or_else(|| item.pointer("/artists/0/name"))
             .and_then(Value::as_str)
             .unwrap_or(""),
         "description": first_string(item, &["description"]),
@@ -838,34 +1900,19 @@ fn normalize_https(value: &str) -> String {
         .unwrap_or_else(|| value.to_string())
 }
 
-const DEVICE_XOR_KEY: &str = "3go8&$8*3*3h0k(2)2";
-
-async fn register_guest(client: &mut ApiClient) -> Option<String> {
-    let device_id = generate_device_id();
-    let encoded =
-        BASE64.encode(format!("{} {}", device_id, cloudmusic_dll_encode_id(&device_id)).as_bytes());
+/// 网易云首页等个性化内容只对真实登录账号开放。
+/// 注意：`has_cookie` 或本地存在 cookies.json 都不足以判断账号，
+/// 必须由 `/login/status` 返回 `profile.userId`。
+async fn require_login(client: &ApiClient) -> Result<i64, (StatusCode, Json<Value>)> {
     let response = client
-        .request(
-            "/api/register/anonimous",
-            json!({ "username": encoded }),
-            RequestOption::default(),
-        )
+        .login_status(&NcmQuery::new())
         .await
-        .ok()?;
-    let cookie = extract_cookie(&response)?;
-    client.set_cookie(cookie.clone());
-    client.set_anonymous_token(cookie.clone());
-    Some(cookie)
-}
-
-fn cloudmusic_dll_encode_id(device_id: &str) -> String {
-    let key = DEVICE_XOR_KEY.as_bytes();
-    let xored: Vec<u8> = device_id
-        .bytes()
-        .enumerate()
-        .map(|(index, byte)| byte ^ key[index % key.len()])
-        .collect();
-    BASE64.encode(Md5::digest(&xored))
+        .map_err(ncm_error)?;
+    response
+        .body
+        .pointer("/profile/userId")
+        .and_then(Value::as_i64)
+        .ok_or_else(|| api_error(StatusCode::UNAUTHORIZED, "请先登录网易云账号"))
 }
 
 fn extract_str(value: &Value, paths: &[&str]) -> Option<String> {
@@ -1025,4 +2072,55 @@ fn env_first(names: &[&str]) -> Option<String> {
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty())
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn maps_home_feed_blocks_and_resources() {
+        let body = json!({
+            "data": {
+                "cursor": "next-page",
+                "blocks": [
+                    {
+                        "blockCode": "HOMEPAGE_BLOCK_MGC_PLAYLIST",
+                        "showType": "HOMEPAGE_SLIDE_PLAYLIST",
+                        "uiElement": {"subTitle": {"title": "网易云音乐的雷达歌单"}},
+                        "creatives": [
+                            {
+                                "uiElement": {"mainTitle": {"title": ""}},
+                                "resources": [
+                                    {
+                                        "resourceType": "list",
+                                        "resourceId": "123",
+                                        "uiElement": {
+                                            "mainTitle": {"title": "华语私人雷达"},
+                                            "subTitle": {"title": "每日更新"},
+                                            "image": {"imageUrl": "http://example.com/cover.jpg"}
+                                        },
+                                        "resourceExtInfo": {"playCount": 42, "songCount": 30}
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        });
+
+        let mapped = map_home_feed(&body);
+        assert_eq!(mapped["cursor"], "next-page");
+        assert_eq!(mapped["blocks"][0]["code"], "HOMEPAGE_BLOCK_MGC_PLAYLIST");
+        assert_eq!(mapped["blocks"][0]["title"], "网易云音乐的雷达歌单");
+        assert_eq!(mapped["blocks"][0]["items"][0]["kind"], "list");
+        assert_eq!(mapped["blocks"][0]["items"][0]["id"], "123");
+        assert_eq!(
+            mapped["blocks"][0]["items"][0]["cover"],
+            "https://example.com/cover.jpg"
+        );
+        assert_eq!(mapped["blocks"][0]["items"][0]["play_count"], 42);
+    }
 }

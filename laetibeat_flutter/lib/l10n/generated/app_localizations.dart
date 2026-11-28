@@ -167,7 +167,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchHint.
   ///
   /// In en, this message translates to:
-  /// **'Search songs, artists, albums'**
+  /// **'Search music'**
   String get searchHint;
 
   /// No description provided for @switchSearchSource.
@@ -524,18 +524,6 @@ abstract class AppLocalizations {
   /// **'Search cover shape'**
   String get searchCoverShape;
 
-  /// No description provided for @defaultSearchSource.
-  ///
-  /// In en, this message translates to:
-  /// **'Default search source'**
-  String get defaultSearchSource;
-
-  /// No description provided for @defaultSearchSourceSupporting.
-  ///
-  /// In en, this message translates to:
-  /// **'Source selected by default when opening search results'**
-  String get defaultSearchSourceSupporting;
-
   /// No description provided for @searchCoverShapeSupporting.
   ///
   /// In en, this message translates to:
@@ -590,11 +578,11 @@ abstract class AppLocalizations {
   /// **'English'**
   String get languageEnglish;
 
-  /// No description provided for @settingsSearchHint.
+  /// No description provided for @settingsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Search settings'**
-  String get settingsSearchHint;
+  /// **'Settings'**
+  String get settingsTitle;
 
   /// No description provided for @settingsAppearance.
   ///
@@ -605,37 +593,49 @@ abstract class AppLocalizations {
   /// No description provided for @settingsAppearanceSupporting.
   ///
   /// In en, this message translates to:
-  /// **'Theme and light/dark mode'**
+  /// **'Theme, language and artwork'**
   String get settingsAppearanceSupporting;
 
   /// No description provided for @settingsPlaybackAudio.
   ///
   /// In en, this message translates to:
-  /// **'Player & audio'**
+  /// **'Playback & audio'**
   String get settingsPlaybackAudio;
 
   /// No description provided for @settingsPlaybackAudioSupporting.
   ///
   /// In en, this message translates to:
-  /// **'Fade and battery optimization'**
+  /// **'Equalizer and fade controls'**
   String get settingsPlaybackAudioSupporting;
 
   /// No description provided for @settingsContent.
   ///
   /// In en, this message translates to:
-  /// **'Content'**
+  /// **'Library & lyrics'**
   String get settingsContent;
 
   /// No description provided for @settingsContentSupporting.
   ///
   /// In en, this message translates to:
-  /// **'Library, lyrics and language'**
+  /// **'Local library, lyrics, and list/search preferences'**
   String get settingsContentSupporting;
+
+  /// No description provided for @settingsSourcesAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Sources & accounts'**
+  String get settingsSourcesAccounts;
+
+  /// No description provided for @settingsSourcesAccountsSupporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch sources, sign in and manage services'**
+  String get settingsSourcesAccountsSupporting;
 
   /// No description provided for @settingsStorage.
   ///
   /// In en, this message translates to:
-  /// **'Storage'**
+  /// **'Storage & cache'**
   String get settingsStorage;
 
   /// No description provided for @cacheManagement.
@@ -751,18 +751,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cache management'**
   String get settingsStorageSupporting;
-
-  /// No description provided for @settingsBackupRestore.
-  ///
-  /// In en, this message translates to:
-  /// **'Backup & restore'**
-  String get settingsBackupRestore;
-
-  /// No description provided for @settingsBackupRestoreSupporting.
-  ///
-  /// In en, this message translates to:
-  /// **'Back up settings or import from another configuration'**
-  String get settingsBackupRestoreSupporting;
 
   /// No description provided for @settingsAbout.
   ///
@@ -979,18 +967,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reorder lyrics sources by preference'**
   String get lyricsPrioritySupporting;
-
-  /// No description provided for @lyricsReset.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset imported lyrics'**
-  String get lyricsReset;
-
-  /// No description provided for @lyricsResetSupporting.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove all imported lyrics from the database'**
-  String get lyricsResetSupporting;
 
   /// No description provided for @syncScanGroup.
   ///

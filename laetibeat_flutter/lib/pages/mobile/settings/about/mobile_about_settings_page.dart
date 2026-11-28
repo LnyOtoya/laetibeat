@@ -1,9 +1,9 @@
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../design/components/navigation/app_page_bar.dart';
 import '../../../../shared/layout/app_bottom_inset.dart';
 import '../../../../widgets/settings/about_settings.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
 
 /// 移动端「关于」页：版本、开源许可、第三方声明入口。
 class MobileAboutSettingsPage extends StatelessWidget {
@@ -16,7 +16,10 @@ class MobileAboutSettingsPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(context, title: '关于'),
+      appBar: AppPageBar.settings(
+        title: '关于',
+        backgroundColor: theme.colorScheme.surface,
+      ),
       body: SafeArea(
         top: false,
         child: Padding(

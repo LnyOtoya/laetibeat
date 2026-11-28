@@ -159,7 +159,9 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
     }
 
     return M3ETheme(
-      data: baseTheme.withColorScheme(scheme),
+      data: AppTheme.withDetailTextEmphasis(
+        baseTheme.withColorScheme(scheme),
+      ),
       child: Scaffold(
         backgroundColor: contentColor,
         extendBodyBehindAppBar: true,
@@ -563,7 +565,7 @@ class _AlbumTracksSection extends ConsumerWidget {
                   ),
                   supportingTextStyle: theme.typeScale.bodyMedium.copyWith(
                     color: theme.colorScheme.onSecondaryContainer.withValues(
-                      alpha: 0.75,
+                      alpha: 0.9,
                     ),
                   ),
                   trailing: _TrackMenu(

@@ -43,7 +43,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navSearch => 'Search';
 
   @override
-  String get searchHint => 'Search songs, artists, albums';
+  String get searchHint => 'Search music';
 
   @override
   String get switchSearchSource => 'Switch search source';
@@ -240,13 +240,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchCoverShape => 'Search cover shape';
 
   @override
-  String get defaultSearchSource => 'Default search source';
-
-  @override
-  String get defaultSearchSourceSupporting =>
-      'Source selected by default when opening search results';
-
-  @override
   String get searchCoverShapeSupporting =>
       'M3E shape used by song covers in search results';
 
@@ -276,28 +269,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageEnglish => 'English';
 
   @override
-  String get settingsSearchHint => 'Search settings';
+  String get settingsTitle => 'Settings';
 
   @override
   String get settingsAppearance => 'Appearance';
 
   @override
-  String get settingsAppearanceSupporting => 'Theme and light/dark mode';
+  String get settingsAppearanceSupporting => 'Theme, language and artwork';
 
   @override
-  String get settingsPlaybackAudio => 'Player & audio';
+  String get settingsPlaybackAudio => 'Playback & audio';
 
   @override
-  String get settingsPlaybackAudioSupporting => 'Fade and battery optimization';
+  String get settingsPlaybackAudioSupporting => 'Equalizer and fade controls';
 
   @override
-  String get settingsContent => 'Content';
+  String get settingsContent => 'Library & lyrics';
 
   @override
-  String get settingsContentSupporting => 'Library, lyrics and language';
+  String get settingsContentSupporting =>
+      'Local library, lyrics, and list/search preferences';
 
   @override
-  String get settingsStorage => 'Storage';
+  String get settingsSourcesAccounts => 'Sources & accounts';
+
+  @override
+  String get settingsSourcesAccountsSupporting =>
+      'Switch sources, sign in and manage services';
+
+  @override
+  String get settingsStorage => 'Storage & cache';
 
   @override
   String get cacheManagement => 'Cache management';
@@ -355,13 +356,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsStorageSupporting => 'Cache management';
-
-  @override
-  String get settingsBackupRestore => 'Backup & restore';
-
-  @override
-  String get settingsBackupRestoreSupporting =>
-      'Back up settings or import from another configuration';
 
   @override
   String get settingsAbout => 'About';
@@ -473,13 +467,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lyricsPrioritySupporting => 'Reorder lyrics sources by preference';
-
-  @override
-  String get lyricsReset => 'Reset imported lyrics';
-
-  @override
-  String get lyricsResetSupporting =>
-      'Remove all imported lyrics from the database';
 
   @override
   String get syncScanGroup => 'Sync & scan';

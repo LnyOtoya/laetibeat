@@ -100,24 +100,25 @@ lib/pages/mobile/mobile_app.dart
 
 `MobileApp` 是移动端唯一入口：
 
-- 底部三个 Tab：Home / Library / Search
-- `body` 内使用嵌套 `Navigator`，Home 是根 route
-- 打开 Library / Search 会 push 新 route，底部导航外框保持不动
-- 返回时 pop 回 Home，支持系统返回与 Android 预测性返回
-- 使用 `NavigatorPopHandler` 将系统返回代理给嵌套 Navigator
+- `AppMode` 提供当前模式可用的一级目的地；Tab 切换只更新 Shell 选中状态
+- `MobileShellPage` 以 `IndexedStack` 保留已访问的一级页面状态
+- 整个移动端只有一个 root `Navigator`；详情、设置、搜索和全屏播放器都进入同一个路由栈
+- `MobileShell` 在 root `Navigator` 外持续管理 MiniPlayer、底部导航和页面底部 inset
+- 移动端搜索由 `AppMode` 限定数据源与可用分类；在线结果分页加载，搜索历史按模式保存
+- 系统返回按统一路由栈逐层 pop；Android 预测性返回动画仍需真机验收
 - AndroidManifest 已开启 `android:enableOnBackInvokedCallback="true"`
 
 移动端目录：
 
 ```text
 lib/pages/mobile/
-  mobile_app.dart               # 移动端入口 + 底部导航 + 嵌套 Navigator
+  mobile_app.dart               # 移动端 Shell + 一级目的地状态
+  mobile_navigation.dart        # root Navigator 路由与统一页面 push
   home/
-    mobile_home_page.dart       # 独立首页
-  library/
-    mobile_library_page.dart    # 独立音乐库页
-  search/
-    mobile_search_page.dart     # 独立搜索页
+  library/                      # 音乐库、详情及子页面
+  search/                       # 搜索与结果页面
+  settings/                     # 设置及子页面
+  player/                       # 播放器及 MiniPlayer
 ```
 
 移动端新增页面时，建议继续放在 `lib/pages/mobile/` 下，例如：
@@ -253,7 +254,7 @@ core           -> pages
 ## 9. 当前遗留项
 
 - `lib/pages/tmp.dart.bak` 是旧备份文件，不参与编译；确认不再需要后可删除。
-- 移动端 UI 目前是占位壳，播放器、音乐库、搜索等页面待重写。
+- 移动端 Shell、播放器、音乐库、搜索和设置页面已接入；模式页面的具体能力与待办以 `docs/mode-pages.md` 和 `TODO.md` 为准。
 - `MobileDirectoryPicker` 仍返回 null，移动端本地音乐目录选择尚未接入。
 - `MediaSessionService` 仍为 Noop，Android 后台播放与媒体通知尚未接入。
 

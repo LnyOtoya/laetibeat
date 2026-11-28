@@ -14,7 +14,6 @@ import 'package:laetibeat/widgets/remote_browser_provider.dart';
 import 'package:laetibeat/widgets/settings/cover_shape_settings.dart';
 import 'package:laetibeat/widgets/settings/music_library_provider.dart';
 import 'package:laetibeat/widgets/settings/online_provider.dart';
-import 'package:laetibeat/widgets/settings/search_settings.dart';
 import 'package:laetibeat/widgets/settings/persistence.dart';
 import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
@@ -22,6 +21,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../app/app_mode.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../../shared/layout/app_bottom_inset.dart';
 import '../library/albums/album_detail_page.dart';
 import '../library/artists/artist_detail_page.dart';
 import '../library/playlists/local_playlist_detail_page.dart';
@@ -32,7 +32,6 @@ import '../library/online/online_widgets.dart';
 import '../library/playlists/remote_playlist_detail_page.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
-import 'library_search_suggestions.dart';
 import 'search_models.dart';
 import 'search_source_chip.dart';
 
@@ -48,11 +47,11 @@ class MobileSearchPage extends ConsumerStatefulWidget {
 }
 
 class _MobileSearchPageState extends ConsumerState<MobileSearchPage> {
-  static const String _recentSearchKey = 'search.recent_queries';
   static const int _recentSearchLimit = 30;
 
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
+  late final String _recentSearchKey;
   List<String> _recentSearches = const <String>[];
 
   @override
@@ -60,8 +59,11 @@ class _MobileSearchPageState extends ConsumerState<MobileSearchPage> {
     super.initState();
     _controller = TextEditingController(text: widget.initialQuery.trim());
     _focusNode = FocusNode();
+    _recentSearchKey = searchHistoryKeyForMode(ref.read(appModeProvider));
+    final preferences = ref.read(sharedPreferencesProvider);
     _recentSearches =
-        ref.read(sharedPreferencesProvider).getStringList(_recentSearchKey) ??
+        preferences.getStringList(_recentSearchKey) ??
+        preferences.getStringList(legacySearchHistoryKey) ??
         const <String>[];
   }
 
@@ -90,7 +92,24 @@ class _MobileSearchPageState extends ConsumerState<MobileSearchPage> {
 
   Future<void> _clearRecentSearches() async {
     setState(() => _recentSearches = const <String>[]);
-    await ref.read(sharedPreferencesProvider).remove(_recentSearchKey);
+    await ref
+        .read(sharedPreferencesProvider)
+        .setStringList(_recentSearchKey, const <String>[]);
+  }
+
+  Widget _buildQuerySuggestion(M3EThemeData theme, String query) {
+    return M3EList(
+      color: theme.colorScheme.surfaceContainerLow,
+      variant: M3ECardVariant.filled,
+      itemCount: 1,
+      onTap: (_) => _openResults(query),
+      itemBuilder: (BuildContext context, int index) => M3EListItem(
+        leading: const Icon(M3EIcons.search),
+        headline: query,
+        supportingText: AppLocalizations.of(context).searchHint,
+        trailing: const Icon(M3EIcons.arrow_forward),
+      ),
+    );
   }
 
   Future<void> _openResults(String value) async {
@@ -146,7 +165,7 @@ class _MobileSearchPageState extends ConsumerState<MobileSearchPage> {
           )
         else
           M3EList(
-            color: theme.colorScheme.surface,
+            color: theme.colorScheme.surfaceContainerLow,
             variant: M3ECardVariant.filled,
             itemCount: _recentSearches.length,
             onTap: (index) => _openResults(_recentSearches[index]),
@@ -165,11 +184,12 @@ class _MobileSearchPageState extends ConsumerState<MobileSearchPage> {
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: theme.colorScheme.surfaceContainerLow,
       appBar: M3EAppBar.top(
-        backgroundColor: theme.colorScheme.surface,
+        backgroundColor: theme.colorScheme.surfaceContainerLow,
         density: M3EAppBarDensity.compact,
         shapeFamily: M3EAppBarShapeFamily.square,
         title: M3ESearchBar(
@@ -192,21 +212,17 @@ class _MobileSearchPageState extends ConsumerState<MobileSearchPage> {
       body: SafeArea(
         top: false,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + bottomInset),
           child: _controller.text.trim().isEmpty
               ? _buildHistory(theme, l10n)
-              : LibrarySearchSuggestions(
-                  query: _controller.text,
-                  onSelected: (selection) => _openResults(selection.query),
-                ),
+              : _buildQuerySuggestion(theme, _controller.text.trim()),
         ),
       ),
     );
   }
 }
 
-/// Actual search results page. This is the page with back/filter split button,
-/// category tabs, source chips and result lists.
+/// Search results are restricted to the active app mode.
 class MobileSearchResultsPage extends ConsumerStatefulWidget {
   const MobileSearchResultsPage({super.key, required this.initialQuery});
 
@@ -220,104 +236,126 @@ class MobileSearchResultsPage extends ConsumerStatefulWidget {
 class _MobileSearchResultsPageState
     extends ConsumerState<MobileSearchResultsPage> {
   late final TextEditingController _controller;
+  late final String _recentSearchKey;
+  List<String> _recentSearches = const <String>[];
+  String _submittedQuery = '';
   MobileSearchCategory _category = MobileSearchCategory.songs;
-  late MobileSearchSourceFilter _filter;
-  String? _lxPlatform;
-
-  /// 自动解析出的默认平台。用户没有手动选择时，一旦播放能力加载完成，
-  /// 允许用它纠正"当前平台没有任何音源"的情况。
-  String? _resolvedLxPlatform;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialQuery);
-    _filter = switch (ref.read(appModeProvider)) {
-      AppMode.qq => MobileSearchSourceFilter.qq,
-      AppMode.netease => MobileSearchSourceFilter.netease,
-      _ => switch (ref.read(defaultSearchSourceProvider)) {
-        MobileSearchSourceFilter.netease ||
-        MobileSearchSourceFilter.qq => MobileSearchSourceFilter.all,
-        final value => value,
-      },
-    };
-    // 源可能在设置页被增删；进页面后刷新一次播放能力。
-    //
-    // 必须放到首帧之后：initState 仍处于 build 阶段，此时 invalidate 会让
-    // Riverpod 对 UncontrolledProviderScope 调用 setState，触发
-    // "setState() called during build" 断言（上一页的 suggestions 仍在 watch
-    // 这个 provider，所以它一定有存活 element）。
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      // 源的能力声明可能变化，重新读取运行时状态。
-      ref.invalidate(lxRuntimeProvider);
-    });
-  }
-
-  /// 解析当前平台。
-  ///
-  /// 平台来自内置列表，与是否导入音源无关；这里只决定"默认选中哪一个"：
-  /// 用户手动选择优先，其次是内置顺序中第一个可播放平台，最后回退到第一个
-  /// 内置平台（保证没导入任何音源时依然能搜索）。
-  String? _resolveLxPlatform(List<String> platforms, List<String> playable) {
-    final selected = _lxPlatform;
-    if (selected != null && platforms.contains(selected)) return selected;
-
-    final current = _resolvedLxPlatform;
-    if (current != null && platforms.contains(current)) {
-      // playable 为空可能只是运行时还没就绪：保持当前选择，
-      // 避免初始化完成后平台从 kw 突然跳到 tx。
-      if (playable.isEmpty || playable.contains(current)) return current;
-    }
-    // 纯内部记忆值，不触发重建：输入不变时结果稳定。
-    _resolvedLxPlatform = lxDefaultPlatform(
-      platforms: platforms,
-      playable: playable,
-    );
-    return _resolvedLxPlatform;
-  }
-
-  void _playLxResults() {
-    final query = widget.initialQuery.trim();
-    if (query.isEmpty) return;
-    unawaited(_playLxResultsFor(query));
-  }
-
-  Future<void> _playLxResultsFor(String query) async {
-    final l10n = AppLocalizations.of(context);
-    final platforms = ref.read(lxPlatformsProvider).value ?? kLxPlatformOrder;
-    final playable =
-        ref.read(lxRuntimeProvider).value?.playablePlatforms ??
+    _submittedQuery = widget.initialQuery.trim();
+    _recentSearchKey = searchHistoryKeyForMode(ref.read(appModeProvider));
+    final preferences = ref.read(sharedPreferencesProvider);
+    _recentSearches =
+        preferences.getStringList(_recentSearchKey) ??
+        preferences.getStringList(legacySearchHistoryKey) ??
         const <String>[];
-    final platform = _resolveLxPlatform(platforms, playable);
-    if (platform == null) return;
-    // 源还在初始化时等待，而不是把用户挡回去。
-    if (!await ensureLxPlayable(context, ref, platform, l10n)) return;
-    if (!mounted) return;
-    await _loadLxFirstPage(platform, query);
   }
 
-  Future<void> _loadLxFirstPage(String platform, String query) async {
-    final l10n = AppLocalizations.of(context);
-    try {
-      // 走统一的 gated 入口：与歌曲/歌单搜索共享同平台节流。
-      final page = await searchLxSongs(
-        platform: platform,
-        keyword: query,
-        page: 1,
-        limit: 10,
-      );
-      if (!mounted || page.tracks.isEmpty) return;
-      final tracks = page.tracks
-          .map(lxSearchTrackToUiTrack)
-          .toList(growable: false);
-      ref
-          .read(playerProvider.notifier)
-          .load(tracks, 0, source: '洛雪 · ${lxPlatformLabel(l10n, platform)}');
-    } catch (error) {
-      if (!mounted) return;
-      M3ESnackbar.show(context, message: error.toString());
+  Future<void> _rememberSearch(String value) async {
+    final query = value.trim();
+    if (query.isEmpty) return;
+    final next = <String>[
+      query,
+      ..._recentSearches.where((item) => item != query),
+    ];
+    if (next.length > 30) {
+      next.removeRange(30, next.length);
     }
+    if (mounted) setState(() => _recentSearches = next);
+    await ref
+        .read(sharedPreferencesProvider)
+        .setStringList(_recentSearchKey, next);
+  }
+
+  Future<void> _clearRecentSearches() async {
+    setState(() => _recentSearches = const <String>[]);
+    await ref
+        .read(sharedPreferencesProvider)
+        .setStringList(_recentSearchKey, const <String>[]);
+  }
+
+  Future<void> _submitQuery(String value) async {
+    final query = value.trim();
+    if (query.isEmpty) return;
+    await _rememberSearch(query);
+    if (!mounted) return;
+    _controller.value = TextEditingValue(
+      text: query,
+      selection: TextSelection.collapsed(offset: query.length),
+    );
+    FocusScope.of(context).unfocus();
+    setState(() => _submittedQuery = query);
+  }
+
+  void _onQueryChanged(String value) {
+    if (_submittedQuery.isNotEmpty && value.trim() != _submittedQuery) {
+      setState(() => _submittedQuery = '');
+    }
+  }
+
+  Widget _buildHistory(M3EThemeData theme, AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                l10n.searchRecentTitle,
+                style: theme.typeScale.titleMedium,
+              ),
+            ),
+            if (_recentSearches.isNotEmpty)
+              M3EButton(
+                style: M3EButtonStyle.text,
+                size: M3EButtonSize.sm,
+                label: Text(l10n.searchRecentClear),
+                onPressed: _clearRecentSearches,
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_recentSearches.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              l10n.searchRecentEmpty,
+              style: theme.typeScale.bodyMedium.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          )
+        else
+          M3EList(
+            color: theme.colorScheme.surfaceContainerLow,
+            variant: M3ECardVariant.filled,
+            itemCount: _recentSearches.length,
+            onTap: (index) => unawaited(_submitQuery(_recentSearches[index])),
+            itemBuilder: (BuildContext context, int index) => M3EListItem(
+              leading: const Icon(M3EIcons.history),
+              headline: _recentSearches[index],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildQuerySuggestion(M3EThemeData theme, String query) {
+    return M3EList(
+      color: theme.colorScheme.surfaceContainerLow,
+      variant: M3ECardVariant.filled,
+      itemCount: 1,
+      onTap: (_) => unawaited(_submitQuery(query)),
+      itemBuilder: (BuildContext context, int index) => M3EListItem(
+        leading: const Icon(M3EIcons.search),
+        headline: query,
+        supportingText: AppLocalizations.of(context).searchHint,
+        trailing: const Icon(M3EIcons.arrow_forward),
+      ),
+    );
   }
 
   @override
@@ -330,32 +368,27 @@ class _MobileSearchResultsPageState
   Widget build(BuildContext context) {
     final theme = M3ETheme.of(context);
     final l10n = AppLocalizations.of(context);
-    final lxPlatformsAsync = ref.watch(lxPlatformsProvider);
-    final runtimeAsync = ref.watch(lxRuntimeProvider);
-    final lxPlatforms = lxPlatformsAsync.value ?? kLxPlatformOrder;
-    final playablePlatforms =
-        runtimeAsync.value?.playablePlatforms ?? const <String>[];
-    // 源还在初始化时"可播列表为空"只代表未知，不能当成"没有源"。
-    final lxPreparing =
-        (runtimeAsync.isLoading && !runtimeAsync.hasValue) ||
-        (runtimeAsync.value?.warming ?? false);
-    final activeLxPlatform = _resolveLxPlatform(lxPlatforms, playablePlatforms);
+    final bottomInset = AppBottomInsetScope.bottomInsetOf(context);
+    final mode = ref.watch(appModeProvider);
+    final categories = searchCategoriesForMode(mode);
+    final selectedCategory = categories.contains(_category)
+        ? _category
+        : categories.first;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: theme.colorScheme.surfaceContainerLow,
       appBar: M3EAppBar.top(
-        backgroundColor: theme.colorScheme.surface,
+        backgroundColor: theme.colorScheme.surfaceContainerLow,
         density: M3EAppBarDensity.compact,
         shapeFamily: M3EAppBarShapeFamily.square,
         title: Row(
           mainAxisSize: MainAxisSize.max,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            _SearchFilterButton(
-              filter: _filter,
-              onlineMode: ref.watch(appModeProvider),
-              onChanged: (filter) => setState(() => _filter = filter),
-              onBack: () => Navigator.of(context).maybePop(),
+            IconButton(
+              tooltip: l10n.searchBack,
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: const Icon(M3EIcons.arrow_back),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -363,13 +396,15 @@ class _MobileSearchResultsPageState
                 controller: _controller,
                 hintText: l10n.searchHint,
                 leading: const Icon(M3EIcons.search),
-                readOnly: true,
+                showClearButton: true,
                 expandOnFocus: false,
                 constraints: const BoxConstraints.tightFor(height: 48),
                 backgroundColor: WidgetStatePropertyAll<Color?>(
                   theme.colorScheme.surfaceContainerHigh,
                 ),
-                onTap: () => Navigator.of(context).maybePop(),
+                textInputAction: TextInputAction.search,
+                onChanged: _onQueryChanged,
+                onSubmitted: (value) => unawaited(_submitQuery(value)),
               ),
             ),
           ],
@@ -377,108 +412,82 @@ class _MobileSearchResultsPageState
       ),
       body: SafeArea(
         top: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: _CategoryTabs(
-                selected: _category,
-                onSelected: (category) => setState(() => _category = category),
-              ),
-            ),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 260),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (Widget child, Animation<double> animation) {
-                final curved = CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                  reverseCurve: Curves.easeInCubic,
-                );
-                return SizeTransition(
-                  sizeFactor: curved,
-                  alignment: Alignment.topCenter,
-                  child: FadeTransition(
-                    opacity: curved,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0, -0.22),
-                        end: Offset.zero,
-                      ).animate(curved),
-                      child: child,
+        child: _submittedQuery.isEmpty
+            ? SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + bottomInset),
+                child: _controller.text.trim().isEmpty
+                    ? _buildHistory(theme, l10n)
+                    : _buildQuerySuggestion(theme, _controller.text.trim()),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: _CategoryTabs(
+                      categories: categories,
+                      selected: selectedCategory,
+                      onSelected: (category) =>
+                          setState(() => _category = category),
                     ),
                   ),
-                );
-              },
-              child: _filter == MobileSearchSourceFilter.lx
-                  ? _LxPlatformBar(
-                      key: const ValueKey<String>('lx-platform-bar'),
-                      // 平台列表来自内置能力，永远不会为空；这里只是防御。
-                      platform: activeLxPlatform ?? kLxPlatformOrder.first,
-                      platforms: lxPlatforms,
-                      playablePlatforms: playablePlatforms,
-                      preparing: lxPreparing,
-                      showPlay: _category == MobileSearchCategory.songs,
-                      onPlay: _playLxResults,
-                      onChanged: (platform) =>
-                          setState(() => _lxPlatform = platform),
-                    )
-                  : const SizedBox.shrink(
-                      key: ValueKey<String>('lx-platform-hidden'),
+                  Expanded(
+                    child: _SearchResults(
+                      query: _submittedQuery,
+                      category: selectedCategory,
+                      filter: searchSourceForMode(mode),
+                      lxPlatform: null,
                     ),
-            ),
-            Expanded(
-              child: _SearchResults(
-                query: widget.initialQuery,
-                category: _category,
-                filter: _filter,
-                lxPlatform: _filter == MobileSearchSourceFilter.lx
-                    ? activeLxPlatform
-                    : null,
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
 }
 
 class _CategoryTabs extends StatelessWidget {
-  const _CategoryTabs({required this.selected, required this.onSelected});
+  const _CategoryTabs({
+    required this.categories,
+    required this.selected,
+    required this.onSelected,
+  });
 
+  final List<MobileSearchCategory> categories;
   final MobileSearchCategory selected;
   final ValueChanged<MobileSearchCategory> onSelected;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    M3EButtonGroupAction action(IconData icon, String label) {
-      return M3EButtonGroupAction(icon: Icon(icon), label: Text(label));
-    }
+    String label(MobileSearchCategory category) => switch (category) {
+      MobileSearchCategory.songs => l10n.librarySongs,
+      MobileSearchCategory.playlists => l10n.libraryPlaylists,
+      MobileSearchCategory.albums => l10n.libraryAlbums,
+      MobileSearchCategory.artists => l10n.libraryArtists,
+    };
+    IconData icon(MobileSearchCategory category) => switch (category) {
+      MobileSearchCategory.songs => M3EIcons.music_note,
+      MobileSearchCategory.playlists => M3EIcons.queue_music,
+      MobileSearchCategory.albums => M3EIcons.album,
+      MobileSearchCategory.artists => M3EIcons.person,
+    };
 
-    return M3EButtonGroup(
-      type: M3EButtonGroupType.standard,
-      shape: M3EButtonShape.round,
-      size: M3EButtonSize.sm,
-      style: M3EButtonStyle.filled,
-      multiSelect: false,
-      selectionRequired: true,
-      neighborSquish: true,
-      overflow: M3EButtonGroupOverflow.scroll,
-      selectedIndex: selected.index,
-      onSelectedIndexChanged: (int? index) {
-        if (index == null) return;
-        onSelected(MobileSearchCategory.values[index]);
-      },
-      actions: <M3EButtonGroupAction>[
-        action(M3EIcons.music_note, l10n.librarySongs),
-        action(M3EIcons.queue_music, l10n.libraryPlaylists),
-        action(M3EIcons.album, l10n.libraryAlbums),
-        action(M3EIcons.person, l10n.libraryArtists),
+    return M3ESegmentedButton<MobileSearchCategory>(
+      segments: <M3ESegment<MobileSearchCategory>>[
+        for (final category in categories)
+          M3ESegment<MobileSearchCategory>(
+            value: category,
+            label: label(category),
+            icon: Icon(icon(category)),
+          ),
       ],
+      selected: <MobileSearchCategory>{selected},
+      showSelectedIcon: false,
+      semanticLabel: l10n.navSearch,
+      onSelectionChanged: (selection) {
+        if (selection.isNotEmpty) onSelected(selection.first);
+      },
     );
   }
 }
@@ -502,172 +511,12 @@ class _LxArtistGroup {
   final List<rust.UiTrack> tracks;
 }
 
-class _LxPlatformBar extends StatelessWidget {
-  const _LxPlatformBar({
-    super.key,
-    required this.platform,
-    required this.platforms,
-    required this.playablePlatforms,
-    required this.preparing,
-    required this.onChanged,
-    required this.onPlay,
-    required this.showPlay,
-  });
-
-  final String platform;
-  final List<String> platforms;
-
-  /// 有启用源可以解析播放地址的平台。为空表示只能浏览，不能播放。
-  final List<String> playablePlatforms;
-
-  /// 源运行时还在初始化：此时 [playablePlatforms] 还没算出来，
-  /// 不能据此显示"暂无可播放音源"。
-  final bool preparing;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onPlay;
-  final bool showPlay;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final theme = M3ETheme.of(context);
-    final canPlay = playablePlatforms.contains(platform);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Row(
-        children: <Widget>[
-          if (showPlay)
-            M3EButton.icon(
-              icon: const Icon(M3EIcons.play_arrow),
-              label: Text(l10n.play),
-              style: M3EButtonStyle.filled,
-              size: M3EButtonSize.sm,
-              shape: M3EButtonShape.round,
-              onPressed: onPlay,
-            ),
-          if (showPlay && (preparing || !canPlay)) ...<Widget>[
-            const SizedBox(width: 8),
-            Flexible(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(
-                    M3EIcons.info,
-                    size: 14,
-                    color: preparing
-                        ? theme.colorScheme.onSurfaceVariant
-                        : theme.colorScheme.error,
-                  ),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      preparing
-                          ? l10n.lxSourcePreparing
-                          : l10n.lxPlatformNoSource,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.typeScale.labelSmall.copyWith(
-                        color: preparing
-                            ? theme.colorScheme.onSurfaceVariant
-                            : theme.colorScheme.error,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const Spacer(),
-          M3ESplitButton<String>(
-            size: M3EButtonSize.sm,
-            shape: M3EButtonShape.round,
-            style: M3EButtonStyle.tonal,
-            label: lxPlatformLabel(l10n, platform),
-            leadingIcon: M3EIcons.music_note,
-            selectedValue: platform,
-            trailingTooltip: l10n.searchFilter,
-            // 切歌在播放链路里是"解析播放地址"，只标注是否可用；
-            // 平台本身始终可切换，搜索永远不受音源影响。
-            onPressed: () {},
-            onSelected: onChanged,
-            items: <M3ESplitButtonItem<String>>[
-              for (final item in platforms)
-                M3ESplitButtonItem(
-                  value: item,
-                  child: Text(lxPlatformLabel(l10n, item)),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SearchFilterButton extends StatelessWidget {
-  const _SearchFilterButton({
-    required this.filter,
-    required this.onlineMode,
-    required this.onChanged,
-    required this.onBack,
-  });
-
-  final MobileSearchSourceFilter filter;
-  final AppMode onlineMode;
-  final ValueChanged<MobileSearchSourceFilter> onChanged;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return M3ESplitButton<MobileSearchSourceFilter>(
-      size: M3EButtonSize.sm,
-      shape: M3EButtonShape.round,
-      style: M3EButtonStyle.tonal,
-      leadingIcon: M3EIcons.arrow_back,
-      leadingTooltip: l10n.searchBack,
-      trailingTooltip: l10n.searchFilter,
-      onPressed: onBack,
-      selectedValue: filter,
-      onSelected: onChanged,
-      items: <M3ESplitButtonItem<MobileSearchSourceFilter>>[
-        M3ESplitButtonItem(
-          value: MobileSearchSourceFilter.all,
-          child: Text(l10n.searchFilterAll),
-        ),
-        M3ESplitButtonItem(
-          value: MobileSearchSourceFilter.local,
-          child: Text(l10n.searchSourceLocal),
-        ),
-        M3ESplitButtonItem(
-          value: MobileSearchSourceFilter.subsonic,
-          child: Text(l10n.searchFilterSubsonic),
-        ),
-        M3ESplitButtonItem(
-          value: MobileSearchSourceFilter.lx,
-          child: Text(l10n.searchFilterLx),
-        ),
-        if (onlineMode == AppMode.netease)
-          const M3ESplitButtonItem(
-            value: MobileSearchSourceFilter.netease,
-            child: Text('网易云'),
-          ),
-        if (onlineMode == AppMode.qq)
-          const M3ESplitButtonItem(
-            value: MobileSearchSourceFilter.qq,
-            child: Text('QQ'),
-          ),
-      ],
-    );
-  }
-}
-
 class _SearchResults extends ConsumerWidget {
   const _SearchResults({
     required this.query,
     required this.category,
     required this.filter,
-    this.lxPlatform,
+    required this.lxPlatform,
   });
 
   final String query;
@@ -760,14 +609,15 @@ class _SearchResults extends ConsumerWidget {
       }
       return Center(child: Text(l10n.searchNoResults));
     }
-    final local = isPlaylistCategory || isLxFilter
+    final local = !_includesLocal || isPlaylistCategory || isLxFilter
         ? null
         : ref.watch(musicLibraryProvider).value;
     final servers =
         ref.watch(subsonicServersProvider).value ??
         const <SubsonicServerConfig>[];
     final server = servers.isEmpty ? null : servers.first;
-    final remoteAsync = server == null || isPlaylistCategory || isLxFilter
+    final remoteAsync =
+        server == null || !_includesSubsonic || isPlaylistCategory || isLxFilter
         ? null
         : ref.watch(remoteSearchProvider((sourceId: server.id, query: query)));
     final lxPage =
@@ -868,7 +718,7 @@ class _SearchResults extends ConsumerWidget {
                   trailing: filter == MobileSearchSourceFilter.all
                       ? _sourceChip(
                           isLx
-                              ? 'LX · ${lxPlatformLabel(l10n, platform ?? '')}'
+                              ? 'LX · ${lxPlatformLabel(l10n, platform)}'
                               : l10n.searchSourceLocal,
                           platform ?? 'local',
                         )
@@ -909,12 +759,6 @@ class _SearchResults extends ConsumerWidget {
                 return M3EListItem(
                   headline: playlist.name,
                   supportingText: playlist.owner ?? '',
-                  trailing: _sourceChip(
-                    server.name,
-                    server.name.toLowerCase().contains('navidrome')
-                        ? 'navidrome'
-                        : 'subsonic',
-                  ),
                 );
               },
             ),
@@ -1760,6 +1604,155 @@ Widget _loading() {
   );
 }
 
+typedef _OnlineSearchPageProvider<T> =
+    FutureProvider<List<T>> Function(int offset);
+
+class _PagedOnlineSearchResults<T> extends ConsumerStatefulWidget {
+  const _PagedOnlineSearchResults({
+    super.key,
+    required this.pageProvider,
+    required this.retryPage,
+    required this.itemBuilder,
+    required this.onItemTap,
+    required this.emptyMessage,
+  });
+
+  final _OnlineSearchPageProvider<T> pageProvider;
+  final ValueChanged<int> retryPage;
+  final Widget Function(BuildContext context, T item) itemBuilder;
+  final void Function(List<T> items, int index) onItemTap;
+  final String emptyMessage;
+
+  @override
+  ConsumerState<_PagedOnlineSearchResults<T>> createState() =>
+      _PagedOnlineSearchResultsState<T>();
+}
+
+class _PagedOnlineSearchResultsState<T>
+    extends ConsumerState<_PagedOnlineSearchResults<T>> {
+  final ScrollController _scrollController = ScrollController();
+  int _requestedPages = 1;
+  bool _loadingMore = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients ||
+        _loadingMore ||
+        _scrollController.position.extentAfter > 240) {
+      return;
+    }
+
+    final offset = (_requestedPages - 1) * onlineSearchPageSize;
+    final currentPage = ref.read(widget.pageProvider(offset)).asData?.value;
+    if (currentPage?.length != onlineSearchPageSize) return;
+
+    _loadingMore = true;
+    setState(() => _requestedPages++);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final pages = <AsyncValue<List<T>>>[
+      for (var index = 0; index < _requestedPages; index++)
+        ref.watch(widget.pageProvider(index * onlineSearchPageSize)),
+    ];
+    final items = <T>[
+      for (final page in pages)
+        if (page.asData != null) ...page.asData!.value,
+    ];
+    final lastPage = pages.last;
+
+    if (_loadingMore && !lastPage.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _loadingMore = false;
+        _handleScroll();
+      });
+    } else if (!_loadingMore) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _handleScroll();
+      });
+    }
+
+    if (pages.first.isLoading && items.isEmpty) return _loading();
+    if (pages.first.hasError && items.isEmpty) {
+      return _searchError(
+        context,
+        pages.first.error!,
+        onRetry: () => widget.retryPage(0),
+      );
+    }
+    if (items.isEmpty) {
+      return _empty(l10n, message: widget.emptyMessage);
+    }
+
+    final lastOffset = (_requestedPages - 1) * onlineSearchPageSize;
+    return ListView(
+      controller: _scrollController,
+      padding: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        24 + AppBottomInsetScope.bottomInsetOf(context),
+      ),
+      children: <Widget>[
+        M3EList(
+          color: M3ETheme.of(context).colorScheme.surfaceContainerLow,
+          variant: M3ECardVariant.filled,
+          itemCount: items.length,
+          onTap: (int index) => widget.onItemTap(items, index),
+          itemBuilder: (BuildContext context, int index) =>
+              widget.itemBuilder(context, items[index]),
+        ),
+        if (lastPage.isLoading) _loading(),
+        if (lastPage.hasError)
+          _searchError(
+            context,
+            lastPage.error!,
+            onRetry: () => widget.retryPage(lastOffset),
+          ),
+      ],
+    );
+  }
+}
+
+Widget _searchError(
+  BuildContext context,
+  Object error, {
+  required VoidCallback onRetry,
+}) {
+  final l10n = AppLocalizations.of(context);
+  return Padding(
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text('${l10n.searchFailed}: $error', textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        M3EButton(
+          style: M3EButtonStyle.text,
+          label: Text(l10n.playbackRetry),
+          onPressed: onRetry,
+        ),
+      ],
+    ),
+  );
+}
+
 class _OnlineSongsResults extends ConsumerWidget {
   const _OnlineSongsResults({required this.query, required this.source});
 
@@ -1768,51 +1761,32 @@ class _OnlineSongsResults extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final results = ref.watch(
-      onlineSongSearchProvider((
-        source: source,
-        query: query,
+    final key = (source: source, query: query);
+    return _PagedOnlineSearchResults<rust.UiTrack>(
+      key: ValueKey<String>('songs:$source:$query'),
+      pageProvider: (offset) => onlineSongSearchProvider((
+        source: key.source,
+        query: key.query,
         limit: onlineSearchPageSize,
-        offset: 0,
+        offset: offset,
       )),
-    );
-
-    return results.when(
-      loading: _loading,
-      error: (Object error, StackTrace? stack) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text('加载失败：$error', textAlign: TextAlign.center),
-        ),
+      retryPage: (offset) => ref.invalidate(
+        onlineSongSearchProvider((
+          source: key.source,
+          query: key.query,
+          limit: onlineSearchPageSize,
+          offset: offset,
+        )),
       ),
-      data: (List<rust.UiTrack> tracks) {
-        if (tracks.isEmpty) {
-          return _empty(l10n, message: '没有找到歌曲');
-        }
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          children: <Widget>[
-            M3EList(
-              color: M3ETheme.of(context).colorScheme.surface,
-              variant: M3ECardVariant.filled,
-              itemCount: tracks.length,
-              onTap: (int index) => ref
-                  .read(playerProvider.notifier)
-                  .load(tracks, index, source: onlineSourceLabel(source)),
-              itemBuilder: (BuildContext context, int index) {
-                final track = tracks[index];
-                return M3EListItem(
-                  headline: track.title,
-                  supportingText: track.artist,
-                  leading: OnlineCover(url: track.coverId),
-                  trailing: _sourceChip(onlineSourceLabel(source), source),
-                );
-              },
-            ),
-          ],
-        );
-      },
+      emptyMessage: AppLocalizations.of(context).searchNoResults,
+      onItemTap: (tracks, index) => ref
+          .read(playerProvider.notifier)
+          .load(tracks, index, source: onlineSourceLabel(source)),
+      itemBuilder: (BuildContext context, rust.UiTrack track) => M3EListItem(
+        headline: track.title,
+        supportingText: track.artist,
+        leading: OnlineCover(url: track.coverId),
+      ),
     );
   }
 }
@@ -1825,60 +1799,44 @@ class _OnlinePlaylistResults extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final results = ref.watch(
-      onlinePlaylistSearchProvider((
-        source: source,
-        query: query,
+    final key = (source: source, query: query);
+    return _PagedOnlineSearchResults<rust_online.UiOnlinePlaylist>(
+      key: ValueKey<String>('playlists:$source:$query'),
+      pageProvider: (offset) => onlinePlaylistSearchProvider((
+        source: key.source,
+        query: key.query,
         limit: onlineSearchPageSize,
-        offset: 0,
+        offset: offset,
       )),
-    );
-
-    return results.when(
-      loading: _loading,
-      error: (Object error, StackTrace? stack) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text('加载失败：$error', textAlign: TextAlign.center),
-        ),
+      retryPage: (offset) => ref.invalidate(
+        onlinePlaylistSearchProvider((
+          source: key.source,
+          query: key.query,
+          limit: onlineSearchPageSize,
+          offset: offset,
+        )),
       ),
-      data: (List<rust_online.UiOnlinePlaylist> playlists) {
-        if (playlists.isEmpty) {
-          return _empty(l10n, message: '没有找到歌单');
-        }
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          children: <Widget>[
-            M3EList(
-              color: M3ETheme.of(context).colorScheme.surface,
-              variant: M3ECardVariant.filled,
-              itemCount: playlists.length,
-              onTap: (int index) => pushMobileRootPage(
-                context,
-                OnlinePlaylistDetailPage(playlist: playlists[index]),
-                name: 'online-playlist',
-              ),
-              itemBuilder: (BuildContext context, int index) {
-                final playlist = playlists[index];
-                final supporting = <String>[
-                  if (playlist.creator != null && playlist.creator!.isNotEmpty)
-                    playlist.creator!,
-                  if (playlist.trackCount > 0) '${playlist.trackCount} 首',
-                ];
-                return M3EListItem(
-                  headline: playlist.name,
-                  supportingText: supporting.isEmpty
-                      ? '歌单'
-                      : supporting.join(' · '),
-                  leading: OnlineCover(url: playlist.coverUrl),
-                  trailing: _sourceChip(onlineSourceLabel(source), source),
-                );
-              },
-            ),
-          ],
-        );
-      },
+      emptyMessage: AppLocalizations.of(context).searchNoResults,
+      onItemTap: (playlists, index) => pushMobileRootPage(
+        context,
+        OnlinePlaylistDetailPage(playlist: playlists[index]),
+        name: 'online-playlist',
+      ),
+      itemBuilder:
+          (BuildContext context, rust_online.UiOnlinePlaylist playlist) {
+            final supporting = <String>[
+              if (playlist.creator != null && playlist.creator!.isNotEmpty)
+                playlist.creator!,
+              if (playlist.trackCount > 0) '${playlist.trackCount} 首',
+            ];
+            return M3EListItem(
+              headline: playlist.name,
+              supportingText: supporting.isEmpty
+                  ? '歌单'
+                  : supporting.join(' · '),
+              leading: OnlineCover(url: playlist.coverUrl),
+            );
+          },
     );
   }
 }
@@ -1891,58 +1849,38 @@ class _OnlineAlbumResults extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final results = ref.watch(
-      onlineAlbumSearchProvider((
-        source: source,
-        query: query,
+    final key = (source: source, query: query);
+    return _PagedOnlineSearchResults<rust_online.UiOnlineAlbum>(
+      key: ValueKey<String>('albums:$source:$query'),
+      pageProvider: (offset) => onlineAlbumSearchProvider((
+        source: key.source,
+        query: key.query,
         limit: onlineSearchPageSize,
-        offset: 0,
+        offset: offset,
       )),
-    );
-
-    return results.when(
-      loading: _loading,
-      error: (Object error, StackTrace? stack) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text('加载失败：$error', textAlign: TextAlign.center),
-        ),
+      retryPage: (offset) => ref.invalidate(
+        onlineAlbumSearchProvider((
+          source: key.source,
+          query: key.query,
+          limit: onlineSearchPageSize,
+          offset: offset,
+        )),
       ),
-      data: (List<rust_online.UiOnlineAlbum> albums) {
-        if (albums.isEmpty) {
-          return _empty(l10n, message: '没有找到专辑');
-        }
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          children: <Widget>[
-            M3EList(
-              color: M3ETheme.of(context).colorScheme.surface,
-              variant: M3ECardVariant.filled,
-              itemCount: albums.length,
-              onTap: (int index) => pushMobileRootPage(
-                context,
-                OnlineAlbumDetailPage(album: albums[index]),
-                name: 'online-album',
-              ),
-              itemBuilder: (BuildContext context, int index) {
-                final album = albums[index];
-                final supporting = <String>[
-                  if (album.artist != null && album.artist!.isNotEmpty)
-                    album.artist!,
-                  if (album.trackCount > 0) '${album.trackCount} 首',
-                ];
-                return M3EListItem(
-                  headline: album.name,
-                  supportingText: supporting.isEmpty
-                      ? '专辑'
-                      : supporting.join(' · '),
-                  leading: OnlineCover(url: album.coverUrl),
-                  trailing: _sourceChip(onlineSourceLabel(source), source),
-                );
-              },
-            ),
-          ],
+      emptyMessage: AppLocalizations.of(context).searchNoResults,
+      onItemTap: (albums, index) => pushMobileRootPage(
+        context,
+        OnlineAlbumDetailPage(album: albums[index]),
+        name: 'online-album',
+      ),
+      itemBuilder: (BuildContext context, rust_online.UiOnlineAlbum album) {
+        final supporting = <String>[
+          if (album.artist != null && album.artist!.isNotEmpty) album.artist!,
+          if (album.trackCount > 0) '${album.trackCount} 首',
+        ];
+        return M3EListItem(
+          headline: album.name,
+          supportingText: supporting.isEmpty ? '专辑' : supporting.join(' · '),
+          leading: OnlineCover(url: album.coverUrl),
         );
       },
     );

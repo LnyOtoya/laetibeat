@@ -1,7 +1,8 @@
 use flutter_rust_bridge::frb;
 use laetibeat_online::{
-    OnlineAlbum, OnlineClient, OnlinePlatformStatus, OnlinePlaylist, OnlineQrResult,
-    OnlineQrSession, OnlineQuality, OnlineTopList, OnlineTrack,
+    OnlineAlbum, OnlineClient, OnlineHomeBlock, OnlineHomeFeed, OnlineHomeItem,
+    OnlinePlatformStatus, OnlinePlaylist, OnlineQrResult, OnlineQrSession, OnlineQuality,
+    OnlineTopList, OnlineTrack,
 };
 
 use crate::api::simple::UiTrack;
@@ -90,6 +91,39 @@ pub struct UiOnlineQrResult {
     pub cookie_saved: bool,
 }
 
+#[frb(non_opaque)]
+pub struct UiOnlineHomeFeed {
+    pub cursor: Option<String>,
+    pub blocks: Vec<UiOnlineHomeBlock>,
+}
+
+#[frb(non_opaque)]
+pub struct UiOnlineHomeBlock {
+    pub code: String,
+    pub show_type: String,
+    pub title: String,
+    pub action: String,
+    pub items: Vec<UiOnlineHomeItem>,
+}
+
+#[frb(non_opaque)]
+pub struct UiOnlineHomeItem {
+    pub kind: String,
+    pub id: String,
+    pub title: String,
+    pub subtitle: String,
+    pub cover_url: Option<String>,
+    pub section: String,
+    pub artists: String,
+    pub album: String,
+    pub album_id: String,
+    pub duration_seconds: u64,
+    pub play_count: u64,
+    pub track_count: u32,
+    pub action: String,
+    pub source: String,
+}
+
 fn client(base_url: &str, token: Option<String>) -> Result<OnlineClient, String> {
     OnlineClient::new(base_url, token.as_deref()).map_err(|error| error.to_string())
 }
@@ -100,6 +134,100 @@ pub fn online_health(base_url: String, token: Option<String>) -> Result<UiOnline
     Ok(UiOnlineStatus {
         base_url: client.base_url().to_string(),
     })
+}
+
+pub fn online_radar_playlists(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+    limit: Option<u32>,
+) -> Result<Vec<UiOnlinePlaylist>, String> {
+    let client = client(&base_url, token)?;
+    let playlists = client
+        .radar_playlists(&source, limit.unwrap_or(50))
+        .map_err(|error| error.to_string())?;
+    Ok(playlists.into_iter().map(map_playlist).collect())
+}
+
+pub fn online_daily_songs(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+    refresh: Option<bool>,
+) -> Result<Vec<UiTrack>, String> {
+    let client = client(&base_url, token)?;
+    let tracks = client
+        .daily_songs(&source, refresh.unwrap_or(false))
+        .map_err(|error| error.to_string())?;
+    Ok(map_tracks(&client, tracks))
+}
+
+pub fn online_personal_fm(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+    mode: Option<String>,
+    submode: Option<String>,
+    limit: Option<u32>,
+) -> Result<Vec<UiTrack>, String> {
+    let client = client(&base_url, token)?;
+    let tracks = client
+        .personal_fm(
+            &source,
+            mode.as_deref().filter(|value| !value.is_empty()),
+            submode.as_deref().filter(|value| !value.is_empty()),
+            limit.unwrap_or(10),
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(map_tracks(&client, tracks))
+}
+
+pub fn online_similar_songs(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+    track_id: String,
+    limit: Option<u32>,
+) -> Result<Vec<UiTrack>, String> {
+    let client = client(&base_url, token)?;
+    let tracks = client
+        .similar_songs(&source, &track_id, limit.unwrap_or(30))
+        .map_err(|error| error.to_string())?;
+    Ok(map_tracks(&client, tracks))
+}
+
+pub fn online_intelligence(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+    track_id: String,
+    playlist_id: Option<String>,
+    count: Option<u32>,
+) -> Result<Vec<UiTrack>, String> {
+    let client = client(&base_url, token)?;
+    let tracks = client
+        .intelligence(
+            &source,
+            &track_id,
+            playlist_id.as_deref().filter(|value| !value.is_empty()),
+            count.unwrap_or(10),
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(map_tracks(&client, tracks))
+}
+
+pub fn online_home_feed(
+    base_url: String,
+    token: Option<String>,
+    source: String,
+    refresh: Option<bool>,
+    cursor: Option<String>,
+) -> Result<UiOnlineHomeFeed, String> {
+    let client = client(&base_url, token)?;
+    let feed = client
+        .home_feed(&source, refresh.unwrap_or(false), cursor.as_deref())
+        .map_err(|error| error.to_string())?;
+    Ok(map_home_feed(feed))
 }
 
 pub fn online_search_songs(
@@ -155,10 +283,17 @@ pub fn online_playlist_tracks(
     token: Option<String>,
     source: String,
     playlist_id: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
 ) -> Result<Vec<UiTrack>, String> {
     let client = client(&base_url, token)?;
     let tracks = client
-        .playlist_tracks(&source, &playlist_id)
+        .playlist_tracks_page(
+            &source,
+            &playlist_id,
+            limit.unwrap_or(50),
+            offset.unwrap_or(0),
+        )
         .map_err(|error| error.to_string())?;
     Ok(tracks
         .into_iter()
@@ -171,10 +306,17 @@ pub fn online_album_tracks(
     token: Option<String>,
     source: String,
     album_id: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
 ) -> Result<Vec<UiTrack>, String> {
     let client = client(&base_url, token)?;
     let tracks = client
-        .album_tracks(&source, &album_id)
+        .album_tracks_page(
+            &source,
+            &album_id,
+            limit.unwrap_or(50),
+            offset.unwrap_or(0),
+        )
         .map_err(|error| error.to_string())?;
     Ok(tracks
         .into_iter()
@@ -340,6 +482,13 @@ pub fn online_qr_check(
     Ok(map_qr_result(result))
 }
 
+fn map_tracks(client: &OnlineClient, tracks: Vec<OnlineTrack>) -> Vec<UiTrack> {
+    tracks
+        .into_iter()
+        .map(|track| map_track(client, track))
+        .collect()
+}
+
 fn map_track(client: &OnlineClient, track: OnlineTrack) -> UiTrack {
     let seconds = track.duration_seconds;
     let duration = format!("{}:{:02}", seconds / 60, seconds % 60);
@@ -368,6 +517,42 @@ fn map_track(client: &OnlineClient, track: OnlineTrack) -> UiTrack {
         channels: None,
         modified_ms: None,
         file_size: track.file_size,
+    }
+}
+
+fn map_home_feed(feed: OnlineHomeFeed) -> UiOnlineHomeFeed {
+    UiOnlineHomeFeed {
+        cursor: feed.cursor,
+        blocks: feed.blocks.into_iter().map(map_home_block).collect(),
+    }
+}
+
+fn map_home_block(block: OnlineHomeBlock) -> UiOnlineHomeBlock {
+    UiOnlineHomeBlock {
+        code: block.code,
+        show_type: block.show_type,
+        title: block.title,
+        action: block.action,
+        items: block.items.into_iter().map(map_home_item).collect(),
+    }
+}
+
+fn map_home_item(item: OnlineHomeItem) -> UiOnlineHomeItem {
+    UiOnlineHomeItem {
+        kind: item.kind,
+        id: item.id,
+        title: item.title,
+        subtitle: item.subtitle,
+        cover_url: item.cover_url,
+        section: item.section,
+        artists: item.artists,
+        album: item.album,
+        album_id: item.album_id,
+        duration_seconds: item.duration_seconds,
+        play_count: item.play_count,
+        track_count: item.track_count,
+        action: item.action,
+        source: item.source,
     }
 }
 

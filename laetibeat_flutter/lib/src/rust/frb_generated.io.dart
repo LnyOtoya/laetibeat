@@ -139,6 +139,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<UiOnlineAlbum> dco_decode_list_ui_online_album(dynamic raw);
 
   @protected
+  List<UiOnlineHomeBlock> dco_decode_list_ui_online_home_block(dynamic raw);
+
+  @protected
+  List<UiOnlineHomeItem> dco_decode_list_ui_online_home_item(dynamic raw);
+
+  @protected
   List<UiOnlinePlatformStatus> dco_decode_list_ui_online_platform_status(
     dynamic raw,
   );
@@ -281,6 +287,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiOnlineAlbum dco_decode_ui_online_album(dynamic raw);
+
+  @protected
+  UiOnlineHomeBlock dco_decode_ui_online_home_block(dynamic raw);
+
+  @protected
+  UiOnlineHomeFeed dco_decode_ui_online_home_feed(dynamic raw);
+
+  @protected
+  UiOnlineHomeItem dco_decode_ui_online_home_item(dynamic raw);
 
   @protected
   UiOnlineLyric dco_decode_ui_online_lyric(dynamic raw);
@@ -498,6 +513,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UiOnlineHomeBlock> sse_decode_list_ui_online_home_block(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<UiOnlineHomeItem> sse_decode_list_ui_online_home_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<UiOnlinePlatformStatus> sse_decode_list_ui_online_platform_status(
     SseDeserializer deserializer,
   );
@@ -676,6 +701,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UiOnlineAlbum sse_decode_ui_online_album(SseDeserializer deserializer);
+
+  @protected
+  UiOnlineHomeBlock sse_decode_ui_online_home_block(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  UiOnlineHomeFeed sse_decode_ui_online_home_feed(SseDeserializer deserializer);
+
+  @protected
+  UiOnlineHomeItem sse_decode_ui_online_home_item(SseDeserializer deserializer);
 
   @protected
   UiOnlineLyric sse_decode_ui_online_lyric(SseDeserializer deserializer);
@@ -947,6 +983,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_ui_online_home_block(
+    List<UiOnlineHomeBlock> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_ui_online_home_item(
+    List<UiOnlineHomeItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_ui_online_platform_status(
     List<UiOnlinePlatformStatus> self,
     SseSerializer serializer,
@@ -1176,6 +1224,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_ui_online_album(UiOnlineAlbum self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ui_online_home_block(
+    UiOnlineHomeBlock self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_online_home_feed(
+    UiOnlineHomeFeed self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ui_online_home_item(
+    UiOnlineHomeItem self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_ui_online_lyric(UiOnlineLyric self, SseSerializer serializer);

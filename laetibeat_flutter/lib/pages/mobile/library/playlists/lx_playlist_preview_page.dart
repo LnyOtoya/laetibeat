@@ -216,7 +216,9 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
                           detail.info.name,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.typeScale.titleLarge,
+                          style: theme.typeScale.titleLarge.copyWith(
+                            color: theme.colorScheme.primary,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Row(
@@ -229,7 +231,7 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
                             Text(
                               l10n.librarySongsCount(detail.info.total.toInt()),
                               style: theme.typeScale.bodyMedium.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+                                color: theme.colorScheme.onSurface,
                               ),
                             ),
                           ],
@@ -241,7 +243,7 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.typeScale.bodySmall.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
+                              color: theme.colorScheme.onSurface,
                             ),
                           ),
                         ],
@@ -257,7 +259,7 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                   style: theme.typeScale.bodyMedium.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -303,31 +305,34 @@ class _LxPlaylistPreviewPageState extends ConsumerState<LxPlaylistPreviewPage> {
                 ],
               ),
               const SizedBox(height: 20),
-              M3EList.scrollable(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                color: theme.colorScheme.surface,
-                variant: M3ECardVariant.filled,
-                itemCount: playable.length,
-                onTap: (int index) => ref
-                    .read(playerProvider.notifier)
-                    .load(
-                      playable,
-                      index,
-                      source: '洛雪 · $platformLabel · ${detail.info.name}',
-                    ),
-                itemBuilder: (BuildContext context, int index) {
-                  final track = playable[index];
-                  return M3EListItem(
-                    leading: _LxTrackCover(track: track),
-                    headline: track.title,
-                    supportingText: [
-                      track.artist,
-                      track.album,
-                    ].where((value) => value.isNotEmpty).join(' · '),
-                    trailingText: track.duration,
-                  );
-                },
+              M3ETheme(
+                data: AppTheme.withDetailTextEmphasis(theme),
+                child: M3EList.scrollable(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  color: theme.colorScheme.surface,
+                  variant: M3ECardVariant.filled,
+                  itemCount: playable.length,
+                  onTap: (int index) => ref
+                      .read(playerProvider.notifier)
+                      .load(
+                        playable,
+                        index,
+                        source: '洛雪 · $platformLabel · ${detail.info.name}',
+                      ),
+                  itemBuilder: (BuildContext context, int index) {
+                    final track = playable[index];
+                    return M3EListItem(
+                      leading: _LxTrackCover(track: track),
+                      headline: track.title,
+                      supportingText: [
+                        track.artist,
+                        track.album,
+                      ].where((value) => value.isNotEmpty).join(' · '),
+                      trailingText: track.duration,
+                    );
+                  },
+                ),
               ),
             ],
           );

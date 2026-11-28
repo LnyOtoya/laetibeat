@@ -1,13 +1,14 @@
+import 'package:m3e_core/m3e_core.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../tokens/app_motion_tokens.dart';
 import '../../tokens/app_size_tokens.dart';
 
-/// Floating shell chrome: mini player above the navigation bar.
+/// Floating shell chrome: mini player above the navigation bar or safe area.
 ///
 /// The overlay paints above the page and never participates in the page
-/// layout. The navigation bar stays on top; the mini player slides down behind
-/// the navigation bar and is clipped at the overlay's bottom edge.
+/// layout. When present, the navigation bar stays on top; the mini player
+/// slides down behind it and is clipped at the overlay's bottom edge.
 class AppBottomOverlay extends StatefulWidget {
   const AppBottomOverlay({
     super.key,
@@ -16,6 +17,7 @@ class AppBottomOverlay extends StatefulWidget {
     required this.miniPlayer,
     required this.miniVisible,
     this.miniPlayerHeight = AppComponentSize.miniPlayerAccessory,
+    this.navBarScrollState,
   });
 
   final Widget navigationBar;
@@ -29,6 +31,7 @@ class AppBottomOverlay extends StatefulWidget {
   /// Height reserved for the mini player, including its outer vertical
   /// padding above and below the rounded player surface.
   final double miniPlayerHeight;
+  final M3EFloatingToolbarState? navBarScrollState;
 
   @override
   State<AppBottomOverlay> createState() => _AppBottomOverlayState();
@@ -84,21 +87,46 @@ class _AppBottomOverlayState extends State<AppBottomOverlay>
       height: totalHeight,
       child: Stack(
         children: <Widget>[
+          // Keep the hit-test bounds across the full travel into the nav bar.
           Positioned(
             left: 0,
             right: 0,
-            bottom: widget.navigationBarHeight,
-            height: widget.miniPlayerHeight,
+            bottom: 0,
+            height: totalHeight,
             child: IgnorePointer(
               ignoring: !widget.miniVisible,
               child: ExcludeSemantics(
                 excluding: !widget.miniVisible,
-                child: ClipRect(
-                  child: FadeTransition(
-                    opacity: _fade,
-                    child: SlideTransition(
-                      position: _slide,
-                      child: widget.miniPlayer,
+                child: AnimatedBuilder(
+                  animation:
+                      widget.navBarScrollState ??
+                      const AlwaysStoppedAnimation<double>(0),
+                  builder: (BuildContext context, Widget? child) {
+                    final state = widget.navBarScrollState;
+                    final double shift = state == null
+                        ? 0
+                        : (-state.offset)
+                              .clamp(0.0, widget.navigationBarHeight)
+                              .toDouble();
+                    return Align(
+                      alignment: Alignment.topCenter,
+                      child: Transform.translate(
+                        offset: Offset(0, shift),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: widget.miniPlayerHeight,
+                    child: ClipRect(
+                      child: FadeTransition(
+                        opacity: _fade,
+                        child: SlideTransition(
+                          position: _slide,
+                          child: widget.miniPlayer,
+                        ),
+                      ),
                     ),
                   ),
                 ),

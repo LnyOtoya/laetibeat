@@ -207,7 +207,9 @@ class _AutoCollapseSubpageAppBarState
 }
 
 class _SubpageBackButton extends StatelessWidget {
-  const _SubpageBackButton({required this.onPressed});
+  const _SubpageBackButton({
+    required this.onPressed,
+  });
 
   final VoidCallback onPressed;
 

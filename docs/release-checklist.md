@@ -58,7 +58,7 @@ scripts/release_preflight.sh v1.0.2 --build
 ## 3. 真机冒烟
 
 - [ ] 安装 `app-arm64-v8a-release.apk`
-- [ ] 首次启动后「发现」能自动加载内置 host 内容
+- [ ] 首次启动后「首页」能自动加载内置 host 内容
 - [ ] 网易云 / QQ 搜索
 - [ ] 播放一首歌；按 Home 后继续播放
 - [ ] 设置 → 在线音乐：内置服务运行中；可切换远程模式

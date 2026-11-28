@@ -42,7 +42,9 @@ lib/
 原则：
 
 - **数据层/Provider 共享**：音乐库、播放、搜索、在线 host、设置等保持唯一实现。
-- **皮肤实现独立**：每个皮肤拥有自己的根 `MaterialApp`/`CupertinoApp`、导航壳、页面和视觉组件。
+- **视觉实现独立**：每个皮肤可以拥有自己的根 App、导航呈现、页面和视觉组件。
+- **导航语义共享**：移动端目的地、页面路由栈、路由参数和返回行为由应用级导航层定义；皮肤不得另建 Navigator 栈。
+- **模式与皮肤正交**：`AppMode` 决定数据源与可用目的地；`AppSkin` 决定这些目的地如何呈现。
 - **不共享跨皮肤页面**：Spotify 不复用 `MobileShell` / `M3E*` 页面。
 - **谨慎抽通用组件**：只抽视觉无关的 controller、格式化、业务状态；按钮、卡片、导航不强行共用。
 
@@ -90,7 +92,7 @@ ui.skin = expressive
 
 未完成：
 
-- 跨皮肤 typed route / navigation contract
+- 跨皮肤 typed route / navigation contract 的类型化与深链扩展
 - Home / Search / Player 的 headless controller
 - 皮肤切换设置入口（等第二个皮肤时加）
 - Spotify / Apple Music 皮肤
@@ -99,9 +101,10 @@ ui.skin = expressive
 
 ### Phase 2：导航契约
 
-- 把 `AppDestination` 扩展为带参数的 `AppRoute`
-- 每个皮肤实现自己的 `SkinNavigator`
-- 页面不再依赖全局 `mobileNavigatorKey` / `MaterialPageRoute`
+- 已确立共享移动端 root 路由栈：Shell 目的地是状态，详情 / 设置 / 搜索 / 播放器是页面路由。
+- 后续把路由名与参数逐步收敛为带类型的 `AppRoute`，并按需支持深链和状态恢复。
+- 每个皮肤实现自己的导航视觉，但消费同一目的地状态和路由栈；不得再创建独立的 `SkinNavigator`。
+- 页面导航通过共享路由入口执行，不依赖某个皮肤私有的 Navigator key。
 
 ### Phase 3：核心 controller
 

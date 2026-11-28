@@ -173,7 +173,9 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
         albumsAsync.value?.length ?? widget.artist.albumCount?.toInt();
 
     return M3ETheme(
-      data: baseTheme.withColorScheme(scheme),
+      data: AppTheme.withDetailTextEmphasis(
+        baseTheme.withColorScheme(scheme),
+      ),
       child: Scaffold(
         backgroundColor: contentColor,
         extendBodyBehindAppBar: true,
@@ -592,7 +594,14 @@ class _SectionHeader extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          Expanded(child: Text(title, style: theme.typeScale.titleLarge)),
+          Expanded(
+            child: Text(
+              title,
+              style: theme.typeScale.titleLarge.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ),
           if (trailing != null)
             Text(
               trailing!,

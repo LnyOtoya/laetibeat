@@ -13,6 +13,7 @@ import '../text/app_text_role.dart';
 /// 只提供三种语义变体：
 /// - [tab]：一级 tab 页。与首页一致的大标题，可随滚动折叠，无返回键。
 /// - [subpage]：二级列表页。返回键 + 页面名 + 排序/搜索/布局三个动作。
+/// - [settings]：设置页。返回键 + 页面名，不显示右侧动作。
 /// - [detail]：详情页。返回键 + 页面名 + 三点菜单，两个按钮都用 tonal 圆形背景。
 ///
 /// 页面不再直接构造 `M3EAppBar`，避免返回键尺寸、标题位置、动作间距各写一套。
@@ -50,6 +51,7 @@ abstract final class AppPageBar {
     bool isGrid = true,
     VoidCallback? onToggleLayout,
     Color? backgroundColor,
+    List<Widget>? actions,
   }) {
     return _AppSubpageBar(
       title: title,
@@ -59,6 +61,21 @@ abstract final class AppPageBar {
       isGrid: isGrid,
       onToggleLayout: onToggleLayout,
       backgroundColor: backgroundColor,
+      actions: actions,
+    );
+  }
+
+  /// 设置页顶部栏，沿用二级页的尺寸、返回键和标题间距，但不显示动作。
+  static PreferredSizeWidget settings({
+    required String title,
+    Color? backgroundColor,
+  }) {
+    return _AppSubpageBar(
+      title: title,
+      onSearch: null,
+      showLayout: false,
+      backgroundColor: backgroundColor,
+      actions: const <Widget>[],
     );
   }
 
@@ -91,8 +108,8 @@ class _AppTabPageBar extends StatefulWidget implements PreferredSizeWidget {
 
   // 尺寸只取决于 variant / density，与文案和动作无关，测量一次即可。
   static final Size _preferredSize = M3EAppBar.top(
-    variant: M3EAppBarVariant.largeFlexible,
-    density: M3EAppBarDensity.regular,
+    variant: M3EAppBarVariant.small,
+    density: M3EAppBarDensity.compact,
     shapeFamily: M3EAppBarShapeFamily.square,
     safeArea: true,
     titleText: '',
@@ -118,48 +135,17 @@ class _AppTabPageBarState extends State<_AppTabPageBar> {
   Widget build(BuildContext context) {
     final scheme = M3ETheme.of(context).colorScheme;
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (BuildContext context, Widget? _) {
-        final bool collapsed = _controller.isCollapsed;
-
-        return M3EAppBar.top(
-          backgroundColor: widget.backgroundColor ?? scheme.surface,
-          controller: _controller,
-          variant: M3EAppBarVariant.largeFlexible,
-          density: M3EAppBarDensity.regular,
-          shapeFamily: M3EAppBarShapeFamily.square,
-          safeArea: true,
-          hideOnScroll: false,
-          hideMode: M3EAppBarHideMode.none,
-          actions: widget.actionsBuilder?.call(collapsed) ?? const <Widget>[],
-          title: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 260),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            layoutBuilder:
-                (Widget? currentChild, List<Widget> previousChildren) {
-                  return Stack(
-                    alignment: Alignment.centerLeft,
-                    children: <Widget>[...previousChildren, ?currentChild],
-                  );
-                },
-            transitionBuilder: (Widget child, Animation<double> animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.08),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
-                ),
-              );
-            },
-            child: _buildTitle(context, collapsed),
-          ),
-        );
-      },
+    return M3EAppBar.top(
+      backgroundColor: widget.backgroundColor ?? scheme.surface,
+      controller: _controller,
+      variant: M3EAppBarVariant.small,
+      density: M3EAppBarDensity.compact,
+      shapeFamily: M3EAppBarShapeFamily.square,
+      safeArea: true,
+      hideOnScroll: true,
+      hideMode: M3EAppBarHideMode.entire,
+      actions: widget.actionsBuilder?.call(true) ?? const <Widget>[],
+      title: _buildTitle(context, true),
     );
   }
 
@@ -210,14 +196,16 @@ class _AppSubpageBar extends StatelessWidget implements PreferredSizeWidget {
     this.isGrid = true,
     this.onToggleLayout,
     this.backgroundColor,
+    this.actions,
   });
 
   final String title;
-  final VoidCallback onSearch;
+  final VoidCallback? onSearch;
   final VoidCallback? onSort;
   final bool showLayout;
   final bool isGrid;
   final VoidCallback? onToggleLayout;
+  final List<Widget>? actions;
   final Color? backgroundColor;
 
   static final Size _preferredSize = M3EAppBar.top(
@@ -251,31 +239,33 @@ class _AppSubpageBar extends StatelessWidget implements PreferredSizeWidget {
         onPressed: () => Navigator.of(context).maybePop(),
       ),
       title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      actions: <Widget>[
-        M3EIconButton(
-          variant: M3EIconButtonVariant.standard,
-          size: M3EIconButtonSize.sm,
-          icon: const Icon(M3EIcons.sort),
-          tooltip: l10n.sortLabel,
-          onPressed: onSort,
-        ),
-        M3EIconButton(
-          variant: M3EIconButtonVariant.standard,
-          size: M3EIconButtonSize.sm,
-          icon: const Icon(M3EIcons.search),
-          tooltip: l10n.searchHint,
-          onPressed: onSearch,
-        ),
-        if (showLayout)
-          M3EIconButton(
-            variant: M3EIconButtonVariant.tonal,
-            size: M3EIconButtonSize.sm,
-            // 图标表示“切换后的目标布局”，与原来的控制条保持一致。
-            icon: Icon(isGrid ? M3EIcons.view_list : M3EIcons.grid_view),
-            tooltip: isGrid ? l10n.switchToList : l10n.switchToGrid,
-            onPressed: onToggleLayout,
-          ),
-      ],
+      actions:
+          actions ??
+          <Widget>[
+            M3EIconButton(
+              variant: M3EIconButtonVariant.standard,
+              size: M3EIconButtonSize.sm,
+              icon: const Icon(M3EIcons.sort),
+              tooltip: l10n.sortLabel,
+              onPressed: onSort,
+            ),
+            M3EIconButton(
+              variant: M3EIconButtonVariant.standard,
+              size: M3EIconButtonSize.sm,
+              icon: const Icon(M3EIcons.search),
+              tooltip: l10n.searchHint,
+              onPressed: onSearch,
+            ),
+            if (showLayout)
+              M3EIconButton(
+                variant: M3EIconButtonVariant.tonal,
+                size: M3EIconButtonSize.sm,
+                // 图标表示“切换后的目标布局”，与原来的控制条保持一致。
+                icon: Icon(isGrid ? M3EIcons.view_list : M3EIcons.grid_view),
+                tooltip: isGrid ? l10n.switchToList : l10n.switchToGrid,
+                onPressed: onToggleLayout,
+              ),
+          ],
     );
   }
 }

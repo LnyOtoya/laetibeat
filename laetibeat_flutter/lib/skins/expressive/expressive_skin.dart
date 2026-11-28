@@ -46,13 +46,13 @@ class ExpressiveSkin implements AppSkin {
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: AppColorTokens.brandSeed,
-        fontFamily: 'Google Sans Flex',
+        fontFamily: AppTypography.fontFamily,
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: AppColorTokens.brandSeed,
         brightness: Brightness.dark,
-        fontFamily: 'Google Sans Flex',
+        fontFamily: AppTypography.fontFamily,
       ),
       themeMode: switch (themeMode) {
         AppThemeMode.light => ThemeMode.light,
@@ -62,8 +62,17 @@ class ExpressiveSkin implements AppSkin {
       navigatorKey: formFactor == AppFormFactor.mobile
           ? mobileRootNavigatorKey
           : null,
+      navigatorObservers: formFactor == AppFormFactor.mobile
+          ? <NavigatorObserver>[mobileNavigatorObserver]
+          : const <NavigatorObserver>[],
+      onGenerateRoute: formFactor == AppFormFactor.mobile
+          ? mobileOnGenerateRoute
+          : null,
       builder: (BuildContext context, Widget? child) {
         final content = child ?? const SizedBox.shrink();
+        final appContent = formFactor == AppFormFactor.mobile
+            ? MobileShell(child: content)
+            : content;
 
         // Resolve the Material You palette once and project it onto both the
         // expressive theme and material_ui's Theme for the whole navigator.
@@ -71,7 +80,7 @@ class ExpressiveSkin implements AppSkin {
           density: formFactor == AppFormFactor.desktop
               ? AppThemeDensity.regular
               : AppThemeDensity.compact,
-          child: PlayerErrorListener(child: content),
+          child: PlayerErrorListener(child: appContent),
         );
       },
       home: switch (formFactor) {

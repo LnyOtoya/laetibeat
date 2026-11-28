@@ -9,9 +9,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../design/design.dart';
+
 import '../../../../widgets/settings/online_provider.dart';
 import '../../../../widgets/settings/online_settings.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
 
 /// 通用扫码登录页，支持 netease / qq / qq_wx。
 class MobileOnlineLoginPage extends ConsumerStatefulWidget {
@@ -118,6 +118,7 @@ class _MobileOnlineLoginPageState extends ConsumerState<MobileOnlineLoginPage> {
           });
           ref.invalidate(onlinePlatformStatusesProvider);
           ref.invalidate(onlineUserPlaylistsProvider);
+          ref.invalidate(onlineUserProfileProvider);
           if (mounted) {
             M3ESnackbar.show(context, message: '登录成功');
           }
@@ -149,7 +150,10 @@ class _MobileOnlineLoginPageState extends ConsumerState<MobileOnlineLoginPage> {
 
     return Scaffold(
       backgroundColor: scheme.surface,
-      appBar: mobileLargeSubpageAppBar(context, title: _title),
+      appBar: AppPageBar.settings(
+        title: _title,
+        backgroundColor: scheme.surface,
+      ),
       body: SafeArea(
         top: false,
         child: Center(

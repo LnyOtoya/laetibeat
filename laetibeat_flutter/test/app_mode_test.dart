@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:laetibeat/app/app_destination.dart';
 import 'package:laetibeat/app/app_mode.dart';
 import 'package:laetibeat/widgets/settings/mode_host.dart';
 import 'package:laetibeat/widgets/settings/online_settings.dart';
@@ -23,6 +24,21 @@ void main() {
     expect(AppMode.netease.hostId, 'netease');
     expect(AppMode.local.usesOnlineHost, isFalse);
     expect(AppMode.subsonic.usesOnlineHost, isFalse);
+    expect(AppMode.local.mobileDestinations, <AppDestination>[
+      AppDestination.library,
+    ]);
+    expect(AppMode.subsonic.mobileDestinations, <AppDestination>[
+      AppDestination.home,
+      AppDestination.library,
+    ]);
+    expect(AppMode.qq.mobileDestinations, <AppDestination>[
+      AppDestination.home,
+      AppDestination.library,
+    ]);
+    expect(AppMode.netease.mobileDestinations, AppMode.qq.mobileDestinations);
+    expect(AppMode.local.mobileInitialDestination, AppDestination.library);
+    expect(AppMode.subsonic.mobileInitialDestination, AppDestination.home);
+    expect(AppMode.qq.mobileInitialDestination, AppDestination.home);
 
     await container.read(appModeProvider.notifier).setMode(AppMode.netease);
     expect(container.read(appModeProvider), AppMode.netease);

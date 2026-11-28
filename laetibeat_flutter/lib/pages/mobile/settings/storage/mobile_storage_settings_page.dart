@@ -12,8 +12,8 @@ import 'package:laetibeat/widgets/settings/subsonic_provider.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../design/components/navigation/app_page_bar.dart';
 import '../../../../l10n/generated/app_localizations.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
 
 class MobileStorageSettingsPage extends ConsumerWidget {
   const MobileStorageSettingsPage({super.key});
@@ -26,9 +26,9 @@ class MobileStorageSettingsPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(
-        context,
+      appBar: AppPageBar.settings(
         title: l10n.cacheManagement,
+        backgroundColor: theme.colorScheme.surface,
       ),
       body: SafeArea(
         top: false,

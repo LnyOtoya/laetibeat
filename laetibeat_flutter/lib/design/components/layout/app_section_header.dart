@@ -16,6 +16,7 @@ class AppSectionHeader extends StatelessWidget {
     this.leading,
     this.trailing,
     this.titleRole = AppTextRole.titleLarge,
+    this.titleColorRole = AppColorRole.onSurface,
     this.padding = const EdgeInsets.symmetric(vertical: AppSpacing.sm),
   });
 
@@ -26,6 +27,7 @@ class AppSectionHeader extends StatelessWidget {
 
   /// 标题字号；默认 `titleLarge`，紧凑页面可传 `titleMedium`。
   final AppTextRole titleRole;
+  final AppColorRole titleColorRole;
   final EdgeInsetsGeometry padding;
 
   @override
@@ -37,7 +39,7 @@ class AppSectionHeader extends StatelessWidget {
         AppText(
           title,
           role: titleRole,
-          colorRole: AppColorRole.onSurface,
+          colorRole: titleColorRole,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),

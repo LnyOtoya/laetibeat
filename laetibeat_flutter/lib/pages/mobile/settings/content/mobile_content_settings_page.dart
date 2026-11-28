@@ -1,15 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:laetibeat/widgets/settings/song_sort_settings.dart';
+import 'package:laetibeat/widgets/settings/song_source_settings.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../design/components/navigation/app_page_bar.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../widgets/settings/download_settings.dart';
 import '../../../../widgets/settings/lyrics_settings.dart';
 import '../../../../widgets/settings/music_library_provider.dart';
-import '../../mobile_navigation.dart';
-import '../../routes.dart';
-import '../../widgets/mobile_large_subpage_app_bar.dart';
-import '../sources/mobile_music_sources_page.dart';
+import '../mobile_settings_section.dart';
 
 /// 内容设置子页面。
 class MobileContentSettingsPage extends ConsumerWidget {
@@ -21,20 +21,22 @@ class MobileContentSettingsPage extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final library = ref.watch(musicLibraryProvider).value;
     final download = ref.watch(downloadLocationProvider);
+    final songSource = ref.watch(defaultSongSourceProvider);
+    final songSort = ref.watch(defaultSongSortProvider);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: mobileLargeSubpageAppBar(context, title: l10n.settingsContent),
+      appBar: AppPageBar.settings(
+        title: l10n.settingsContent,
+        backgroundColor: theme.colorScheme.surface,
+      ),
       body: SafeArea(
         top: false,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
-            _ContentGroupTitle(l10n.lyricsGroup),
-            const SizedBox(height: 8),
-            M3EList(
-              color: theme.colorScheme.surface,
-              variant: M3ECardVariant.filled,
+            MobileSettingsSection(
+              title: l10n.lyricsGroup,
               onTap: (int index) {
                 switch (index) {
                   case 0:
@@ -43,53 +45,67 @@ class MobileContentSettingsPage extends ConsumerWidget {
                     _showLyricsPriority(context, ref);
                 }
               },
-              itemCount: 3,
-              itemBuilder: (BuildContext context, int index) {
-                return switch (index) {
-                  0 => M3EListItem(
-                    headline: l10n.lyricsSource,
-                    supportingText: l10n.lyricsSourceSupporting,
-                  ),
-                  1 => M3EListItem(
-                    headline: l10n.lyricsPriority,
-                    supportingText: l10n.lyricsPrioritySupporting,
-                  ),
-                  _ => M3EListItem(
-                    headline: l10n.lyricsReset,
-                    supportingText: l10n.lyricsResetSupporting,
-                  ),
-                };
-              },
+              children: [
+                MobileSettingsRow(
+                  title: l10n.lyricsSource,
+                  supportingText: l10n.lyricsSourceSupporting,
+                  leading: const Icon(M3EIcons.lyrics),
+                  trailing: const Icon(M3EIcons.chevron_right),
+                ),
+                MobileSettingsRow(
+                  title: l10n.lyricsPriority,
+                  supportingText: l10n.lyricsPrioritySupporting,
+                  leading: const Icon(M3EIcons.sort),
+                  trailing: const Icon(M3EIcons.chevron_right),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
-            _ContentGroupTitle(l10n.syncScanGroup),
-            const SizedBox(height: 8),
-            M3EList(
-              color: theme.colorScheme.surface,
-              variant: M3ECardVariant.filled,
+            MobileSettingsSection(
+              title: '列表与搜索',
               onTap: (int index) {
-                if (index == 0) _chooseLocalLibrary(ref);
+                switch (index) {
+                  case 0:
+                    _pickSongSource(context, ref);
+                  case 1:
+                    _pickSongSort(context, ref);
+                }
               },
-              itemCount: 1,
-              itemBuilder: (BuildContext context, int index) {
-                return M3EListItem(
-                  headline: l10n.chooseLocalLibrary,
+              children: [
+                MobileSettingsRow(
+                  title: l10n.songSource,
+                  supportingText: songSource,
+                  leading: const Icon(M3EIcons.library_music),
+                  trailing: const Icon(M3EIcons.chevron_right),
+                ),
+                MobileSettingsRow(
+                  title: l10n.songSort,
+                  supportingText: songSort,
+                  leading: const Icon(M3EIcons.sort),
+                  trailing: const Icon(M3EIcons.chevron_right),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            MobileSettingsSection(
+              title: l10n.syncScanGroup,
+              onTap: (_) => _chooseLocalLibrary(ref),
+              children: [
+                MobileSettingsRow(
+                  title: l10n.chooseLocalLibrary,
                   supportingText:
                       library?.directoryName ??
                       l10n.chooseLocalLibrarySupporting,
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              children: [
-                M3EButton(
-                  label: Text(l10n.chooseLibrary),
-                  onPressed: () => _chooseLocalLibrary(ref),
+                  leading: const Icon(M3EIcons.folder_open),
+                  trailing: const Icon(M3EIcons.chevron_right),
                 ),
-                M3EButton(
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 16, top: 12),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: M3EButton(
                   style: M3EButtonStyle.tonal,
                   enabled:
                       library?.directory != null && library?.isLoading != true,
@@ -101,7 +117,7 @@ class MobileContentSettingsPage extends ConsumerWidget {
                   onPressed: () =>
                       ref.read(musicLibraryProvider.notifier).rescan(),
                 ),
-              ],
+              ),
             ),
             if (library?.isLoading == true) ...[
               const SizedBox(height: 12),
@@ -125,47 +141,19 @@ class MobileContentSettingsPage extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 24),
-            _ContentGroupTitle('媒体来源'),
-            const SizedBox(height: 8),
-            M3EList(
-              color: theme.colorScheme.surface,
-              variant: M3ECardVariant.filled,
-              onTap: (int index) {
-                if (index == 0) {
-                  pushMobileRootPage(
-                    context,
-                    const MobileMusicSourcesPage(),
-                    name: MobileRoutes.musicSources,
-                  );
-                }
-              },
-              itemCount: 1,
-              itemBuilder: (BuildContext context, int index) {
-                return const M3EListItem(
-                  headline: '音源配置',
-                  supportingText: '管理本地、Subsonic、LX 等音乐来源',
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            _ContentGroupTitle(l10n.downloadDirectory),
-            const SizedBox(height: 8),
-            M3EList(
-              color: theme.colorScheme.surface,
-              variant: M3ECardVariant.filled,
-              onTap: (int index) {
-                if (index == 0) {
-                  ref.read(downloadLocationProvider.notifier).pickDirectory();
-                }
-              },
-              itemCount: 1,
-              itemBuilder: (BuildContext context, int index) {
-                return M3EListItem(
-                  headline: l10n.downloadDirectory,
+            MobileSettingsSection(
+              title: l10n.downloadDirectory,
+              onTap: (_) =>
+                  ref.read(downloadLocationProvider.notifier).pickDirectory(),
+              children: [
+                MobileSettingsRow(
+                  title: l10n.downloadDirectory,
                   supportingText:
                       download.displayName ?? l10n.downloadDirectorySupporting,
-                );
-              },
+                  leading: const Icon(M3EIcons.download),
+                  trailing: const Icon(M3EIcons.chevron_right),
+                ),
+              ],
             ),
             if (download.isSet &&
                 library?.directory != null &&
@@ -185,6 +173,32 @@ class MobileContentSettingsPage extends ConsumerWidget {
   Future<void> _chooseLocalLibrary(WidgetRef ref) async {
     // 只选择目录，不自动扫描；用户点击“扫描”后才开始。
     await ref.read(musicLibraryProvider.notifier).pickDirectory();
+  }
+
+  Future<void> _pickSongSource(BuildContext context, WidgetRef ref) async {
+    final current = ref.read(defaultSongSourceProvider);
+    final picked = await M3EDialog.showSelectionScreen(
+      context,
+      title: AppLocalizations.of(context).songSource,
+      options: SongSources.all,
+      initialSelection: <String>[current],
+      icon: const Icon(M3EIcons.library_music),
+    );
+    if (!context.mounted || picked == null || picked.isEmpty) return;
+    ref.read(defaultSongSourceProvider.notifier).setSource(picked.first);
+  }
+
+  Future<void> _pickSongSort(BuildContext context, WidgetRef ref) async {
+    final current = ref.read(defaultSongSortProvider);
+    final picked = await M3EDialog.showSelectionScreen(
+      context,
+      title: AppLocalizations.of(context).songSort,
+      options: SongSortModes.all,
+      initialSelection: <String>[current],
+      icon: const Icon(M3EIcons.sort),
+    );
+    if (!context.mounted || picked == null || picked.isEmpty) return;
+    ref.read(defaultSongSortProvider.notifier).setMode(picked.first);
   }
 
   Future<void> _showLyricsSources(BuildContext context, WidgetRef ref) async {
@@ -240,7 +254,6 @@ class MobileContentSettingsPage extends ConsumerWidget {
     );
   }
 }
-
 String _sourceLabel(
   AppLocalizations l10n,
   LyricsSourceId source, {
@@ -504,27 +517,6 @@ class _LibraryStatusCard extends StatelessWidget {
           headline: text,
         );
       },
-    );
-  }
-}
-
-class _ContentGroupTitle extends StatelessWidget {
-  const _ContentGroupTitle(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = M3ETheme.of(context);
-
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(start: 16),
-      child: Text(
-        text,
-        style: theme.typeScale.titleSmall.copyWith(
-          color: theme.colorScheme.onPrimaryContainer,
-        ),
-      ),
     );
   }
 }

@@ -12,6 +12,7 @@ import 'package:saf/saf.dart';
 
 import '../../core/services/saf_uri.dart';
 import '../cache/cover_cache.dart';
+import '../settings/online_settings.dart';
 import 'cover_color.dart';
 import 'lx_track.dart';
 import 'player_provider.dart';
@@ -333,6 +334,30 @@ final lxCoverSourceProvider = Provider<LxCoverProvider>((ref) {
   return LxCoverProvider();
 });
 
+Future<Uint8List?> _onlineCoverBytes(Ref ref, String url) async {
+  final baseUrl = ref.watch(onlineBaseUrlProvider);
+  final tokenFuture = ref.watch(onlineTokenProvider.future);
+  if (baseUrl.isEmpty) return null;
+  final token = await tokenFuture;
+  if (token == null || token.isEmpty) return null;
+  final client = HttpClient();
+  try {
+    final request = await client.getUrl(
+      Uri.parse(
+        '$baseUrl/api/v1/image',
+      ).replace(queryParameters: <String, String>{'url': url}),
+    );
+    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    final response = await request.close();
+    if (response.statusCode != HttpStatus.ok) return null;
+    return await consolidateHttpClientResponseBytes(response);
+  } catch (_) {
+    return null;
+  } finally {
+    client.close(force: true);
+  }
+}
+
 /// 当前播放曲目的封面信息(字节 + 主色)。随当前曲目切换而刷新。
 /// 只订阅 current,避免 position 每 tick 更新 state 时反复重跑。
 /// 无封面 / 取色失败时返回 null,UI 回退占位图标并保留应用默认配色。
@@ -350,6 +375,9 @@ final playbackCoverProvider = FutureProvider<PlaybackCover?>((ref) async {
     bytes = await ref
         .read(remoteCoverSourceProvider)
         .cover(track.sourceId, coverId);
+  } else if (coverId != null &&
+      (coverId.startsWith('http://') || coverId.startsWith('https://'))) {
+    bytes = await _onlineCoverBytes(ref, coverId);
   } else {
     bytes = await ref.read(coverProvider).cover(track);
   }
