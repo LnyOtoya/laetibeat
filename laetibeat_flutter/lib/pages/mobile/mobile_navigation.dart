@@ -1,5 +1,9 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../design/design.dart';
+import '../../widgets/player/cover_provider.dart';
 import 'routes.dart';
 
 /// 移动端 App Shell 的 Root Navigator。
@@ -36,6 +40,109 @@ void openMobileSearch(BuildContext context) {
   Navigator.of(context).pushNamed(MobileRoutes.search);
 }
 
+/// 一级页面折叠 AppBar 的取色：优先使用当前播放封面主色。
+Color mobileTabBarBackground(WidgetRef ref, M3EColorScheme scheme) {
+  final coverColor = ref.watch(playbackCoverProvider).value?.coverColor;
+  if (coverColor == null) return scheme.surfaceContainer;
+  return MaterialYouColorScheme.fromSeed(
+    coverColor,
+    brightness: scheme.brightness,
+  ).surfaceContainer;
+}
+
+/// 一级页面折叠 AppBar 的公共动作：最近 / 统计 / 一起听 / 设置。
+List<Widget> mobileTabBarActions(BuildContext context) {
+  return <Widget>[
+    M3EIconButton(
+      key: const ValueKey<String>('tab-recent'),
+      variant: M3EIconButtonVariant.standard,
+      icon: const Icon(M3EIcons.history),
+      tooltip: '最近播放',
+      onPressed: () => pushMobileRootPage(
+        context,
+        const MobileRecentPage(),
+        name: MobileRoutes.recent,
+      ),
+    ),
+    M3EIconButton(
+      key: const ValueKey<String>('tab-stats'),
+      variant: M3EIconButtonVariant.standard,
+      icon: const Icon(M3EIcons.bar_chart),
+      tooltip: '统计',
+      onPressed: () {
+        if (mobileCurrentRouteName.value == MobileRoutes.stats) return;
+        Navigator.of(context).pushNamed(MobileRoutes.stats);
+      },
+    ),
+    M3EIconButton(
+      key: const ValueKey<String>('tab-listen-together'),
+      variant: M3EIconButtonVariant.standard,
+      icon: const Icon(M3EIcons.group),
+      tooltip: '一起听',
+      onPressed: () => pushMobileRootPage(
+        context,
+        const MobileListenTogetherPage(),
+        name: MobileRoutes.listenTogether,
+      ),
+    ),
+    M3EIconButton(
+      key: const ValueKey<String>('tab-settings'),
+      variant: M3EIconButtonVariant.standard,
+      icon: const Icon(M3EIcons.settings),
+      tooltip: '设置',
+      onPressed: () => Navigator.of(context).pushNamed(MobileRoutes.settings),
+    ),
+  ];
+}
+
+class MobileRecentPage extends StatelessWidget {
+  const MobileRecentPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: scheme.surface,
+      appBar: AppPageBar.subpage(
+        title: '最近播放',
+        onSearch: () => openMobileSearch(context),
+        showLayout: false,
+        backgroundColor: scheme.surface,
+        actions: <Widget>[
+          M3EIconButton(
+            variant: M3EIconButtonVariant.standard,
+            size: M3EIconButtonSize.sm,
+            icon: const Icon(M3EIcons.search),
+            tooltip: '搜索',
+            onPressed: () => openMobileSearch(context),
+          ),
+        ],
+      ),
+      body: const Center(child: Text('最近播放 将在后续接入')),
+    );
+  }
+}
+
+class MobileListenTogetherPage extends StatelessWidget {
+  const MobileListenTogetherPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: scheme.surface,
+      appBar: AppPageBar.subpage(
+        title: '一起听',
+        onSearch: () => openMobileSearch(context),
+        showLayout: false,
+        backgroundColor: scheme.surface,
+        actions: const <Widget>[],
+      ),
+      body: const Center(child: Text('一起听 将在后续接入')),
+    );
+  }
+}
+
 /// 放在嵌套 Navigator 的 route 页面内容层，而不是 Navigator 外层。
 ///
 /// PopScope 必须位于对应 [ModalRoute] 的子树中：它会把自身注册到最近的
@@ -51,10 +158,7 @@ class MobileNestedRoutePopGate extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: mobileFullPlayerOpen,
       builder: (BuildContext context, bool fullPlayerOpen, Widget? child) {
-        return PopScope<Object?>(
-          canPop: !fullPlayerOpen,
-          child: child!,
-        );
+        return PopScope<Object?>(canPop: !fullPlayerOpen, child: child!);
       },
       child: child,
     );

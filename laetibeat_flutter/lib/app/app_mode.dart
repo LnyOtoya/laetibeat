@@ -30,20 +30,15 @@ enum AppMode {
 
   /// 当前模式在移动端显示的一级导航目的地。
   List<AppDestination> get mobileDestinations => switch (this) {
-    AppMode.local => const <AppDestination>[
-      AppDestination.library,
-      AppDestination.stats,
-    ],
+    AppMode.local => const <AppDestination>[AppDestination.library],
     AppMode.subsonic => const <AppDestination>[
       AppDestination.home,
       AppDestination.library,
-      AppDestination.stats,
     ],
     AppMode.qq || AppMode.netease => const <AppDestination>[
       AppDestination.home,
       AppDestination.discover,
       AppDestination.library,
-      AppDestination.stats,
     ],
   };
 

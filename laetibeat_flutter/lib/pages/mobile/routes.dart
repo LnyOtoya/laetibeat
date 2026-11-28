@@ -17,6 +17,8 @@ abstract final class MobileRoutes {
   static const String artistDetail = '/library/artists/detail';
   static const String artistHotSongs = '/library/artists/hot-songs';
   static const String stats = '/stats';
+  static const String recent = '/recent';
+  static const String listenTogether = '/listen-together';
   static const String settings = '/settings';
   static const String aboutSettings = '/settings/about';
   static const String appearanceSettings = '/settings/appearance';

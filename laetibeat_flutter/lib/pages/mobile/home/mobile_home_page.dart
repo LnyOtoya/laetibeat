@@ -4,7 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../app/app_mode.dart';
 import '../../../design/design.dart';
-import '../routes.dart';
+import '../mobile_navigation.dart';
 import 'mobile_home_content.dart';
 import 'online_home_content.dart';
 
@@ -29,19 +29,8 @@ class MobileHomePage extends ConsumerWidget {
         title: '首页',
         subtitle: online ? '来自 ${mode.label}' : '浏览音乐库近况',
         expandedTitle: online ? '为你推荐' : '最新发行',
-        backgroundColor: AppSurfaceLevel.base.resolve(scheme),
-        actionsBuilder: (bool collapsed) => collapsed
-            ? <Widget>[
-                M3EIconButton(
-                  key: const ValueKey<String>('home-settings'),
-                  variant: M3EIconButtonVariant.standard,
-                  icon: const Icon(M3EIcons.settings),
-                  tooltip: '设置',
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(MobileRoutes.settings),
-                ),
-              ]
-            : const <Widget>[],
+        backgroundColor: mobileTabBarBackground(ref, scheme),
+        actionsBuilder: (bool _) => mobileTabBarActions(context),
       ),
       body: SafeArea(
         top: false,

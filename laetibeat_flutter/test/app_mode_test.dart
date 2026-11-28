@@ -26,18 +26,15 @@ void main() {
     expect(AppMode.subsonic.usesOnlineHost, isFalse);
     expect(AppMode.local.mobileDestinations, <AppDestination>[
       AppDestination.library,
-      AppDestination.stats,
     ]);
     expect(AppMode.subsonic.mobileDestinations, <AppDestination>[
       AppDestination.home,
       AppDestination.library,
-      AppDestination.stats,
     ]);
     expect(AppMode.qq.mobileDestinations, <AppDestination>[
       AppDestination.home,
       AppDestination.discover,
       AppDestination.library,
-      AppDestination.stats,
     ]);
     expect(AppMode.netease.mobileDestinations, AppMode.qq.mobileDestinations);
     expect(AppMode.local.mobileInitialDestination, AppDestination.library);

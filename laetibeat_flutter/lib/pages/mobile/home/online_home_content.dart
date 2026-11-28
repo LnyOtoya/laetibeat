@@ -93,7 +93,7 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: EdgeInsets.only(
-                  top: AppSpacing.lg,
+                  top: AppSpacing.xl,
                   bottom: AppSpacing.xxl + bottomInset,
                 ),
                 children: <Widget>[
@@ -1048,7 +1048,7 @@ class _HomeSongColumns extends ConsumerWidget {
   }
 }
 
-class OnlineShortcutRow extends StatelessWidget {
+class OnlineShortcutRow extends ConsumerWidget {
   const OnlineShortcutRow({
     super.key,
     required this.dailyCover,
@@ -1079,13 +1079,8 @@ class OnlineShortcutRow extends StatelessWidget {
   final VoidCallback onSimilar;
 
   @override
-  Widget build(BuildContext context) {
-    final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
-    final cardWidth = (MediaQuery.sizeOf(context).width * 0.78).clamp(
-      240.0,
-      360.0,
-    );
-    final cardHeight = cardWidth * 9 / 16 + 76;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final baseTheme = M3ETheme.of(context);
     final entries = <_ShortcutEntry>[
       _ShortcutEntry(
         title: '今日推荐',
@@ -1130,16 +1125,71 @@ class OnlineShortcutRow extends StatelessWidget {
         onTap: onSimilar,
       ),
     ];
-    return SizedBox(
-      height: cardHeight,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: gutter),
-        itemCount: entries.length,
-        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
-        itemBuilder: (BuildContext context, int index) {
-          return _ShortcutCard(entry: entries[index], width: cardWidth);
-        },
+    final carouselTheme = baseTheme.carouselTheme.copyWith(
+      itemGap: AppSpacing.sm,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+      child: M3ETheme(
+        data: baseTheme.copyWith(carouselTheme: carouselTheme),
+        child: M3ECarousel(
+          type: M3ECarouselType.contained,
+          isExtended: false,
+          showAll: false,
+          axis: Axis.horizontal,
+          height: 220,
+          childElementBorderRadius: AppRadii.lg,
+          haptic: M3EHapticFeedback.light,
+          children: <M3ECarouselItem>[
+            ...entries.map((_ShortcutEntry entry) {
+              final coverColor = entry.coverUrl == null
+                  ? null
+                  : ref.watch(onlineCoverColorProvider(entry.coverUrl!)).value;
+              final bannerScheme = MaterialYouColorScheme.fromSeed(
+                coverColor ?? baseTheme.colorScheme.primary,
+                brightness: Brightness.dark,
+              );
+              final scrimColor = bannerScheme.surface.withValues(alpha: 0.82);
+              return M3ECarouselItem(
+                image: _ShortcutCover(entry: entry),
+                title: Text(
+                  entry.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: baseTheme.typeScale.titleMedium.copyWith(
+                    color: bannerScheme.onSurface,
+                  ),
+                ),
+                subtitle: Text(
+                  entry.subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: baseTheme.typeScale.bodySmall.copyWith(
+                    color: bannerScheme.onSurfaceVariant.withValues(alpha: 0.9),
+                  ),
+                ),
+                applyDynamicTextContentTransform: false,
+                showScrim: M3ECarouselScrim.gradient(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: <Color>[Colors.transparent, scrimColor],
+                  ),
+                ),
+                semanticLabel: '${entry.title}，${entry.subtitle}',
+                onTap: entry.onTap,
+              );
+            }),
+            // contained 的 trailing limit 会占用 3 个 slot。
+            // 补两个透明项，让最后一个真实歌单也能滚到最左侧。
+            for (var index = 0; index < 2; index++)
+              const M3ECarouselItem(
+                image: SizedBox.expand(),
+                applyDynamicTextContentTransform: false,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1159,63 +1209,6 @@ class _ShortcutEntry {
   final IconData icon;
   final VoidCallback onTap;
   final String? coverUrl;
-}
-
-class _ShortcutCard extends StatelessWidget {
-  const _ShortcutCard({required this.entry, required this.width});
-
-  final _ShortcutEntry entry;
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = M3ETheme.of(context);
-    final scheme = theme.colorScheme;
-    final coverHeight = width * 9 / 16;
-    return Semantics(
-      button: true,
-      label: '${entry.title}，${entry.subtitle}',
-      child: SizedBox(
-        width: width,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: entry.onTap,
-            borderRadius: AppRadii.lgAll,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  entry.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.typeScale.titleMedium,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  entry.subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.typeScale.bodyMedium.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                SizedBox(
-                  width: width,
-                  height: coverHeight,
-                  child: ClipRRect(
-                    borderRadius: AppRadii.lgAll,
-                    child: _ShortcutCover(entry: entry),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _ShortcutCover extends ConsumerWidget {

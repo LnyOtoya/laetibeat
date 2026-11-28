@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laetibeat/src/rust/api/online.dart' as rust_online;
@@ -10,7 +8,6 @@ import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../design/design.dart';
-import '../../../../widgets/player/cover_color.dart';
 import '../../../../widgets/player/player_provider.dart';
 import '../../../../widgets/settings/favorites_provider.dart';
 import '../../../../widgets/settings/online_provider.dart';
@@ -18,40 +15,6 @@ import '../../../../widgets/settings/online_settings.dart';
 import '../../mobile_navigation.dart';
 import '../../routes.dart';
 import 'online_widgets.dart';
-
-/// 在线封面主色缓存，详情页用它生成 Material You 配色。
-final _onlineCoverColorProvider = FutureProvider.family<Color?, String>((
-  ref,
-  url,
-) async {
-  final trimmed = url.trim();
-  if (trimmed.isEmpty) return null;
-  final baseUrl = ref.watch(onlineBaseUrlProvider);
-  if (baseUrl.isEmpty) return null;
-  final token = await ref.watch(onlineTokenProvider.future);
-  if (token == null || token.isEmpty) return null;
-  final client = HttpClient();
-  try {
-    final request = await client.getUrl(
-      Uri.parse(
-        '$baseUrl/api/v1/image',
-      ).replace(queryParameters: <String, String>{'url': trimmed}),
-    );
-    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-    final response = await request.close();
-    if (response.statusCode != HttpStatus.ok) return null;
-    final bytes = <int>[];
-    await for (final chunk in response) {
-      bytes.addAll(chunk);
-    }
-    if (bytes.isEmpty) return null;
-    return dominantCoverColor(Uint8List.fromList(bytes));
-  } catch (_) {
-    return null;
-  } finally {
-    client.close(force: true);
-  }
-});
 
 class OnlinePlaylistDetailPage extends ConsumerWidget {
   const OnlinePlaylistDetailPage({super.key, required this.playlist});
@@ -587,7 +550,7 @@ class _OnlineTracksScaffold extends ConsumerWidget {
     final baseTheme = M3ETheme.of(context);
     final coverColor = coverUrl == null
         ? null
-        : ref.watch(_onlineCoverColorProvider(coverUrl!)).value;
+        : ref.watch(onlineCoverColorProvider(coverUrl!)).value;
     final scheme = coverColor == null
         ? baseTheme.colorScheme
         : MaterialYouColorScheme.fromSeed(

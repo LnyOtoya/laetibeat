@@ -1,3 +1,4 @@
+import 'package:m3e_core/m3e_core.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../tokens/app_motion_tokens.dart';
@@ -16,6 +17,7 @@ class AppBottomOverlay extends StatefulWidget {
     required this.miniPlayer,
     required this.miniVisible,
     this.miniPlayerHeight = AppComponentSize.miniPlayerAccessory,
+    this.navBarScrollState,
   });
 
   final Widget navigationBar;
@@ -29,6 +31,7 @@ class AppBottomOverlay extends StatefulWidget {
   /// Height reserved for the mini player, including its outer vertical
   /// padding above and below the rounded player surface.
   final double miniPlayerHeight;
+  final M3EFloatingToolbarState? navBarScrollState;
 
   @override
   State<AppBottomOverlay> createState() => _AppBottomOverlayState();
@@ -93,12 +96,29 @@ class _AppBottomOverlayState extends State<AppBottomOverlay>
               ignoring: !widget.miniVisible,
               child: ExcludeSemantics(
                 excluding: !widget.miniVisible,
-                child: ClipRect(
-                  child: FadeTransition(
-                    opacity: _fade,
-                    child: SlideTransition(
-                      position: _slide,
-                      child: widget.miniPlayer,
+                child: AnimatedBuilder(
+                  animation:
+                      widget.navBarScrollState ??
+                      const AlwaysStoppedAnimation<double>(0),
+                  builder: (BuildContext context, Widget? child) {
+                    final state = widget.navBarScrollState;
+                    final double shift = state == null
+                        ? 0
+                        : (-state.offset)
+                              .clamp(0.0, widget.navigationBarHeight)
+                              .toDouble();
+                    return Transform.translate(
+                      offset: Offset(0, shift),
+                      child: child,
+                    );
+                  },
+                  child: ClipRect(
+                    child: FadeTransition(
+                      opacity: _fade,
+                      child: SlideTransition(
+                        position: _slide,
+                        child: widget.miniPlayer,
+                      ),
                     ),
                   ),
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:m3e_core/m3e_core.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -37,6 +38,17 @@ class MobileShell extends ConsumerStatefulWidget {
 }
 
 class _MobileShellState extends ConsumerState<MobileShell> {
+  final M3EFloatingToolbarScrollBehavior _navBarScrollBehavior =
+      M3EFloatingToolbarScrollBehavior.exitAlways(
+        exitDirection: M3EFloatingToolbarExitDirection.bottom,
+      );
+
+  @override
+  void dispose() {
+    _navBarScrollBehavior.state.dispose();
+    super.dispose();
+  }
+
   List<AppFloatingNavTab> _destinations(
     AppLocalizations l10n,
     List<AppDestination> tabs,
@@ -198,6 +210,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                 },
                 onSearchPressed: _openSearch,
                 searchLabel: l10n.searchHint,
+                scrollBehavior: _navBarScrollBehavior,
               )
             : null;
 
@@ -210,6 +223,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                 miniPlayer: const MiniPlayer(),
                 miniVisible: showMiniPlayer,
                 miniPlayerHeight: AppComponentSize.miniPlayerAccessory,
+                navBarScrollState: _navBarScrollBehavior.state,
               );
 
         // This is a metric for page-owned scroll/content padding. The Shell
@@ -221,7 +235,12 @@ class _MobileShellState extends ConsumerState<MobileShell> {
 
         final body = Stack(
           children: <Widget>[
-            Positioned.fill(child: widget.child),
+            Positioned.fill(
+              child: M3EFloatingToolbarScrollWrapper(
+                behavior: _navBarScrollBehavior,
+                child: widget.child,
+              ),
+            ),
             if (bottomBar != null)
               Positioned(left: 0, right: 0, bottom: 0, child: bottomBar),
           ],
@@ -289,6 +308,8 @@ Route<dynamic>? mobileOnGenerateRoute(RouteSettings settings) {
     MobileRoutes.libraryPodcasts => const MobileLibraryPage(),
     MobileRoutes.search => const MobileSearchPage(),
     MobileRoutes.stats => const MobileStatsPage(),
+    MobileRoutes.recent => const MobileRecentPage(),
+    MobileRoutes.listenTogether => const MobileListenTogetherPage(),
     MobileRoutes.settings => const MobileSettingsPage(),
     MobileRoutes.aboutSettings => const MobileAboutSettingsPage(),
     MobileRoutes.colorMapping => const MobileColorMappingPage(),

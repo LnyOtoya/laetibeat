@@ -49,8 +49,8 @@ class MobileDiscoverPage extends ConsumerWidget {
       appBar: AppPageBar.tab(
         title: l10n.navDiscover,
         subtitle: '${l10n.discoverSubtitle} · ${platform.label}',
-        backgroundColor: AppSurfaceLevel.base.resolve(scheme),
-        actionsBuilder: (bool collapsed) => const <Widget>[],
+        backgroundColor: mobileTabBarBackground(ref, scheme),
+        actionsBuilder: (bool _) => mobileTabBarActions(context),
       ),
       body: baseUrl.isEmpty
           ? _buildOnlinePlaceholder(

@@ -71,10 +71,10 @@ void main() {
     expect(find.byType(M3ENavigationBar), findsNothing);
     expect(find.text(MobileRoutes.home), findsOneWidget);
 
-    await tester.tap(find.byIcon(M3EIcons.bar_chart));
+    await tester.tap(find.byIcon(M3EIcons.explore));
     await tester.pumpAndSettle();
 
-    expect(find.text(MobileRoutes.stats), findsOneWidget);
+    expect(find.text(MobileRoutes.discover), findsOneWidget);
     expect(find.byType(AppFloatingNavBar), findsOneWidget);
   });
 }
