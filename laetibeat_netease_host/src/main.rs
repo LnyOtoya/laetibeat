@@ -13,10 +13,6 @@ use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::{Json, Router};
-use base64::engine::general_purpose::STANDARD as BASE64;
-use base64::Engine;
-use md5::{Digest, Md5};
-use ncm_api_rs::util::device::generate_device_id;
 use ncm_api_rs::{
     create_client, ApiClient, ApiResponse, CryptoType, NcmError, Query as NcmQuery, RequestOption,
 };
@@ -69,16 +65,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty());
     let logged_in = cookie.is_some();
-    let mut client = create_client(cookie);
-    if !logged_in {
-        // NetEase 的部分匿名接口需要游客 MUSIC_A token。ncm-api-rs 自带的
-        // register_anonimous 使用 weapi，当前服务端需要 eapi；这里用公开
-        // request 接口做一次等价的 guest 注册。
-        match register_guest(&mut client).await {
-            Some(_) => tracing::info!("registered NetEase guest token"),
-            None => tracing::warn!("guest login returned no cookie"),
-        }
-    }
+    let client = create_client(cookie);
 
     let token =
         env_first(&["LAETIBEAT_NETEASE_TOKEN", "LAETIBEAT_MUSICAPI_TOKEN"]).unwrap_or_default();
@@ -438,7 +425,6 @@ async fn logout(State(state): State<SharedState>, AxumPath(source): AxumPath<Str
     }
     let mut client = state.client.lock().await;
     *client = create_client(None);
-    let _ = register_guest(&mut client).await;
     state.logged_in.store(false, Ordering::Relaxed);
     Ok(Json(json!({ "code": 200, "msg": "ok", "data": null })))
 }
@@ -656,6 +642,8 @@ async fn home_feed(
         .param("refresh", if refresh { "true" } else { "false" })
         .param("cursor", &cursor);
     let client = state.client.lock().await;
+    // 首页 feed 只返回真实登录账号的个性化内容，不使用游客/匿名 feed。
+    require_login(&client).await?;
     let response = client
         .homepage_block_page(&query)
         .await
@@ -902,84 +890,245 @@ async fn album_detail(
     })))
 }
 
+struct FixedRadar {
+    id: &'static str,
+    base_name: &'static str,
+    /// 该雷达是否通常存在于账号歌单中，用于决定是否需要扫描用户歌单。
+    account_expected: bool,
+}
+
+/// 首页固定展示的四个雷达，顺序固定。
+/// 名称中的每日文案由上游接口按账号/日期生成，这里不写死。
+const FIXED_RADARS: &[FixedRadar] = &[
+    FixedRadar {
+        id: "3136952023",
+        base_name: "私人雷达",
+        account_expected: true,
+    },
+    FixedRadar {
+        id: "5320167908",
+        base_name: "时光雷达",
+        account_expected: true,
+    },
+    FixedRadar {
+        id: "5362359247",
+        base_name: "宝藏雷达",
+        account_expected: true,
+    },
+    FixedRadar {
+        id: "5300458264",
+        base_name: "新歌雷达",
+        account_expected: false,
+    },
+];
+
 async fn radar_playlists(
     State(state): State<SharedState>,
     Query(_params): Query<ListParams>,
 ) -> ApiResult {
     let client = state.client.lock().await;
-    let status = match client.login_status(&NcmQuery::new()).await {
-        Ok(response) => response,
-        Err(_) => return Ok(empty_playlists()),
-    };
-    let Some(uid) = status
-        .body
-        .pointer("/profile/userId")
-        .and_then(Value::as_i64)
-    else {
-        return Ok(empty_playlists());
-    };
+    // 雷达是账号听歌数据生成的，未登录直接返回 401，不做匿名兜底。
+    let uid = require_login(&client).await?;
 
-    // 账号实际拥有的雷达通常是账号歌单里的 specialType=100 歌单。
-    // 这里只保留“顶级雷达”，排除华语/日系/欧美/韩系/乐迷/宝藏/新歌等主题变体。
-    const TOP_LEVEL: &[&str] = &[
-        "私人雷达",
-        "会员雷达",
-        "时光雷达",
-        "怀旧雷达",
-        "云村高分雷达",
-    ];
-    let uid_text = uid.to_string();
-    let mut raw = Vec::new();
-    let mut offset = 0i64;
-    loop {
-        let offset_text = offset.to_string();
-        let response = client
-            .user_playlist(
-                &NcmQuery::new()
-                    .param("uid", &uid_text)
-                    .param("limit", "100")
-                    .param("offset", &offset_text),
-            )
-            .await
-            .map_err(ncm_error)?;
-        let page = array_at(&response.body, "/playlist");
-        if page.is_empty() {
-            break;
-        }
-        let count = page.len();
-        raw.extend(page);
-        offset += count as i64;
-        if count < 100 || offset >= 2000 {
-            break;
+    // 首页 block 提供当日展示标题和封面；新歌雷达只在这里出现。
+    let mut block_items = std::collections::HashMap::new();
+    if let Ok(response) = client
+        .homepage_block_page(
+            &NcmQuery::new()
+                .param("refresh", "false")
+                .param("cursor", ""),
+        )
+        .await
+    {
+        let feed = map_home_feed(&response.body);
+        if let Some(blocks) = feed.get("blocks").and_then(Value::as_array) {
+            for block in blocks {
+                if block.get("code").and_then(Value::as_str) != Some("HOMEPAGE_BLOCK_MGC_PLAYLIST")
+                {
+                    continue;
+                }
+                if let Some(items) = block.get("items").and_then(Value::as_array) {
+                    for item in items {
+                        let id = first_string(item, &["id"]);
+                        if !id.is_empty() {
+                            block_items.insert(id, item.clone());
+                        }
+                    }
+                }
+            }
         }
     }
 
-    let mut seen = std::collections::HashSet::new();
-    let mut playlists = raw
-        .into_iter()
-        .filter(|item| {
-            let name = first_string(item, &["name"]);
-            TOP_LEVEL.iter().any(|marker| {
-                let value = name.trim();
-                value == *marker || value.ends_with(&format!("|{marker}"))
-            })
-        })
-        .filter(|item| seen.insert(first_string(item, &["id"])))
-        .map(|item| map_ne_playlist(&item))
-        .collect::<Vec<_>>();
-    playlists.sort_by_key(|item| {
-        let name = item.get("name").and_then(Value::as_str).unwrap_or("");
-        TOP_LEVEL
-            .iter()
-            .position(|marker| name.ends_with(&format!("|{marker}")) || name == *marker)
-            .unwrap_or(TOP_LEVEL.len())
-    });
+    // 账号歌单提供私人雷达的当日名称；它通常不在当前账号的 MGC block 中。
+    let needed_account_ids: std::collections::HashSet<&str> = FIXED_RADARS
+        .iter()
+        .filter(|radar| radar.account_expected && !block_items.contains_key(radar.id))
+        .map(|radar| radar.id)
+        .collect();
+    let mut account_items = std::collections::HashMap::new();
+    if !needed_account_ids.is_empty() {
+        let uid_text = uid.to_string();
+        let mut offset = 0i64;
+        loop {
+            let offset_text = offset.to_string();
+            let response = client
+                .user_playlist(
+                    &NcmQuery::new()
+                        .param("uid", &uid_text)
+                        .param("limit", "1000")
+                        .param("offset", &offset_text),
+                )
+                .await
+                .map_err(ncm_error)?;
+            let page = array_at(&response.body, "/playlist");
+            if page.is_empty() {
+                break;
+            }
+            let count = page.len();
+            for item in page {
+                let id = first_string(&item, &["id"]);
+                if !id.is_empty() {
+                    account_items.insert(id, map_ne_playlist(&item));
+                }
+            }
+            offset += count as i64;
+            if needed_account_ids
+                .iter()
+                .all(|id| account_items.contains_key(*id))
+                || count < 1000
+                || offset >= 2000
+            {
+                break;
+            }
+        }
+    }
+
+    let mut playlists = Vec::with_capacity(FIXED_RADARS.len());
+    for radar in FIXED_RADARS {
+        let block_item = block_items.get(radar.id);
+        let account_item = account_items.get(radar.id);
+
+        let mut playlist = if let Some(item) = account_item {
+            item.clone()
+        } else if let Some(item) = block_item {
+            home_item_as_playlist(item)
+        } else {
+            fixed_radar_playlist(radar)
+        };
+
+        if let Some(item) = block_item {
+            let title = first_string(item, &["title", "name"]);
+            if !title.is_empty() {
+                playlist["name"] = json!(title);
+            }
+            let cover = first_string(item, &["cover", "coverUrl"]);
+            if !cover.is_empty() {
+                playlist["cover"] = json!(cover);
+            }
+            let play_count = first_i64(item, &["play_count", "playCount"]).unwrap_or(0);
+            if play_count > 0 {
+                playlist["play_count"] = json!(play_count);
+            }
+            let track_count = first_i64(item, &["track_count", "trackCount"]).unwrap_or(0);
+            if track_count > 0 {
+                playlist["track_count"] = json!(track_count);
+            }
+        }
+
+        // 列表接口缺少的封面、曲目数用详情补齐；详情的基础名不覆盖当日标题。
+        let needs_detail = playlist
+            .get("cover")
+            .and_then(Value::as_str)
+            .map_or(true, str::is_empty)
+            || playlist
+                .get("track_count")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                == 0
+            || playlist
+                .get("creator")
+                .and_then(Value::as_str)
+                .map_or(true, str::is_empty);
+        if needs_detail {
+            if let Ok(response) = client
+                .playlist_detail(&NcmQuery::new().param("id", radar.id))
+                .await
+            {
+                if let Some(detail) = response.body.get("playlist") {
+                    let detail_playlist = map_ne_playlist(detail);
+                    for key in [
+                        "cover",
+                        "track_count",
+                        "play_count",
+                        "creator",
+                        "description",
+                    ] {
+                        let current_empty = playlist
+                            .get(key)
+                            .map(|value| match value {
+                                Value::String(text) => text.is_empty(),
+                                Value::Number(number) => number.as_i64().unwrap_or(0) == 0,
+                                _ => true,
+                            })
+                            .unwrap_or(true);
+                        if current_empty {
+                            if let Some(value) = detail_playlist.get(key) {
+                                playlist[key] = value.clone();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if playlist
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .is_empty()
+        {
+            playlist["name"] = json!(radar.base_name);
+        }
+        playlist["id"] = json!(radar.id);
+        playlist["source"] = json!("netease");
+        playlist["link"] = json!(format!("https://music.163.com/playlist?id={}", radar.id));
+        playlists.push(playlist);
+    }
 
     Ok(Json(json!({
         "code": 200,
         "msg": "ok",
         "data": { "playlists": playlists }
     })))
+}
+
+fn home_item_as_playlist(item: &Value) -> Value {
+    let id = first_string(item, &["id"]);
+    json!({
+        "id": id,
+        "name": first_string(item, &["title", "name"]),
+        "cover": first_string(item, &["cover", "coverUrl"]),
+        "track_count": first_i64(item, &["track_count", "trackCount"]).unwrap_or(0),
+        "play_count": first_i64(item, &["play_count", "playCount"]).unwrap_or(0),
+        "creator": "",
+        "description": first_string(item, &["subtitle", "description"]),
+        "source": "netease",
+        "link": format!("https://music.163.com/playlist?id={id}"),
+    })
+}
+
+fn fixed_radar_playlist(radar: &FixedRadar) -> Value {
+    json!({
+        "id": radar.id,
+        "name": radar.base_name,
+        "cover": "",
+        "track_count": 0,
+        "play_count": 0,
+        "creator": "云音乐私人雷达",
+        "description": "",
+        "source": "netease",
+        "link": format!("https://music.163.com/playlist?id={}", radar.id),
+    })
 }
 
 async fn user_playlists(
@@ -1315,34 +1464,19 @@ fn normalize_https(value: &str) -> String {
         .unwrap_or_else(|| value.to_string())
 }
 
-const DEVICE_XOR_KEY: &str = "3go8&$8*3*3h0k(2)2";
-
-async fn register_guest(client: &mut ApiClient) -> Option<String> {
-    let device_id = generate_device_id();
-    let encoded =
-        BASE64.encode(format!("{} {}", device_id, cloudmusic_dll_encode_id(&device_id)).as_bytes());
+/// 网易云首页等个性化内容只对真实登录账号开放。
+/// 注意：`has_cookie` 或本地存在 cookies.json 都不足以判断账号，
+/// 必须由 `/login/status` 返回 `profile.userId`。
+async fn require_login(client: &ApiClient) -> Result<i64, (StatusCode, Json<Value>)> {
     let response = client
-        .request(
-            "/api/register/anonimous",
-            json!({ "username": encoded }),
-            RequestOption::default(),
-        )
+        .login_status(&NcmQuery::new())
         .await
-        .ok()?;
-    let cookie = extract_cookie(&response)?;
-    client.set_cookie(cookie.clone());
-    client.set_anonymous_token(cookie.clone());
-    Some(cookie)
-}
-
-fn cloudmusic_dll_encode_id(device_id: &str) -> String {
-    let key = DEVICE_XOR_KEY.as_bytes();
-    let xored: Vec<u8> = device_id
-        .bytes()
-        .enumerate()
-        .map(|(index, byte)| byte ^ key[index % key.len()])
-        .collect();
-    BASE64.encode(Md5::digest(&xored))
+        .map_err(ncm_error)?;
+    response
+        .body
+        .pointer("/profile/userId")
+        .and_then(Value::as_i64)
+        .ok_or_else(|| api_error(StatusCode::UNAUTHORIZED, "请先登录网易云账号"))
 }
 
 fn extract_str(value: &Value, paths: &[&str]) -> Option<String> {

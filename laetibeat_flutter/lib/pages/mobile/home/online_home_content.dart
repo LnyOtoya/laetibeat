@@ -17,6 +17,7 @@ import '../library/online/online_detail_pages.dart';
 import '../library/online/online_widgets.dart';
 import '../mobile_navigation.dart';
 import '../routes.dart';
+import '../settings/online/mobile_online_login_page.dart';
 import '../widgets/mobile_large_subpage_app_bar.dart';
 import 'online_daily_page.dart';
 
@@ -50,51 +51,73 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
     }
 
     final source = mode.hostId ?? 'netease';
-    final nickname = ref
-        .watch(
-          onlineUserPlaylistsProvider((source: source, page: 1, limit: 10)),
-        )
-        .value
-        ?.firstOrNull
-        ?.creator;
-    final key = (
-      source: source,
-      refresh: _generation > 0,
-      generation: _generation,
-    );
-    final feed = ref.watch(onlineHomeFeedProvider(key));
+    final statuses = ref.watch(onlinePlatformStatusesProvider);
 
-    return feed.when(
+    return statuses.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (Object error, StackTrace? stack) => _Unavailable(
         bottomInset: bottomInset,
-        message: '首页加载失败：$error',
-        onRetry: _refresh,
+        message: '无法获取登录状态：$error',
+        onRetry: () => ref.invalidate(onlinePlatformStatusesProvider),
       ),
-      data: (rust_online.UiOnlineHomeFeed value) {
-        final sections = _visibleSections(value.blocks);
-        return RefreshIndicator(
-          onRefresh: _refreshFeed,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.only(
-              top: AppSpacing.lg,
-              bottom: AppSpacing.xxl + bottomInset,
-            ),
-            children: <Widget>[
-              _buildShortcutRow(value),
-              const SizedBox(height: AppSpacing.xl),
-              _LikedSongRecommendationsSection(blocks: value.blocks),
-              const SizedBox(height: AppSpacing.xl),
-              for (final block in sections) ...<Widget>[
-                if (block.code == 'HOMEPAGE_BLOCK_MGC_PLAYLIST')
-                  _RadarHomeSection(block: block, nickname: nickname)
-                else
-                  _HomeBlockSection(block: block),
-                const SizedBox(height: AppSpacing.xl),
-              ],
-            ],
-          ),
+      data: (List<rust_online.UiOnlinePlatformStatus> list) {
+        if (!onlineHasCookie(list, source)) {
+          return _LoginRequired(bottomInset: bottomInset, source: source);
+        }
+
+        final nickname = ref
+            .watch(
+              onlineUserPlaylistsProvider((source: source, page: 1, limit: 10)),
+            )
+            .value
+            ?.firstOrNull
+            ?.creator;
+        final key = (
+          source: source,
+          refresh: _generation > 0,
+          generation: _generation,
+        );
+        final feed = ref.watch(onlineHomeFeedProvider(key));
+
+        return feed.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (Object error, StackTrace? stack) {
+            // Cookie 过期时 host 会返回 401；直接回到登录提示，不展示错误页。
+            if (error.toString().contains('需要登录在线音源')) {
+              return _LoginRequired(bottomInset: bottomInset, source: source);
+            }
+            return _Unavailable(
+              bottomInset: bottomInset,
+              message: '首页加载失败：$error',
+              onRetry: _refresh,
+            );
+          },
+          data: (rust_online.UiOnlineHomeFeed value) {
+            final sections = _visibleSections(value.blocks);
+            return RefreshIndicator(
+              onRefresh: _refreshFeed,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.only(
+                  top: AppSpacing.lg,
+                  bottom: AppSpacing.xxl + bottomInset,
+                ),
+                children: <Widget>[
+                  _buildShortcutRow(value),
+                  const SizedBox(height: AppSpacing.xl),
+                  const _PrivateFmSection(),
+                  const SizedBox(height: AppSpacing.xl),
+                  _LikedSongRecommendationsSection(blocks: value.blocks),
+                  const SizedBox(height: AppSpacing.xl),
+                  for (final block in sections) ...<Widget>[
+                    _HomeBlockSection(block: block),
+                    const SizedBox(height: AppSpacing.xl),
+                  ],
+                  _RadarHomeSection(nickname: nickname),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -106,6 +129,7 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
     'HOMEPAGE_BLOCK_OLD_DRAGON_BALL',
     'HOMEPAGE_PODCAST24',
     'HOMEPAGE_BLOCK_STYLE_RCMD',
+    'HOMEPAGE_BLOCK_MGC_PLAYLIST',
     'HOMEPAGE_MUSIC_PODCAST_RCMD_BLOCK',
     'HOMPAGE_BLOCK_VIP_RCMD',
     'HOMEPAGE_BLOCK_OFFICIAL_PLAYLIST',
@@ -153,22 +177,20 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
       'HOMEPAGE_BLOCK_PLAYLIST_RCMD',
       'HOMEPAGE_BLOCK_OFFICIAL_PLAYLIST',
     });
-    final radarBlock = _findBlock(feed, const <String>{
-      'HOMEPAGE_BLOCK_MGC_PLAYLIST',
-    });
+    final radar = ref.watch(onlineRadarPlaylistsProvider);
     return OnlineShortcutRow(
       dailyCover: dailyCover ?? playlistBlock?.items.firstOrNull?.coverUrl,
       heartCover: likedCover,
       playlistCover: playlistBlock?.items.firstOrNull?.coverUrl,
       roamCover: roamCover,
-      radarCover: radarBlock?.items.firstOrNull?.coverUrl,
+      radarCover: radar.value?.firstOrNull?.coverUrl,
       similarCover: likedCover,
       onDaily: _openDaily,
       onHeart: _playHeart,
       onPlaylists: () =>
           _openBlock(context, title: '推荐歌单', block: playlistBlock),
       onRoam: _playRoam,
-      onRadar: () => _openBlock(context, title: '雷达歌单', block: radarBlock),
+      onRadar: _openRadar,
       onSimilar: _playSimilar,
     );
   }
@@ -184,10 +206,14 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
   }
 
   void _refresh() {
+    ref.invalidate(onlineRadarPlaylistsProvider);
+    ref.invalidate(onlinePersonalFmPreviewProvider);
     setState(() => _generation++);
   }
 
   Future<void> _refreshFeed() async {
+    ref.invalidate(onlineRadarPlaylistsProvider);
+    ref.invalidate(onlinePersonalFmPreviewProvider);
     final next = _generation + 1;
     setState(() => _generation = next);
     final source = ref.read(appModeProvider).hostId ?? 'netease';
@@ -202,6 +228,26 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
     } catch (_) {
       // 错误由 provider 状态展示。
     }
+  }
+
+  void _openRadar() {
+    final playlists =
+        ref.read(onlineRadarPlaylistsProvider).value ??
+        const <rust_online.UiOnlinePlaylist>[];
+    if (playlists.isEmpty) {
+      _showMessage('雷达歌单暂时没有内容');
+      return;
+    }
+    pushMobileRootPage(
+      context,
+      OnlineHomeBlockPage(
+        title: '雷达歌单',
+        items: <rust_online.UiOnlineHomeItem>[
+          for (final playlist in playlists) _radarItemFromPlaylist(playlist),
+        ],
+      ),
+      name: MobileRoutes.libraryPlaylists,
+    );
   }
 
   void _openDaily() {
@@ -336,6 +382,27 @@ class _OnlineHomeContentState extends ConsumerState<OnlineHomeContent> {
   }
 }
 
+rust_online.UiOnlineHomeItem _radarItemFromPlaylist(
+  rust_online.UiOnlinePlaylist playlist,
+) {
+  return rust_online.UiOnlineHomeItem(
+    kind: 'list',
+    id: playlist.id,
+    title: playlist.name,
+    subtitle: playlist.creator ?? '',
+    coverUrl: playlist.coverUrl,
+    section: '',
+    artists: playlist.creator ?? '',
+    album: '',
+    albumId: '',
+    durationSeconds: BigInt.zero,
+    playCount: playlist.playCount,
+    trackCount: playlist.trackCount,
+    action: '',
+    source: playlist.source,
+  );
+}
+
 rust.UiTrack _trackFromHomeItem(rust_online.UiOnlineHomeItem item) {
   final seconds = item.durationSeconds.toInt();
   return rust.UiTrack(
@@ -399,6 +466,323 @@ void _openHomeCard(BuildContext context, rust_online.UiOnlineHomeItem item) {
   }
 }
 
+class _PrivateFmSection extends ConsumerWidget {
+  const _PrivateFmSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final pageGutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
+    final fm = ref.watch(onlinePersonalFmPreviewProvider);
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: pageGutter),
+      child: AppSurface(
+        level: AppSurfaceLevel.container,
+        borderRadius: AppRadii.xlAll,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: AppSectionHeader(
+                title: '私人 FM',
+                leading: const _PrivateFmGlyph(),
+                padding: AppInsets.sectionHeader,
+                trailing: m3e_core.M3EButton.icon(
+                  style: m3e_core.M3EButtonStyle.tonal,
+                  size: m3e_core.M3EButtonSize.sm,
+                  shape: m3e_core.M3EButtonShape.round,
+                  tooltip: '换一批',
+                  icon: const Icon(M3EIcons.refresh),
+                  label: const Text('换一批'),
+                  onPressed: () =>
+                      ref.invalidate(onlinePersonalFmPreviewProvider),
+                ),
+              ),
+            ),
+            fm.when(
+              loading: () => Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                child: Center(
+                  child: M3ELoadingIndicator(
+                    color: theme.colorScheme.primary,
+                    containerColor: theme.colorScheme.surfaceContainerHighest,
+                  ),
+                ),
+              ),
+              error: (_, _) => const Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.xl,
+                ),
+                child: AppEmptyState(
+                  title: '暂时无法获取私人 FM',
+                  message: '检查网易云登录状态后再试',
+                  icon: M3EIcons.auto_awesome,
+                ),
+              ),
+              data: (tracks) {
+                if (tracks.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.xl,
+                    ),
+                    child: AppEmptyState(
+                      title: '还没有私人 FM 内容',
+                      message: '播放一些网易云歌曲后再试',
+                      icon: M3EIcons.auto_awesome,
+                    ),
+                  );
+                }
+                return _PrivateFmContent(tracks: tracks);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PrivateFmGlyph extends StatelessWidget {
+  const _PrivateFmGlyph();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = M3ETheme.of(context).colorScheme;
+
+    return SizedBox.square(
+      dimension: 32,
+      child: M3EShapeContainer(
+        kind: M3EShapeKind.sunny,
+        color: scheme.primaryContainer,
+        child: Center(
+          child: Icon(
+            M3EIcons.auto_awesome,
+            size: AppIconSize.sm,
+            color: scheme.onPrimaryContainer,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrivateFmContent extends ConsumerWidget {
+  const _PrivateFmContent({required this.tracks});
+
+  final List<rust.UiTrack> tracks;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final hero = tracks.first;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        SizedBox(
+          height: 240,
+          child: M3ECard(
+            variant: M3ECardVariant.filled,
+            padding: EdgeInsets.zero,
+            borderRadius: AppRadii.xlAll,
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                _PrivateFmCover(url: hero.coverId, radius: BorderRadius.zero),
+                const _PrivateFmScrim(),
+                Positioned(
+                  left: AppSpacing.lg,
+                  right: AppSpacing.lg,
+                  bottom: AppSpacing.lg,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        '根据你的口味为你推荐',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.typeScale.titleSmall.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        '${hero.title} · ${hero.artist}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.typeScale.bodySmall.copyWith(
+                          color: Colors.white.withValues(alpha: 0.82),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      m3e_core.M3EButton(
+                        style: m3e_core.M3EButtonStyle.filled,
+                        size: m3e_core.M3EButtonSize.sm,
+                        shape: m3e_core.M3EButtonShape.round,
+                        onPressed: () => ref
+                            .read(playerProvider.notifier)
+                            .load(tracks, 0, source: '私人 FM'),
+                        child: const Text('播放全部'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _PrivateFmSongRow(tracks: tracks),
+      ],
+    );
+  }
+}
+
+class _PrivateFmScrim extends StatelessWidget {
+  const _PrivateFmScrim();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[
+              Colors.transparent,
+              Colors.black.withValues(alpha: 0.78),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrivateFmSongRow extends ConsumerWidget {
+  const _PrivateFmSongRow({required this.tracks});
+
+  final List<rust.UiTrack> tracks;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final preview = tracks.take(3).toList(growable: false);
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        const double gap = AppSpacing.sm;
+        final cardWidth = constraints.maxWidth * 0.42;
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              for (var index = 0; index < preview.length; index++) ...<Widget>[
+                if (index > 0) const SizedBox(width: gap),
+                SizedBox(
+                  width: cardWidth,
+                  child: _PrivateFmSongTile(
+                    track: preview[index],
+                    onTap: () => ref
+                        .read(playerProvider.notifier)
+                        .load(tracks, index, source: '私人 FM'),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PrivateFmSongTile extends StatelessWidget {
+  const _PrivateFmSongTile({required this.track, required this.onTap});
+
+  final rust.UiTrack track;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '${track.title} · ${track.artist}',
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: AppRadii.mdAll,
+          onTap: onTap,
+          child: ClipRRect(
+            borderRadius: AppRadii.mdAll,
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: _PrivateFmCover(
+                url: track.coverId,
+                radius: AppRadii.mdAll,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrivateFmCover extends StatelessWidget {
+  const _PrivateFmCover({required this.url, this.radius = AppRadii.mdAll});
+
+  final String? url;
+  final BorderRadiusGeometry radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = M3ETheme.of(context).colorScheme;
+    final value = url?.trim() ?? '';
+
+    return ClipRRect(
+      borderRadius: radius,
+      child: value.isEmpty
+          ? ColoredBox(
+              color: scheme.secondaryContainer,
+              child: Center(
+                child: Icon(
+                  M3EIcons.music_note,
+                  size: AppIconSize.lg,
+                  color: scheme.onSecondaryContainer,
+                ),
+              ),
+            )
+          : Image.network(
+              value,
+              fit: BoxFit.cover,
+              errorBuilder:
+                  (BuildContext context, Object error, StackTrace? stack) {
+                    return ColoredBox(
+                      color: scheme.secondaryContainer,
+                      child: Center(
+                        child: Icon(
+                          M3EIcons.music_note,
+                          size: AppIconSize.lg,
+                          color: scheme.onSecondaryContainer,
+                        ),
+                      ),
+                    );
+                  },
+            ),
+    );
+  }
+}
+
 class _LikedSongRecommendationsSection extends StatelessWidget {
   const _LikedSongRecommendationsSection({required this.blocks});
 
@@ -406,9 +790,9 @@ class _LikedSongRecommendationsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 优先使用真正的 TAILORED_SONG block；部分账号/风控状态下网易云
-    // 不会返回这个 block，此时回退到首页已有的「猜你喜欢」歌曲区块。
-    final tailored = blocks
+    // 只展示账号真实的 TAILORED_SONG block。账号没有该推荐或网易云
+    // 未返回时显示空状态，不回退到匿名「猜你喜欢」内容。
+    final block = blocks
         .where(
           (value) =>
               (value.code == 'HOMEPAGE_BLOCK_TAILORED_SONG' ||
@@ -416,14 +800,6 @@ class _LikedSongRecommendationsSection extends StatelessWidget {
               value.items.isNotEmpty,
         )
         .firstOrNull;
-    final fallback = blocks
-        .where(
-          (value) =>
-              value.code == 'HOMEPAGE_BLOCK_STYLE_RCMD' &&
-              value.items.isNotEmpty,
-        )
-        .firstOrNull;
-    final block = tailored ?? fallback;
     final tracks =
         block?.items
             .where((item) => item.kind == 'song')
@@ -447,8 +823,8 @@ class _LikedSongRecommendationsSection extends StatelessWidget {
           Padding(
             padding: EdgeInsets.symmetric(horizontal: gutter),
             child: const AppEmptyState(
-              title: '暂时没有推荐',
-              message: '网易云首页暂时没有返回「根据你喜爱的歌曲推荐」。',
+              title: '当前账号暂无推荐',
+              message: '网易云暂时没有返回当前账号的「根据你喜爱的歌曲推荐」。',
               icon: M3EIcons.favorite_border,
             ),
           )
@@ -460,9 +836,8 @@ class _LikedSongRecommendationsSection extends StatelessWidget {
 }
 
 class _RadarHomeSection extends ConsumerWidget {
-  const _RadarHomeSection({required this.block, required this.nickname});
+  const _RadarHomeSection({required this.nickname});
 
-  final rust_online.UiOnlineHomeBlock block;
   final String? nickname;
 
   @override
@@ -471,28 +846,11 @@ class _RadarHomeSection extends ConsumerWidget {
     final cards = <rust_online.UiOnlineHomeItem>[
       for (final playlist
           in radar.value ?? const <rust_online.UiOnlinePlaylist>[])
-        rust_online.UiOnlineHomeItem(
-          kind: 'list',
-          id: playlist.id,
-          title: playlist.name,
-          subtitle: playlist.creator ?? '',
-          coverUrl: playlist.coverUrl,
-          section: '',
-          artists: playlist.creator ?? '',
-          album: '',
-          albumId: '',
-          durationSeconds: BigInt.zero,
-          playCount: playlist.playCount,
-          trackCount: playlist.trackCount,
-          action: '',
-          source: playlist.source,
-        ),
+        _radarItemFromPlaylist(playlist),
     ];
     if (cards.isEmpty) return const SizedBox.shrink();
 
-    final sectionTitle = nickname != null && block.title.contains('的雷达歌单')
-        ? '${nickname}的雷达歌单'
-        : block.title;
+    final sectionTitle = nickname == null ? '雷达歌单' : '$nickname的雷达歌单';
     final gutter = AppLayout.gutterFor(MediaQuery.sizeOf(context).width);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1030,6 +1388,43 @@ class OnlineHomeBlockPage extends ConsumerWidget {
             .read(playerProvider.notifier)
             .load(<rust.UiTrack>[_trackFromHomeItem(item)], 0, source: '在线推荐');
     }
+  }
+}
+
+class _LoginRequired extends ConsumerWidget {
+  const _LoginRequired({required this.bottomInset, required this.source});
+
+  final double bottomInset;
+  final String source;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: AppEmptyState(
+          title: '登录后查看首页推荐',
+          message: '网易云首页推荐基于你的账号内容，请先登录网易云账号。',
+          icon: M3EIcons.lock,
+          action: M3EButton(
+            style: M3EButtonStyle.filled,
+            label: const Text('去登录'),
+            onPressed: () async {
+              final ok = await pushMobileRootPage<bool>(
+                context,
+                MobileOnlineLoginPage(source: source),
+                name: 'online-login',
+              );
+              if (!context.mounted) return;
+              ref.invalidate(onlinePlatformStatusesProvider);
+              if (ok == true) {
+                ref.invalidate(onlineHomeFeedProvider);
+              }
+            },
+          ),
+        ),
+      ),
+    );
   }
 }
 
