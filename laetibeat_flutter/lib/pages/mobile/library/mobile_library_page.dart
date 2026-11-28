@@ -289,13 +289,29 @@ class _OnlineUserProfileContent extends StatelessWidget {
             overflow: M3EButtonGroupOverflow.scroll,
             actions: <M3EButtonGroupAction>[
               M3EButtonGroupAction(
-                label: Text('${_compactCount(profile.follows)} 关注'),
+                icon: const Icon(M3EIcons.person),
+                label: Text(_compactCount(profile.follows)),
+                tooltip: '关注',
+                semanticLabel: '${profile.follows} 关注',
               ),
               M3EButtonGroupAction(
-                label: Text('${_compactCount(profile.followeds)} 粉丝'),
+                icon: const Icon(M3EIcons.favorite),
+                label: Text(_compactCount(profile.followeds)),
+                tooltip: '粉丝',
+                semanticLabel: '${profile.followeds} 粉丝',
               ),
-              M3EButtonGroupAction(label: Text('Lv.${profile.level}')),
-              M3EButtonGroupAction(label: Text('${profile.listenHours} 小时')),
+              M3EButtonGroupAction(
+                icon: const Icon(M3EIcons.star),
+                label: Text('${profile.level}'),
+                tooltip: '等级',
+                semanticLabel: '等级 ${profile.level}',
+              ),
+              M3EButtonGroupAction(
+                icon: const Icon(M3EIcons.bar_chart),
+                label: Text('${profile.listenHours}'),
+                tooltip: '听歌时长',
+                semanticLabel: '${profile.listenHours} 小时',
+              ),
             ],
             onSelectedIndexChanged: (int? index) {
               if (index == null) return;
@@ -304,28 +320,28 @@ class _OnlineUserProfileContent extends StatelessWidget {
                   _openPlaceholder(
                     context,
                     title: '关注',
-                    message: '关注列表将在后续接入',
+                    message: '${_compactCount(profile.follows)} 位关注用户将在后续接入',
                     icon: M3EIcons.person,
                   );
                 case 1:
                   _openPlaceholder(
                     context,
                     title: '粉丝',
-                    message: '粉丝列表将在后续接入',
+                    message: '${_compactCount(profile.followeds)} 位粉丝将在后续接入',
                     icon: M3EIcons.favorite,
                   );
                 case 2:
                   _openPlaceholder(
                     context,
                     title: '等级',
-                    message: '等级详情将在后续接入',
+                    message: '当前等级 Lv.${profile.level}，详情将在后续接入',
                     icon: M3EIcons.star,
                   );
                 case 3:
                   _openPlaceholder(
                     context,
                     title: '听歌时长',
-                    message: '听歌时长详情将在后续接入',
+                    message: '累计听歌 ${profile.listenHours} 小时，详情将在后续接入',
                     icon: M3EIcons.bar_chart,
                   );
               }
