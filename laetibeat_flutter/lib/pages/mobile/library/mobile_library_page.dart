@@ -12,6 +12,7 @@ import '../mobile_navigation.dart';
 import '../routes.dart';
 import 'library_source_filter.dart';
 import 'mobile_library_subpages.dart';
+import 'online/online_detail_pages.dart';
 import 'online/online_widgets.dart';
 
 /// 媒体库首页。
@@ -84,6 +85,57 @@ class MobileLibraryPage extends ConsumerWidget {
       ),
     ];
 
+    final onlineSegments = <_LibrarySegment>[
+      _LibrarySegment(
+        icon: M3EIcons.favorite,
+        title: '我喜欢的音乐',
+        routeName: MobileRoutes.librarySongs,
+        page: const OnlineLikedSongsPage(),
+      ),
+      _LibrarySegment(
+        icon: M3EIcons.queue_music,
+        title: '创建的歌单',
+        routeName: MobileRoutes.libraryPlaylists,
+        page: const OnlinePlaylistCollectionPage(
+          title: '创建的歌单',
+          kind: 'created',
+        ),
+      ),
+      _LibrarySegment(
+        icon: M3EIcons.playlist_add,
+        title: '收藏的歌单',
+        routeName: MobileRoutes.libraryPlaylists,
+        page: const OnlinePlaylistCollectionPage(
+          title: '收藏的歌单',
+          kind: 'collected',
+        ),
+      ),
+      _LibrarySegment(
+        icon: M3EIcons.album,
+        title: '收藏的专辑',
+        routeName: MobileRoutes.libraryAlbums,
+        page: const OnlineAlbumCollectionPage(),
+      ),
+      _LibrarySegment(
+        icon: M3EIcons.download,
+        title: '已下载',
+        routeName: MobileRoutes.libraryDownloads,
+        page: const _LibraryPlaceholderPage(
+          title: '已下载',
+          message: '下载管理将在这里显示',
+          icon: M3EIcons.download,
+          showLayout: false,
+        ),
+      ),
+    ];
+    final segments = appMode == AppMode.netease
+        ? onlineSegments
+        : localSegments;
+    final sectionTitle = appMode == AppMode.netease ? '我的音乐' : '本地音乐';
+    final sectionKey = appMode == AppMode.netease
+        ? const ValueKey<String>('library_group_my_music')
+        : const ValueKey<String>('library_group_local');
+
     void openSegment(_LibrarySegment segment) {
       final page = segment.page;
       if (page == null) return;
@@ -128,11 +180,7 @@ class MobileLibraryPage extends ConsumerWidget {
             const _OnlineUserProfileCard(),
             const SizedBox(height: AppSpacing.lg),
           ],
-          buildSection(
-            '本地音乐',
-            const ValueKey<String>('library_group_local'),
-            localSegments,
-          ),
+          buildSection(sectionTitle, sectionKey, segments),
         ],
       ),
     );

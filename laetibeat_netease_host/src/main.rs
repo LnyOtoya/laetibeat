@@ -123,6 +123,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/v1/music/similar", get(similar_songs))
         .route("/api/v1/playlist/detail", get(playlist_detail))
         .route("/api/v1/album/detail", get(album_detail))
+        .route("/api/v1/album/sublist", get(album_sublist))
         .route("/api/v1/user/profile", get(user_profile))
         .route("/api/v1/playlist/user", get(user_playlists))
         .route("/api/v1/playlist/radar", get(radar_playlists))
@@ -1043,6 +1044,7 @@ struct ListParams {
     page: Option<u32>,
     limit: Option<i64>,
     toplist_id: Option<String>,
+    kind: Option<String>,
 }
 
 async fn playlist_detail(
@@ -1088,6 +1090,25 @@ async fn album_detail(
             .into_iter()
             .map(|item| map_ne_song(&item))
             .collect::<Vec<_>>(),
+    })))
+}
+
+/// 已收藏专辑。使用上游默认分页，避免主动拉取大页数据。
+async fn album_sublist(State(state): State<SharedState>) -> ApiResult {
+    let client = state.client.lock().await;
+    let response = client
+        .album_sublist(&NcmQuery::new())
+        .await
+        .map_err(ncm_error)?;
+    Ok(Json(json!({
+        "code": 200,
+        "msg": "ok",
+        "data": {
+            "albums": array_at(&response.body, "/data")
+                .into_iter()
+                .map(|item| map_ne_album(&item))
+                .collect::<Vec<_>>(),
+        }
     })))
 }
 
@@ -1459,13 +1480,37 @@ async fn user_playlists(
         )
         .await
         .map_err(ncm_error)?;
+    let kind = params.kind.as_deref().unwrap_or("all");
+    let mut items = array_at(&response.body, "/playlist");
+    if kind != "all" {
+        items.retain(|item| {
+            let subscribed = item
+                .get("subscribed")
+                .and_then(Value::as_bool)
+                .unwrap_or_else(|| first_i64(item, &["subscribed"]).unwrap_or(0) != 0);
+            let special_type = first_i64(item, &["specialType"]).unwrap_or(0);
+            match kind {
+                "created" => !subscribed && special_type != 5,
+                "collected" => subscribed,
+                "liked" => special_type == 5 && !subscribed,
+                _ => true,
+            }
+        });
+    }
+    let start = offset as usize;
+    let end = (start + limit as usize).min(items.len());
+    let selected: &[Value] = if start < items.len() {
+        &items[start..end]
+    } else {
+        &[]
+    };
     Ok(Json(json!({
         "code": 200,
         "msg": "ok",
         "data": {
-            "playlists": array_at(&response.body, "/playlist")
-                .into_iter()
-                .map(|item| map_ne_playlist(&item))
+            "playlists": selected
+                .iter()
+                .map(|item| map_ne_playlist(item))
                 .collect::<Vec<_>>()
         }
     })))
@@ -1693,7 +1738,9 @@ fn map_ne_album(item: &Value) -> Value {
         ),
         "track_count": first_i64(item, &["trackCount", "size", "songCount"]).unwrap_or(0),
         "play_count": 0,
-        "creator": item.pointer("/artist/name")
+        "creator": item
+            .pointer("/artist/name")
+            .or_else(|| item.pointer("/artists/0/name"))
             .and_then(Value::as_str)
             .unwrap_or(""),
         "description": first_string(item, &["description"]),

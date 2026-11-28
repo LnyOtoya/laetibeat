@@ -158,6 +158,122 @@ final onlineUserProfileProvider = FutureProvider<OnlineUserProfile>((
   }
 });
 
+Future<Map<String, dynamic>> _onlineGetData(
+  Ref ref,
+  String path, [
+  Map<String, String> query = const <String, String>{},
+]) async {
+  final baseUrl = ref.watch(onlineBaseUrlProvider);
+  if (baseUrl.isEmpty) {
+    throw StateError('当前模式 sidecar 未启动');
+  }
+  final token = await ref.watch(onlineTokenProvider.future);
+  if (token == null || token.isEmpty) {
+    throw StateError('请先登录网易云账号');
+  }
+  final client = HttpClient();
+  try {
+    final request = await client.getUrl(
+      Uri.parse(
+        '$baseUrl$path',
+      ).replace(queryParameters: query.isEmpty ? null : query),
+    );
+    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    final response = await request.close();
+    final body = await response.transform(utf8.decoder).join();
+    if (response.statusCode != HttpStatus.ok) {
+      throw StateError('HTTP ${response.statusCode}');
+    }
+    final decoded = jsonDecode(body);
+    if (decoded is! Map || decoded['data'] is! Map) {
+      throw StateError('接口返回格式异常');
+    }
+    return Map<String, dynamic>.from(decoded['data'] as Map);
+  } finally {
+    client.close(force: true);
+  }
+}
+
+rust_online.UiOnlinePlaylist _playlistFromJson(Map<String, dynamic> json) {
+  return rust_online.UiOnlinePlaylist(
+    source: json['source'] as String? ?? 'netease',
+    id: json['id'] as String? ?? '',
+    name: json['name'] as String? ?? '',
+    coverUrl: json['cover'] as String?,
+    trackCount: _asInt(json['track_count']),
+    playCount: BigInt.from(_asInt(json['play_count'])),
+    creator: json['creator'] as String?,
+    description: json['description'] as String?,
+    link: json['link'] as String?,
+  );
+}
+
+rust_online.UiOnlineAlbum _albumFromJson(Map<String, dynamic> json) {
+  return rust_online.UiOnlineAlbum(
+    source: json['source'] as String? ?? 'netease',
+    id: json['id'] as String? ?? '',
+    name: json['name'] as String? ?? '',
+    coverUrl: json['cover'] as String?,
+    trackCount: _asInt(json['track_count']),
+    artist: json['creator'] as String?,
+  );
+}
+
+List<rust_online.UiOnlinePlaylist> _playlistsFromData(
+  Map<String, dynamic> data,
+) {
+  final playlists = data['playlists'];
+  if (playlists is! List) return const <rust_online.UiOnlinePlaylist>[];
+  return playlists
+      .whereType<Map>()
+      .map((value) => _playlistFromJson(Map<String, dynamic>.from(value)))
+      .toList(growable: false);
+}
+
+/// 通过接口默认分页加载账号歌单，避免一次拉取全部内容。
+final onlineCreatedPlaylistsProvider =
+    FutureProvider<List<rust_online.UiOnlinePlaylist>>((ref) async {
+      final data = await _onlineGetData(ref, '/api/v1/playlist/user', const {
+        'kind': 'created',
+        'page': '1',
+        'limit': '30',
+      });
+      return _playlistsFromData(data);
+    });
+
+final onlineCollectedPlaylistsProvider =
+    FutureProvider<List<rust_online.UiOnlinePlaylist>>((ref) async {
+      final data = await _onlineGetData(ref, '/api/v1/playlist/user', const {
+        'kind': 'collected',
+        'page': '1',
+        'limit': '30',
+      });
+      return _playlistsFromData(data);
+    });
+
+final onlineLikedPlaylistProvider =
+    FutureProvider<rust_online.UiOnlinePlaylist?>((ref) async {
+      final data = await _onlineGetData(ref, '/api/v1/playlist/user', const {
+        'kind': 'liked',
+        'page': '1',
+        'limit': '1',
+      });
+      final playlists = _playlistsFromData(data);
+      return playlists.isEmpty ? null : playlists.first;
+    });
+
+/// 已收藏专辑使用上游默认分页（25 条），不主动扩大 limit。
+final onlineCollectedAlbumsProvider =
+    FutureProvider<List<rust_online.UiOnlineAlbum>>((ref) async {
+      final data = await _onlineGetData(ref, '/api/v1/album/sublist');
+      final albums = data['albums'];
+      if (albums is! List) return const <rust_online.UiOnlineAlbum>[];
+      return albums
+          .whereType<Map>()
+          .map((value) => _albumFromJson(Map<String, dynamic>.from(value)))
+          .toList(growable: false);
+    });
+
 typedef OnlineSearchKey = ({
   String source,
   String query,

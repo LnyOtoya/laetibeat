@@ -7,6 +7,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../design/design.dart';
 import '../../../../widgets/player/player_provider.dart';
 import '../../../../widgets/settings/online_provider.dart';
+import '../../mobile_navigation.dart';
+import '../../routes.dart';
 import '../../widgets/mobile_large_subpage_app_bar.dart';
 import 'online_widgets.dart';
 
@@ -75,6 +77,214 @@ class OnlineTopListDetailPage extends ConsumerWidget {
       tracks: tracks,
     );
   }
+}
+
+class OnlinePlaylistCollectionPage extends ConsumerWidget {
+  const OnlinePlaylistCollectionPage({
+    super.key,
+    required this.title,
+    required this.kind,
+  });
+
+  final String title;
+  final String kind;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    final playlists = kind == 'collected'
+        ? ref.watch(onlineCollectedPlaylistsProvider)
+        : ref.watch(onlineCreatedPlaylistsProvider);
+
+    return Scaffold(
+      backgroundColor: scheme.surface,
+      appBar: mobileLargeSubpageAppBar(context, title: title),
+      body: playlists.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (Object error, StackTrace? stack) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              '加载失败：$error',
+              textAlign: TextAlign.center,
+              style: theme.typeScale.bodyMedium,
+            ),
+          ),
+        ),
+        data: (List<rust_online.UiOnlinePlaylist> items) {
+          if (items.isEmpty) {
+            return Center(
+              child: Text('暂无歌单', style: theme.typeScale.bodyMedium),
+            );
+          }
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            children: <Widget>[
+              M3EList(
+                color: scheme.surface,
+                variant: M3ECardVariant.filled,
+                itemCount: items.length,
+                onTap: (int index) {
+                  final playlist = items[index];
+                  pushMobileRootPage(
+                    context,
+                    OnlinePlaylistDetailPage(playlist: playlist),
+                    name: MobileRoutes.libraryPlaylists,
+                  );
+                },
+                itemBuilder: (BuildContext context, int index) {
+                  final playlist = items[index];
+                  return M3EListItem(
+                    headline: playlist.name,
+                    supportingText: _playlistMeta(playlist),
+                    leading: OnlineCover(url: playlist.coverUrl),
+                    trailing: const Icon(M3EIcons.chevron_right),
+                  );
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class OnlineAlbumCollectionPage extends ConsumerWidget {
+  const OnlineAlbumCollectionPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    final albums = ref.watch(onlineCollectedAlbumsProvider);
+
+    return Scaffold(
+      backgroundColor: scheme.surface,
+      appBar: mobileLargeSubpageAppBar(context, title: '收藏的专辑'),
+      body: albums.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (Object error, StackTrace? stack) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              '加载失败：$error',
+              textAlign: TextAlign.center,
+              style: theme.typeScale.bodyMedium,
+            ),
+          ),
+        ),
+        data: (List<rust_online.UiOnlineAlbum> items) {
+          if (items.isEmpty) {
+            return Center(
+              child: Text('暂无收藏专辑', style: theme.typeScale.bodyMedium),
+            );
+          }
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            children: <Widget>[
+              M3EList(
+                color: scheme.surface,
+                variant: M3ECardVariant.filled,
+                itemCount: items.length,
+                onTap: (int index) {
+                  final album = items[index];
+                  pushMobileRootPage(
+                    context,
+                    OnlineAlbumDetailPage(album: album),
+                    name: MobileRoutes.libraryAlbums,
+                  );
+                },
+                itemBuilder: (BuildContext context, int index) {
+                  final album = items[index];
+                  final artist = album.artist?.trim() ?? '';
+                  return M3EListItem(
+                    headline: album.name,
+                    supportingText: _joinMeta(<String>[
+                      if (album.trackCount > 0) '${album.trackCount} 首',
+                      if (artist.isNotEmpty) artist,
+                    ]),
+                    leading: OnlineCover(url: album.coverUrl),
+                    trailing: const Icon(M3EIcons.chevron_right),
+                  );
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class OnlineLikedSongsPage extends ConsumerWidget {
+  const OnlineLikedSongsPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = M3ETheme.of(context);
+    final scheme = theme.colorScheme;
+    final liked = ref.watch(onlineLikedPlaylistProvider);
+
+    return liked.when(
+      loading: () => Scaffold(
+        backgroundColor: scheme.surface,
+        appBar: mobileLargeSubpageAppBar(context, title: '我喜欢的音乐'),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (Object error, StackTrace? stack) => Scaffold(
+        backgroundColor: scheme.surface,
+        appBar: mobileLargeSubpageAppBar(context, title: '我喜欢的音乐'),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              '加载失败：$error',
+              textAlign: TextAlign.center,
+              style: theme.typeScale.bodyMedium,
+            ),
+          ),
+        ),
+      ),
+      data: (rust_online.UiOnlinePlaylist? playlist) {
+        if (playlist == null) {
+          return Scaffold(
+            backgroundColor: scheme.surface,
+            appBar: mobileLargeSubpageAppBar(context, title: '我喜欢的音乐'),
+            body: Center(
+              child: Text('暂无喜欢的音乐', style: theme.typeScale.bodyMedium),
+            ),
+          );
+        }
+        final tracks = ref.watch(
+          onlinePlaylistTracksProvider((
+            source: playlist.source,
+            id: playlist.id,
+          )),
+        );
+        return _OnlineTracksScaffold(
+          title: '我喜欢的音乐',
+          subtitle: playlist.trackCount > 0 ? '${playlist.trackCount} 首' : '',
+          coverUrl: playlist.coverUrl,
+          source: playlist.source,
+          tracks: tracks,
+        );
+      },
+    );
+  }
+}
+
+String _joinMeta(List<String> parts) {
+  return parts.where((value) => value.trim().isNotEmpty).join(' · ');
+}
+
+String _playlistMeta(rust_online.UiOnlinePlaylist playlist) {
+  final creator = playlist.creator?.trim() ?? '';
+  return _joinMeta(<String>[
+    if (playlist.trackCount > 0) '${playlist.trackCount} 首',
+    if (creator.isNotEmpty) creator,
+  ]);
 }
 
 class _OnlineTracksScaffold extends ConsumerWidget {
