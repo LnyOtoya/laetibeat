@@ -904,56 +904,81 @@ async fn album_detail(
 
 async fn radar_playlists(
     State(state): State<SharedState>,
-    Query(params): Query<ListParams>,
+    Query(_params): Query<ListParams>,
 ) -> ApiResult {
-    let limit = params.limit.unwrap_or(30).clamp(1, 50);
-    let limit_text = limit.to_string();
     let client = state.client.lock().await;
-    let response = client
-        .search(
-            &NcmQuery::new()
-                .param("keywords", "雷达")
-                .param("type", "1000")
-                .param("limit", &limit_text)
-                .param("offset", "0"),
-        )
-        .await
-        .map_err(ncm_error)?;
-    let mut playlists = array_at(&response.body, "/result/playlists");
-    // 部分官方雷达在通用“雷达”搜索中会排在 50 条之后，逐个补搜。
-    for keyword in ["会员雷达", "怀旧雷达", "时光雷达", "云村高分雷达"] {
-        if let Ok(extra) = client
-            .search(
+    let status = match client.login_status(&NcmQuery::new()).await {
+        Ok(response) => response,
+        Err(_) => return Ok(empty_playlists()),
+    };
+    let Some(uid) = status
+        .body
+        .pointer("/profile/userId")
+        .and_then(Value::as_i64)
+    else {
+        return Ok(empty_playlists());
+    };
+
+    // 账号实际拥有的雷达通常是账号歌单里的 specialType=100 歌单。
+    // 这里只保留“顶级雷达”，排除华语/日系/欧美/韩系/乐迷/宝藏/新歌等主题变体。
+    const TOP_LEVEL: &[&str] = &[
+        "私人雷达",
+        "会员雷达",
+        "时光雷达",
+        "怀旧雷达",
+        "云村高分雷达",
+    ];
+    let uid_text = uid.to_string();
+    let mut raw = Vec::new();
+    let mut offset = 0i64;
+    loop {
+        let offset_text = offset.to_string();
+        let response = client
+            .user_playlist(
                 &NcmQuery::new()
-                    .param("keywords", keyword)
-                    .param("type", "1000")
-                    .param("limit", "8")
-                    .param("offset", "0"),
+                    .param("uid", &uid_text)
+                    .param("limit", "100")
+                    .param("offset", &offset_text),
             )
             .await
-        {
-            let mut seen = playlists
-                .iter()
-                .filter_map(|item| item.get("id").map(value_string))
-                .collect::<std::collections::HashSet<_>>();
-            for item in array_at(&extra.body, "/result/playlists") {
-                if let Some(id) = item.get("id") {
-                    if seen.insert(value_string(id)) {
-                        playlists.push(item);
-                    }
-                }
-            }
+            .map_err(ncm_error)?;
+        let page = array_at(&response.body, "/playlist");
+        if page.is_empty() {
+            break;
+        }
+        let count = page.len();
+        raw.extend(page);
+        offset += count as i64;
+        if count < 100 || offset >= 2000 {
+            break;
         }
     }
+
+    let mut seen = std::collections::HashSet::new();
+    let mut playlists = raw
+        .into_iter()
+        .filter(|item| {
+            let name = first_string(item, &["name"]);
+            TOP_LEVEL.iter().any(|marker| {
+                let value = name.trim();
+                value == *marker || value.ends_with(&format!("|{marker}"))
+            })
+        })
+        .filter(|item| seen.insert(first_string(item, &["id"])))
+        .map(|item| map_ne_playlist(&item))
+        .collect::<Vec<_>>();
+    playlists.sort_by_key(|item| {
+        let name = item.get("name").and_then(Value::as_str).unwrap_or("");
+        TOP_LEVEL
+            .iter()
+            .position(|marker| name.ends_with(&format!("|{marker}")) || name == *marker)
+            .unwrap_or(TOP_LEVEL.len())
+    });
+
     Ok(Json(json!({
         "code": 200,
         "msg": "ok",
-        "data": {
-            "playlists": playlists
-                .into_iter()
-                .map(|item| map_ne_playlist(&item))
-                .collect::<Vec<_>>(),
-        }
+        "data": { "playlists": playlists }
     })))
 }
 

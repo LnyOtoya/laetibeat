@@ -465,31 +465,10 @@ class _RadarHomeSection extends ConsumerWidget {
   final rust_online.UiOnlineHomeBlock block;
   final String? nickname;
 
-  static const List<String> _order = <String>[
-    '私人雷达',
-    '怀旧雷达',
-    '会员雷达',
-    '宝藏雷达',
-    '时光雷达',
-    '云村高分雷达',
-    '新歌雷达',
-  ];
-
-  static const Map<String, String> _fallbackIds = <String, String>{
-    '私人雷达': '3136952023',
-    '怀旧雷达': '10106461201',
-    '会员雷达': '8402996200',
-    '宝藏雷达': '5362359247',
-    '时光雷达': '5320167908',
-    '云村高分雷达': '14181175075',
-    '新歌雷达': '5300458264',
-  };
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final radar = ref.watch(onlineRadarPlaylistsProvider);
-    final pool = <rust_online.UiOnlineHomeItem>[
-      ...block.items.where((item) => item.kind == 'list'),
+    final cards = <rust_online.UiOnlineHomeItem>[
       for (final playlist
           in radar.value ?? const <rust_online.UiOnlinePlaylist>[])
         rust_online.UiOnlineHomeItem(
@@ -509,42 +488,7 @@ class _RadarHomeSection extends ConsumerWidget {
           source: playlist.source,
         ),
     ];
-
-    final cards = <rust_online.UiOnlineHomeItem>[];
-    for (final title in _order) {
-      final exact = pool
-          .where((item) => item.title.trim() == title)
-          .firstOrNull;
-      final partial = pool
-          .where(
-            (item) => item.title.contains(title) && !item.title.contains('今天从'),
-          )
-          .firstOrNull;
-      final found = exact ?? partial;
-      if (found != null) {
-        cards.add(_renamed(found, title));
-      } else {
-        final id = _fallbackIds[title] ?? '';
-        cards.add(
-          rust_online.UiOnlineHomeItem(
-            kind: 'list',
-            id: id,
-            title: title,
-            subtitle: '',
-            coverUrl: null,
-            section: '',
-            artists: '',
-            album: '',
-            albumId: '',
-            durationSeconds: BigInt.zero,
-            playCount: BigInt.zero,
-            trackCount: 0,
-            action: '',
-            source: 'netease',
-          ),
-        );
-      }
-    }
+    if (cards.isEmpty) return const SizedBox.shrink();
 
     final sectionTitle = nickname != null && block.title.contains('的雷达歌单')
         ? '${nickname}的雷达歌单'
@@ -563,28 +507,6 @@ class _RadarHomeSection extends ConsumerWidget {
         ),
         _HomeCardCarousel(cards: cards),
       ],
-    );
-  }
-
-  rust_online.UiOnlineHomeItem _renamed(
-    rust_online.UiOnlineHomeItem item,
-    String title,
-  ) {
-    return rust_online.UiOnlineHomeItem(
-      kind: item.kind,
-      id: item.id,
-      title: title,
-      subtitle: item.subtitle,
-      coverUrl: item.coverUrl,
-      section: item.section,
-      artists: item.artists,
-      album: item.album,
-      albumId: item.albumId,
-      durationSeconds: item.durationSeconds,
-      playCount: item.playCount,
-      trackCount: item.trackCount,
-      action: item.action,
-      source: item.source,
     );
   }
 }
